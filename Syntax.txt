@@ -1,0 +1,7 @@
+//variable declaration
+var x : 10;
+
+//function declaration
+fn test(x,y) {
+    ret;
+}
