@@ -1,1 +1,3 @@
-fn test() {print}
+fn test() { 
+    print;
+}

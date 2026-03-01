@@ -9,33 +9,40 @@ import com.mira.vocabulary.Vocabulary;
 
 public class Tokenizer {
 
+    private int columnOffset = 0;
+
     public List<Token> tokenize(String readFile) {
+        if (readFile.length() > 1 && readFile.charAt(readFile.length() - 1) != '\n') {
+            readFile += "\n";
+        }
+
         List<Token> tokens = new ArrayList<>();
         int line = 0;
 
         String lexed = "";
-        for (int column = 0; column < readFile.length(); column++) {
-            if (readFile.charAt(column) == '\n') {
+        for (int k = 0; k < readFile.length(); k++) {
+            if (readFile.charAt(k) == '\n') {
                 if (!lexed.isEmpty()) {
-                    tokens = matchToken(tokens, lexed, line, column);
+                    tokens = matchToken(tokens, lexed, line, k);
                 }
                 lexed = "";
                 line++;
+                columnOffset = k;
                 continue;
             }
 
             int tokenCount = tokens.size();
-            tokens = matchToken(tokens, lexed, line, column);
+            tokens = matchToken(tokens, lexed, line, k);
             if (tokenCount == tokens.size()) {
-                lexed += readFile.charAt(column);
+                lexed += readFile.charAt(k);
             } else {
                 lexed = "";
-                lexed += readFile.charAt(column);
+                lexed += readFile.charAt(k);
             }
         }
 
         if (!lexed.isEmpty()) {
-            tokens = matchToken(tokens, lexed, line, line);
+            tokens = matchToken(tokens, lexed, line, columnOffset - lexed.length());
         }
 
         for (int k = tokens.size() - 1; k >= 0; k--) {
@@ -52,21 +59,26 @@ public class Tokenizer {
             return tokens;
         }
 
+        column = column - columnOffset;
+
         if (Vocabulary.stringIsKeyword(lexed)) {
             tokens.add(new Token(TokenType.KEYWORD, lexed, line, column - lexed.length()));
+
         } else if (Vocabulary.stringIsDelimiter(String.valueOf(lexed.charAt(0)))) {
             lexed = lexed.replaceAll(" ", "");
             tokens.add(new Token(TokenType.DELIMITER, lexed.substring(0, 1), line, column - lexed.length()));
             String expression = lexed.substring(1);
             TokenType exprType = Vocabulary.stringIsKeyword(expression) ? TokenType.KEYWORD : TokenType.EXPRESSION;
-            tokens.add(new Token(exprType, expression, line, column));
+            tokens.add(new Token(exprType, expression, line, column - lexed.length()));
+
         } else if (Vocabulary.stringIsDelimiter(String.valueOf(lexed.charAt(lexed.length() - 1)))) {
             lexed = lexed.replaceAll(" ", "");
             String expression = lexed.substring(0, lexed.length() - 1);
             TokenType exprType = Vocabulary.stringIsKeyword(expression) ? TokenType.KEYWORD : TokenType.EXPRESSION;
-            tokens.add(new Token(exprType, expression, line, column));
+            tokens.add(new Token(exprType, expression, line, column - lexed.length()));
             tokens.add(new Token(TokenType.DELIMITER, lexed.substring(lexed.length() - 1), line, column - lexed.length()));
         }
+
         return tokens;
     }
 }
