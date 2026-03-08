@@ -180,7 +180,7 @@ public class Parser {
         switch (peek().getLexeme()) {
             case ":" -> {
                 consume();
-                Expression expr = parseDumbExpression();
+                Expression expr = parseExpression();
                 return new VarDecl(indentifier, expr);
             }
             case ";" -> {

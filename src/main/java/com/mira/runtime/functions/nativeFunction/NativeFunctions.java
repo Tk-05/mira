@@ -16,6 +16,10 @@ public class NativeFunctions {
                 new NativeFunction(1, args -> {
                     return Evaluator.evaluate(String.valueOf(args.get(0)));
                 }));
+        environment.define("pow",
+                new NativeFunction(2, args -> {
+                    return Math.pow(Evaluator.evaluate(String.valueOf(args.get(0))), Evaluator.evaluate(String.valueOf(args.get(1))));
+                }));
         return environment;
     }
 }

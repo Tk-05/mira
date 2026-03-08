@@ -134,9 +134,9 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Void> {
 
                 operator = unary.getOperation().getLexeme();
 
-                if (unary.getRight() != null && i + 1 < expressions.size()) {
-                    right = expressions.get(i + 1).accept(this);
-                    i += 2;
+                if (unary.getRight() != null) {
+                    right = unary.accept(this);
+                    i += 1;
                 } else {
                     i += 1;
                     result += operator;
@@ -152,24 +152,18 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Void> {
                 }
             }
 
-            if (right instanceof ComplexExpression) {
-                right = "(" + right + ")";
-            }
-
             switch (operator) {
 
                 case "+" ->
                     result = String.valueOf(result) + "+" + String.valueOf(right);
-
                 case "-" ->
                     result = String.valueOf(result) + "-" + String.valueOf(right);
-
                 case "*" ->
                     result = String.valueOf(result) + "*" + String.valueOf(right);
-
                 case "/" ->
                     result = String.valueOf(result) + "/" + String.valueOf(right);
-
+                case "$" ->
+                    result = String.valueOf(result) + String.valueOf(right);
                 default ->
                     throw new RuntimeException("Unknown operator: " + operator);
             }
