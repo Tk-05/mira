@@ -7,6 +7,10 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import com.mira.lexer.Tokenizer;
+import com.mira.parser.Parser;
+import com.mira.runtime.functions.ReturnSignal;
+
 public class InterpreterTest {
 
     Interpreter interpreter;
@@ -99,6 +103,36 @@ public class InterpreterTest {
 
         result = Evaluator.evaluate("(1+(2+(3+4)))");
         assertEquals(10.0, result);
+    }
+
+    @Test
+    void testEntangledVarDecl() {
+        String source = """
+                var x : 24;
+                var y : 18;
+                var z : eval($x + $y);
+                ret($z);
+                """;
+
+        Tokenizer tokenizer = new Tokenizer();
+        Parser parser = new Parser();
+        try {
+            interpreter.run((parser.parseTokens(tokenizer.tokenize(source))));
+        } catch (ReturnSignal returnSignal) {
+            assertEquals(42.0, returnSignal.getValue());
+        }
+    }
+
+    @Test
+    void testGlobalExit() {
+        String source = "ret(eval(0));";
+        Tokenizer tokenizer = new Tokenizer();
+        Parser parser = new Parser();
+        try {
+            interpreter.run((parser.parseTokens(tokenizer.tokenize(source))));
+        } catch (ReturnSignal returnSignal) {
+            assertEquals(0.0, returnSignal.getValue());
+        }
     }
 
     @Test

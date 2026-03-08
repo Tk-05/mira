@@ -8,6 +8,7 @@ import com.mira.lexer.token.Token;
 import com.mira.parser.Parser;
 import com.mira.parser.nodes.Node;
 import com.mira.runtime.Interpreter;
+import com.mira.runtime.functions.ReturnSignal;
 import com.mira.utils.FileLoader;
 
 public class Main {
@@ -53,6 +54,11 @@ public class Main {
             System.exit(1);
         }
         Interpreter interpreter = new Interpreter();
-        interpreter.run(asts);
+        
+        try {
+            interpreter.run(asts);
+        } catch (ReturnSignal returnSignal) {
+            System.out.println("Program exited with value: " + returnSignal.getValue());
+        }
     }
 }
