@@ -1,5 +1,7 @@
 package com.mira.runtime;
 
+import java.util.NoSuchElementException;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import org.junit.jupiter.api.BeforeEach;
@@ -34,9 +36,6 @@ public class InterpreterTest {
         double result = Evaluator.evaluate("-5");
         assertEquals(-5.0, result);
 
-        result = Evaluator.evaluate("+7");
-        assertEquals(7.0, result);
-
         result = Evaluator.evaluate("-1+2");
         assertEquals(1.0, result);
 
@@ -58,7 +57,6 @@ public class InterpreterTest {
 
     @Test
     void testVariableUsage() {
-        // Set variables in global environment
         Interpreter.getGlobalEnvironment().define("x", 10);
         Interpreter.getGlobalEnvironment().define("y", 5);
         Interpreter.getGlobalEnvironment().define("$val", 3);
@@ -79,7 +77,6 @@ public class InterpreterTest {
         Interpreter.getGlobalEnvironment().define("$b", 3);
 
         double result = Evaluator.evaluate("(-$a + ($b*2)) / 2");
-        // (-5 + (3*2))/2 = (-5+6)/2 = 1/2 = 0.5
         assertEquals(0.5, result);
     }
 
@@ -106,7 +103,7 @@ public class InterpreterTest {
 
     @Test
     void testErrors() {
-        assertThrows(RuntimeException.class, () -> Evaluator.evaluate("1++2"));
+        assertThrows(NoSuchElementException.class, () -> Evaluator.evaluate("1++2"));
         assertThrows(RuntimeException.class, () -> Evaluator.evaluate("((1+2)"));
         assertThrows(RuntimeException.class, () -> Evaluator.evaluate("unknownVar+1"));
     }

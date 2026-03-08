@@ -34,9 +34,25 @@ public class Evaluator {
 
             if (Character.isDigit(c)) {
                 int j = i;
-                while (j < expr.length() && Character.isDigit(expr.charAt(j))) {
-                    j++;
+                boolean dotSeen = false;
+
+                while (j < expr.length()) {
+                    char ch = expr.charAt(j);
+
+                    if (Character.isDigit(ch)) {
+                        j++;
+                        continue;
+                    }
+
+                    if (ch == '.' && !dotSeen) {
+                        dotSeen = true;
+                        j++;
+                        continue;
+                    }
+
+                    break;
                 }
+
                 tokens.add(expr.substring(i, j));
                 i = j;
                 continue;
@@ -74,7 +90,6 @@ public class Evaluator {
                 "-", 1,
                 "*", 2,
                 "/", 2,
-                "u+", 3,
                 "u-", 3
         );
 
@@ -91,7 +106,7 @@ public class Evaluator {
             if ("+-*/".contains(token)) {
                 String op = token;
 
-                if ((token.equals("+") || token.equals("-")) && unaryContext) {
+                if (token.equals("-") && unaryContext) {
                     op = "u" + token;
                 }
 
@@ -119,7 +134,7 @@ public class Evaluator {
                 if (operators.isEmpty()) {
                     throw new MismatchedParenthesesError();
                 }
-                operators.pop(); // pop "("
+                operators.pop();
                 unaryContext = false;
             }
         }
@@ -161,10 +176,6 @@ public class Evaluator {
                 continue;
             }
 
-            if (token.equals("u+")) {
-                continue;
-            }
-
             double b = stack.pop();
             double a = stack.pop();
 
@@ -188,7 +199,7 @@ public class Evaluator {
     }
 
     private static boolean isNumber(String s) {
-        return s.matches("\\d+");
+        return s.matches("\\d+(\\.\\d+)?");
     }
 
     private static boolean isVariable(String s) {

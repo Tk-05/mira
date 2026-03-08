@@ -1,0 +1,24 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "java",
+            "name": "(Debug) Run",
+            "request": "launch",
+            "mainClass": "com.mira.Main",
+            "projectName": "mira",
+            "args": [
+                    "demo/Debug.mira",
+                    "-c",
+                    "-t"
+                ]
+        },
+        {
+            "type": "java",
+            "name": "Run",
+            "request": "launch",
+            "mainClass": "com.mira.Main",
+            "projectName": "mira"
+        }
+    ]
+}
