@@ -1,3 +1,1 @@
-fn test() { 
-    print;
-}
+print(eval("1++2"));
