@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.mira.error.runtime.RuntimeError.ArgMismatchError;
+import com.mira.error.runtime.RuntimeError.UnknownOperatorError;
 import com.mira.parser.nodes.Node;
 import com.mira.parser.nodes.expression.Expression;
 import com.mira.parser.nodes.expression.Expression.CallExpression;
@@ -165,7 +166,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Void> {
                 case "$" ->
                     result = String.valueOf(result) + String.valueOf(right);
                 default ->
-                    throw new RuntimeException("Unknown operator: " + operator);
+                    throw new UnknownOperatorError("Unknown operator: " + operator);
             }
         }
 
@@ -213,7 +214,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Void> {
                 }
             }
             default ->
-                throw new RuntimeException("Unknown unary operator: " + operator);
+                throw new UnknownOperatorError("Unknown unary operator: " + operator);
         }
     }
 }
