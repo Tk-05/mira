@@ -1,15 +1,12 @@
 package com.mira.parser.nodes.statement;
 
-import java.util.List;
-
 import com.mira.parser.nodes.Node;
 import com.mira.parser.nodes.expression.Expression;
-import com.mira.parser.nodes.expression.Expression.DumbExpression;
 import com.mira.runtime.visitors.StmtVisitor;
 
 public abstract class Statement implements Node {
 
-    public abstract void accept(StmtVisitor<Void> visitor);
+    public abstract <T> T accept(StmtVisitor<T> visitor);
 
     public static class VarDecl extends Statement {
 
@@ -30,18 +27,19 @@ public abstract class Statement implements Node {
         }
 
         @Override
-        public void accept(StmtVisitor<Void> visitor) {
-            visitor.visitVarDecl(this);
+        public <T> T accept(StmtVisitor<T> visitor) {
+            return visitor.visitVarDecl(this);
         }
     }
 
     public static class FuncDecl extends Statement {
 
         private final String name;
-        private final List<DumbExpression> parameters;
-        private final List<Node> body;
+        private final java.util.List<Expression.DumbExpression> parameters;
+        private final java.util.List<Node> body;
 
-        public FuncDecl(String name, List<DumbExpression> parameters, List<Node> body) {
+        public FuncDecl(String name, java.util.List<Expression.DumbExpression> parameters,
+                java.util.List<Node> body) {
             this.name = name;
             this.parameters = parameters;
             this.body = body;
@@ -51,11 +49,11 @@ public abstract class Statement implements Node {
             return name;
         }
 
-        public List<DumbExpression> getParameters() {
+        public java.util.List<Expression.DumbExpression> getParameters() {
             return parameters;
         }
 
-        public List<Node> getBody() {
+        public java.util.List<Node> getBody() {
             return body;
         }
 
@@ -64,8 +62,8 @@ public abstract class Statement implements Node {
         }
 
         @Override
-        public void accept(StmtVisitor<Void> visitor) {
-            visitor.visitFuncDecl(this);
+        public <T> T accept(StmtVisitor<T> visitor) {
+            return visitor.visitFuncDecl(this);
         }
     }
 
@@ -82,8 +80,8 @@ public abstract class Statement implements Node {
         }
 
         @Override
-        public void accept(StmtVisitor<Void> visitor) {
-            visitor.visitReturn(this);
+        public <T> T accept(StmtVisitor<T> visitor) {
+            return visitor.visitReturn(this);
         }
     }
 
@@ -106,8 +104,8 @@ public abstract class Statement implements Node {
         }
 
         @Override
-        public void accept(StmtVisitor<Void> visitor) {
-            visitor.visitAssign(this);
+        public <T> T accept(StmtVisitor<T> visitor) {
+            return visitor.visitAssign(this);
         }
     }
 }

@@ -79,10 +79,15 @@ public class Tokenizer {
 
         while (!isAtEnd() && peek() != '"') {
 
+            if (peek() == '\\') {
+                source = source.substring(0, current) + source.substring(current + 1);
+                advance();
+            }
+            
             if (peek() == '\n') {
                 line++;
                 column = 0;
-            }
+            } 
 
             advance();
         }

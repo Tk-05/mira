@@ -22,20 +22,30 @@ import com.mira.runtime.functions.nativeFunction.NativeFunctions;
 import com.mira.runtime.visitors.ExprVisitor;
 import com.mira.runtime.visitors.StmtVisitor;
 
-public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Void> {
+public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
+    private static Interpreter instance;
     private static final Environment globalEnvironment = new Environment();
     private Environment localEnvironment;
+
+    public static Interpreter getInstance() {
+        if (instance == null) {
+            instance = new Interpreter();
+        }
+        return instance;
+    }
 
     private void setup() {
         NativeFunctions.defineNativeFunctions(globalEnvironment);
     }
 
-    public void run(List<Node> asts) {
+    public <T> T run(List<Node> asts) {
         setup();
 
+        Object lastResult = null;
+
         for (Node ast : asts) {
-            switch (ast) {
+            lastResult = switch (ast) {
                 case Expression expression ->
                     expression.accept(this);
                 case Statement statement ->
@@ -43,8 +53,10 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Void> {
                 default -> {
                     throw new AssertionError();
                 }
-            }
+            };
         }
+
+        return (T) lastResult;
     }
 
     @Override
@@ -93,12 +105,14 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Void> {
     }
 
     @Override
-    public void visitFuncDecl(FuncDecl funcDecl) {
+    public Void visitFuncDecl(FuncDecl funcDecl) {
         globalEnvironment.define(funcDecl.getName(),
                 new Function(localEnvironment,
                         funcDecl.getBody(),
                         funcDecl.getParameters(),
                         funcDecl.getArity()));
+        
+        return null;
     }
 
     @Override
@@ -185,6 +199,10 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Void> {
         return globalEnvironment;
     }
 
+    public static void setGlobalEnvironment() {
+
+    }
+
     @Override
     public <T> T visitUnaryExpr(Expression.UnaryExpression expression) {
         String operator = expression.getOperation().getLexeme();
@@ -219,7 +237,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Void> {
     }
 
     @Override
-    public void visitAssign(Assign assign) {
+    public Void visitAssign(Assign assign) {
         String name = assign.getName();
         Object expression = assign.getExpression().accept(this);
 
@@ -228,5 +246,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Void> {
         } else {
             localEnvironment.assign(name, expression);
         }
+
+        return null;
     }
 }

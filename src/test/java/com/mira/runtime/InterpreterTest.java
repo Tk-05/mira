@@ -175,4 +175,68 @@ public class InterpreterTest {
             assertEquals(null, returnSignal.getValue());
         }
     }
+
+    @Test
+    void testWrappedReturnWithEval() {
+        String source = """
+                var x : "ret(eval(0));";
+                eval($x);
+                """;
+        Tokenizer tokenizer = new Tokenizer();
+        Parser parser = new Parser();
+        try {
+            interpreter.run((parser.parseTokens(tokenizer.tokenize(source))));
+        } catch (ReturnSignal returnSignal) {
+            assertEquals(0.0, returnSignal.getValue());
+        }
+    }
+
+    @Test
+    void testWrappedReturnWithComplexEval() {
+        String source = """
+                var x : "ret(eval(2+2));";
+                eval($x);
+                """;
+        Tokenizer tokenizer = new Tokenizer();
+        Parser parser = new Parser();
+        try {
+            interpreter.run((parser.parseTokens(tokenizer.tokenize(source))));
+        } catch (ReturnSignal returnSignal) {
+            assertEquals(4.0, returnSignal.getValue());
+        }
+    }
+
+    @Test
+    void testWrappedReturnWithRef() {
+        String source = """
+                var x : 7;
+                var y : "ret(eval($x * 3));";
+                eval($y);
+                """;
+        Tokenizer tokenizer = new Tokenizer();
+        Parser parser = new Parser();
+        try {
+            interpreter.run((parser.parseTokens(tokenizer.tokenize(source))));
+        } catch (ReturnSignal returnSignal) {
+            assertEquals(21.0, returnSignal.getValue());
+        }
+    }
+
+    @Test
+    void testWrappedReturnFunction() {
+        String source = """
+                fn greet(name) {
+                    ret("Hello " $name);
+                }
+                var print : "ret(greet(\"World\"));";
+                eval($print);
+                """;
+        Tokenizer tokenizer = new Tokenizer();
+        Parser parser = new Parser();
+        try {
+            interpreter.run((parser.parseTokens(tokenizer.tokenize(source))));
+        } catch (ReturnSignal returnSignal) {
+            assertEquals("Hello World", returnSignal.getValue());
+        }
+    }
 }

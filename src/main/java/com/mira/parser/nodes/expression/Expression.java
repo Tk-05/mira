@@ -6,68 +6,25 @@ import com.mira.lexer.token.Token;
 import com.mira.parser.nodes.Node;
 import com.mira.runtime.visitors.ExprVisitor;
 
-public abstract class Expression implements Node {
+public abstract class Expression implements Node{
 
     public abstract <T> T accept(ExprVisitor<T> visitor);
 
-    public static class ComplexExpression extends Expression {
-
-        private final List<Expression> expressions;
-
-        public ComplexExpression(List<Expression> expressions) {
-            this.expressions = expressions;
-        }
-
-        @Override
-        public <T> T accept(ExprVisitor<T> visitor) {
-            return visitor.visitComplexExpr(this);
-        }
-
-        public List<Expression> getExpressions() {
-            return expressions;
-        }
-    }
-
     public static class DumbExpression extends Expression {
 
-        private final Token value;
+        private final Token token;
 
-        public DumbExpression(Token value) {
-            this.value = value;
+        public DumbExpression(Token token) {
+            this.token = token;
         }
 
         public String getValue() {
-            return value.getLexeme();
+            return token.getLexeme();
         }
 
         @Override
         public <T> T accept(ExprVisitor<T> visitor) {
             return visitor.visitValueExpr(this);
-        }
-    }
-
-    public static class CallExpression extends Expression {
-
-        private final Expression callee;
-        private final List<Expression> arguments;
-
-        public CallExpression(Expression callee,
-                List<Expression> arguments) {
-            this.callee = callee;
-            this.arguments = arguments;
-        }
-
-        public Expression getCallee() {
-            return callee;
-        }
-
-        public List<Expression> getArguments() {
-            return arguments;
-        }
-
-        @Override
-        public <T> T accept(ExprVisitor<T> visitor) {
-            return visitor.visitCallExpr(this);
         }
     }
 
@@ -92,6 +49,48 @@ public abstract class Expression implements Node {
         @Override
         public <T> T accept(ExprVisitor<T> visitor) {
             return visitor.visitUnaryExpr(this);
+        }
+    }
+
+    public static class ComplexExpression extends Expression {
+
+        private final List<Expression> expressions;
+
+        public ComplexExpression(List<Expression> expressions) {
+            this.expressions = expressions;
+        }
+
+        public List<Expression> getExpressions() {
+            return expressions;
+        }
+
+        @Override
+        public <T> T accept(ExprVisitor<T> visitor) {
+            return visitor.visitComplexExpr(this);
+        }
+    }
+
+    public static class CallExpression extends Expression {
+
+        private final Expression callee;
+        private final List<Expression> arguments;
+
+        public CallExpression(Expression callee, List<Expression> arguments) {
+            this.callee = callee;
+            this.arguments = arguments;
+        }
+
+        public Expression getCallee() {
+            return callee;
+        }
+
+        public List<Expression> getArguments() {
+            return arguments;
+        }
+
+        @Override
+        public <T> T accept(ExprVisitor<T> visitor) {
+            return visitor.visitCallExpr(this);
         }
     }
 }

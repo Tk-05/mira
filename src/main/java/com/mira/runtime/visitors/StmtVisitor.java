@@ -8,7 +8,10 @@ import com.mira.parser.nodes.statement.Statement.VarDecl;
 public interface StmtVisitor<T> {
 
     public T visitVarDecl(VarDecl varDecl);
-    public void visitFuncDecl(FuncDecl funcDecl);
+
+    public T visitFuncDecl(FuncDecl funcDecl);
+
     public T visitReturn(Return ret);
-    public void visitAssign(Assign assign);
+
+    public T visitAssign(Assign assign);
 }

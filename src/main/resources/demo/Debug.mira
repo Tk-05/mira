@@ -1,5 +1,5 @@
-var x : 24;
-var y : 18;
-var z;
-$z : $x + $y;
-ret($z);
+fn greet(name) {
+    ret("Hello " $name);
+}
+var print : "ret(greet(\"World\"));";
+eval($print);
