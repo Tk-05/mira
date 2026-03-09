@@ -86,4 +86,28 @@ public abstract class Statement implements Node {
             visitor.visitReturn(this);
         }
     }
+
+    public static class Assign extends Statement {
+
+        private final String name;
+        private final Expression expression;
+
+        public Assign(String name, Expression expression) {
+            this.name = name;
+            this.expression = expression;
+        }
+
+        public String getName() {
+            return name;
+        }
+
+        public Expression getExpression() {
+            return expression;
+        }
+
+        @Override
+        public void accept(StmtVisitor<Void> visitor) {
+            visitor.visitAssign(this);
+        }
+    }
 }

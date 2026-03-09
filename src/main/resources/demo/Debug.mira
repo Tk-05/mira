@@ -1,4 +1,5 @@
 var x : 24;
 var y : 18;
-var z : eval($x + $y);
-print($z);
+var z;
+$z : $x + $y;
+ret($z);

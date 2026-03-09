@@ -141,4 +141,38 @@ public class InterpreterTest {
         assertThrows(RuntimeException.class, () -> Evaluator.evaluate("((1+2)"));
         assertThrows(RuntimeException.class, () -> Evaluator.evaluate("unknownVar+1"));
     }
+
+    @Test
+    void testAssign() {
+        String source = """
+                var x : 24;
+                var y : 18;
+                var z;
+                $z : $x + $y;
+                ret(eval($z));
+                """;
+
+        Tokenizer tokenizer = new Tokenizer();
+        Parser parser = new Parser();
+        try {
+            interpreter.run((parser.parseTokens(tokenizer.tokenize(source))));
+        } catch (ReturnSignal returnSignal) {
+            assertEquals(42.0, returnSignal.getValue());
+        }
+    }
+
+    @Test
+    void testEmptyVarDecl() {
+        String source = """
+                var x;
+                ret($x);
+                """;
+        Tokenizer tokenizer = new Tokenizer();
+        Parser parser = new Parser();
+        try {
+            interpreter.run((parser.parseTokens(tokenizer.tokenize(source))));
+        } catch (ReturnSignal returnSignal) {
+            assertEquals(null, returnSignal.getValue());
+        }
+    }
 }

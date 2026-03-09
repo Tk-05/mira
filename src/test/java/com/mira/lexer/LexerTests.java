@@ -23,6 +23,15 @@ public class LexerTests {
     }
 
     @Test
+    void emptyVariableDeclaration() {
+        String varDeclaration = "var x;";
+        List<Token> tokens = tokenizer.tokenize(varDeclaration);
+        assertEquals(tokens.get(0).getLexeme(), "var");
+        assertEquals(tokens.get(1).getLexeme(), "x");
+        assertEquals(tokens.get(2).getLexeme(), ";");
+    }
+
+    @Test
     void functionDeclaration() {
         String functionDeclaration = "fn test() {print}";
         List<Token> tokens = tokenizer.tokenize(functionDeclaration);

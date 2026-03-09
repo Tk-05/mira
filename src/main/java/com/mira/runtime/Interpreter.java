@@ -12,6 +12,7 @@ import com.mira.parser.nodes.expression.Expression.ComplexExpression;
 import com.mira.parser.nodes.expression.Expression.DumbExpression;
 import com.mira.parser.nodes.expression.Expression.UnaryExpression;
 import com.mira.parser.nodes.statement.Statement;
+import com.mira.parser.nodes.statement.Statement.Assign;
 import com.mira.parser.nodes.statement.Statement.FuncDecl;
 import com.mira.parser.nodes.statement.Statement.Return;
 import com.mira.parser.nodes.statement.Statement.VarDecl;
@@ -128,7 +129,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Void> {
 
             Expression operatorExpr = expressions.get(i);
 
-            Object right = null;
+            Object right;
             String operator = null;
 
             if (operatorExpr instanceof UnaryExpression unary) {
@@ -154,7 +155,6 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Void> {
             }
 
             switch (operator) {
-
                 case "+" ->
                     result = String.valueOf(result) + "+" + String.valueOf(right);
                 case "-" ->
@@ -215,6 +215,18 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Void> {
             }
             default ->
                 throw new UnknownOperatorError("Unknown unary operator: " + operator);
+        }
+    }
+
+    @Override
+    public void visitAssign(Assign assign) {
+        String name = assign.getName();
+        Object expression = assign.getExpression().accept(this);
+
+        if (localEnvironment == null) {
+            globalEnvironment.assign(name, expression);
+        } else {
+            localEnvironment.assign(name, expression);
         }
     }
 }

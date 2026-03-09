@@ -14,6 +14,7 @@ import com.mira.parser.nodes.expression.Expression.CallExpression;
 import com.mira.parser.nodes.expression.Expression.ComplexExpression;
 import com.mira.parser.nodes.expression.Expression.DumbExpression;
 import com.mira.parser.nodes.expression.Expression.UnaryExpression;
+import com.mira.parser.nodes.statement.Statement.Assign;
 import com.mira.parser.nodes.statement.Statement.FuncDecl;
 import com.mira.parser.nodes.statement.Statement.Return;
 import com.mira.parser.nodes.statement.Statement.VarDecl;
@@ -94,6 +95,15 @@ public class Parser {
                 node = parseFuncDecl();
             case "ret" -> {
                 node = parseReturn();
+                matchLexeme(";");
+            }
+            case "$" -> {
+                if (peekNextSafe().getTokenType() == TokenType.EXPRESSION
+                        && tokens.get(index + 2).getLexeme().equals(":")) {
+                    node = parseAssign();
+                } else {
+                    node = parseExpression();
+                }
                 matchLexeme(";");
             }
             default -> {
@@ -232,5 +242,13 @@ public class Parser {
         Expression value = parseExpression();
         matchLexeme(")");
         return new Return(value);
+    }
+
+    private Node parseAssign() {
+        matchLexeme("$");
+        String name = matchType(TokenType.EXPRESSION).getLexeme();
+        matchLexeme(":");
+        Expression expression = parseExpression();
+        return new Assign(name, expression);
     }
 }

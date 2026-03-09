@@ -1,1 +1,9 @@
-Doubles und Exceptions im Interpreter
+TODO:
+    -Cmd interface
+    -if/while/for/foreach statements
+    -Assign
+    -Logical comparisons
+    -lists/arrays
+    -native functions -> files etc.
+        -Override native functions
+    -Program arguments
