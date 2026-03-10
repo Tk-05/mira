@@ -1,3 +1,10 @@
+var x : 1;
+var y : x;
+var z : y;
+
+print($$$z);
+
+
 fn greet(name) {
     ret("Hello " $name);
 }

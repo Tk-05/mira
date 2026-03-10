@@ -150,7 +150,12 @@ public class Parser {
 
     private Expression parseUnaryExpression() {
         Token operation = matchType(TokenType.OPERATION);
-        Expression rhs = parseDumbExpression();
+        Expression rhs;
+        if (peek().getTokenType() != TokenType.OPERATION) {
+            rhs = parseDumbExpression();
+        } else {
+            rhs = parseExpression();
+        }
         return new UnaryExpression(operation, rhs);
     }
 

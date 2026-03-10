@@ -239,4 +239,22 @@ public class InterpreterTest {
             assertEquals("Hello World", returnSignal.getValue());
         }
     }
+
+    @Test
+    void testWrappedReference() {
+        String source = """
+                var x : 1;
+                var y : x;
+                var z : y;
+
+                print($$$z);
+                """;
+        Tokenizer tokenizer = new Tokenizer();
+        Parser parser = new Parser();
+        try {
+            interpreter.run((parser.parseTokens(tokenizer.tokenize(source))));
+        } catch (ReturnSignal returnSignal) {
+            assertEquals("1", returnSignal.getValue());
+        }
+    }
 }

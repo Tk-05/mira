@@ -6,7 +6,7 @@ import com.mira.lexer.token.Token;
 import com.mira.parser.nodes.Node;
 import com.mira.runtime.visitors.ExprVisitor;
 
-public abstract class Expression implements Node{
+public abstract class Expression implements Node {
 
     public abstract <T> T accept(ExprVisitor<T> visitor);
 
