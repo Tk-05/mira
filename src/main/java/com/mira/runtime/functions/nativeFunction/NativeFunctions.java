@@ -6,8 +6,8 @@ import com.mira.lexer.Tokenizer;
 import com.mira.parser.Parser;
 import com.mira.parser.nodes.Node;
 import com.mira.runtime.Environment;
+import com.mira.runtime.Evaluator;
 import com.mira.runtime.Interpreter;
-import com.mira.runtime.eveluator.Evaluator;
 
 public class NativeFunctions {
 

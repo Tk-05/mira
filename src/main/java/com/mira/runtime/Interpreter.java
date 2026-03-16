@@ -17,7 +17,6 @@ import com.mira.parser.nodes.statement.Statement.FuncDecl;
 import com.mira.parser.nodes.statement.Statement.If;
 import com.mira.parser.nodes.statement.Statement.Return;
 import com.mira.parser.nodes.statement.Statement.VarDecl;
-import com.mira.runtime.eveluator.Evaluator;
 import com.mira.runtime.functions.Function;
 import com.mira.runtime.functions.ReturnSignal;
 import com.mira.runtime.functions.nativeFunction.NativeFunctions;

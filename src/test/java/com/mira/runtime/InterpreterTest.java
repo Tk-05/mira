@@ -10,7 +10,6 @@ import org.junit.jupiter.api.Test;
 import com.mira.error.parser.ParserError.UnexpectedToken;
 import com.mira.lexer.Tokenizer;
 import com.mira.parser.Parser;
-import com.mira.runtime.eveluator.Evaluator;
 import com.mira.runtime.functions.ReturnSignal;
 
 public class InterpreterTest {
