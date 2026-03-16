@@ -14,8 +14,10 @@ import com.mira.parser.nodes.expression.Expression.UnaryExpression;
 import com.mira.parser.nodes.statement.Statement;
 import com.mira.parser.nodes.statement.Statement.Assign;
 import com.mira.parser.nodes.statement.Statement.FuncDecl;
+import com.mira.parser.nodes.statement.Statement.If;
 import com.mira.parser.nodes.statement.Statement.Return;
 import com.mira.parser.nodes.statement.Statement.VarDecl;
+import com.mira.runtime.eveluator.Evaluator;
 import com.mira.runtime.functions.Function;
 import com.mira.runtime.functions.ReturnSignal;
 import com.mira.runtime.functions.nativeFunction.NativeFunctions;
@@ -111,7 +113,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                         funcDecl.getBody(),
                         funcDecl.getParameters(),
                         funcDecl.getArity()));
-        
+
         return null;
     }
 
@@ -245,6 +247,40 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             globalEnvironment.assign(name, expression);
         } else {
             localEnvironment.assign(name, expression);
+        }
+
+        return null;
+    }
+
+    @Override
+    public Object visitIf(If stmt) {
+        String condition = (String) stmt.getCondition().accept(this);
+
+        if ((boolean) Evaluator.evaluate(condition)) {
+            for (Node node : stmt.getThenBody()) {
+                switch (node) {
+                    case Expression expression ->
+                        expression.accept(this);
+                    case Statement statement ->
+                        statement.accept(this);
+                    default -> {
+                        throw new AssertionError();
+                    }
+                }
+            }
+
+        } else {
+            for (Node node : stmt.getElseBody()) {
+                switch (node) {
+                    case Expression expression ->
+                        expression.accept(this);
+                    case Statement statement ->
+                        statement.accept(this);
+                    default -> {
+                        throw new AssertionError();
+                    }
+                }
+            }
         }
 
         return null;

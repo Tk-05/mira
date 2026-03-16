@@ -1,12 +1,11 @@
-var x : 1;
-var y : x;
-var z : y;
-
-print($$$z);
-
-
-fn greet(name) {
-    ret("Hello " $name);
+fn fibonacci(n){
+    if($n<=1){
+        ret($n);
+    }else{
+        ret(fibonacci(eval($n-2)) + fibonacci(eval($n-1)));
+    }
+    ret(0);
 }
-var print : "ret(greet(\"World\"));";
-eval($print);
+
+print(eval(fibonacci(20)));
+ret(0);

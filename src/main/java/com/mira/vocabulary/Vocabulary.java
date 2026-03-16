@@ -4,24 +4,23 @@ import java.util.Set;
 
 public class Vocabulary {
 
+    public static final int MAX_OPERATOR_LENGTH = 3;
+
     private static final Set<String> keywords = Set.of(
             "var",
             "ret",
-            "fn"
-    );
-
-    public static final Set<String> reservedFunctionNames = Set.of(
-            "print",
-            "eval"
+            "fn",
+            "if",
+            "else"
     );
 
     public static final Set<String> operations = Set.of(
-            "+",
-            "-",
-            "/",
-            "*",
-            ":",
-            "$"
+            "+", "-", "*", "/", "%",
+            "=", "==", "!=", "<", ">", "<=", ">=",
+            "+=", "-=", "*=", "/=",
+            "&&", "||",
+            "<<", ">>", ">>=",
+            "$", ":", "!"
     );
 
     public static final Set<String> delimiters = Set.of(

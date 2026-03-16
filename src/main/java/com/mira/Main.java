@@ -14,6 +14,7 @@ import com.mira.utils.FileLoader;
 public class Main {
 
     public static void main(String[] args) {
+        long start = System.currentTimeMillis();
         Flags.inputPath = args[0];
         
         for (int i = 1; i < args.length; i++) {
@@ -58,7 +59,7 @@ public class Main {
         try {
             interpreter.run(asts);
         } catch (ReturnSignal returnSignal) {
-            System.out.println("Program exited with value: " + returnSignal.getValue());
+            System.out.println("Program exited with value: " + returnSignal.getValue() + " in " + (System.currentTimeMillis() - start) + " ms");
         }
     }
 }

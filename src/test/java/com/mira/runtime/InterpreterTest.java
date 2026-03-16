@@ -1,14 +1,16 @@
 package com.mira.runtime;
 
-import java.util.NoSuchElementException;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import com.mira.error.parser.ParserError.UnexpectedToken;
 import com.mira.lexer.Tokenizer;
 import com.mira.parser.Parser;
+import com.mira.runtime.eveluator.Evaluator;
 import com.mira.runtime.functions.ReturnSignal;
 
 public class InterpreterTest {
@@ -20,42 +22,36 @@ public class InterpreterTest {
         interpreter = new Interpreter();
     }
 
+    Object run(String source) {
+        Tokenizer tokenizer = new Tokenizer();
+        Parser parser = new Parser();
+        return interpreter.run(parser.parseTokens(tokenizer.tokenize(source)));
+    }
+
     @Test
     void testSimpleArithmetic() {
-        double result = Evaluator.evaluate("1+2");
-        assertEquals(3.0, result);
-
-        result = Evaluator.evaluate("5-3");
-        assertEquals(2.0, result);
-
-        result = Evaluator.evaluate("2*3");
-        assertEquals(6.0, result);
-
-        result = Evaluator.evaluate("8/2");
-        assertEquals(4.0, result);
+        assertEquals(3.0, run("eval(1+2);"));
+        assertEquals(2.0, run("eval(5-3);"));
+        assertEquals(6.0, run("eval(2*3);"));
+        assertEquals(4.0, run("eval(8/2);"));
     }
 
     @Test
     void testUnaryOperators() {
-        double result = Evaluator.evaluate("-5");
-        assertEquals(-5.0, result);
-
-        result = Evaluator.evaluate("-1+2");
-        assertEquals(1.0, result);
-
-        result = Evaluator.evaluate("-1*3");
-        assertEquals(-3.0, result);
+        assertEquals(-5.0, run("eval(-5);"));
+        assertEquals(1.0, run("eval(-1+2);"));
+        assertEquals(-3.0, run("eval(-1*3);"));
     }
 
     @Test
     void testParentheses() {
-        double result = Evaluator.evaluate("(1+2)*3");
+        double result = (double) Evaluator.evaluate("(1+2)*3");
         assertEquals(9.0, result);
 
-        result = Evaluator.evaluate("-(2+3)*4");
+        result = (double) Evaluator.evaluate("-(2+3)*4");
         assertEquals(-20.0, result);
 
-        result = Evaluator.evaluate("((1+2)+(3+4))*2");
+        result = (double) Evaluator.evaluate("((1+2)+(3+4))*2");
         assertEquals(20.0, result);
     }
 
@@ -63,45 +59,40 @@ public class InterpreterTest {
     void testVariableUsage() {
         Interpreter.getGlobalEnvironment().define("x", 10);
         Interpreter.getGlobalEnvironment().define("y", 5);
-        Interpreter.getGlobalEnvironment().define("$val", 3);
+        Interpreter.getGlobalEnvironment().define("val", 3);
 
-        double result = Evaluator.evaluate("x+y");
-        assertEquals(15.0, result);
-
-        result = Evaluator.evaluate("$val+2");
-        assertEquals(5.0, result);
-
-        result = Evaluator.evaluate("$val+ x * 2");
-        assertEquals(23.0, result);
+        assertEquals(15.0, run("eval($x + $y);"));
+        assertEquals(5.0, run("eval($val+2);"));
+        assertEquals(23.0, run("eval($val + $x * 2);"));
     }
 
     @Test
     void testComplexExpressionWithUnaryAndParentheses() {
-        Interpreter.getGlobalEnvironment().define("$a", 5);
-        Interpreter.getGlobalEnvironment().define("$b", 3);
-
-        double result = Evaluator.evaluate("(-$a + ($b*2)) / 2");
-        assertEquals(0.5, result);
+        assertEquals(0.5, run("""
+                var a : 5;
+                var b : 3;
+                eval((-$a + ($b*2)) / 2);
+                """));
     }
 
     @Test
     void testDecimalNumbers() {
-        double result = Evaluator.evaluate("1.5 + 2.3");
+        double result = (double) Evaluator.evaluate("1.5 + 2.3");
         assertEquals(3.8, result, 0.0001);
 
-        result = Evaluator.evaluate("10.0 / 4.0");
+        result = (double) Evaluator.evaluate("10.0 / 4.0");
         assertEquals(2.5, result, 0.0001);
 
-        result = Evaluator.evaluate("-0.5 * 8");
+        result = (double) Evaluator.evaluate("-0.5 * 8");
         assertEquals(-4.0, result, 0.0001);
     }
 
     @Test
     void testNestedParentheses() {
-        double result = Evaluator.evaluate("((1+2)+(3+4))*2");
+        double result = (double) Evaluator.evaluate("((1+2)+(3+4))*2");
         assertEquals(20.0, result);
 
-        result = Evaluator.evaluate("(1+(2+(3+4)))");
+        result = (double) Evaluator.evaluate("(1+(2+(3+4)))");
         assertEquals(10.0, result);
     }
 
@@ -137,9 +128,8 @@ public class InterpreterTest {
 
     @Test
     void testErrors() {
-        assertThrows(NoSuchElementException.class, () -> Evaluator.evaluate("1++2"));
-        assertThrows(RuntimeException.class, () -> Evaluator.evaluate("((1+2)"));
-        assertThrows(RuntimeException.class, () -> Evaluator.evaluate("unknownVar+1"));
+        assertThrows(UnexpectedToken.class, () -> run("eval(1++2);"));
+        assertThrows(RuntimeException.class, () -> run("eval(unknownVar+1);"));
     }
 
     @Test
@@ -180,7 +170,7 @@ public class InterpreterTest {
     void testWrappedReturnWithEval() {
         String source = """
                 var x : "ret(eval(0));";
-                eval($x);
+                exec($x);
                 """;
         Tokenizer tokenizer = new Tokenizer();
         Parser parser = new Parser();
@@ -195,7 +185,7 @@ public class InterpreterTest {
     void testWrappedReturnWithComplexEval() {
         String source = """
                 var x : "ret(eval(2+2));";
-                eval($x);
+                exec($x);
                 """;
         Tokenizer tokenizer = new Tokenizer();
         Parser parser = new Parser();
@@ -211,7 +201,7 @@ public class InterpreterTest {
         String source = """
                 var x : 7;
                 var y : "ret(eval($x * 3));";
-                eval($y);
+                exec($y);
                 """;
         Tokenizer tokenizer = new Tokenizer();
         Parser parser = new Parser();
@@ -229,7 +219,7 @@ public class InterpreterTest {
                     ret("Hello " $name);
                 }
                 var print : "ret(greet(\"World\"));";
-                eval($print);
+                exec($print);
                 """;
         Tokenizer tokenizer = new Tokenizer();
         Parser parser = new Parser();
@@ -256,5 +246,60 @@ public class InterpreterTest {
         } catch (ReturnSignal returnSignal) {
             assertEquals("1", returnSignal.getValue());
         }
+    }
+
+    @Test
+    void testIfStatement() {
+        String source = """
+                var x : 5;
+
+                if ($x > 3) {
+                    ret(true);
+                } else {
+                    ret(false);
+                }
+                """;
+        Tokenizer tokenizer = new Tokenizer();
+        Parser parser = new Parser();
+        try {
+            interpreter.run((parser.parseTokens(tokenizer.tokenize(source))));
+        } catch (ReturnSignal returnSignal) {
+            assertEquals("true", returnSignal.getValue());
+        }
+    }
+
+    @Test
+    void testSimpleConditions() {
+        assertTrue((boolean) Evaluator.evaluate("1 > 0"));
+        assertFalse((boolean) Evaluator.evaluate("1 < 0"));
+        assertTrue((boolean) Evaluator.evaluate("5 >= 5"));
+    }
+
+    @Test
+    void testConditionsWithPara() {
+        assertTrue((boolean) Evaluator.evaluate("(5 > 3 && 10 > 5)"));
+        assertFalse((boolean) Evaluator.evaluate("5 > 3 && 10 < 5"));
+        assertFalse((boolean) Evaluator.evaluate("!(5 > 3)"));
+        assertTrue((boolean) Evaluator.evaluate("((5 > 3 && 10 > 5) || (3 == 4)) && !(2 > 10)"));
+    }
+
+    @Test
+    void testEdgeCases() {
+        assertFalse((boolean) Evaluator.evaluate("1 == 1 == 1"));
+    }
+
+    @Test
+    void testFibonacci() {
+        assertEquals(6765.0, run("""
+                fn fibonacci(n){
+                    if($n<=1){
+                        ret($n);
+                    }else{
+                        ret(fibonacci(eval($n-2)) + fibonacci(eval($n-1)));
+                    }
+                    ret(0);
+                }
+                eval(fibonacci(20));
+                """));
     }
 }

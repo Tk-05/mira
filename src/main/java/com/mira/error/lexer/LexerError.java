@@ -10,4 +10,10 @@ public class LexerError extends RuntimeException {
             super("Unterminated string at line " + line);
         }
     }
+
+    public static class UnexpectedSymbolError extends LexerError {
+        public UnexpectedSymbolError(int line, int column) {
+            super("Unexpected symbol at line " + line + ":" + column);
+        }
+    }
 }

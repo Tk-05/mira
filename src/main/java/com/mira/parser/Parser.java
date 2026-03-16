@@ -16,6 +16,7 @@ import com.mira.parser.nodes.expression.Expression.DumbExpression;
 import com.mira.parser.nodes.expression.Expression.UnaryExpression;
 import com.mira.parser.nodes.statement.Statement.Assign;
 import com.mira.parser.nodes.statement.Statement.FuncDecl;
+import com.mira.parser.nodes.statement.Statement.If;
 import com.mira.parser.nodes.statement.Statement.Return;
 import com.mira.parser.nodes.statement.Statement.VarDecl;
 import com.mira.vocabulary.Vocabulary;
@@ -96,6 +97,9 @@ public class Parser {
             case "ret" -> {
                 node = parseReturn();
                 matchLexeme(";");
+            }
+            case "if" -> {
+                node = parseIf();
             }
             case "$" -> {
                 if (peekNextSafe().getTokenType() == TokenType.EXPRESSION
@@ -255,5 +259,39 @@ public class Parser {
         matchLexeme(":");
         Expression expression = parseExpression();
         return new Assign(name, expression);
+    }
+
+    private Node parseIf() {
+        matchLexeme("if");
+        matchLexeme("(");
+        Expression condition = parseExpression();
+        matchLexeme(")");
+
+        matchLexeme("{");
+        List<Node> thenBody = new ArrayList<>();
+        while (!peek().getLexeme().equals("}")) {
+            if (peek().getLexeme().equals("}")) {
+                throw new UnexpectedToken(peek(), "Unexpected Token in if body");
+            }
+            thenBody.add(parseStatement());
+        }
+        matchLexeme("}");
+
+        if (peek().getLexeme().equals("else")) {
+            matchLexeme("else");
+            matchLexeme("{");
+            List<Node> elseBody = new ArrayList<>();
+            while (!peek().getLexeme().equals("}")) {
+                if (peek().getLexeme().equals("}")) {
+                    throw new UnexpectedToken(peek(), "Unexpected Token in else body");
+                }
+                elseBody.add(parseStatement());
+            }
+            matchLexeme("}");
+
+            return new If(condition, thenBody, elseBody);
+        } else {
+            return new If(condition, thenBody, null);
+        }
     }
 }

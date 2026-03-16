@@ -111,4 +111,34 @@ public abstract class Statement implements Node {
             return visitor.visitAssign(this);
         }
     }
+
+    public static class If extends Statement {
+
+        private final Expression condition;
+        private final List<Node> thenBody;
+        private final List<Node> elseBody;
+
+        public If(Expression condition, List<Node> ifBody, List<Node> elseBody) {
+            this.condition = condition;
+            this.thenBody = ifBody;
+            this.elseBody = elseBody;
+        }
+
+        @Override
+        public <T> T accept(StmtVisitor<T> visitor) {
+            return visitor.visitIf(this);
+        }
+
+        public Expression getCondition() {
+            return condition;
+        }
+
+        public List<Node> getThenBody() {
+            return thenBody;
+        }
+
+        public List<Node> getElseBody() {
+            return elseBody;
+        }
+    }
 }

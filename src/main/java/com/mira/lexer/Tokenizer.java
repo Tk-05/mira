@@ -3,6 +3,7 @@ package com.mira.lexer;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.mira.error.lexer.LexerError.UnexpectedSymbolError;
 import com.mira.error.lexer.LexerError.UnterminatedStringError;
 import com.mira.lexer.token.Token;
 import com.mira.lexer.token.TokenType;
@@ -65,8 +66,8 @@ public class Tokenizer {
                     return;
                 }
 
-                if (Vocabulary.stringIsOperation(String.valueOf(c))) {
-                    scanOperator(c);
+                if (startsOperator(c)) {
+                    scanOperator();
                     return;
                 }
 
@@ -83,11 +84,11 @@ public class Tokenizer {
                 source = source.substring(0, current) + source.substring(current + 1);
                 advance();
             }
-            
+
             if (peek() == '\n') {
                 line++;
                 column = 0;
-            } 
+            }
 
             advance();
         }
@@ -147,20 +148,34 @@ public class Tokenizer {
         ));
     }
 
-    private void scanOperator(char first) {
+    private void scanOperator() {
+        String bestMatch = null;
 
-        if (!isAtEnd()) {
+        for (int len = 1; len <= Vocabulary.MAX_OPERATOR_LENGTH; len++) {
 
-            String two = "" + first + peekSafe();
+            if (start + len > source.length()) {
+                break;
+            }
 
-            if (Vocabulary.stringIsOperation(two)) {
-                advance();
-                tokens.add(new Token(TokenType.OPERATION, two, line, column));
-                return;
+            String candidate = source.substring(start, start + len);
+
+            if (Vocabulary.stringIsOperation(candidate)) {
+                bestMatch = candidate;
             }
         }
 
-        tokens.add(new Token(TokenType.OPERATION, String.valueOf(first), line, column));
+        if (bestMatch == null) {
+            throw new UnexpectedSymbolError(line, column);
+        }
+
+        current = start + bestMatch.length();
+
+        tokens.add(new Token(
+                TokenType.OPERATION,
+                bestMatch,
+                line,
+                column
+        ));
     }
 
     private char advance() {
@@ -192,6 +207,15 @@ public class Tokenizer {
 
     private boolean isIdentifierStart(char c) {
         return Character.isLetter(c) || c == '_';
+    }
+
+    public static boolean startsOperator(char c) {
+        for (String op : Vocabulary.operations) {
+            if (op.charAt(0) == c) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private boolean isIdentifierPart(char c) {
