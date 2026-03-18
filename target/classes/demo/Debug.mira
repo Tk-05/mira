@@ -1,0 +1,14 @@
+fn fibonacci(n){
+    if($n<=1){
+        ret($n);
+    }else{
+        ret(fibonacci(eval($n-2)) + fibonacci(eval($n-1)));
+    }
+    ret(0);
+}
+
+for (var i : 0; $i < 10; $i : eval($i + 1);) {
+    print(eval(fibonacci($i)));
+}
+
+ret(0);

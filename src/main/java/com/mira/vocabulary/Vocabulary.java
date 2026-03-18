@@ -1,42 +1,47 @@
 package com.mira.vocabulary;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Set;
 
 public class Vocabulary {
-    public static final List<String> keywords = new ArrayList<>(java.util.Arrays.asList(
-        "print",
-        "var",
-        "eval",
-        "ret",
-        "fn"
-    ));
 
-    public static final List<String> delimiters = new ArrayList<>(java.util.Arrays.asList(
-        "(",
-        ")",
-        "{",
-        "}",
-        ":",
-        ";",
-        ","
-    ));
+    public static final int MAX_OPERATOR_LENGTH = 3;
 
-    public static boolean stringIsKeyword(String string) {
-        for (String keyword : keywords) {
-            if (keyword.equals(string)) {
-                return true;
-            }
-        }
-        return false;
+    private static final Set<String> keywords = Set.of(
+            "var",
+            "ret",
+            "fn",
+            "if",
+            "else",
+            "for"
+    );
+
+    public static final Set<String> operations = Set.of(
+            "+", "-", "*", "/", "%",
+            "=", "==", "!=", "<", ">", "<=", ">=",
+            "+=", "-=", "*=", "/=",
+            "&&", "||",
+            "<<", ">>", ">>=",
+            "$", ":", "!"
+    );
+
+    public static final Set<String> delimiters = Set.of(
+            "(",
+            ")",
+            "{",
+            "}",
+            ";",
+            ","
+    );
+
+    public static boolean stringIsKeyword(String s) {
+        return keywords.contains(s) || s.startsWith("$");
     }
 
     public static boolean stringIsDelimiter(String string) {
-        for (String delimiter : delimiters) {
-            if (delimiter.equals(string)) {
-                return true;
-            }
-        }
-        return false;
+        return delimiters.contains(string);
+    }
+
+    public static boolean stringIsOperation(String string) {
+        return operations.contains(string);
     }
 }
