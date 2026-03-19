@@ -171,10 +171,8 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                 right = operatorExpr.accept(this);
                 i++;
 
-                if (operator == null) {
-                    builder.append(right);
-                    continue;
-                }
+                builder.append(right);
+                continue;
             }
 
             switch (operator) {
@@ -202,10 +200,6 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         return globalEnvironment;
     }
 
-    public static void setGlobalEnvironment() {
-
-    }
-
     @Override
     public <T> T visitUnaryExpr(Expression.UnaryExpression expression) {
         String operator = expression.getOperation().getLexeme();
@@ -230,7 +224,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                 if (right == null) {
                     return (T) "-";
                 } else {
-                    return (T) ("-" + String.valueOf(right));
+                    return (T) ("-" + right);
                 }
             }
             default ->

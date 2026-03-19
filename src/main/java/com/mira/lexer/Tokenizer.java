@@ -19,8 +19,16 @@ public class Tokenizer {
     private int line = 1;
     private int column = 0;
 
-    public List<Token> tokenize(String source) {
+    private void reset() {
+        start = 0;
+        current = 0;
+        line = 1;
+        column = 0;
+        tokens.clear();
+    }
 
+    public List<Token> tokenize(String source) {
+        reset();
         this.source = source;
 
         while (!isAtEnd()) {
@@ -71,7 +79,7 @@ public class Tokenizer {
                     return;
                 }
 
-                throw new RuntimeException("Unexpected character: " + c);
+                throw new UnexpectedSymbolError(line, column, c);
             }
         }
     }
@@ -131,11 +139,10 @@ public class Tokenizer {
         }
 
         if (!isAtEnd() && peek() == '.' && Character.isDigit(peekNext())) {
-            advance();
 
-            while (!isAtEnd() && Character.isDigit(peek())) {
+            do {
                 advance();
-            }
+            } while (!isAtEnd() && Character.isDigit(peek()));
         }
 
         String value = source.substring(start, current);

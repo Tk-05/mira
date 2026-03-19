@@ -1,6 +1,7 @@
-var x : 10.0;
+var x : 5;
 
-while($x > -1) {
-    print($x);
-    $x : eval($x - 1);
-}
+                if ($x > 3) {
+                    ret(true);
+                } else {
+                    ret(false);
+                }

@@ -270,7 +270,12 @@ public class Parser {
     private Node parseReturn() {
         consume();
         matchLexeme("(");
-        Expression value = parseExpression();
+        Expression value;
+        if (peek().getTokenType() == TokenType.EXPRESSION || peek().getTokenType() == TokenType.OPERATION) {
+            value = parseExpression();
+        } else {
+            value = new DumbExpression(new Token(null, "0.0", -1, -1));
+        }
         matchLexeme(")");
         return new Return(value);
     }

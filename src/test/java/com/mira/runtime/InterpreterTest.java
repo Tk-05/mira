@@ -331,4 +331,14 @@ public class InterpreterTest {
                 for (; $i < 3; $i : eval($i + 1)) {}
                 """));
     }
+
+    @Test
+    void testWhile() {
+        assertEquals(null, run("""
+                var i : 0;
+                while($i <= 10){
+                    $i : eval($i + 1);
+                }
+                """));
+    }
 }
