@@ -29,6 +29,10 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
     private static final Environment globalEnvironment = new Environment();
     private Environment localEnvironment;
 
+    public Interpreter() {
+        setup();
+    }
+
     public static Interpreter getInstance() {
         if (instance == null) {
             instance = new Interpreter();
@@ -41,8 +45,6 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
     }
 
     public <T> T run(List<Node> asts) {
-        setup();
-
         Object lastResult = null;
 
         for (Node ast : asts) {
@@ -131,11 +133,14 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
     @Override
     public <T> T visitComplexExpr(ComplexExpression expression) {
         List<Expression> expressions = expression.getExpressions();
+        StringBuilder builder = new StringBuilder();
 
-        Object result = expressions.getFirst().accept(this);
+        Object first = expressions.getFirst().accept(this);
 
         if (expressions.getFirst() instanceof ComplexExpression) {
-            result = "(" + result + ")";
+            builder.append("(").append(first).append(")");
+        } else {
+            builder.append(first);
         }
 
         int i = 1;
@@ -155,37 +160,32 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                     right = unary.accept(this);
                     i += 1;
                 } else {
+                    builder.append(operator);
                     i += 1;
-                    result += operator;
                     continue;
                 }
+
             } else {
                 right = operatorExpr.accept(this);
                 i++;
 
                 if (operator == null) {
-                    result += String.valueOf(right);
+                    builder.append(right);
                     continue;
                 }
             }
 
             switch (operator) {
-                case "+" ->
-                    result = String.valueOf(result) + "+" + String.valueOf(right);
-                case "-" ->
-                    result = String.valueOf(result) + "-" + String.valueOf(right);
-                case "*" ->
-                    result = String.valueOf(result) + "*" + String.valueOf(right);
-                case "/" ->
-                    result = String.valueOf(result) + "/" + String.valueOf(right);
+                case "+", "-", "*", "/" ->
+                    builder.append(operator).append(right);
                 case "$" ->
-                    result = String.valueOf(result) + String.valueOf(right);
+                    builder.append(right);
                 default ->
                     throw new UnknownOperatorError("Unknown operator: " + operator);
             }
         }
 
-        return (T) result;
+        return (T) builder.toString();
     }
 
     public Environment getLocalEnvironment() {
@@ -219,7 +219,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
                 String name = (String) right;
 
-                if (localEnvironment != null && localEnvironment.exists(name)) {
+                if (localEnvironment != null) {
                     return (T) localEnvironment.get(name);
                 }
 
@@ -254,31 +254,18 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
     @Override
     public Object visitIf(If stmt) {
         String condition = (String) stmt.getCondition().accept(this);
+        boolean value = (boolean) Evaluator.evaluate(condition);
 
-        if ((boolean) Evaluator.evaluate(condition)) {
-            for (Node node : stmt.getThenBody()) {
-                switch (node) {
-                    case Expression expression ->
-                        expression.accept(this);
-                    case Statement statement ->
-                        statement.accept(this);
-                    default -> {
-                        throw new AssertionError();
-                    }
-                }
-            }
+        List<Node> body = value ? stmt.getThenBody() : stmt.getElseBody();
 
-        } else {
-            for (Node node : stmt.getElseBody()) {
-                switch (node) {
-                    case Expression expression ->
-                        expression.accept(this);
-                    case Statement statement ->
-                        statement.accept(this);
-                    default -> {
-                        throw new AssertionError();
-                    }
-                }
+        for (Node node : body) {
+            switch (node) {
+                case Expression expression ->
+                    expression.accept(this);
+                case Statement statement ->
+                    statement.accept(this);
+                default ->
+                    throw new AssertionError();
             }
         }
 

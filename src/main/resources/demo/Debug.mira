@@ -2,7 +2,7 @@ fn fibonacci(n){
     if($n<=1){
         ret($n);
     }else{
-        ret(fibonacci(eval($n-2)) + fibonacci(eval($n-1)));
+        ret(fibonacci($n-2) + fibonacci($n-1));
     }
     ret(0);
 }
