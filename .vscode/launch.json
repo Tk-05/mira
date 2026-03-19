@@ -15,6 +15,13 @@
         },
         {
             "type": "java",
+            "name": "Run console",
+            "request": "launch",
+            "mainClass": "com.mira.Main",
+            "projectName": "mira",
+        },
+        {
+            "type": "java",
             "name": "Run",
             "request": "launch",
             "mainClass": "com.mira.Main",

@@ -1,9 +1,8 @@
 TODO:
-    -Cmd interface
     -foreach statements
     -break
     -lists/arrays
     -native functions -> files etc.
         -Override native functions
     -Program arguments
-    -New test suite
+    -Scopes
