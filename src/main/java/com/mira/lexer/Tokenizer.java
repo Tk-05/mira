@@ -201,13 +201,6 @@ public class Tokenizer {
         return source.charAt(current + 1);
     }
 
-    private char peekSafe() {
-        if (isAtEnd()) {
-            return '\0';
-        }
-        return source.charAt(current);
-    }
-
     private boolean isAtEnd() {
         return current >= source.length();
     }

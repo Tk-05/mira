@@ -13,6 +13,7 @@ import com.mira.parser.nodes.expression.Expression.DumbExpression;
 import com.mira.parser.nodes.expression.Expression.UnaryExpression;
 import com.mira.parser.nodes.statement.Statement;
 import com.mira.parser.nodes.statement.Statement.Assign;
+import com.mira.parser.nodes.statement.Statement.Break;
 import com.mira.parser.nodes.statement.Statement.For;
 import com.mira.parser.nodes.statement.Statement.FuncDecl;
 import com.mira.parser.nodes.statement.Statement.If;
@@ -281,8 +282,59 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             }
         }
 
-        while (true) {
-            if (stmt.getCondition() != null) {
+        try {
+            while (true) {
+                if (stmt.getCondition() != null) {
+                    String condition = (String) stmt.getCondition().accept(this);
+                    switch (Evaluator.evaluate(condition)) {
+                        case Boolean b -> {
+                            if (!b) {
+                                return null;
+                            }
+                        }
+                        case Double d -> {
+                            if (d == 0) {
+                                return null;
+                            }
+                        }
+                        default ->
+                            throw new AssertionError();
+                    }
+                }
+
+                for (Node node : stmt.getBody()) {
+                    switch (node) {
+                        case Expression expression ->
+                            expression.accept(this);
+                        case Statement statement ->
+                            statement.accept(this);
+                        default -> {
+                            throw new AssertionError();
+                        }
+                    }
+                }
+
+                for (Node node : stmt.getPostExpressions()) {
+                    switch (node) {
+                        case Expression expression ->
+                            expression.accept(this);
+                        case Statement statement ->
+                            statement.accept(this);
+                        default -> {
+                            throw new AssertionError();
+                        }
+                    }
+                }
+            }
+        } catch (BreakSignal breakSignal) {
+            return null;
+        }
+    }
+
+    @Override
+    public Object visitWhile(While stmt) {
+        try {
+            while (true) {
                 String condition = (String) stmt.getCondition().accept(this);
                 switch (Evaluator.evaluate(condition)) {
                     case Boolean b -> {
@@ -298,64 +350,26 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                     default ->
                         throw new AssertionError();
                 }
-            }
 
-            for (Node node : stmt.getBody()) {
-                switch (node) {
-                    case Expression expression ->
-                        expression.accept(this);
-                    case Statement statement ->
-                        statement.accept(this);
-                    default -> {
-                        throw new AssertionError();
+                for (Node node : stmt.getBody()) {
+                    switch (node) {
+                        case Expression expression ->
+                            expression.accept(this);
+                        case Statement statement ->
+                            statement.accept(this);
+                        default -> {
+                            throw new AssertionError();
+                        }
                     }
                 }
             }
-
-            for (Node node : stmt.getPostExpressions()) {
-                switch (node) {
-                    case Expression expression ->
-                        expression.accept(this);
-                    case Statement statement ->
-                        statement.accept(this);
-                    default -> {
-                        throw new AssertionError();
-                    }
-                }
-            }
+        } catch (BreakSignal breakSignal) {
+            return null;
         }
     }
 
     @Override
-    public Object visitWhile(While stmt) {
-        while (true) {
-            String condition = (String) stmt.getCondition().accept(this);
-            switch (Evaluator.evaluate(condition)) {
-                case Boolean b -> {
-                    if (!b) {
-                        return null;
-                    }
-                }
-                case Double d -> {
-                    if (d == 0) {
-                        return null;
-                    }
-                }
-                default ->
-                    throw new AssertionError();
-            }
-
-            for (Node node : stmt.getBody()) {
-                switch (node) {
-                    case Expression expression ->
-                        expression.accept(this);
-                    case Statement statement ->
-                        statement.accept(this);
-                    default -> {
-                        throw new AssertionError();
-                    }
-                }
-            }
-        }
+    public Object visitBreak(Break stmt) {
+        throw new BreakSignal();
     }
 }

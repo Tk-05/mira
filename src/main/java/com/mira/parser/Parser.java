@@ -15,6 +15,7 @@ import com.mira.parser.nodes.expression.Expression.ComplexExpression;
 import com.mira.parser.nodes.expression.Expression.DumbExpression;
 import com.mira.parser.nodes.expression.Expression.UnaryExpression;
 import com.mira.parser.nodes.statement.Statement.Assign;
+import com.mira.parser.nodes.statement.Statement.Break;
 import com.mira.parser.nodes.statement.Statement.For;
 import com.mira.parser.nodes.statement.Statement.FuncDecl;
 import com.mira.parser.nodes.statement.Statement.If;
@@ -118,6 +119,12 @@ public class Parser {
             }
             case "while" -> {
                 node = parseWhile();
+            }
+            case "break" -> {
+                node = parseBreak();
+                if (expectSemicolon) {
+                    matchLexeme(";");
+                }
             }
             case "$" -> {
                 if (peekNextSafe().getTokenType() == TokenType.EXPRESSION
@@ -377,5 +384,12 @@ public class Parser {
         matchLexeme("}");
 
         return new While(condition, body);
+    }
+
+    private Node parseBreak() {
+        matchLexeme("break");
+        matchLexeme("(");
+        matchLexeme(")");
+        return new Break();
     }
 }

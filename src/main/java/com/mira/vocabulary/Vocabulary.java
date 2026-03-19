@@ -13,7 +13,8 @@ public class Vocabulary {
             "if",
             "else",
             "for",
-            "while"
+            "while",
+            "break"
     );
 
     public static final Set<String> operations = Set.of(

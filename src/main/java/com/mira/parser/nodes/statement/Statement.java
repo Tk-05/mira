@@ -201,4 +201,12 @@ public abstract class Statement implements Node {
             return body;
         }
     }
+
+    public static class Break extends Statement {
+
+        @Override
+        public <T> T accept(StmtVisitor<T> visitor) {
+            return visitor.visitBreak(this);
+        }
+    }
 }
