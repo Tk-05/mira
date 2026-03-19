@@ -1,7 +1,22 @@
 //variable declaration
 var x : 10;
+var x;
+var x : call();
+var x : ((($val1 + $val3) + val()) + 1);
 
 //function declaration
-fn test(x,y) {
+fn {all chars}({a-z}) {
+    var x : 10;
     ret;
 }
+
+fn add(val1, val2) {
+    ret(eval($val1+$val2));
+}
+
+//function call
+call("Hello World");
+
+//Native functions
+eval({});
+print({});
