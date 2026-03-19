@@ -177,4 +177,28 @@ public abstract class Statement implements Node {
             return body;
         }
     }
+
+    public static class While extends Statement {
+
+        private final Expression condition;
+        private final List<Node> body;
+
+        public While(Expression condition, List<Node> body) {
+            this.condition = condition;
+            this.body = body;
+        }
+
+        @Override
+        public <T> T accept(StmtVisitor<T> visitor) {
+            return visitor.visitWhile(this);
+        }
+
+        public Expression getCondition() {
+            return condition;
+        }
+
+        public List<Node> getBody() {
+            return body;
+        }
+    }
 }

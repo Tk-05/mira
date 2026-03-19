@@ -12,7 +12,8 @@ public class Vocabulary {
             "fn",
             "if",
             "else",
-            "for"
+            "for",
+            "while"
     );
 
     public static final Set<String> operations = Set.of(

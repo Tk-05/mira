@@ -20,6 +20,7 @@ import com.mira.parser.nodes.statement.Statement.FuncDecl;
 import com.mira.parser.nodes.statement.Statement.If;
 import com.mira.parser.nodes.statement.Statement.Return;
 import com.mira.parser.nodes.statement.Statement.VarDecl;
+import com.mira.parser.nodes.statement.Statement.While;
 import com.mira.vocabulary.Vocabulary;
 
 public class Parser {
@@ -65,7 +66,7 @@ public class Parser {
         consume();
     }
 
-    private void expect(String expectedLexeme) {
+    private void expectLexeme(String expectedLexeme) {
         if (!peek().getLexeme().equals(expectedLexeme)) {
             throw new LexemeMismatchError(peek(), "Expected '" + expectedLexeme + "'");
         }
@@ -114,6 +115,9 @@ public class Parser {
             }
             case "for" -> {
                 node = parseFor();
+            }
+            case "while" -> {
+                node = parseWhile();
             }
             case "$" -> {
                 if (peekNextSafe().getTokenType() == TokenType.EXPRESSION
@@ -325,7 +329,7 @@ public class Parser {
                 varDecls.add(parseVarDecl());
                 if (peek().getLexeme().equals(",")) {
                     matchLexeme(",");
-                    expect("var");
+                    expectLexeme("var");
                 }
             }
         }
@@ -351,5 +355,22 @@ public class Parser {
         matchLexeme("}");
 
         return new For(varDecls, condition, postExpressions, body);
+    }
+
+    private Node parseWhile() {
+        matchLexeme("while");
+        matchLexeme("(");
+
+        Expression condition = parseExpression();
+        matchLexeme(")");
+        matchLexeme("{");
+
+        List<Node> body = new ArrayList<>();
+        while (!peek().getLexeme().equals("}")) {
+            body.add(parseStatement(true));
+        }
+        matchLexeme("}");
+
+        return new While(condition, body);
     }
 }

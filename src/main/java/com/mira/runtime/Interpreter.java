@@ -18,6 +18,7 @@ import com.mira.parser.nodes.statement.Statement.FuncDecl;
 import com.mira.parser.nodes.statement.Statement.If;
 import com.mira.parser.nodes.statement.Statement.Return;
 import com.mira.parser.nodes.statement.Statement.VarDecl;
+import com.mira.parser.nodes.statement.Statement.While;
 import com.mira.runtime.functions.Function;
 import com.mira.runtime.functions.ReturnSignal;
 import com.mira.runtime.functions.nativeFunction.NativeFunctions;
@@ -217,7 +218,6 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
         switch (operator) {
             case "$" -> {
-
                 String name = (String) right;
 
                 if (localEnvironment != null) {
@@ -290,8 +290,19 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         while (true) {
             if (stmt.getCondition() != null) {
                 String condition = (String) stmt.getCondition().accept(this);
-                if (!(boolean) Evaluator.evaluate(condition)) {
-                    break;
+                switch (Evaluator.evaluate(condition)) {
+                    case Boolean b -> {
+                        if (!b) {
+                            return null;
+                        }
+                    }
+                    case Double d -> {
+                        if (d == 0) {
+                            return null;
+                        }
+                    }
+                    default ->
+                        throw new AssertionError();
                 }
             }
 
@@ -319,7 +330,38 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                 }
             }
         }
+    }
 
-        return null;
+    @Override
+    public Object visitWhile(While stmt) {
+        while (true) {
+            String condition = (String) stmt.getCondition().accept(this);
+            switch (Evaluator.evaluate(condition)) {
+                case Boolean b -> {
+                    if (!b) {
+                        return null;
+                    }
+                }
+                case Double d -> {
+                    if (d == 0) {
+                        return null;
+                    }
+                }
+                default ->
+                    throw new AssertionError();
+            }
+
+            for (Node node : stmt.getBody()) {
+                switch (node) {
+                    case Expression expression ->
+                        expression.accept(this);
+                    case Statement statement ->
+                        statement.accept(this);
+                    default -> {
+                        throw new AssertionError();
+                    }
+                }
+            }
+        }
     }
 }
