@@ -352,29 +352,29 @@ public class InterpreterTest {
                 while(1){
                     break();
                 }
-        """));
+            """));
     }
 
     @Test
     void testDeepNestedBreak() {
-        run("""
-                var outer : 0;
-                var middle : 0;
-                var inner : 0;
+            run("""
+                    var outer : 0;
+                    var middle : 0;
+                    var inner : 0;
 
-                while ($outer < 3) {
-                    $outer : eval($outer + 1);
+                    while ($outer < 3) {
+                        $outer : eval($outer + 1);
 
-                    while ($middle < 5) {
-                        $middle : eval($middle + 1);
+                        while ($middle < 5) {
+                            $middle : eval($middle + 1);
 
-                        while (1) {
-                            $inner : eval($inner + 1);
-                            break();
+                            while (1) {
+                                $inner : eval($inner + 1);
+                                break();
+                            }
                         }
                     }
-                }
-        """);
+            """);
 
         Object o = Interpreter.getGlobalEnvironment().get("outer");
         Object m = Interpreter.getGlobalEnvironment().get("middle");
@@ -383,5 +383,25 @@ public class InterpreterTest {
         assertEquals(3.0, o);
         assertEquals(5.0, m);
         assertEquals(5.0, i);
+    }
+
+    @Test
+    void testDeepBreakWithPostExecution() {
+            run("""
+                var x : 0;
+
+                while ($x < 3) {
+                    $x : eval($x + 1);
+
+                    while (1) {
+                        break();
+                    }
+                }
+
+                $x : eval($x + 10);
+            """);
+
+        Object result = Interpreter.getGlobalEnvironment().get("x");
+        assertEquals(13.0, result);
     }
 }
