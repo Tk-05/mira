@@ -301,4 +301,34 @@ public class InterpreterTest {
                 eval(fibonacci(20));
                 """));
     }
+
+    @Test
+    void testForWithFibonacci() {
+        assertEquals(88.0, run("""
+                var result : 0;
+            
+                fn fibonacci(n){
+                    if($n<=1){
+                        ret($n);
+                    }else{
+                        ret(fibonacci(eval($n-2)) + fibonacci(eval($n-1)));
+                    }
+                    ret(0);
+                }
+
+                for (var i : 0, var j : 0; $i < 10 && $j == 0; $i : eval($i + 1)) {
+                    $result : $result + fibonacci($i);
+                }
+
+                eval($result);
+                """));
+    }
+
+    @Test
+    void testForWithoutInitalizer() {
+        assertEquals(null, run("""
+                var i : 0;
+                for (; $i < 3; $i : eval($i + 1)) {}
+                """));
+    }
 }

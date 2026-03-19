@@ -13,6 +13,7 @@ import com.mira.parser.nodes.expression.Expression.DumbExpression;
 import com.mira.parser.nodes.expression.Expression.UnaryExpression;
 import com.mira.parser.nodes.statement.Statement;
 import com.mira.parser.nodes.statement.Statement.Assign;
+import com.mira.parser.nodes.statement.Statement.For;
 import com.mira.parser.nodes.statement.Statement.FuncDecl;
 import com.mira.parser.nodes.statement.Statement.If;
 import com.mira.parser.nodes.statement.Statement.Return;
@@ -266,6 +267,56 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                     statement.accept(this);
                 default ->
                     throw new AssertionError();
+            }
+        }
+
+        return null;
+    }
+
+    @Override
+    public Object visitFor(For stmt) {
+        for (Node node : stmt.getVarDecls()) {
+            switch (node) {
+                case Expression expression ->
+                    expression.accept(this);
+                case Statement statement ->
+                    statement.accept(this);
+                default -> {
+                    throw new AssertionError();
+                }
+            }
+        }
+
+        while (true) {
+            if (stmt.getCondition() != null) {
+                String condition = (String) stmt.getCondition().accept(this);
+                if (!(boolean) Evaluator.evaluate(condition)) {
+                    break;
+                }
+            }
+
+            for (Node node : stmt.getBody()) {
+                switch (node) {
+                    case Expression expression ->
+                        expression.accept(this);
+                    case Statement statement ->
+                        statement.accept(this);
+                    default -> {
+                        throw new AssertionError();
+                    }
+                }
+            }
+
+            for (Node node : stmt.getPostExpressions()) {
+                switch (node) {
+                    case Expression expression ->
+                        expression.accept(this);
+                    case Statement statement ->
+                        statement.accept(this);
+                    default -> {
+                        throw new AssertionError();
+                    }
+                }
             }
         }
 

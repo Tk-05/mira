@@ -141,4 +141,40 @@ public abstract class Statement implements Node {
             return elseBody;
         }
     }
+
+    public static class For extends Statement {
+
+        private final List<Node> varDecls;
+        private final Expression condition;
+        private final List<Node> postExpressions;
+        private final List<Node> body;
+
+        public For(List<Node> varDecls, Expression condition, List<Node> postExpressions, List<Node> body) {
+            this.varDecls = varDecls;
+            this.condition = condition;
+            this.postExpressions = postExpressions;
+            this.body = body;
+        }
+
+        @Override
+        public <T> T accept(StmtVisitor<T> visitor) {
+            return visitor.visitFor(this);
+        }
+
+        public List<Node> getVarDecls() {
+            return varDecls;
+        }
+
+        public Expression getCondition() {
+            return condition;
+        }
+
+        public List<Node> getPostExpressions() {
+            return postExpressions;
+        }
+
+        public List<Node> getBody() {
+            return body;
+        }
+    }
 }

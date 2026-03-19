@@ -14,6 +14,7 @@ import com.mira.parser.nodes.expression.Expression.CallExpression;
 import com.mira.parser.nodes.expression.Expression.ComplexExpression;
 import com.mira.parser.nodes.expression.Expression.DumbExpression;
 import com.mira.parser.nodes.expression.Expression.UnaryExpression;
+import com.mira.parser.nodes.statement.Statement.For;
 import com.mira.parser.nodes.statement.Statement.VarDecl;
 
 public class ParserTest {
@@ -122,5 +123,41 @@ public class ParserTest {
         assertEquals(3, inner.getExpressions().size());
 
         assertInstanceOf(CallExpression.class, inner.getExpressions().get(2));
+    }
+
+    @Test
+    void parseForWithOneVar() {
+        String forStmt = """
+                for (var i : 0; $i < 10; $i : eval($i + 1)) {
+                    print(eval(fibonacci($i)));
+                }
+                """;
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize(forStmt));
+        assertEquals(1, ast.size());
+        assertInstanceOf(For.class, ast.get(0));
+    }
+
+    @Test
+    void parseForWithMultipleVars() {
+        String forStmt = """
+                for (var i : 0, var j : 0; $i < 10 && $j != 0; $i : eval($i + 1)) {
+                    print(eval(fibonacci($i)));
+                }
+                """;
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize(forStmt));
+        assertEquals(1, ast.size());
+        assertInstanceOf(For.class, ast.get(0));
+    }
+
+    @Test
+    void parseEmptyFor() {
+        String forStmt = """
+                for (;;) {
+                    print("Hello World");
+                }
+                """;
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize(forStmt));
+        assertEquals(1, ast.size());
+        assertInstanceOf(For.class, ast.get(0));
     }
 }

@@ -1,6 +1,7 @@
 package com.mira.runtime.visitors;
 
 import com.mira.parser.nodes.statement.Statement.Assign;
+import com.mira.parser.nodes.statement.Statement.For;
 import com.mira.parser.nodes.statement.Statement.FuncDecl;
 import com.mira.parser.nodes.statement.Statement.If;
 import com.mira.parser.nodes.statement.Statement.Return;
@@ -17,4 +18,6 @@ public interface StmtVisitor<T> {
     public T visitAssign(Assign stmt);
 
     public T visitIf(If stmt);
+
+    public T visitFor(For stmt);
 }

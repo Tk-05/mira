@@ -15,6 +15,7 @@ import com.mira.parser.nodes.expression.Expression.ComplexExpression;
 import com.mira.parser.nodes.expression.Expression.DumbExpression;
 import com.mira.parser.nodes.expression.Expression.UnaryExpression;
 import com.mira.parser.nodes.statement.Statement.Assign;
+import com.mira.parser.nodes.statement.Statement.For;
 import com.mira.parser.nodes.statement.Statement.FuncDecl;
 import com.mira.parser.nodes.statement.Statement.If;
 import com.mira.parser.nodes.statement.Statement.Return;
@@ -32,7 +33,7 @@ public class Parser {
         List<Node> asts = new ArrayList<>();
 
         while (peek().getTokenType() != TokenType.EOF) {
-            asts.add(parseStatement());
+            asts.add(parseStatement(true));
         }
 
         return asts;
@@ -64,12 +65,18 @@ public class Parser {
         consume();
     }
 
+    private void expect(String expectedLexeme) {
+        if (!peek().getLexeme().equals(expectedLexeme)) {
+            throw new LexemeMismatchError(peek(), "Expected '" + expectedLexeme + "'");
+        }
+    }
+
     private Token matchLexeme(String expectedLexeme) {
         if (peek().getLexeme().equals(expectedLexeme)) {
             return consume();
         }
 
-        throw new LexemeMismatchError(peek(), "Expected " + expectedLexeme);
+        throw new LexemeMismatchError(peek(), "Expected '" + expectedLexeme + "'");
     }
 
     private Token matchType(TokenType expectedType) {
@@ -84,22 +91,29 @@ public class Parser {
         throw new TypeMismatchError(peek(), "Expected " + expectedType);
     }
 
-    private Node parseStatement() {
+    private Node parseStatement(boolean expectSemicolon) {
         Node node;
 
         switch (peek().getLexeme()) {
             case "var" -> {
                 node = parseVarDecl();
-                matchLexeme(";");
+                if (expectSemicolon) {
+                    matchLexeme(";");
+                }
             }
             case "fn" ->
                 node = parseFuncDecl();
             case "ret" -> {
                 node = parseReturn();
-                matchLexeme(";");
+                if (expectSemicolon) {
+                    matchLexeme(";");
+                }
             }
             case "if" -> {
                 node = parseIf();
+            }
+            case "for" -> {
+                node = parseFor();
             }
             case "$" -> {
                 if (peekNextSafe().getTokenType() == TokenType.EXPRESSION
@@ -108,11 +122,15 @@ public class Parser {
                 } else {
                     node = parseExpression();
                 }
-                matchLexeme(";");
+                if (expectSemicolon) {
+                    matchLexeme(";");
+                }
             }
             default -> {
                 node = parseExpression();
-                matchLexeme(";");
+                if (expectSemicolon) {
+                    matchLexeme(";");
+                }
             }
         }
 
@@ -238,7 +256,7 @@ public class Parser {
             if (peek().getLexeme().equals("}")) {
                 throw new UnexpectedToken(peek(), "Unexpected Token in function body");
             }
-            body.add(parseStatement());
+            body.add(parseStatement(true));
         }
         matchLexeme("}");
 
@@ -273,7 +291,7 @@ public class Parser {
             if (peek().getLexeme().equals("}")) {
                 throw new UnexpectedToken(peek(), "Unexpected Token in if body");
             }
-            thenBody.add(parseStatement());
+            thenBody.add(parseStatement(true));
         }
         matchLexeme("}");
 
@@ -285,7 +303,7 @@ public class Parser {
                 if (peek().getLexeme().equals("}")) {
                     throw new UnexpectedToken(peek(), "Unexpected Token in else body");
                 }
-                elseBody.add(parseStatement());
+                elseBody.add(parseStatement(true));
             }
             matchLexeme("}");
 
@@ -293,5 +311,45 @@ public class Parser {
         } else {
             return new If(condition, thenBody, null);
         }
+    }
+
+    private Node parseFor() {
+        matchLexeme("for");
+        matchLexeme("(");
+
+        List<Node> varDecls = new ArrayList<>();
+        while (true) {
+            if (peek().getLexeme().equals(";")) {
+                break;
+            } else {
+                varDecls.add(parseVarDecl());
+                if (peek().getLexeme().equals(",")) {
+                    matchLexeme(",");
+                    expect("var");
+                }
+            }
+        }
+        matchLexeme(";");
+
+        Expression condition = null;
+        if (!peek().getLexeme().equals(";")) {
+            condition = parseExpression();
+        }
+        matchLexeme(";");
+
+        List<Node> postExpressions = new ArrayList<>();
+        while (!peek().getLexeme().equals(")")) {
+            postExpressions.add(parseStatement(false));
+        }
+        matchLexeme(")");
+
+        matchLexeme("{");
+        List<Node> body = new ArrayList<>();
+        while (!peek().getLexeme().equals("}")) {
+            body.add(parseStatement(true));
+        }
+        matchLexeme("}");
+
+        return new For(varDecls, condition, postExpressions, body);
     }
 }

@@ -11,12 +11,13 @@ public class Vocabulary {
             "ret",
             "fn",
             "if",
-            "else"
+            "else",
+            "for"
     );
 
     public static final Set<String> operations = Set.of(
             "+", "-", "*", "/", "%",
-            "=", "==", "!=", "<", ">", "<=", ">=",
+            "==", "!=", "<", ">", "<=", ">=",
             "+=", "-=", "*=", "/=",
             "&&", "||",
             "<<", ">>", ">>=",
