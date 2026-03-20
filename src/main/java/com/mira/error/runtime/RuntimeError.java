@@ -23,7 +23,7 @@ public class RuntimeError extends RuntimeException {
     public static class UndefinedReferenceError extends RuntimeError {
 
         public UndefinedReferenceError(String identifier) {
-            super(identifier + " is undefined");
+            super("Referenced object " + identifier + " is undefined");
         }
     }
 

@@ -404,4 +404,31 @@ public class InterpreterTest {
         Object result = Interpreter.getGlobalEnvironment().get("x");
         assertEquals(13.0, result);
     }
+
+    @Test
+    void testEmptyTuple() {
+        String source = """
+                var tuple : [];
+                $tuple[0];
+                """;
+        assertThrows(IndexOutOfBoundsException.class, () -> run(source));
+    }
+
+    @Test
+    void testTupleWithExpressions() {
+        String source = """
+                var tuple : [1+2, 3*4, 5];
+                eval($tuple[0]);
+                """;
+        assertEquals(3.0, run(source));
+    }
+
+    @Test
+    void testNestedTuples() {
+        String source = """
+                var tuple : [[1,2],[3,69],69];
+                eval($tuple[1][1]);
+                """;
+        assertEquals(69.0, run(source));
+    }
 }

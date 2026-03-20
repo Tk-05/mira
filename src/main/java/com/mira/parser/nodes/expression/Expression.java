@@ -5,10 +5,19 @@ import java.util.List;
 import com.mira.lexer.token.Token;
 import com.mira.parser.nodes.Node;
 import com.mira.runtime.visitors.ExprVisitor;
+import com.mira.utils.Formatter;
 
 public abstract class Expression implements Node {
 
+    public static interface Mutability {
+
+        public abstract boolean isMutable();
+    }
+
     public abstract <T> T accept(ExprVisitor<T> visitor);
+
+    @Override
+    public abstract String toString();
 
     public static class DumbExpression extends Expression {
 
@@ -24,7 +33,12 @@ public abstract class Expression implements Node {
 
         @Override
         public <T> T accept(ExprVisitor<T> visitor) {
-            return visitor.visitValueExpr(this);
+            return visitor.visitDumbExpr(this);
+        }
+
+        @Override
+        public String toString() {
+            return token.getLexeme();
         }
     }
 
@@ -50,6 +64,15 @@ public abstract class Expression implements Node {
         public <T> T accept(ExprVisitor<T> visitor) {
             return visitor.visitUnaryExpr(this);
         }
+
+        @Override
+        public String toString() {
+            if (right != null) {
+                return operation.getLexeme() + right.toString(); 
+            } else {
+                return operation.getLexeme();
+            }
+        }
     }
 
     public static class ComplexExpression extends Expression {
@@ -67,6 +90,15 @@ public abstract class Expression implements Node {
         @Override
         public <T> T accept(ExprVisitor<T> visitor) {
             return visitor.visitComplexExpr(this);
+        }
+
+        @Override
+        public String toString() {
+            String value = "";
+            for (Expression expression : expressions) {
+                value += expression.toString();
+            }
+            return value;
         }
     }
 
@@ -91,6 +123,74 @@ public abstract class Expression implements Node {
         @Override
         public <T> T accept(ExprVisitor<T> visitor) {
             return visitor.visitCallExpr(this);
+        }
+
+        @Override
+        public String toString() {
+            return callee.toString();
+        }
+    }
+
+    public static class Tuple extends Expression implements Mutability {
+
+        private final int length;
+        private final List<Expression> members;
+
+        public Tuple(List<Expression> members, int length) {
+            this.members = members;
+            this.length = length;
+        }
+
+        @Override
+        public <T> T accept(ExprVisitor<T> visitor) {
+            return visitor.visitTupleExpr(this);
+        }
+
+        public int getLength() {
+            return length;
+        }
+
+        public List<Expression> getMembers() {
+            return members;
+        }
+
+        @Override
+        public String toString() {
+            return Formatter.formatToString(this);
+        }
+
+        @Override
+        public boolean isMutable() {
+            return false;
+        }
+    }
+
+    public static class Access extends Expression {
+
+        private final Expression reference;
+        private final List<Expression> indecies;
+
+        public Access(Expression reference, List<Expression> indecies) {
+            this.reference = reference;
+            this.indecies = indecies;
+        }
+
+        @Override
+        public <T> T accept(ExprVisitor<T> visitor) {
+            return visitor.visitAccessExpr(this);
+        }
+
+        @Override
+        public String toString() {
+            return reference.toString() + "[" + indecies.toString() + "]";
+        }
+
+        public Expression getReference() {
+            return reference;
+        }
+
+        public List<Expression> getIndecies() {
+            return indecies;
         }
     }
 }

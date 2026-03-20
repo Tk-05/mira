@@ -7,9 +7,11 @@ import com.mira.error.runtime.RuntimeError.ArgMismatchError;
 import com.mira.error.runtime.RuntimeError.UnknownOperatorError;
 import com.mira.parser.nodes.Node;
 import com.mira.parser.nodes.expression.Expression;
+import com.mira.parser.nodes.expression.Expression.Access;
 import com.mira.parser.nodes.expression.Expression.CallExpression;
 import com.mira.parser.nodes.expression.Expression.ComplexExpression;
 import com.mira.parser.nodes.expression.Expression.DumbExpression;
+import com.mira.parser.nodes.expression.Expression.Tuple;
 import com.mira.parser.nodes.expression.Expression.UnaryExpression;
 import com.mira.parser.nodes.statement.Statement;
 import com.mira.parser.nodes.statement.Statement.Assign;
@@ -83,7 +85,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
     }
 
     @Override
-    public <T> T visitValueExpr(DumbExpression expression) {
+    public <T> T visitDumbExpr(DumbExpression expression) {
         return (T) expression.getValue();
     }
 
@@ -123,7 +125,6 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
     @Override
     public Void visitReturn(Return ret) {
-
         Object value = null;
 
         if (ret.getValue() != null) {
@@ -153,7 +154,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             Expression operatorExpr = expressions.get(i);
 
             Object right;
-            String operator = null;
+            String operator;
 
             if (operatorExpr instanceof UnaryExpression unary) {
 
@@ -202,7 +203,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
     }
 
     @Override
-    public <T> T visitUnaryExpr(Expression.UnaryExpression expression) {
+    public <T> T visitUnaryExpr(UnaryExpression expression) {
         String operator = expression.getOperation().getLexeme();
 
         Object right = null;
@@ -231,6 +232,46 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             default ->
                 throw new UnknownOperatorError("Unknown unary operator: " + operator);
         }
+    }
+
+    @Override
+    public <T> T visitTupleExpr(Tuple expression) {
+        return (T) expression;
+    }
+
+    @Override
+    public <T> T visitAccessExpr(Access expression) {
+        Object accessedObject = expression.getReference().accept(this);
+
+        for (Expression index : expression.getIndecies()) {
+            Object object = index.accept(this);
+            int i;
+
+            switch (object) {
+                case String s -> {
+                    i = Integer.parseInt(s);
+                }
+                case Double d -> {
+                    i = (int) d.doubleValue();
+                }
+                default ->
+                    throw new AssertionError();
+            }
+
+            switch (accessedObject) {
+                case Tuple tuple -> {
+                    if (tuple.getMembers().get(i) instanceof Tuple innerTuple) {
+                        accessedObject = innerTuple.accept(this);
+                    } else {
+                        return (T) tuple.getMembers().get(i);
+                    }
+                }
+                default ->
+                    throw new AssertionError();
+            }
+        }
+
+        throw new AssertionError();
     }
 
     @Override
