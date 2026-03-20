@@ -10,29 +10,36 @@ public class Console {
 
     private static final Tokenizer tokenizer = new Tokenizer();
     private static final Parser parser = new Parser();
-    private static final Interpreter interpreter = new Interpreter();
+    private static Interpreter interpreter;
 
     private static final Scanner scanner = new Scanner(System.in);
 
     public static void run() {
-        while (true) {
-            System.out.print(">>");
+        try {
+            while (true) {
+                interpreter = new Interpreter();
+                System.out.print(">>");
 
-            String input = getInput();
+                String input = getInput();
+                if (!input.endsWith(";") && !input.equals("exit")) {
+                    input += ';';
+                }
 
-            switch (input) {
-                case "exit" -> {
-                    return;
+                switch (input) {
+                    case "exit" -> {
+                        return;
+                    }
+                }
+
+                Object result = interpreter.run(parser.parseTokens(tokenizer.tokenize(input)));
+
+                if (result != null) {
+                    System.out.println(result);
                 }
             }
-
-            Object result = interpreter.run(
-                    parser.parseTokens(tokenizer.tokenize(input))
-            );
-
-            if (result != null) {
-                System.out.println(result);
-            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            run();
         }
     }
 

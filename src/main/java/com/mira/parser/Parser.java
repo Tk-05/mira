@@ -31,7 +31,12 @@ public class Parser {
     private List<Token> tokens;
     private int index;
 
+    private void reset() {
+        index = 0;
+    }
+
     public List<Node> parseTokens(List<Token> tokens) {
+        reset();
         this.tokens = tokens;
 
         List<Node> asts = new ArrayList<>();

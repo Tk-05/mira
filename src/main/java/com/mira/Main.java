@@ -18,7 +18,12 @@ public class Main {
         if (args.length > 0) {
             long start = System.currentTimeMillis();
 
-            Flags.inputPath = args[0];
+            if (args[0].equals("-h") || args[0].equals("-help")) {
+                System.out.println(Help.getHelp());
+                System.exit(1);
+            } else {
+                Flags.inputPath = args[0];
+            }
 
             for (int i = 1; i < args.length; i++) {
                 switch (args[i]) {
@@ -28,10 +33,6 @@ public class Main {
                         Flags.exitBeforeInterpreter = true;
                     case "-c" ->
                         Flags.loadFromClasspath = true;
-                    case "-h", "-help" -> {
-                        System.out.println(Help.getHelp());
-                        System.exit(1);
-                    }
                 }
             }
 
