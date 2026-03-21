@@ -155,4 +155,12 @@ public class LexerTests {
         String unexpectedSymbol = "@";
         assertThrows(UnexpectedSymbolError.class, () -> tokenizer.tokenize(unexpectedSymbol));
     }
+
+    @Test
+    void testEscapedString() {
+        String escapedString = "\"Hello World\n\"";
+        assertEquals("Hello World\n", tokenizer.tokenize(escapedString).getFirst().getLexeme());
+        escapedString = "\"\\\"Hello World\\\"\"";
+        assertEquals("\"Hello World\"", tokenizer.tokenize(escapedString).getFirst().getLexeme());
+    }
 }

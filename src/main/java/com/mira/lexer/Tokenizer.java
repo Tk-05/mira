@@ -85,17 +85,39 @@ public class Tokenizer {
     }
 
     private void scanString() {
+        StringBuilder valueBuilder = new StringBuilder();
 
         while (!isAtEnd() && peek() != '"') {
 
             if (peek() == '\\') {
-                source = source.substring(0, current) + source.substring(current + 1);
                 advance();
-            }
 
-            if (peek() == '\n') {
-                line++;
-                column = 0;
+                if (isAtEnd()) {
+                    throw new UnterminatedStringError(line);
+                }
+
+                char escaped = peek();
+
+                switch (escaped) {
+                    case 'n' ->
+                        valueBuilder.append('\n');
+                    case 't' ->
+                        valueBuilder.append('\t');
+                    case '"' ->
+                        valueBuilder.append('"');
+                    case '\\' ->
+                        valueBuilder.append('\\');
+                    default ->
+                        valueBuilder.append(escaped);
+                }
+
+            } else {
+                if (peek() == '\n') {
+                    line++;
+                    column = 0;
+                }
+
+                valueBuilder.append(peek());
             }
 
             advance();
@@ -107,11 +129,9 @@ public class Tokenizer {
 
         advance();
 
-        String value = source.substring(start + 1, current - 1);
-
         tokens.add(new Token(
                 TokenType.EXPRESSION,
-                value,
+                valueBuilder.toString(),
                 line,
                 column
         ));

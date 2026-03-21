@@ -16,7 +16,7 @@ public class NativeFunctions {
         environment.define("print",
                 new NativeFunction(1, args -> {
                     Object value = args.get(0);
-                    System.out.println(value);
+                    System.out.print(value);
                     return null;
                 })
         );
