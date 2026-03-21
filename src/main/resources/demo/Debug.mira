@@ -1,0 +1,9 @@
+var tuple : [1,2,3];
+
+$tuple[0] : 69;
+
+print($tuple[0]);
+
+for(var i : 0; $i < 10; $i : incr($i)){
+    print($i);
+}

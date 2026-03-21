@@ -10,9 +10,6 @@ import com.mira.runtime.Environment;
 import com.mira.runtime.Evaluator;
 import com.mira.runtime.Interpreter;
 
-import jdk.jshell.spi.ExecutionControl;
-import jdk.jshell.spi.ExecutionControl.NotImplementedException;
-
 public class NativeFunctions {
 
     public static Environment defineNativeFunctions(Environment environment) {
@@ -48,6 +45,20 @@ public class NativeFunctions {
                     }
 
                     throw new RuntimeException("Option has not been implemented yet!");
+                })
+        );
+
+        environment.define("incr",
+                new NativeFunction(1, args -> {
+                    String eval = String.valueOf(args.get(0));
+                    return Evaluator.evaluate(eval + "+ 1");
+                })
+        );
+
+        environment.define("decr",
+                new NativeFunction(1, args -> {
+                    String eval = String.valueOf(args.get(0));
+                    return Evaluator.evaluate(eval + "- 1");
                 })
         );
 
