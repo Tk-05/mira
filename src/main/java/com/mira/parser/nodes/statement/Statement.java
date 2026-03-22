@@ -90,16 +90,16 @@ public abstract class Statement implements Node {
 
     public static class Assign extends Statement {
 
-        private final String name;
+        private final Expression reference;
         private final Expression expression;
 
-        public Assign(String name, Expression expression) {
-            this.name = name;
+        public Assign(Expression reference, Expression expression) {
+            this.reference = reference;
             this.expression = expression;
         }
 
-        public String getName() {
-            return name;
+        public Expression getReference() {
+            return reference;
         }
 
         public Expression getExpression() {

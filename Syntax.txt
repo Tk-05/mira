@@ -24,6 +24,6 @@ print({});
 //list
 var x : {10, 10, 10};
 
-//array
+//tuple
 var x : [10, 10, 10];
 $x[10];

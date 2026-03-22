@@ -5,7 +5,7 @@ import java.util.List;
 import com.mira.lexer.Tokenizer;
 import com.mira.parser.Parser;
 import com.mira.parser.nodes.Node;
-import com.mira.parser.nodes.expression.Expression.Tuple;
+import com.mira.parser.nodes.expression.Expression.TupleExpression;
 import com.mira.runtime.Environment;
 import com.mira.runtime.Evaluator;
 import com.mira.runtime.Interpreter;
@@ -40,7 +40,7 @@ public class NativeFunctions {
                 new NativeFunction(1, args -> {
                     Object arg = args.get(0);
 
-                    if (arg instanceof Tuple tuple) {
+                    if (arg instanceof TupleExpression tuple) {
                         return String.valueOf(tuple.getMembers().size());
                     }
 

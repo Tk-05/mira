@@ -10,10 +10,11 @@ import org.junit.jupiter.api.Test;
 
 import com.mira.lexer.Tokenizer;
 import com.mira.parser.nodes.Node;
-import com.mira.parser.nodes.expression.Expression.Access;
+import com.mira.parser.nodes.expression.Expression.AccessExpression;
 import com.mira.parser.nodes.expression.Expression.CallExpression;
 import com.mira.parser.nodes.expression.Expression.ComplexExpression;
 import com.mira.parser.nodes.expression.Expression.DumbExpression;
+import com.mira.parser.nodes.expression.Expression.ListExpression;
 import com.mira.parser.nodes.expression.Expression.UnaryExpression;
 import com.mira.parser.nodes.statement.Statement;
 import com.mira.parser.nodes.statement.Statement.Break;
@@ -240,16 +241,26 @@ public class ParserTest {
                 """;
         List<Node> ast = parser.parseTokens(tokenizer.tokenize(accessExpression));
         assertEquals(1, ast.size());
-        assertInstanceOf(Access.class, ast.getFirst());
+        assertInstanceOf(AccessExpression.class, ast.getFirst());
     }
 
     @Test
     void parseBreak() {
         String breakStmt = """
                 break();
-        """;
+                """;
         List<Node> ast = parser.parseTokens(tokenizer.tokenize(breakStmt));
         assertEquals(1, ast.size());
         assertInstanceOf(Break.class, ast.getFirst());
+    }
+
+    @Test
+    void parseList() {
+        String list = """
+                var list : {};
+                """;
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize(list));
+        assertEquals(1, ast.size());
+        assertInstanceOf(VarDecl.class, ast.getFirst());
     }
 }

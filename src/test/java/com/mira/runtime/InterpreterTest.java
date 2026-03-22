@@ -2,12 +2,14 @@ package com.mira.runtime;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import com.mira.error.parser.ParserError.UnexpectedToken;
+import com.mira.error.runtime.RuntimeError.ReferenceIsImmutableError;
 import com.mira.lexer.Tokenizer;
 import com.mira.parser.Parser;
 import com.mira.runtime.functions.ReturnSignal;
@@ -357,7 +359,7 @@ public class InterpreterTest {
 
     @Test
     void testDeepNestedBreak() {
-            run("""
+        run("""
                     var outer : 0;
                     var middle : 0;
                     var inner : 0;
@@ -387,7 +389,7 @@ public class InterpreterTest {
 
     @Test
     void testDeepBreakWithPostExecution() {
-            run("""
+        run("""
                 var x : 0;
 
                 while ($x < 3) {
@@ -430,5 +432,118 @@ public class InterpreterTest {
                 eval($tuple[1][1]);
                 """;
         assertEquals(69.0, run(source));
+    }
+
+    @Test
+    void testListCreationAndAccess() {
+        String source = """
+                var list : {1, 2, 3};
+                eval($list[0]);
+                """;
+
+        assertEquals(1.0, run(source));
+    }
+
+    @Test
+    void testNestedListAccess() {
+        String source = """
+                var list : {{1, 2}, {3, 4}};
+                eval($list[1][0]);
+                """;
+
+        assertEquals(3.0, run(source));
+    }
+
+    @Test
+    void testListAssignment() {
+        String source = """
+                var list : {1, 2, 3};
+                $list[1] : 10;
+                eval($list[1]);
+                """;
+
+        assertEquals(10.0, run(source));
+    }
+
+    @Test
+    void testNestedListAssignment() {
+        String source = """
+                var list : {{1, 2}, {3, 4}};
+                $list[1][1] : 99;
+                eval($list[1][1]);
+                """;
+
+        assertEquals(99.0, run(source));
+    }
+
+    @Test
+    void testNestedListAssignmentWithTuple() {
+        String source = """
+                var list : [{1, 2}, {3, 4}];
+                $list[1][1] : 99;
+                eval($list[1][1]);
+                """;
+
+        assertEquals(99.0, run(source));
+    }
+
+    @Test
+    void testListWithExpressions() {
+        String source = """
+                var list : {1+2, 3*4, 5};
+                eval($list[0]);
+                """;
+
+        assertEquals(3.0, run(source));
+    }
+
+    @Test
+    void testExpressionIndex() {
+        String source = """
+                var list : {10, 20, 30};
+                eval($list[eval(1+1)]);
+                """;
+
+        assertEquals(30.0, run(source));
+    }
+
+    @Test
+    void testIndexOutOfBounds() {
+        String source = """
+                var list : {1, 2, 3};
+                $list[5];
+                """;
+
+        assertThrows(IndexOutOfBoundsException.class, () -> run(source));
+    }
+
+    @Test
+    void testAssignToNonList() {
+        String source = """
+                var x : 5;
+                $x[0] : 10;
+                """;
+
+        assertThrows(ReferenceIsImmutableError.class, () -> run(source));
+    }
+
+    @Test
+    void testEmptyList() {
+        String source = """
+                var list : {};
+                """;
+
+        assertNull(run(source));
+    }
+
+    @Test
+    void testAssignmentEvaluatesExpression() {
+        String source = """
+                var list : {1, 2, 3};
+                $list[0] : eval(1+2);
+                eval($list[0]);
+                """;
+
+        assertEquals(3.0, run(source));
     }
 }

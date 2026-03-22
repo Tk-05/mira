@@ -68,7 +68,7 @@ public abstract class Expression implements Node {
         @Override
         public String toString() {
             if (right != null) {
-                return operation.getLexeme() + right.toString(); 
+                return operation.getLexeme() + right.toString();
             } else {
                 return operation.getLexeme();
             }
@@ -131,14 +131,12 @@ public abstract class Expression implements Node {
         }
     }
 
-    public static class Tuple extends Expression implements Mutability {
+    public static class TupleExpression extends Expression implements Mutability {
 
-        private final int length;
         private final List<Expression> members;
 
-        public Tuple(List<Expression> members, int length) {
+        public TupleExpression(List<Expression> members) {
             this.members = members;
-            this.length = length;
         }
 
         @Override
@@ -147,7 +145,7 @@ public abstract class Expression implements Node {
         }
 
         public int getLength() {
-            return length;
+            return members.size();
         }
 
         public List<Expression> getMembers() {
@@ -165,12 +163,12 @@ public abstract class Expression implements Node {
         }
     }
 
-    public static class Access extends Expression {
+    public static class AccessExpression extends Expression {
 
         private final Expression reference;
         private final List<Expression> indecies;
 
-        public Access(Expression reference, List<Expression> indecies) {
+        public AccessExpression(Expression reference, List<Expression> indecies) {
             this.reference = reference;
             this.indecies = indecies;
         }
@@ -191,6 +189,38 @@ public abstract class Expression implements Node {
 
         public List<Expression> getIndecies() {
             return indecies;
+        }
+    }
+
+    public static class ListExpression extends Expression implements Mutability {
+
+        private final List<Expression> members;
+
+        public ListExpression(List<Expression> members) {
+            this.members = members;
+        }
+
+        @Override
+        public <T> T accept(ExprVisitor<T> visitor) {
+            return visitor.visitListExpr(this);
+        }
+
+        @Override
+        public String toString() {
+            return Formatter.formatToString(this);
+        }
+
+        @Override
+        public boolean isMutable() {
+            return true;
+        }
+
+        public List<Expression> getMembers() {
+            return members;
+        }
+
+        public int getLength() {
+            return members.size();
         }
     }
 }

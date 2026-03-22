@@ -28,8 +28,8 @@ public class Tokenizer {
     }
 
     public List<Token> tokenize(String source) {
-        reset();
         this.source = source;
+        reset();
 
         while (!isAtEnd()) {
             start = current;

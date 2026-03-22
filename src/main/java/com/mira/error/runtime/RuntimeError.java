@@ -27,6 +27,13 @@ public class RuntimeError extends RuntimeException {
         }
     }
 
+    public static class ReferenceIsImmutableError extends RuntimeError {
+
+        public ReferenceIsImmutableError(String message) {
+            super(message);
+        }
+    }
+
     public static class UnknownSymbolError extends RuntimeError {
 
         public UnknownSymbolError(char c) {

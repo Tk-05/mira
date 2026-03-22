@@ -10,11 +10,12 @@ import com.mira.lexer.token.Token;
 import com.mira.lexer.token.TokenType;
 import com.mira.parser.nodes.Node;
 import com.mira.parser.nodes.expression.Expression;
-import com.mira.parser.nodes.expression.Expression.Access;
+import com.mira.parser.nodes.expression.Expression.AccessExpression;
 import com.mira.parser.nodes.expression.Expression.CallExpression;
 import com.mira.parser.nodes.expression.Expression.ComplexExpression;
 import com.mira.parser.nodes.expression.Expression.DumbExpression;
-import com.mira.parser.nodes.expression.Expression.Tuple;
+import com.mira.parser.nodes.expression.Expression.ListExpression;
+import com.mira.parser.nodes.expression.Expression.TupleExpression;
 import com.mira.parser.nodes.expression.Expression.UnaryExpression;
 import com.mira.parser.nodes.statement.Statement.Assign;
 import com.mira.parser.nodes.statement.Statement.Break;
@@ -65,6 +66,13 @@ public class Parser {
             return tokens.get(tokens.size() - 1);
         }
         return tokens.get(index + 1);
+    }
+
+    private Token peekOffset(int offset) {
+        if (index + offset >= tokens.size()) {
+            return tokens.get(tokens.size() - 1);
+        }
+        return tokens.get(index + offset);
     }
 
     private void consumeExpected(String lexeme) {
@@ -136,12 +144,8 @@ public class Parser {
                 }
             }
             case "$" -> {
-                if (peekNextSafe().getTokenType() == TokenType.EXPRESSION
-                        && tokens.get(index + 2).getLexeme().equals(":")) {
-                    node = parseAssign();
-                } else {
-                    node = parseExpression();
-                }
+                node = isAssignment() ? parseAssign() : parseExpression();
+
                 if (expectSemicolon) {
                     matchLexeme(";");
                 }
@@ -163,6 +167,7 @@ public class Parser {
         while (!peek().getLexeme().equals(";") && !peek().getLexeme().equals(")")
                 && !peek().getLexeme().equals(",")
                 && !peek().getLexeme().equals("]")
+                && !peek().getLexeme().equals("}")
                 && peek().getTokenType() != TokenType.EOF) {
 
             Token current = peek();
@@ -170,11 +175,15 @@ public class Parser {
             if (current.getLexeme().equals("$")) {
                 Expression unary = parseUnaryExpression();
 
-                if (peek().getLexeme().equals("[")) {
+                if (peek().getLexeme().equals("[") || peek().getLexeme().equals("{")) {
                     expressions.add(parseAccessExpression(unary));
                 } else {
                     expressions.add(unary);
                 }
+
+            } else if (current.getLexeme().equals("{")
+                    && (expressions.isEmpty() || lastExpressionWasOperatorOrUnary(expressions))) {
+                expressions.add(parseList());
 
             } else if (current.getLexeme().equals("[")
                     && (expressions.isEmpty() || lastExpressionWasOperatorOrUnary(expressions))) {
@@ -250,19 +259,38 @@ public class Parser {
         );
     }
 
-    private Expression parseAccessExpression(Expression baseExpression) {
+    private Expression parseAccessExpression(Expression accessedExpression) {
         List<Expression> indices = new ArrayList<>();
 
-        while (peek().getLexeme().equals("[")) {
+        while (peek().getLexeme().equals("[") || peek().getLexeme().equals("{")) {
             consume();
 
             Expression indexExpr = parseExpression();
             indices.add(indexExpr);
 
-            matchLexeme("]");
+            if (peek().getLexeme().equals("}")) {
+                matchLexeme("}");
+            } else {
+                matchLexeme("]");
+            }
         }
 
-        return new Access(baseExpression, indices);
+        return new AccessExpression(accessedExpression, indices);
+    }
+
+    private Expression parseList() {
+        matchLexeme("{");
+
+        List<Expression> members = new ArrayList<>();
+        while (!peek().getLexeme().equals("}")) {
+            members.add(parseExpression());
+            if (!peek().getLexeme().equals("}")) {
+                matchLexeme(",");
+            }
+        }
+        matchLexeme("}");
+
+        return new ListExpression(members);
     }
 
     private Expression parseTuple() {
@@ -277,7 +305,7 @@ public class Parser {
         }
         matchLexeme("]");
 
-        return new Tuple(members, members.size());
+        return new TupleExpression(members);
     }
 
     private Node parseVarDecl() {
@@ -346,11 +374,47 @@ public class Parser {
     }
 
     private Node parseAssign() {
-        matchLexeme("$");
-        String name = matchType(TokenType.EXPRESSION).getLexeme();
+        Expression reference = parseUnaryExpression();
+        if (peek().getLexeme().contains("[")) {
+            reference = parseAccessExpression(reference);
+        }
         matchLexeme(":");
         Expression expression = parseExpression();
-        return new Assign(name, expression);
+        return new Assign(reference, expression);
+    }
+
+    private boolean isAssignment() {
+        if (!peek().getLexeme().equals("$")) {
+            return false;
+        }
+
+        int offset = 1;
+
+        if (peekOffset(offset).getTokenType() != TokenType.EXPRESSION) {
+            return false;
+        }
+        offset++;
+
+        while (peekOffset(offset).getLexeme().equals("[")) {
+            offset++;
+
+            int bracketDepth = 1;
+
+            while (bracketDepth > 0) {
+                String lex = peekOffset(offset).getLexeme();
+
+                if (lex.equals("[")) {
+                    bracketDepth++;
+                }
+                if (lex.equals("]")) {
+                    bracketDepth--;
+                }
+
+                offset++;
+            }
+        }
+
+        return peekOffset(offset).getLexeme().equals(":");
     }
 
     private Node parseIf() {
