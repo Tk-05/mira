@@ -33,6 +33,13 @@ public class Main {
                         Flags.exitBeforeInterpreter = true;
                     case "-c" ->
                         Flags.loadFromClasspath = true;
+                    case "-m" ->
+                        Flags.mainFunction = true;
+                    case "-args" -> {
+                        if (args.length > i) {
+                            Flags.args = args[i+1].substring(1, args[i+1].length() - 1).split(",");
+                        }
+                    }
                 }
             }
 
@@ -60,10 +67,15 @@ public class Main {
             }
             Interpreter interpreter = new Interpreter();
 
-            try {
-                interpreter.run(asts);
-            } catch (ReturnSignal returnSignal) {
-                System.out.println("Program exited with value: " + returnSignal.getValue() + " in " + (System.currentTimeMillis() - start) + " ms");
+            if (Flags.mainFunction) {
+                Object exitValue = interpreter.run(asts, Flags.args);
+                System.out.println("Program exited with value: " + exitValue + " in " + (System.currentTimeMillis() - start) + " ms");
+            } else {
+                try {
+                    interpreter.run(asts, Flags.args);
+                } catch (ReturnSignal returnSignal) {
+                    System.out.println("Program exited with value: " + returnSignal.getValue() + " in " + (System.currentTimeMillis() - start) + " ms");
+                }
             }
         } else {
             Console.run();

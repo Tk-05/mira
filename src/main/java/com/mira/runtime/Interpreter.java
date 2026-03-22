@@ -3,6 +3,7 @@ package com.mira.runtime;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.mira.Flags;
 import com.mira.error.runtime.RuntimeError.ArgMismatchError;
 import com.mira.error.runtime.RuntimeError.ReferenceIsImmutableError;
 import com.mira.error.runtime.RuntimeError.UnknownOperatorError;
@@ -39,10 +40,6 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
     private static final Environment globalEnvironment = new Environment();
     private Environment localEnvironment;
 
-    public Interpreter() {
-        setup();
-    }
-
     public static Interpreter getInstance() {
         if (instance == null) {
             instance = new Interpreter();
@@ -50,23 +47,75 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         return instance;
     }
 
-    private void setup() {
+    private void loadFunctions(List<Node> asts) {
         NativeFunctions.defineNativeFunctions(globalEnvironment);
+
+        for (Node ast : asts) {
+            if (ast instanceof FuncDecl funcDecl) {
+                funcDecl.accept(this);
+            }
+        }
+    }
+
+    private Expression getArgsTuple(String[] args) {
+        List<Expression> argsList = new ArrayList<>();
+        if (args != null) {
+            for (String arg : args) {
+                argsList.add(new DumbExpression(new Token(null, arg, 0, 0)));
+            }
+        } else {
+            return null;
+        }
+
+        return new TupleExpression(argsList);
+    }
+
+    public <T> T run(List<Node> asts, String[] args) {
+        loadFunctions(asts);
+        Object lastResult = null;
+
+        if (Flags.mainFunction) {
+            Expression argsTuple = getArgsTuple(args);
+            return (T) new CallExpression(new DumbExpression(
+                    new Token(null, "main", 0, 0)),
+                    argsTuple == null ? List.of() : List.of(argsTuple)).
+                    accept(this);
+        } else {
+            globalEnvironment.define("args", getArgsTuple(args));
+            for (Node ast : asts) {
+                lastResult = switch (ast) {
+                    case Expression expression ->
+                        expression.accept(this);
+                    case Statement statement ->
+                        statement.accept(this);
+                    default -> {
+                        throw new AssertionError();
+                    }
+                };
+            }
+        }
+
+        return (T) lastResult;
     }
 
     public <T> T run(List<Node> asts) {
+        loadFunctions(asts);
         Object lastResult = null;
 
-        for (Node ast : asts) {
-            lastResult = switch (ast) {
-                case Expression expression ->
-                    expression.accept(this);
-                case Statement statement ->
-                    statement.accept(this);
-                default -> {
-                    throw new AssertionError();
-                }
-            };
+        if (Flags.mainFunction) {
+            return (T) new CallExpression(new DumbExpression(new Token(null, "main", 0, 0)), new ArrayList<>()).accept(this);
+        } else {
+            for (Node ast : asts) {
+                lastResult = switch (ast) {
+                    case Expression expression ->
+                        expression.accept(this);
+                    case Statement statement ->
+                        statement.accept(this);
+                    default -> {
+                        throw new AssertionError();
+                    }
+                };
+            }
         }
 
         return (T) lastResult;
@@ -369,6 +418,10 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         boolean value = (boolean) Evaluator.evaluate(condition);
 
         List<Node> body = value ? stmt.getThenBody() : stmt.getElseBody();
+
+        if (body == null) {
+            return null;
+        }
 
         for (Node node : body) {
             switch (node) {

@@ -8,6 +8,8 @@ public class Help {
         -t Dump tokens
         -e Exit before interpreter
         -c Load file from classpath
+        -m For main function entry point
+        -args {arg0, arg1...}
             """;
 
     public static String getHelp() {

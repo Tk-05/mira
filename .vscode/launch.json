@@ -10,7 +10,8 @@
             "args": [
                     "demo/Debug.mira",
                     "-c",
-                    "-t"
+                    "-t",
+                    "-m"
                 ]
         },
         {
