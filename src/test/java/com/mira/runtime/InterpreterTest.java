@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 
 import com.mira.error.parser.ParserError.UnexpectedToken;
 import com.mira.error.runtime.RuntimeError.ReferenceIsImmutableError;
+import com.mira.error.runtime.RuntimeError.UndefinedReferenceError;
 import com.mira.lexer.Tokenizer;
 import com.mira.parser.Parser;
 import com.mira.runtime.functions.ReturnSignal;
@@ -545,5 +546,28 @@ public class InterpreterTest {
                 """;
 
         assertEquals(3.0, run(source));
+    }
+
+    @Test
+    void testBlockStatement() {
+        String source = """
+                var ref : 69;
+                {
+                    var ref : 10;
+                }
+                eval($ref);
+                """;
+        assertEquals(69.0, run(source));
+    }
+
+    @Test
+    void testDefinedInBlock() {
+        String source = """
+                {
+                    var ref : 0;
+                }
+                $ref;
+                """;
+        assertThrows(UndefinedReferenceError.class, () -> run(source));
     }
 }

@@ -1,6 +1,7 @@
 package com.mira.runtime.visitors;
 
 import com.mira.parser.nodes.statement.Statement.Assign;
+import com.mira.parser.nodes.statement.Statement.Block;
 import com.mira.parser.nodes.statement.Statement.Break;
 import com.mira.parser.nodes.statement.Statement.For;
 import com.mira.parser.nodes.statement.Statement.FuncDecl;
@@ -26,4 +27,6 @@ public interface StmtVisitor<T> {
     public T visitWhile(While stmt);
 
     public T visitBreak(Break stmt);
+
+    public T visitBlock(Block stmt);
 }

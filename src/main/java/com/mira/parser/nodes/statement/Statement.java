@@ -209,4 +209,22 @@ public abstract class Statement implements Node {
             return visitor.visitBreak(this);
         }
     }
+
+    public static class Block extends Statement {
+
+        private final List<Node> body;
+
+        public Block(List<Node> body) {
+            this.body = body;
+        }
+
+        @Override
+        public <T> T accept(StmtVisitor<T> visitor) {
+            return visitor.visitBlock(this);
+        }
+
+        public List<Node> getBody() {
+            return body;
+        }
+    }
 }

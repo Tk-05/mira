@@ -26,7 +26,6 @@ public class Function implements Callable {
 
     @Override
     public Object call(Interpreter interpreter, List<Object> arguments) {
-
         Environment localEnv = new Environment(environment);
 
         for (int i = 0; i < parameters.size(); i++) {

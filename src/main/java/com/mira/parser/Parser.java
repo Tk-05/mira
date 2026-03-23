@@ -18,6 +18,7 @@ import com.mira.parser.nodes.expression.Expression.ListExpression;
 import com.mira.parser.nodes.expression.Expression.TupleExpression;
 import com.mira.parser.nodes.expression.Expression.UnaryExpression;
 import com.mira.parser.nodes.statement.Statement.Assign;
+import com.mira.parser.nodes.statement.Statement.Block;
 import com.mira.parser.nodes.statement.Statement.Break;
 import com.mira.parser.nodes.statement.Statement.For;
 import com.mira.parser.nodes.statement.Statement.FuncDecl;
@@ -149,6 +150,9 @@ public class Parser {
                 if (expectSemicolon) {
                     matchLexeme(";");
                 }
+            }
+            case "{" -> {
+                node = parseBlock();
             }
             default -> {
                 node = parseExpression();
@@ -513,5 +517,17 @@ public class Parser {
         matchLexeme("(");
         matchLexeme(")");
         return new Break();
+    }
+
+    private Node parseBlock() {
+        matchLexeme("{");
+
+        List<Node> body = new ArrayList<>();
+        while (!peek().getLexeme().equals("}")) { 
+            body.add(parseStatement(true));
+        }
+        matchLexeme("}");
+        
+        return new Block(body);
     }
 }

@@ -21,6 +21,7 @@ import com.mira.parser.nodes.expression.Expression.TupleExpression;
 import com.mira.parser.nodes.expression.Expression.UnaryExpression;
 import com.mira.parser.nodes.statement.Statement;
 import com.mira.parser.nodes.statement.Statement.Assign;
+import com.mira.parser.nodes.statement.Statement.Block;
 import com.mira.parser.nodes.statement.Statement.Break;
 import com.mira.parser.nodes.statement.Statement.For;
 import com.mira.parser.nodes.statement.Statement.FuncDecl;
@@ -540,6 +541,27 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
     @Override
     public Object visitBreak(Break stmt) {
         throw new BreakSignal();
+    }
+
+    @Override
+    public Object visitBlock(Block stmt) {
+        Environment previous = localEnvironment;
+        localEnvironment = new Environment(previous);
+
+        for (Node node : stmt.getBody()) {
+            switch (node) {
+                case Expression expression ->
+                    expression.accept(this);
+                case Statement statement ->
+                    statement.accept(this);
+                default -> {
+                    throw new AssertionError();
+                }
+            }
+        }
+
+        localEnvironment = previous;
+        return null;
     }
 
     public Environment getLocalEnvironment() {

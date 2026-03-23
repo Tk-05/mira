@@ -14,9 +14,9 @@ import com.mira.parser.nodes.expression.Expression.AccessExpression;
 import com.mira.parser.nodes.expression.Expression.CallExpression;
 import com.mira.parser.nodes.expression.Expression.ComplexExpression;
 import com.mira.parser.nodes.expression.Expression.DumbExpression;
-import com.mira.parser.nodes.expression.Expression.ListExpression;
 import com.mira.parser.nodes.expression.Expression.UnaryExpression;
 import com.mira.parser.nodes.statement.Statement;
+import com.mira.parser.nodes.statement.Statement.Block;
 import com.mira.parser.nodes.statement.Statement.Break;
 import com.mira.parser.nodes.statement.Statement.For;
 import com.mira.parser.nodes.statement.Statement.VarDecl;
@@ -236,7 +236,7 @@ public class ParserTest {
 
     @Test
     void parseAccessExpression() {
-        String  accessExpression = """
+        String accessExpression = """
                 $x[0];
                 """;
         List<Node> ast = parser.parseTokens(tokenizer.tokenize(accessExpression));
@@ -262,5 +262,17 @@ public class ParserTest {
         List<Node> ast = parser.parseTokens(tokenizer.tokenize(list));
         assertEquals(1, ast.size());
         assertInstanceOf(VarDecl.class, ast.getFirst());
+    }
+
+    @Test
+    void parseBlock() {
+        String block = """
+                {
+                    var ref : 10;
+                }
+                """;
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize(block));
+        assertEquals(1, ast.size());
+        assertInstanceOf(Block.class, ast.getFirst());
     }
 }
