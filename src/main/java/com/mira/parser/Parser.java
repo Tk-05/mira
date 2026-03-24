@@ -90,7 +90,7 @@ public class Parser {
 
     private void consumeExpected(String lexeme) {
         if (!peek().getLexeme().equals(lexeme)) {
-            throw new RuntimeException("Expected '" + lexeme + "' but got " + peek().getLexeme());
+            throw new LexemeMismatchError(peek(), "Expected '" + lexeme + "'");
         }
         consume();
     }
@@ -187,7 +187,8 @@ public class Parser {
     private Expression parseExpression() {
         List<Expression> expressions = new ArrayList<>();
 
-        while (!peek().getLexeme().equals(";") && !peek().getLexeme().equals(")")
+        while (!peek().getLexeme().equals(";")
+                && !peek().getLexeme().equals(")")
                 && !peek().getLexeme().equals(",")
                 && !peek().getLexeme().equals("]")
                 && !peek().getLexeme().equals("}")
@@ -197,37 +198,36 @@ public class Parser {
 
             if (current.getLexeme().equals("$")) {
                 Expression unary = parseUnaryExpression();
-
-                if (peek().getLexeme().equals("[") || peek().getLexeme().equals("{")) {
-                    expressions.add(parseAccessExpression(unary));
-                } else {
-                    expressions.add(unary);
-                }
+                expressions.add(maybeParseAccess(unary));
 
             } else if (current.getLexeme().equals("{")
                     && (expressions.isEmpty() || lastExpressionWasOperatorOrUnary(expressions))) {
-                expressions.add(parseList());
+
+                expressions.add(maybeParseAccess(parseList()));
 
             } else if (current.getLexeme().equals("[")
                     && (expressions.isEmpty() || lastExpressionWasOperatorOrUnary(expressions))) {
-                expressions.add(parseTuple());
+
+                expressions.add(maybeParseAccess(parseTuple()));
 
             } else if (Vocabulary.stringIsOperation(current.getLexeme())
                     && !current.getLexeme().equals("$")) {
+
                 expressions.add(new UnaryExpression(consume(), null));
 
             } else if (current.getTokenType() == TokenType.EXPRESSION
                     && peekNextSafe().getLexeme().equals("(")) {
-                expressions.add(parseCallExpression());
+
+                expressions.add(maybeParseAccess(parseCallExpression()));
 
             } else if (current.getLexeme().equals("(")) {
                 consume();
                 Expression inner = parseExpression();
                 consumeExpected(")");
-                expressions.add(inner);
+                expressions.add(maybeParseAccess(inner));
 
             } else {
-                expressions.add(parseDumbExpression());
+                expressions.add(maybeParseAccess(parseDumbExpression()));
             }
         }
 
@@ -239,6 +239,13 @@ public class Parser {
     private boolean lastExpressionWasOperatorOrUnary(List<Expression> exprs) {
         Expression last = exprs.get(exprs.size() - 1);
         return last instanceof UnaryExpression || last instanceof ComplexExpression;
+    }
+
+    private Expression maybeParseAccess(Expression base) {
+        if (peek().getLexeme().equals("[") || peek().getLexeme().equals("{")) {
+            return parseAccessExpression(base);
+        }
+        return base;
     }
 
     private Expression parseUnaryExpression() {

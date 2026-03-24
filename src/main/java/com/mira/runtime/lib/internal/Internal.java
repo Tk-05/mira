@@ -40,14 +40,20 @@ public class Internal implements Lib {
                 }));
 
         environment.define("length",
-                new NativeFunction(1, args -> {
+                new NativeFunction(1, (var args) -> {
                     Object arg = args.get(0);
 
-                    if (arg instanceof TupleExpression tuple) {
-                        return String.valueOf(tuple.getMembers().size());
+                    switch (arg) {
+                        case TupleExpression tuple -> {
+                            return String.valueOf(tuple.getMembers().size());
+                        }
+                        case String string -> {
+                            return string.length();
+                        }
+                        default -> {
+                            throw new RuntimeException("Option has not been implemented yet!");
+                        }
                     }
-
-                    throw new RuntimeException("Option has not been implemented yet!");
                 })
         );
 

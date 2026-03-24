@@ -30,3 +30,12 @@ var x : {10, 10, 10};
 //tuple
 var x : [10, 10, 10];
 $x[10];
+
+//for
+fn main() {
+    var test : "abc";
+
+    for(var i : 0; $i < length($test); $i : incr($i)) {
+        print(charAt($i, $test) "\n");
+    }
+}

@@ -462,6 +462,20 @@ public class InterpreterTest {
     }
 
     @Test
+    void testImplicitListAccess() {
+        String source = """
+                fn getList() {
+                    var list : {1, 2, 3};
+                    ret($list);
+                }
+
+                eval(getList()[0]);
+                """;
+
+        assertEquals(1.0, runWithNewGlobalContext(source));
+    }
+
+    @Test
     void testNestedListAccess() {
         String source = """
                 var list : {{1, 2}, {3, 4}};

@@ -18,6 +18,7 @@ public class ImportResolver {
     static {
         libs.put("math", new Math());
         libs.put("string", new Strings());
+        libs.put("list", new com.mira.runtime.lib.std.List());
     }
 
     public static void resolveImports(List<ImportExpression> imports, Environment environment) {

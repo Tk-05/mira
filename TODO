@@ -6,3 +6,4 @@ TODO:
     -native functions -> files etc.
         -Override native functions
     -Regex
+    -Fix access expression : print(append("World", $list)[0]);
