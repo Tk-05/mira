@@ -13,7 +13,10 @@ import com.mira.error.runtime.RuntimeError.ReferenceIsImmutableError;
 import com.mira.error.runtime.RuntimeError.UndefinedReferenceError;
 import com.mira.lexer.Tokenizer;
 import com.mira.parser.Parser;
+import com.mira.runtime.functions.BreakSignal;
 import com.mira.runtime.functions.ReturnSignal;
+import com.mira.runtime.interpreter.Evaluator;
+import com.mira.runtime.interpreter.Interpreter;
 
 public class InterpreterTest {
 

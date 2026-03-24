@@ -8,8 +8,8 @@ import com.mira.lexer.Tokenizer;
 import com.mira.lexer.token.Token;
 import com.mira.parser.Parser;
 import com.mira.parser.nodes.Node;
-import com.mira.runtime.Interpreter;
 import com.mira.runtime.functions.ReturnSignal;
+import com.mira.runtime.interpreter.Interpreter;
 import com.mira.utils.FileLoader;
 
 public class Main {

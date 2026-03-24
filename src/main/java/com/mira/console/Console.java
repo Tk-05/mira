@@ -4,7 +4,7 @@ import java.util.Scanner;
 
 import com.mira.lexer.Tokenizer;
 import com.mira.parser.Parser;
-import com.mira.runtime.Interpreter;
+import com.mira.runtime.interpreter.Interpreter;
 
 public class Console {
 

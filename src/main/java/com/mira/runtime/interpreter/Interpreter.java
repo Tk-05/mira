@@ -1,4 +1,4 @@
-package com.mira.runtime;
+package com.mira.runtime.interpreter;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -29,9 +29,11 @@ import com.mira.parser.nodes.statement.Statement.If;
 import com.mira.parser.nodes.statement.Statement.Return;
 import com.mira.parser.nodes.statement.Statement.VarDecl;
 import com.mira.parser.nodes.statement.Statement.While;
+import com.mira.runtime.functions.BreakSignal;
+import com.mira.runtime.functions.Callable;
 import com.mira.runtime.functions.Function;
 import com.mira.runtime.functions.ReturnSignal;
-import com.mira.runtime.functions.nativeFunction.NativeFunctions;
+import com.mira.runtime.lib.internal.NativeFunctions;
 import com.mira.runtime.visitors.ExprVisitor;
 import com.mira.runtime.visitors.StmtVisitor;
 

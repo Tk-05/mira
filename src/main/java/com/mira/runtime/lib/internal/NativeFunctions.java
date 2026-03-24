@@ -1,4 +1,4 @@
-package com.mira.runtime.functions.nativeFunction;
+package com.mira.runtime.lib.internal;
 
 import java.util.List;
 
@@ -6,9 +6,10 @@ import com.mira.lexer.Tokenizer;
 import com.mira.parser.Parser;
 import com.mira.parser.nodes.Node;
 import com.mira.parser.nodes.expression.Expression.TupleExpression;
-import com.mira.runtime.Environment;
-import com.mira.runtime.Evaluator;
-import com.mira.runtime.Interpreter;
+import com.mira.runtime.functions.NativeFunction;
+import com.mira.runtime.interpreter.Environment;
+import com.mira.runtime.interpreter.Evaluator;
+import com.mira.runtime.interpreter.Interpreter;
 
 public class NativeFunctions {
 

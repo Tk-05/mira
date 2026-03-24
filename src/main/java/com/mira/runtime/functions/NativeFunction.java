@@ -1,9 +1,8 @@
-package com.mira.runtime.functions.nativeFunction;
+package com.mira.runtime.functions;
 
 import java.util.List;
 
-import com.mira.runtime.Callable;
-import com.mira.runtime.Interpreter;
+import com.mira.runtime.interpreter.Interpreter;
 
 public class NativeFunction implements Callable {
 
