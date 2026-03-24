@@ -53,6 +53,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
         for (Node ast : asts) {
             if (ast instanceof FuncDecl funcDecl) {
+                funcDecl.getBody().add(new Return(new DumbExpression(new Token(null, "0", 0, 0))));
                 funcDecl.accept(this);
             }
         }
