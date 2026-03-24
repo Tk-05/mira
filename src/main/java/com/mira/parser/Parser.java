@@ -14,6 +14,7 @@ import com.mira.parser.nodes.expression.Expression.AccessExpression;
 import com.mira.parser.nodes.expression.Expression.CallExpression;
 import com.mira.parser.nodes.expression.Expression.ComplexExpression;
 import com.mira.parser.nodes.expression.Expression.DumbExpression;
+import com.mira.parser.nodes.expression.Expression.ImportExpression;
 import com.mira.parser.nodes.expression.Expression.ListExpression;
 import com.mira.parser.nodes.expression.Expression.TupleExpression;
 import com.mira.parser.nodes.expression.Expression.UnaryExpression;
@@ -32,6 +33,7 @@ public class Parser {
 
     private List<Token> tokens;
     private int index;
+    private int parsingDepth = 0;
 
     private void reset() {
         index = 0;
@@ -48,6 +50,16 @@ public class Parser {
         }
 
         return asts;
+    }
+
+    private void increaseDepth() {
+        parsingDepth++;
+    }
+
+    private void decreaseDepth() {
+        if (parsingDepth > 0) {
+            parsingDepth--;
+        }
     }
 
     private Token consume() {
@@ -121,8 +133,11 @@ public class Parser {
                     matchLexeme(";");
                 }
             }
-            case "fn" ->
+            case "fn" -> {
+                increaseDepth();
                 node = parseFuncDecl();
+                decreaseDepth();
+            }
             case "ret" -> {
                 node = parseReturn();
                 if (expectSemicolon) {
@@ -153,6 +168,10 @@ public class Parser {
             }
             case "{" -> {
                 node = parseBlock();
+            }
+            case "import" -> {
+                node = parseImportExpression();
+                matchLexeme(";");
             }
             default -> {
                 node = parseExpression();
@@ -523,11 +542,19 @@ public class Parser {
         matchLexeme("{");
 
         List<Node> body = new ArrayList<>();
-        while (!peek().getLexeme().equals("}")) { 
+        while (!peek().getLexeme().equals("}")) {
             body.add(parseStatement(true));
         }
         matchLexeme("}");
-        
+
         return new Block(body);
+    }
+
+    private Node parseImportExpression() {
+        if (parsingDepth != 0) {
+            throw new AssertionError("Imports must be declared in global context!");
+        }
+        matchLexeme("import");
+        return new ImportExpression(parseExpression());
     }
 }

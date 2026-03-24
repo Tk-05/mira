@@ -10,10 +10,12 @@ import com.mira.runtime.functions.NativeFunction;
 import com.mira.runtime.interpreter.Environment;
 import com.mira.runtime.interpreter.Evaluator;
 import com.mira.runtime.interpreter.Interpreter;
+import com.mira.runtime.lib.Lib;
 
-public class NativeFunctions {
+public class Internal implements Lib {
 
-    public static Environment defineNativeFunctions(Environment environment) {
+    @Override
+    public void loadLib(Environment environment) {
         environment.define("print",
                 new NativeFunction(1, args -> {
                     Object value = args.get(0);
@@ -34,7 +36,7 @@ public class NativeFunctions {
                     Tokenizer tokenizer = new Tokenizer();
                     Parser parser = new Parser();
                     List<Node> ast = parser.parseTokens(tokenizer.tokenize(code));
-                    return Interpreter.getInstance().run(ast);
+                    return Interpreter.getInstance().runWithoutLoadingNewContext(ast);
                 }));
 
         environment.define("length",
@@ -62,11 +64,5 @@ public class NativeFunctions {
                     return Evaluator.evaluate(eval + "- 1");
                 })
         );
-
-        environment.define("pow",
-                new NativeFunction(2, args -> {
-                    return Math.pow((double) Evaluator.evaluate(String.valueOf(args.get(0))), (double) Evaluator.evaluate(String.valueOf(args.get(1))));
-                }));
-        return environment;
     }
 }

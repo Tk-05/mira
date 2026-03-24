@@ -14,6 +14,7 @@ import com.mira.parser.nodes.expression.Expression.AccessExpression;
 import com.mira.parser.nodes.expression.Expression.CallExpression;
 import com.mira.parser.nodes.expression.Expression.ComplexExpression;
 import com.mira.parser.nodes.expression.Expression.DumbExpression;
+import com.mira.parser.nodes.expression.Expression.ImportExpression;
 import com.mira.parser.nodes.expression.Expression.UnaryExpression;
 import com.mira.parser.nodes.statement.Statement;
 import com.mira.parser.nodes.statement.Statement.Block;
@@ -274,5 +275,15 @@ public class ParserTest {
         List<Node> ast = parser.parseTokens(tokenizer.tokenize(block));
         assertEquals(1, ast.size());
         assertInstanceOf(Block.class, ast.getFirst());
+    }
+
+    @Test
+    void parseImport() {
+        String importStmt = """
+                import HelloWorld;
+                """;
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize(importStmt));
+        assertEquals(1, ast.size());
+        assertInstanceOf(ImportExpression.class, ast.getFirst());
     }
 }

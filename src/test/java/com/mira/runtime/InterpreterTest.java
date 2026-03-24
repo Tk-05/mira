@@ -27,25 +27,37 @@ public class InterpreterTest {
         interpreter = new Interpreter();
     }
 
-    Object run(String source) {
+    void createNewGlobalContext() {
+        Tokenizer tokenizer = new Tokenizer();
+        Parser parser = new Parser();
+        interpreter.run(parser.parseTokens(tokenizer.tokenize("")));
+    }
+
+    Object runWithNewGlobalContext(String source) {
         Tokenizer tokenizer = new Tokenizer();
         Parser parser = new Parser();
         return interpreter.run(parser.parseTokens(tokenizer.tokenize(source)));
     }
 
+    Object runWithoutNewGlobalContext(String source) {
+        Tokenizer tokenizer = new Tokenizer();
+        Parser parser = new Parser();
+        return interpreter.runWithoutLoadingNewContext(parser.parseTokens(tokenizer.tokenize(source)));
+    }
+
     @Test
     void testSimpleArithmetic() {
-        assertEquals(3.0, run("eval(1+2);"));
-        assertEquals(2.0, run("eval(5-3);"));
-        assertEquals(6.0, run("eval(2*3);"));
-        assertEquals(4.0, run("eval(8/2);"));
+        assertEquals(3.0, runWithNewGlobalContext("eval(1+2);"));
+        assertEquals(2.0, runWithNewGlobalContext("eval(5-3);"));
+        assertEquals(6.0, runWithNewGlobalContext("eval(2*3);"));
+        assertEquals(4.0, runWithNewGlobalContext("eval(8/2);"));
     }
 
     @Test
     void testUnaryOperators() {
-        assertEquals(-5.0, run("eval(-5);"));
-        assertEquals(1.0, run("eval(-1+2);"));
-        assertEquals(-3.0, run("eval(-1*3);"));
+        assertEquals(-5.0, runWithNewGlobalContext("eval(-5);"));
+        assertEquals(1.0, runWithNewGlobalContext("eval(-1+2);"));
+        assertEquals(-3.0, runWithNewGlobalContext("eval(-1*3);"));
     }
 
     @Test
@@ -62,18 +74,19 @@ public class InterpreterTest {
 
     @Test
     void testVariableUsage() {
+        createNewGlobalContext();
         Interpreter.getGlobalEnvironment().define("x", 10);
         Interpreter.getGlobalEnvironment().define("y", 5);
         Interpreter.getGlobalEnvironment().define("val", 3);
 
-        assertEquals(15.0, run("eval($x + $y);"));
-        assertEquals(5.0, run("eval($val+2);"));
-        assertEquals(23.0, run("eval($val + $x * 2);"));
+        assertEquals(15.0, runWithoutNewGlobalContext("eval($x + $y);"));
+        assertEquals(5.0, runWithoutNewGlobalContext("eval($val+2);"));
+        assertEquals(23.0, runWithoutNewGlobalContext("eval($val + $x * 2);"));
     }
 
     @Test
     void testComplexExpressionWithUnaryAndParentheses() {
-        assertEquals(0.5, run("""
+        assertEquals(0.5, runWithNewGlobalContext("""
                 var a : 5;
                 var b : 3;
                 eval((-$a + ($b*2)) / 2);
@@ -133,8 +146,8 @@ public class InterpreterTest {
 
     @Test
     void testErrors() {
-        assertThrows(UnexpectedToken.class, () -> run("eval(1++2);"));
-        assertThrows(RuntimeException.class, () -> run("eval(unknownVar+1);"));
+        assertThrows(UnexpectedToken.class, () -> runWithNewGlobalContext("eval(1++2);"));
+        assertThrows(RuntimeException.class, () -> runWithNewGlobalContext("eval(unknownVar+1);"));
     }
 
     @Test
@@ -223,8 +236,8 @@ public class InterpreterTest {
                 fn greet(name) {
                     ret("Hello " $name);
                 }
-                var print : "ret(greet(\"World\"));";
-                exec($print);
+                var greeting : "ret(greet(\"World\"));";
+                exec($greeting);
                 """;
         Tokenizer tokenizer = new Tokenizer();
         Parser parser = new Parser();
@@ -295,7 +308,7 @@ public class InterpreterTest {
 
     @Test
     void testFibonacci() {
-        assertEquals(6765.0, run("""
+        assertEquals(6765.0, runWithNewGlobalContext("""
                 fn fibonacci(n){
                     if($n<=1){
                         ret($n);
@@ -310,7 +323,7 @@ public class InterpreterTest {
 
     @Test
     void testForWithFibonacci() {
-        assertEquals(88.0, run("""
+        assertEquals(88.0, runWithNewGlobalContext("""
                 var result : 0;
             
                 fn fibonacci(n){
@@ -332,7 +345,7 @@ public class InterpreterTest {
 
     @Test
     void testForWithoutInitalizer() {
-        assertEquals(null, run("""
+        assertEquals(null, runWithNewGlobalContext("""
                 var i : 0;
                 for (; $i < 3; $i : eval($i + 1)) {}
                 """));
@@ -340,7 +353,7 @@ public class InterpreterTest {
 
     @Test
     void testWhile() {
-        assertEquals(null, run("""
+        assertEquals(null, runWithNewGlobalContext("""
                 var i : 0;
                 while($i <= 10){
                     $i : eval($i + 1);
@@ -350,11 +363,11 @@ public class InterpreterTest {
 
     @Test
     void testBreak() {
-        assertThrows(BreakSignal.class, () -> run("""
+        assertThrows(BreakSignal.class, () -> runWithNewGlobalContext("""
                 break();
                 """));
 
-        assertEquals(null, run("""
+        assertEquals(null, runWithNewGlobalContext("""
                 while(1){
                     break();
                 }
@@ -363,7 +376,7 @@ public class InterpreterTest {
 
     @Test
     void testDeepNestedBreak() {
-        run("""
+        runWithNewGlobalContext("""
                     var outer : 0;
                     var middle : 0;
                     var inner : 0;
@@ -393,7 +406,7 @@ public class InterpreterTest {
 
     @Test
     void testDeepBreakWithPostExecution() {
-        run("""
+        runWithNewGlobalContext("""
                 var x : 0;
 
                 while ($x < 3) {
@@ -417,7 +430,7 @@ public class InterpreterTest {
                 var tuple : [];
                 $tuple[0];
                 """;
-        assertThrows(IndexOutOfBoundsException.class, () -> run(source));
+        assertThrows(IndexOutOfBoundsException.class, () -> runWithNewGlobalContext(source));
     }
 
     @Test
@@ -426,7 +439,7 @@ public class InterpreterTest {
                 var tuple : [1+2, 3*4, 5];
                 eval($tuple[0]);
                 """;
-        assertEquals(3.0, run(source));
+        assertEquals(3.0, runWithNewGlobalContext(source));
     }
 
     @Test
@@ -435,7 +448,7 @@ public class InterpreterTest {
                 var tuple : [[1,2],[3,69],69];
                 eval($tuple[1][1]);
                 """;
-        assertEquals(69.0, run(source));
+        assertEquals(69.0, runWithNewGlobalContext(source));
     }
 
     @Test
@@ -445,7 +458,7 @@ public class InterpreterTest {
                 eval($list[0]);
                 """;
 
-        assertEquals(1.0, run(source));
+        assertEquals(1.0, runWithNewGlobalContext(source));
     }
 
     @Test
@@ -455,7 +468,7 @@ public class InterpreterTest {
                 eval($list[1][0]);
                 """;
 
-        assertEquals(3.0, run(source));
+        assertEquals(3.0, runWithNewGlobalContext(source));
     }
 
     @Test
@@ -466,7 +479,7 @@ public class InterpreterTest {
                 eval($list[1]);
                 """;
 
-        assertEquals(10.0, run(source));
+        assertEquals(10.0, runWithNewGlobalContext(source));
     }
 
     @Test
@@ -477,7 +490,7 @@ public class InterpreterTest {
                 eval($list[1][1]);
                 """;
 
-        assertEquals(99.0, run(source));
+        assertEquals(99.0, runWithNewGlobalContext(source));
     }
 
     @Test
@@ -488,7 +501,7 @@ public class InterpreterTest {
                 eval($list[1][1]);
                 """;
 
-        assertEquals(99.0, run(source));
+        assertEquals(99.0, runWithNewGlobalContext(source));
     }
 
     @Test
@@ -498,7 +511,7 @@ public class InterpreterTest {
                 eval($list[0]);
                 """;
 
-        assertEquals(3.0, run(source));
+        assertEquals(3.0, runWithNewGlobalContext(source));
     }
 
     @Test
@@ -508,7 +521,7 @@ public class InterpreterTest {
                 eval($list[eval(1+1)]);
                 """;
 
-        assertEquals(30.0, run(source));
+        assertEquals(30.0, runWithNewGlobalContext(source));
     }
 
     @Test
@@ -518,7 +531,7 @@ public class InterpreterTest {
                 $list[5];
                 """;
 
-        assertThrows(IndexOutOfBoundsException.class, () -> run(source));
+        assertThrows(IndexOutOfBoundsException.class, () -> runWithNewGlobalContext(source));
     }
 
     @Test
@@ -528,7 +541,7 @@ public class InterpreterTest {
                 $x[0] : 10;
                 """;
 
-        assertThrows(ReferenceIsImmutableError.class, () -> run(source));
+        assertThrows(ReferenceIsImmutableError.class, () -> runWithNewGlobalContext(source));
     }
 
     @Test
@@ -537,7 +550,7 @@ public class InterpreterTest {
                 var list : {};
                 """;
 
-        assertNull(run(source));
+        assertNull(runWithNewGlobalContext(source));
     }
 
     @Test
@@ -548,7 +561,7 @@ public class InterpreterTest {
                 eval($list[0]);
                 """;
 
-        assertEquals(3.0, run(source));
+        assertEquals(3.0, runWithNewGlobalContext(source));
     }
 
     @Test
@@ -560,7 +573,7 @@ public class InterpreterTest {
                 }
                 eval($ref);
                 """;
-        assertEquals(69.0, run(source));
+        assertEquals(69.0, runWithNewGlobalContext(source));
     }
 
     @Test
@@ -571,6 +584,6 @@ public class InterpreterTest {
                 }
                 $ref;
                 """;
-        assertThrows(UndefinedReferenceError.class, () -> run(source));
+        assertThrows(UndefinedReferenceError.class, () -> runWithNewGlobalContext(source));
     }
 }

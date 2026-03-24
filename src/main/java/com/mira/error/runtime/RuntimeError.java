@@ -6,6 +6,13 @@ public class RuntimeError extends RuntimeException {
         super(message);
     }
 
+    public static class ObjectAlreadyDefinedInScope extends RuntimeError {
+
+        public ObjectAlreadyDefinedInScope(String name) {
+            super("Object '" + name + "' is alreay defined in scope!");
+        }
+    }
+
     public static class UndefinedVariableError extends RuntimeError {
 
         public UndefinedVariableError(String identifier) {

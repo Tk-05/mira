@@ -1,3 +1,6 @@
+//imports
+import ...;
+
 //variable declaration
 var x : 10;
 var x;

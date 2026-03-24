@@ -3,6 +3,7 @@ package com.mira.runtime.interpreter;
 import java.util.HashMap;
 import java.util.Map;
 
+import com.mira.error.runtime.RuntimeError.ObjectAlreadyDefinedInScope;
 import com.mira.error.runtime.RuntimeError.UndefinedReferenceError;
 import com.mira.error.runtime.RuntimeError.UndefinedVariableError;
 
@@ -20,7 +21,11 @@ public class Environment {
     }
 
     public void define(String name, Object value) {
-        values.put(name, value);
+        if (!exists(name)) {
+            values.put(name, value);
+        } else {
+            throw new ObjectAlreadyDefinedInScope(name);
+        }
     }
 
     public Object get(String name) {
@@ -53,5 +58,9 @@ public class Environment {
 
     public boolean exists(String name) {
         return values.containsKey(name);
+    }
+
+    public int getSize() {
+        return values.size();
     }
 }

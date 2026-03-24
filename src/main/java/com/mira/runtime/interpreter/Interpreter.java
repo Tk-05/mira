@@ -15,6 +15,7 @@ import com.mira.parser.nodes.expression.Expression.AccessExpression;
 import com.mira.parser.nodes.expression.Expression.CallExpression;
 import com.mira.parser.nodes.expression.Expression.ComplexExpression;
 import com.mira.parser.nodes.expression.Expression.DumbExpression;
+import com.mira.parser.nodes.expression.Expression.ImportExpression;
 import com.mira.parser.nodes.expression.Expression.ListExpression;
 import com.mira.parser.nodes.expression.Expression.Mutability;
 import com.mira.parser.nodes.expression.Expression.TupleExpression;
@@ -33,14 +34,14 @@ import com.mira.runtime.functions.BreakSignal;
 import com.mira.runtime.functions.Callable;
 import com.mira.runtime.functions.Function;
 import com.mira.runtime.functions.ReturnSignal;
-import com.mira.runtime.lib.internal.NativeFunctions;
+import com.mira.runtime.lib.ImportResolver;
 import com.mira.runtime.visitors.ExprVisitor;
 import com.mira.runtime.visitors.StmtVisitor;
 
 public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
     private static Interpreter instance;
-    private static final Environment globalEnvironment = new Environment();
+    private static Environment globalEnvironment = new Environment();
     private Environment localEnvironment;
 
     public static Interpreter getInstance() {
@@ -50,13 +51,31 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         return instance;
     }
 
-    private void loadFunctions(List<Node> asts) {
-        NativeFunctions.defineNativeFunctions(globalEnvironment);
+    private void loadGlobalContext(List<Node> asts) {
+        if (globalEnvironment.getSize() > 0) {
+            globalEnvironment = new Environment();
+        }
 
+        List<ImportExpression> imports = new ArrayList<>();
         for (Node ast : asts) {
-            if (ast instanceof FuncDecl funcDecl) {
-                funcDecl.getBody().add(new Return(new DumbExpression(new Token(null, "0", 0, 0))));
-                funcDecl.accept(this);
+            if (ast instanceof ImportExpression importExpression) {
+                imports.add(importExpression);
+            }
+        }
+        ImportResolver.resolveImports(imports, globalEnvironment);
+
+        if (Flags.mainFunction) {
+            for (Node ast : asts) {
+                switch (ast) {
+                    case FuncDecl funcDecl -> {
+                        funcDecl.getBody().add(new Return(new DumbExpression(new Token(null, "0", 0, 0))));
+                        funcDecl.accept(this);
+                    }
+                    case VarDecl varDecl ->
+                        varDecl.accept(this);
+                    default -> {
+                    }
+                }
             }
         }
     }
@@ -75,7 +94,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
     }
 
     public <T> T run(List<Node> asts, String[] args) {
-        loadFunctions(asts);
+        loadGlobalContext(asts);
         Object lastResult = null;
 
         if (Flags.mainFunction) {
@@ -103,7 +122,29 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
     }
 
     public <T> T run(List<Node> asts) {
-        loadFunctions(asts);
+        loadGlobalContext(asts);
+        Object lastResult = null;
+
+        if (Flags.mainFunction) {
+            return (T) new CallExpression(new DumbExpression(new Token(null, "main", 0, 0)), new ArrayList<>()).accept(this);
+        } else {
+            for (Node ast : asts) {
+                lastResult = switch (ast) {
+                    case Expression expression ->
+                        expression.accept(this);
+                    case Statement statement ->
+                        statement.accept(this);
+                    default -> {
+                        throw new AssertionError();
+                    }
+                };
+            }
+        }
+
+        return (T) lastResult;
+    }
+
+    public <T> T runWithoutLoadingNewContext(List<Node> asts) {
         Object lastResult = null;
 
         if (Flags.mainFunction) {
@@ -262,7 +303,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             case "$" -> {
                 String name = (String) right;
 
-                if (localEnvironment != null) {
+                if (localEnvironment != null && localEnvironment.exists(name)) {
                     return (T) localEnvironment.get(name);
                 }
 
