@@ -1,6 +1,3 @@
-import list;
-
 fn main() {
-    var list : {"Hello"};
-    print(append("World", $list)[0] "\n");
+    
 }
