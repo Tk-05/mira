@@ -10,8 +10,16 @@
             "args": [
                     "demo/Debug.mira",
                     "-c",
-                    "-t"
+                    "-t",
+                    "-m"
                 ]
+        },
+        {
+            "type": "java",
+            "name": "Run console",
+            "request": "launch",
+            "mainClass": "com.mira.Main",
+            "projectName": "mira",
         },
         {
             "type": "java",

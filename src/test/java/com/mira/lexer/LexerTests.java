@@ -3,27 +3,73 @@ package com.mira.lexer;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import org.junit.jupiter.api.Test;
 
+import com.mira.error.lexer.LexerError.UnexpectedSymbolError;
+import com.mira.error.lexer.LexerError.UnterminatedStringError;
 import com.mira.lexer.token.Token;
+import com.mira.lexer.token.TokenType;
 
 public class LexerTests {
 
     Tokenizer tokenizer = new Tokenizer();
 
     @Test
-    void variableDeclaration() {
-        String varDeclaration = "var x : 10;";
+    void testKeywords() {
+        assertEquals(TokenType.KEYWORD, tokenizer.tokenize("var").getFirst().getTokenType());
+        assertEquals(TokenType.KEYWORD, tokenizer.tokenize("ret").getFirst().getTokenType());
+        assertEquals(TokenType.KEYWORD, tokenizer.tokenize("fn").getFirst().getTokenType());
+        assertEquals(TokenType.KEYWORD, tokenizer.tokenize("if").getFirst().getTokenType());
+        assertEquals(TokenType.KEYWORD, tokenizer.tokenize("else").getFirst().getTokenType());
+        assertEquals(TokenType.KEYWORD, tokenizer.tokenize("for").getFirst().getTokenType());
+        assertEquals(TokenType.KEYWORD, tokenizer.tokenize("while").getFirst().getTokenType());
+    }
+
+    @Test
+    void testOperations() {
+        assertEquals(TokenType.OPERATION, tokenizer.tokenize("+").getFirst().getTokenType());
+        assertEquals(TokenType.OPERATION, tokenizer.tokenize("-").getFirst().getTokenType());
+        assertEquals(TokenType.OPERATION, tokenizer.tokenize("*").getFirst().getTokenType());
+        assertEquals(TokenType.OPERATION, tokenizer.tokenize("/").getFirst().getTokenType());
+        assertEquals(TokenType.OPERATION, tokenizer.tokenize("==").getFirst().getTokenType());
+        assertEquals(TokenType.OPERATION, tokenizer.tokenize("!=").getFirst().getTokenType());
+        assertEquals(TokenType.OPERATION, tokenizer.tokenize("<").getFirst().getTokenType());
+        assertEquals(TokenType.OPERATION, tokenizer.tokenize(">").getFirst().getTokenType());
+        assertEquals(TokenType.OPERATION, tokenizer.tokenize("<=").getFirst().getTokenType());
+        assertEquals(TokenType.OPERATION, tokenizer.tokenize(">=").getFirst().getTokenType());
+        assertEquals(TokenType.OPERATION, tokenizer.tokenize("&&").getFirst().getTokenType());
+        assertEquals(TokenType.OPERATION, tokenizer.tokenize("||").getFirst().getTokenType());
+        assertEquals(TokenType.OPERATION, tokenizer.tokenize("$").getFirst().getTokenType());
+        assertEquals(TokenType.OPERATION, tokenizer.tokenize(":").getFirst().getTokenType());
+        assertEquals(TokenType.OPERATION, tokenizer.tokenize("!").getFirst().getTokenType());
+    }
+
+    @Test
+    void testDelimiters() {
+        assertEquals(TokenType.DELIMITER, tokenizer.tokenize("(").getFirst().getTokenType());
+        assertEquals(TokenType.DELIMITER, tokenizer.tokenize(")").getFirst().getTokenType());
+        assertEquals(TokenType.DELIMITER, tokenizer.tokenize("{").getFirst().getTokenType());
+        assertEquals(TokenType.DELIMITER, tokenizer.tokenize("}").getFirst().getTokenType());
+        assertEquals(TokenType.DELIMITER, tokenizer.tokenize(";").getFirst().getTokenType());
+        assertEquals(TokenType.DELIMITER, tokenizer.tokenize(",").getFirst().getTokenType());
+        assertEquals(TokenType.DELIMITER, tokenizer.tokenize("[").getFirst().getTokenType());
+        assertEquals(TokenType.DELIMITER, tokenizer.tokenize("]").getFirst().getTokenType());
+    }
+
+    @Test
+    void testVariableDeclaration() {
+        String varDeclaration = "var x : 10.1;";
         List<Token> tokens = tokenizer.tokenize(varDeclaration);
         assertEquals(tokens.get(0).getLexeme(), "var");
         assertEquals(tokens.get(1).getLexeme(), "x");
         assertEquals(tokens.get(2).getLexeme(), ":");
-        assertEquals(tokens.get(3).getLexeme(), "10");
+        assertEquals(tokens.get(3).getLexeme(), "10.1");
         assertEquals(tokens.get(4).getLexeme(), ";");
     }
 
     @Test
-    void emptyVariableDeclaration() {
+    void testEmptyVariableDeclaration() {
         String varDeclaration = "var x;";
         List<Token> tokens = tokenizer.tokenize(varDeclaration);
         assertEquals(tokens.get(0).getLexeme(), "var");
@@ -32,7 +78,7 @@ public class LexerTests {
     }
 
     @Test
-    void functionDeclaration() {
+    void testFunctionDeclaration() {
         String functionDeclaration = "fn test() {print}";
         List<Token> tokens = tokenizer.tokenize(functionDeclaration);
         assertEquals(tokens.get(0).getLexeme(), "fn");
@@ -45,7 +91,7 @@ public class LexerTests {
     }
 
     @Test
-    void functionCall() {
+    void testFunctionCall() {
         String functionCall = "test()";
         List<Token> tokens = tokenizer.tokenize(functionCall);
         assertEquals(tokens.get(0).getLexeme(), "test");
@@ -54,14 +100,14 @@ public class LexerTests {
     }
 
     @Test
-    void explicitString() {
+    void testExplicitString() {
         String explicitString = "\"Hello World\"";
         List<Token> tokens = tokenizer.tokenize(explicitString);
         assertEquals(tokens.get(0).getLexeme(), "Hello World");
     }
 
     @Test
-    void simpleExpression() {
+    void testSimpleExpression() {
         String simpleExpression = "((1+2)+3)";
         List<Token> tokens = tokenizer.tokenize(simpleExpression);
         assertEquals(tokens.get(0).getLexeme(), "(");
@@ -76,7 +122,7 @@ public class LexerTests {
     }
 
     @Test
-    void complexExpression() {
+    void testComplexExpression() {
         String complexExpression = "((($val1 + $val3) + val()) + 1)";
         List<Token> tokens = tokenizer.tokenize(complexExpression);
         assertEquals(tokens.get(0).getLexeme(), "(");
@@ -96,5 +142,25 @@ public class LexerTests {
         assertEquals(tokens.get(14).getLexeme(), "+");
         assertEquals(tokens.get(15).getLexeme(), "1");
         assertEquals(tokens.get(16).getLexeme(), ")");
+    }
+
+    @Test
+    void testUnterminatedString() {
+        String unterminatedString = "\"Hello World";
+        assertThrows(UnterminatedStringError.class, () -> tokenizer.tokenize(unterminatedString));
+    }
+
+    @Test
+    void testUnexpectedSymbol() {
+        String unexpectedSymbol = "@";
+        assertThrows(UnexpectedSymbolError.class, () -> tokenizer.tokenize(unexpectedSymbol));
+    }
+
+    @Test
+    void testEscapedString() {
+        String escapedString = "\"Hello World\n\"";
+        assertEquals("Hello World\n", tokenizer.tokenize(escapedString).getFirst().getLexeme());
+        escapedString = "\"\\\"Hello World\\\"\"";
+        assertEquals("\"Hello World\"", tokenizer.tokenize(escapedString).getFirst().getLexeme());
     }
 }

@@ -12,6 +12,10 @@ public class LexerError extends RuntimeException {
     }
 
     public static class UnexpectedSymbolError extends LexerError {
+        public UnexpectedSymbolError(int line, int column, char c) {
+            super("Unexpected symbol at line " + line + ":" + column + " '" + c + "'");
+        }
+
         public UnexpectedSymbolError(int line, int column) {
             super("Unexpected symbol at line " + line + ":" + column);
         }

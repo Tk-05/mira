@@ -19,9 +19,17 @@ public class Tokenizer {
     private int line = 1;
     private int column = 0;
 
-    public List<Token> tokenize(String source) {
+    private void reset() {
+        start = 0;
+        current = 0;
+        line = 1;
+        column = 0;
+        tokens.clear();
+    }
 
+    public List<Token> tokenize(String source) {
         this.source = source;
+        reset();
 
         while (!isAtEnd()) {
             start = current;
@@ -71,23 +79,45 @@ public class Tokenizer {
                     return;
                 }
 
-                throw new RuntimeException("Unexpected character: " + c);
+                throw new UnexpectedSymbolError(line, column, c);
             }
         }
     }
 
     private void scanString() {
+        StringBuilder valueBuilder = new StringBuilder();
 
         while (!isAtEnd() && peek() != '"') {
 
             if (peek() == '\\') {
-                source = source.substring(0, current) + source.substring(current + 1);
                 advance();
-            }
 
-            if (peek() == '\n') {
-                line++;
-                column = 0;
+                if (isAtEnd()) {
+                    throw new UnterminatedStringError(line);
+                }
+
+                char escaped = peek();
+
+                switch (escaped) {
+                    case 'n' ->
+                        valueBuilder.append('\n');
+                    case 't' ->
+                        valueBuilder.append('\t');
+                    case '"' ->
+                        valueBuilder.append('"');
+                    case '\\' ->
+                        valueBuilder.append('\\');
+                    default ->
+                        valueBuilder.append(escaped);
+                }
+
+            } else {
+                if (peek() == '\n') {
+                    line++;
+                    column = 0;
+                }
+
+                valueBuilder.append(peek());
             }
 
             advance();
@@ -99,11 +129,9 @@ public class Tokenizer {
 
         advance();
 
-        String value = source.substring(start + 1, current - 1);
-
         tokens.add(new Token(
                 TokenType.EXPRESSION,
-                value,
+                valueBuilder.toString(),
                 line,
                 column
         ));
@@ -131,11 +159,10 @@ public class Tokenizer {
         }
 
         if (!isAtEnd() && peek() == '.' && Character.isDigit(peekNext())) {
-            advance();
 
-            while (!isAtEnd() && Character.isDigit(peek())) {
+            do {
                 advance();
-            }
+            } while (!isAtEnd() && Character.isDigit(peek()));
         }
 
         String value = source.substring(start, current);
@@ -192,13 +219,6 @@ public class Tokenizer {
             return '\0';
         }
         return source.charAt(current + 1);
-    }
-
-    private char peekSafe() {
-        if (isAtEnd()) {
-            return '\0';
-        }
-        return source.charAt(current);
     }
 
     private boolean isAtEnd() {

@@ -3,6 +3,7 @@ package com.mira.runtime;
 import java.util.HashMap;
 import java.util.Map;
 
+import com.mira.error.runtime.RuntimeError.UndefinedReferenceError;
 import com.mira.error.runtime.RuntimeError.UndefinedVariableError;
 
 public class Environment {
@@ -32,7 +33,7 @@ public class Environment {
             return parent.get(name);
         }
 
-        throw new UndefinedVariableError(name);
+        throw new UndefinedReferenceError(name);
     }
 
     public void assign(String name, Object value) {

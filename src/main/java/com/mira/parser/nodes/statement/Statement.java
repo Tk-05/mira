@@ -90,16 +90,16 @@ public abstract class Statement implements Node {
 
     public static class Assign extends Statement {
 
-        private final String name;
+        private final Expression reference;
         private final Expression expression;
 
-        public Assign(String name, Expression expression) {
-            this.name = name;
+        public Assign(Expression reference, Expression expression) {
+            this.reference = reference;
             this.expression = expression;
         }
 
-        public String getName() {
-            return name;
+        public Expression getReference() {
+            return reference;
         }
 
         public Expression getExpression() {
@@ -171,6 +171,56 @@ public abstract class Statement implements Node {
 
         public List<Node> getPostExpressions() {
             return postExpressions;
+        }
+
+        public List<Node> getBody() {
+            return body;
+        }
+    }
+
+    public static class While extends Statement {
+
+        private final Expression condition;
+        private final List<Node> body;
+
+        public While(Expression condition, List<Node> body) {
+            this.condition = condition;
+            this.body = body;
+        }
+
+        @Override
+        public <T> T accept(StmtVisitor<T> visitor) {
+            return visitor.visitWhile(this);
+        }
+
+        public Expression getCondition() {
+            return condition;
+        }
+
+        public List<Node> getBody() {
+            return body;
+        }
+    }
+
+    public static class Break extends Statement {
+
+        @Override
+        public <T> T accept(StmtVisitor<T> visitor) {
+            return visitor.visitBreak(this);
+        }
+    }
+
+    public static class Block extends Statement {
+
+        private final List<Node> body;
+
+        public Block(List<Node> body) {
+            this.body = body;
+        }
+
+        @Override
+        public <T> T accept(StmtVisitor<T> visitor) {
+            return visitor.visitBlock(this);
         }
 
         public List<Node> getBody() {

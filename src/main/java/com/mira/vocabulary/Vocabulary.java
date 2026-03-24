@@ -12,15 +12,15 @@ public class Vocabulary {
             "fn",
             "if",
             "else",
-            "for"
+            "for",
+            "while",
+            "break"
     );
 
     public static final Set<String> operations = Set.of(
-            "+", "-", "*", "/", "%",
+            "+", "-", "*", "/",
             "==", "!=", "<", ">", "<=", ">=",
-            "+=", "-=", "*=", "/=",
             "&&", "||",
-            "<<", ">>", ">>=",
             "$", ":", "!"
     );
 
@@ -30,7 +30,9 @@ public class Vocabulary {
             "{",
             "}",
             ";",
-            ","
+            ",",
+            "[",
+            "]"
     );
 
     public static boolean stringIsKeyword(String s) {
