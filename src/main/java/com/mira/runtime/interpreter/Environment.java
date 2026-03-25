@@ -11,6 +11,7 @@ public class Environment {
 
     private final Environment parent;
     private final Map<String, Object> values = new HashMap<>();
+    private static boolean overwriteMode = false;
 
     public Environment() {
         this.parent = null;
@@ -21,7 +22,7 @@ public class Environment {
     }
 
     public void define(String name, Object value) {
-        if (!exists(name)) {
+        if (overwriteMode || !exists(name)) {
             values.put(name, value);
         } else {
             throw new ObjectAlreadyDefinedInScope(name);
@@ -29,7 +30,6 @@ public class Environment {
     }
 
     public Object get(String name) {
-
         if (values.containsKey(name)) {
             return values.get(name);
         }
@@ -42,13 +42,12 @@ public class Environment {
     }
 
     public void assign(String name, Object value) {
-
-        if (values.containsKey(name)) {
+        if (overwriteMode || values.containsKey(name)) {
             values.put(name, value);
             return;
         }
 
-        if (parent != null) {
+        if (overwriteMode || parent != null) {
             parent.assign(name, value);
             return;
         }
@@ -62,5 +61,13 @@ public class Environment {
 
     public int getSize() {
         return values.size();
+    }
+
+    public static void setOverwriteMode(boolean overwriteMode) {
+        Environment.overwriteMode = overwriteMode;
+    }
+
+    public static boolean getOverwriteMode() {
+        return overwriteMode;
     }
 }

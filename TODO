@@ -3,7 +3,5 @@ TODO:
     -arrays
         -List functions
         -Slices
-    -native functions -> files etc.
-        -Override native functions
     -Regex
-    -Fix access expression : print(append("World", $list)[0]);
+    -Missing tests for overwrite and std

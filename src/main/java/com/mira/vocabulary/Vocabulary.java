@@ -15,7 +15,8 @@ public class Vocabulary {
             "for",
             "while",
             "break",
-            "import"
+            "import",
+            "overwrite"
     );
 
     public static final Set<String> operations = Set.of(

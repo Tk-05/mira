@@ -24,6 +24,7 @@ import com.mira.parser.nodes.statement.Statement.Break;
 import com.mira.parser.nodes.statement.Statement.For;
 import com.mira.parser.nodes.statement.Statement.FuncDecl;
 import com.mira.parser.nodes.statement.Statement.If;
+import com.mira.parser.nodes.statement.Statement.Overwrite;
 import com.mira.parser.nodes.statement.Statement.Return;
 import com.mira.parser.nodes.statement.Statement.VarDecl;
 import com.mira.parser.nodes.statement.Statement.While;
@@ -173,6 +174,10 @@ public class Parser {
                 node = parseImportExpression();
                 matchLexeme(";");
             }
+            case "overwrite" -> {
+                node = parseOverwrite();
+                matchLexeme(";");
+            }
             default -> {
                 node = parseExpression();
                 if (expectSemicolon) {
@@ -306,6 +311,14 @@ public class Parser {
         }
 
         return new AccessExpression(accessedExpression, indices);
+    }
+
+    private Node parseImportExpression() {
+        if (parsingDepth != 0) {
+            throw new AssertionError("Imports must be declared in global context!");
+        }
+        matchLexeme("import");
+        return new ImportExpression(parseExpression());
     }
 
     private Expression parseList() {
@@ -557,11 +570,11 @@ public class Parser {
         return new Block(body);
     }
 
-    private Node parseImportExpression() {
-        if (parsingDepth != 0) {
-            throw new AssertionError("Imports must be declared in global context!");
-        }
-        matchLexeme("import");
-        return new ImportExpression(parseExpression());
+    private Node parseOverwrite() {
+        matchLexeme("overwrite");
+        matchLexeme("(");
+        String stmt = matchType(TokenType.EXPRESSION).getLexeme();
+        matchLexeme(")");
+        return new Overwrite(stmt);
     }
 }

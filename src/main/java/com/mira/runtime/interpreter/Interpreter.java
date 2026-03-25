@@ -7,8 +7,10 @@ import com.mira.Flags;
 import com.mira.error.runtime.RuntimeError.ArgMismatchError;
 import com.mira.error.runtime.RuntimeError.ReferenceIsImmutableError;
 import com.mira.error.runtime.RuntimeError.UnknownOperatorError;
+import com.mira.lexer.Tokenizer;
 import com.mira.lexer.token.Token;
 import com.mira.lexer.token.TokenType;
+import com.mira.parser.Parser;
 import com.mira.parser.nodes.Node;
 import com.mira.parser.nodes.expression.Expression;
 import com.mira.parser.nodes.expression.Expression.AccessExpression;
@@ -27,6 +29,7 @@ import com.mira.parser.nodes.statement.Statement.Break;
 import com.mira.parser.nodes.statement.Statement.For;
 import com.mira.parser.nodes.statement.Statement.FuncDecl;
 import com.mira.parser.nodes.statement.Statement.If;
+import com.mira.parser.nodes.statement.Statement.Overwrite;
 import com.mira.parser.nodes.statement.Statement.Return;
 import com.mira.parser.nodes.statement.Statement.VarDecl;
 import com.mira.parser.nodes.statement.Statement.While;
@@ -605,6 +608,29 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         }
 
         localEnvironment = previous;
+        return null;
+    }
+
+    @Override
+    public Object visitOverwrite(Overwrite stmt) {
+        Tokenizer tokenizer = new Tokenizer();
+        Parser parser = new Parser();
+
+        List<Node> asts = parser.parseTokens(tokenizer.tokenize(stmt.getStmt()));
+        Environment.setOverwriteMode(true);
+        for (Node ast : asts) {
+            switch (ast) {
+                case Expression expression ->
+                    expression.accept(this);
+                case Statement statement ->
+                    statement.accept(this);
+                default -> {
+                    throw new AssertionError();
+                }
+            }
+        }
+        Environment.setOverwriteMode(false);
+
         return null;
     }
 
