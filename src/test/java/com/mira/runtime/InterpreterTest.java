@@ -600,4 +600,19 @@ public class InterpreterTest {
                 """;
         assertThrows(UndefinedReferenceError.class, () -> runWithNewGlobalContext(source));
     }
+
+    @Test
+    void testOverwrite() {
+        Interpreter.getGlobalEnvironment().define("test", "Test");
+        String source = """
+                overwrite(
+                "
+                    var test : Hello World;
+                "
+                );
+                
+                $test;
+                """;
+        assertEquals("HelloWorld", runWithoutNewGlobalContext(source));
+    }
 }

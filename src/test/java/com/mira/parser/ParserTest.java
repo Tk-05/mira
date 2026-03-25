@@ -20,6 +20,7 @@ import com.mira.parser.nodes.statement.Statement;
 import com.mira.parser.nodes.statement.Statement.Block;
 import com.mira.parser.nodes.statement.Statement.Break;
 import com.mira.parser.nodes.statement.Statement.For;
+import com.mira.parser.nodes.statement.Statement.Overwrite;
 import com.mira.parser.nodes.statement.Statement.VarDecl;
 
 public class ParserTest {
@@ -285,5 +286,15 @@ public class ParserTest {
         List<Node> ast = parser.parseTokens(tokenizer.tokenize(importStmt));
         assertEquals(1, ast.size());
         assertInstanceOf(ImportExpression.class, ast.getFirst());
+    }
+
+    @Test
+    void parseOverwrite() {
+        String overwriteStmt = """
+                overwrite(1);
+                """;
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize(overwriteStmt));
+        assertEquals(1, ast.size());
+        assertInstanceOf(Overwrite.class, ast.getFirst());
     }
 }
