@@ -1,10 +1,10 @@
-package com.mira.runtime.lib.std;
+package com.mira.lib.std;
 
 import java.io.IOException;
 
+import com.mira.lib.Lib;
 import com.mira.runtime.functions.NativeFunction;
 import com.mira.runtime.interpreter.Environment;
-import com.mira.runtime.lib.Lib;
 import com.mira.utils.FileLoader;
 
 public class IO implements Lib {

@@ -13,7 +13,7 @@ import com.mira.runtime.interpreter.Interpreter;
 
 public class MathLibTest {
 
-    static com.mira.runtime.lib.std.Math math = new com.mira.runtime.lib.std.Math();
+    static com.mira.lib.std.Math math = new com.mira.lib.std.Math();
     static Environment environment = new Environment();
     Interpreter interpreter = new Interpreter();
 

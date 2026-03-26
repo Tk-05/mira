@@ -12,7 +12,7 @@ import com.mira.runtime.interpreter.Interpreter;
 
 public class StringLibTest {
 
-    static com.mira.runtime.lib.std.Strings strings = new com.mira.runtime.lib.std.Strings();
+    static com.mira.lib.std.Strings strings = new com.mira.lib.std.Strings();
     static Environment environment = new Environment();
     Interpreter interpreter = new Interpreter();
 

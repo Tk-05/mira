@@ -1,15 +1,15 @@
-package com.mira.runtime.lib;
+package com.mira.lib;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.mira.lib.internal.Internal;
+import com.mira.lib.std.IO;
+import com.mira.lib.std.Math;
+import com.mira.lib.std.Strings;
 import com.mira.parser.nodes.expression.Expression.ImportExpression;
 import com.mira.runtime.interpreter.Environment;
-import com.mira.runtime.lib.internal.Internal;
-import com.mira.runtime.lib.std.IO;
-import com.mira.runtime.lib.std.Math;
-import com.mira.runtime.lib.std.Strings;
 
 public class ImportResolver {
 
@@ -19,7 +19,7 @@ public class ImportResolver {
     static {
         libs.put("math", new Math());
         libs.put("string", new Strings());
-        libs.put("list", new com.mira.runtime.lib.std.List());
+        libs.put("list", new com.mira.lib.std.List());
         libs.put("io", new IO());
     }
 

@@ -12,6 +12,7 @@ import com.mira.error.runtime.RuntimeError.UnknownOperatorError;
 import com.mira.lexer.Tokenizer;
 import com.mira.lexer.token.Token;
 import com.mira.lexer.token.TokenType;
+import com.mira.lib.ImportResolver;
 import com.mira.parser.Parser;
 import com.mira.parser.nodes.Node;
 import com.mira.parser.nodes.expression.Expression;
@@ -39,7 +40,6 @@ import com.mira.runtime.functions.BreakSignal;
 import com.mira.runtime.functions.Callable;
 import com.mira.runtime.functions.Function;
 import com.mira.runtime.functions.ReturnSignal;
-import com.mira.runtime.lib.ImportResolver;
 import com.mira.runtime.visitors.ExprVisitor;
 import com.mira.runtime.visitors.StmtVisitor;
 

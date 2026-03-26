@@ -1,4 +1,4 @@
-package com.mira.runtime.lib;
+package com.mira.lib;
 
 import com.mira.runtime.interpreter.Environment;
 

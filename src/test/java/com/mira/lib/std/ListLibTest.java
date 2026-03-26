@@ -13,7 +13,7 @@ import com.mira.runtime.interpreter.Interpreter;
 
 public class ListLibTest {
 
-    static com.mira.runtime.lib.std.List list = new com.mira.runtime.lib.std.List();
+    static com.mira.lib.std.List list = new com.mira.lib.std.List();
     static Environment environment = new Environment();
     Interpreter interpreter = new Interpreter();
 

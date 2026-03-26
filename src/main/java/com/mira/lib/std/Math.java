@@ -1,9 +1,9 @@
-package com.mira.runtime.lib.std;
+package com.mira.lib.std;
 
+import com.mira.lib.Lib;
 import com.mira.runtime.functions.NativeFunction;
 import com.mira.runtime.interpreter.Environment;
 import com.mira.runtime.interpreter.Evaluator;
-import com.mira.runtime.lib.Lib;
 
 public class Math implements Lib {
 

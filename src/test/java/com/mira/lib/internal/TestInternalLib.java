@@ -14,7 +14,7 @@ import com.mira.runtime.interpreter.Interpreter;
 
 public class TestInternalLib {
 
-    static com.mira.runtime.lib.internal.Internal internal = new com.mira.runtime.lib.internal.Internal();
+    static com.mira.lib.internal.Internal internal = new com.mira.lib.internal.Internal();
     static Environment environment = new Environment();
     Interpreter interpreter = new Interpreter();
 

@@ -11,7 +11,7 @@ import com.mira.runtime.interpreter.Environment;
 import com.mira.runtime.interpreter.Interpreter;
 
 public class IOLibTest {
-    static com.mira.runtime.lib.std.IO io = new com.mira.runtime.lib.std.IO();
+    static com.mira.lib.std.IO io = new com.mira.lib.std.IO();
     static Environment environment = new Environment();
     Interpreter interpreter = new Interpreter();
 
