@@ -21,6 +21,7 @@ public class Vocabulary {
 
     public static final Set<String> operations = Set.of(
             "+", "-", "*", "/",
+            "++", "--",
             "==", "!=", "<", ">", "<=", ">=",
             "&&", "||",
             "$", ":", "!"

@@ -4,4 +4,4 @@ TODO:
         -List functions
         -Slices
     -Regex
-    -Missing tests for std
+    -strict var type

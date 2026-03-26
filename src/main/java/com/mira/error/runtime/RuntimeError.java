@@ -65,4 +65,18 @@ public class RuntimeError extends RuntimeException {
             super("Unknown operator: " + token);
         }
     }
+
+    public static class PostUnaryError extends RuntimeError {
+
+        public PostUnaryError(String operation) {
+            super(operation + "requires a variable reference like $x");
+        }
+    }
+
+    public static class PostExprNaNError extends RuntimeError {
+
+        public PostExprNaNError(String ident) {
+            super("Cannot change non-number: " + ident);
+        }
+    }
 }

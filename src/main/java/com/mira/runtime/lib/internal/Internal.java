@@ -56,19 +56,5 @@ public class Internal implements Lib {
                     }
                 })
         );
-
-        environment.define("incr",
-                new NativeFunction(1, args -> {
-                    String eval = String.valueOf(args.get(0));
-                    return Evaluator.evaluate(eval + "+ 1");
-                })
-        );
-
-        environment.define("decr",
-                new NativeFunction(1, args -> {
-                    String eval = String.valueOf(args.get(0));
-                    return Evaluator.evaluate(eval + "- 1");
-                })
-        );
     }
 }

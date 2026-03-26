@@ -56,20 +56,4 @@ public class TestInternalLib {
             assertEquals(11, length);
         }
     }
-
-    @Test
-    void testIncr() {
-        if (environment.get("incr") instanceof NativeFunction nativeFunction) {
-            Double incr = (Double) nativeFunction.call(interpreter, List.of("1"));
-            assertEquals(2, incr);
-        }
-    }
-
-    @Test
-    void testDecr() {
-        if (environment.get("decr") instanceof NativeFunction nativeFunction) {
-            Double incr = (Double) nativeFunction.call(interpreter, List.of("1"));
-            assertEquals(0, incr);
-        }
-    }
 }

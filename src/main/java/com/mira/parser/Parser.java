@@ -203,36 +203,38 @@ public class Parser {
 
             if (current.getLexeme().equals("$")) {
                 Expression unary = parseUnaryExpression();
-                expressions.add(maybeParseAccess(unary));
+                expressions.add(parsePostfix(maybeParseAccess(unary)));
 
             } else if (current.getLexeme().equals("{")
                     && (expressions.isEmpty() || lastExpressionWasOperatorOrUnary(expressions))) {
 
-                expressions.add(maybeParseAccess(parseList()));
+                expressions.add(parsePostfix(maybeParseAccess(parseList())));
 
             } else if (current.getLexeme().equals("[")
                     && (expressions.isEmpty() || lastExpressionWasOperatorOrUnary(expressions))) {
 
-                expressions.add(maybeParseAccess(parseTuple()));
+                expressions.add(parsePostfix(maybeParseAccess(parseTuple())));
 
             } else if (Vocabulary.stringIsOperation(current.getLexeme())
-                    && !current.getLexeme().equals("$")) {
+                    && !current.getLexeme().equals("$")
+                    && !current.getLexeme().equals("++")
+                    && !current.getLexeme().equals("--")) {
 
                 expressions.add(new UnaryExpression(consume(), null));
 
             } else if (current.getTokenType() == TokenType.EXPRESSION
                     && peekNextSafe().getLexeme().equals("(")) {
 
-                expressions.add(maybeParseAccess(parseCallExpression()));
+                expressions.add(parsePostfix(maybeParseAccess(parseCallExpression())));
 
             } else if (current.getLexeme().equals("(")) {
                 consume();
                 Expression inner = parseExpression();
                 consumeExpected(")");
-                expressions.add(maybeParseAccess(inner));
+                expressions.add(parsePostfix(maybeParseAccess(inner)));
 
             } else {
-                expressions.add(maybeParseAccess(parseDumbExpression()));
+                expressions.add(parsePostfix(maybeParseAccess(parseDumbExpression())));
             }
         }
 
@@ -251,6 +253,14 @@ public class Parser {
             return parseAccessExpression(base);
         }
         return base;
+    }
+
+    private Expression parsePostfix(Expression expr) {
+        while (peek().getLexeme().equals("++") || peek().getLexeme().equals("--")) {
+            Token op = consume();
+            expr = new UnaryExpression(op, expr);
+        }
+        return expr;
     }
 
     private Expression parseUnaryExpression() {

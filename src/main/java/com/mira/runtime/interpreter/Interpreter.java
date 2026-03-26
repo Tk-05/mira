@@ -5,6 +5,8 @@ import java.util.List;
 
 import com.mira.Flags;
 import com.mira.error.runtime.RuntimeError.ArgMismatchError;
+import com.mira.error.runtime.RuntimeError.PostExprNaNError;
+import com.mira.error.runtime.RuntimeError.PostUnaryError;
 import com.mira.error.runtime.RuntimeError.ReferenceIsImmutableError;
 import com.mira.error.runtime.RuntimeError.UnknownOperatorError;
 import com.mira.lexer.Tokenizer;
@@ -252,41 +254,48 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         int i = 1;
 
         while (i < expressions.size()) {
+            Expression expr = expressions.get(i);
 
-            Expression operatorExpr = expressions.get(i);
-
-            Object right;
-            String operator;
-
-            if (operatorExpr instanceof UnaryExpression unary) {
-
-                operator = unary.getOperation().getLexeme();
-
-                if (unary.getRight() != null) {
-                    right = unary.accept(this);
-                    i += 1;
-                } else {
-                    builder.append(operator);
-                    i += 1;
-                    continue;
-                }
-
-            } else {
-                right = operatorExpr.accept(this);
+            if (!(expr instanceof UnaryExpression unary)) {
+                builder.append(expr.accept(this));
                 i++;
+                continue;
+            }
 
-                builder.append(right);
+            String operator = unary.getOperation().getLexeme();
+
+            if (operator.equals("++") || operator.equals("--")) {
+                Object value = unary.accept(this);
+                builder.append(value);
+                i++;
+                continue;
+            }
+
+            if (operator.equals("$")) {
+                Object value = unary.accept(this);
+                builder.append(value);
+                i++;
+                continue;
+            }
+
+            Object right = unary.getRight() != null
+                    ? unary.accept(this)
+                    : null;
+
+            if (right == null) {
+                builder.append(operator);
+                i++;
                 continue;
             }
 
             switch (operator) {
                 case "+", "-", "*", "/" ->
                     builder.append(operator).append(right);
-                case "$" ->
-                    builder.append(right);
                 default ->
                     throw new UnknownOperatorError("Unknown operator: " + operator);
             }
+
+            i++;
         }
 
         return (T) builder.toString();
@@ -296,15 +305,9 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
     public <T> T visitUnaryExpr(UnaryExpression expression) {
         String operator = expression.getOperation().getLexeme();
 
-        Object right = null;
-
-        if (expression.getRight() != null) {
-            right = expression.getRight().accept(this);
-        }
-
         switch (operator) {
             case "$" -> {
-                String name = (String) right;
+                String name = (String) expression.getRight().accept(this);
 
                 if (localEnvironment != null && localEnvironment.exists(name)) {
                     return (T) localEnvironment.get(name);
@@ -312,15 +315,65 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
                 return (T) globalEnvironment.get(name);
             }
+
             case "-" -> {
+                Object right = expression.getRight() != null
+                        ? expression.getRight().accept(this)
+                        : null;
+
                 if (right == null) {
                     return (T) "-";
                 } else {
                     return (T) ("-" + right);
                 }
             }
+
+            case "++" -> {
+                if (!(expression.getRight() instanceof UnaryExpression varExpr)
+                        || !varExpr.getOperation().getLexeme().equals("$")) {
+                    throw new PostUnaryError("++");
+                }
+
+                String name = (String) varExpr.getRight().accept(this);
+
+                Environment env = (localEnvironment != null && localEnvironment.exists(name))
+                        ? localEnvironment
+                        : globalEnvironment;
+
+                try {
+                    Double value = Double.valueOf(String.valueOf(env.get(name)));
+                    Double newValue = value + 1;
+                    env.assign(name, newValue);
+                    return (T) newValue;
+                } catch (NumberFormatException numberFormatException) {
+                    throw new PostExprNaNError("Cannot increment non-number: " + name);
+                }
+            }
+
+            case "--" -> {
+                if (!(expression.getRight() instanceof UnaryExpression varExpr)
+                        || !varExpr.getOperation().getLexeme().equals("$")) {
+                    throw new PostUnaryError("--");
+                }
+
+                String name = (String) varExpr.getRight().accept(this);
+
+                Environment env = (localEnvironment != null && localEnvironment.exists(name))
+                        ? localEnvironment
+                        : globalEnvironment;
+
+                try {
+                    Double value = Double.valueOf(String.valueOf(env.get(name)));
+                    Double newValue = value - 1;
+                    env.assign(name, newValue);
+                    return (T) newValue;
+                } catch (NumberFormatException numberFormatException) {
+                    throw new PostExprNaNError("Cannot increment non-number: " + name);
+                }
+            }
+
             default ->
-                throw new UnknownOperatorError("Unknown unary operator: " + operator);
+                throw new UnknownOperatorError(operator);
         }
     }
 

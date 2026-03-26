@@ -35,11 +35,7 @@ public class Main {
                         Flags.loadFromClasspath = true;
                     case "-m" ->
                         Flags.mainFunction = true;
-                    case "-args" -> {
-                        if (args.length > i) {
-                            Flags.args = args[i+1].substring(1, args[i+1].length() - 1).split(",");
-                        }
-                    }
+                    case "-args" -> Flags.args = args[i+1].substring(1, args[i+1].length() - 1).split(",");
                 }
             }
 

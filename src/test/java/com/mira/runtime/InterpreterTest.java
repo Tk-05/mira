@@ -8,7 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import com.mira.error.parser.ParserError.UnexpectedToken;
+import com.mira.error.runtime.RuntimeError.PostUnaryError;
 import com.mira.error.runtime.RuntimeError.ReferenceIsImmutableError;
 import com.mira.error.runtime.RuntimeError.UndefinedReferenceError;
 import com.mira.lexer.Tokenizer;
@@ -146,7 +146,7 @@ public class InterpreterTest {
 
     @Test
     void testErrors() {
-        assertThrows(UnexpectedToken.class, () -> runWithNewGlobalContext("eval(1++2);"));
+        assertThrows(PostUnaryError.class, () -> runWithNewGlobalContext("eval(1++2);"));
         assertThrows(RuntimeException.class, () -> runWithNewGlobalContext("eval(unknownVar+1);"));
     }
 
@@ -614,5 +614,45 @@ public class InterpreterTest {
                 $test;
                 """;
         assertEquals("HelloWorld", runWithoutNewGlobalContext(source));
+    }
+
+    @Test
+    void testPostUnaryOperator() {
+        String source = """
+                var test : 10;
+                $test++;
+                $test--;
+        """;
+        assertEquals(10.0, runWithNewGlobalContext(source));
+    }
+
+    @Test
+    void testPostUnaryOperatorInExpression() {
+        String source = """
+                var test : 10;
+                $test : $test+++1;
+                eval($test);
+        """;
+        assertEquals(12.0, runWithNewGlobalContext(source));
+    }
+
+    @Test
+    void testMultiplePostUnaryOperatorInExpression() {
+        String source = """
+                var test : 5;
+                $test : $test+++$test+++$test;
+                eval($test);
+        """;
+        assertEquals(20.0, runWithNewGlobalContext(source));
+    }
+
+    @Test
+    void testNestedPostUnaryOperator() {
+        String source = """
+                var test : 0;
+                $test : (($test++) + 1) + $test;
+                eval($test);
+        """;
+        assertEquals(3.0, runWithNewGlobalContext(source));
     }
 }
