@@ -20,6 +20,7 @@ import com.mira.parser.nodes.statement.Statement;
 import com.mira.parser.nodes.statement.Statement.Block;
 import com.mira.parser.nodes.statement.Statement.Break;
 import com.mira.parser.nodes.statement.Statement.For;
+import com.mira.parser.nodes.statement.Statement.Foreach;
 import com.mira.parser.nodes.statement.Statement.Overwrite;
 import com.mira.parser.nodes.statement.Statement.VarDecl;
 
@@ -296,5 +297,15 @@ public class ParserTest {
         List<Node> ast = parser.parseTokens(tokenizer.tokenize(overwriteStmt));
         assertEquals(1, ast.size());
         assertInstanceOf(Overwrite.class, ast.getFirst());
+    }
+
+    @Test
+    void parseForeach() {
+        String foreachStmt = """
+               foreach(var i in $test) {} 
+                """;
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize(foreachStmt));
+        assertEquals(1, ast.size());
+        assertInstanceOf(Foreach.class, ast.getFirst());
     }
 }

@@ -26,6 +26,8 @@ public class LexerTests {
         assertEquals(TokenType.KEYWORD, tokenizer.tokenize("while").getFirst().getTokenType());
         assertEquals(TokenType.KEYWORD, tokenizer.tokenize("import").getFirst().getTokenType());
         assertEquals(TokenType.KEYWORD, tokenizer.tokenize("overwrite").getFirst().getTokenType());
+        assertEquals(TokenType.KEYWORD, tokenizer.tokenize("foreach").getFirst().getTokenType());
+         assertEquals(TokenType.KEYWORD, tokenizer.tokenize("in").getFirst().getTokenType());
     }
 
     @Test

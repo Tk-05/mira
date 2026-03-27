@@ -22,6 +22,7 @@ import com.mira.parser.nodes.statement.Statement.Assign;
 import com.mira.parser.nodes.statement.Statement.Block;
 import com.mira.parser.nodes.statement.Statement.Break;
 import com.mira.parser.nodes.statement.Statement.For;
+import com.mira.parser.nodes.statement.Statement.Foreach;
 import com.mira.parser.nodes.statement.Statement.FuncDecl;
 import com.mira.parser.nodes.statement.Statement.If;
 import com.mira.parser.nodes.statement.Statement.Overwrite;
@@ -150,6 +151,9 @@ public class Parser {
             }
             case "for" -> {
                 node = parseFor();
+            }
+            case "foreach" -> {
+                node = parseForeach();
             }
             case "while" -> {
                 node = parseWhile();
@@ -373,6 +377,10 @@ public class Parser {
             case ";" -> {
                 return new VarDecl(indentifier, null);
             }
+            //foreach case
+            case "in" -> {
+                return new VarDecl(indentifier, null);
+            }
             default -> {
                 throw new UnexpectedToken(peek(), "Unexpected token");
             }
@@ -586,5 +594,23 @@ public class Parser {
         String stmt = matchType(TokenType.EXPRESSION).getLexeme();
         matchLexeme(")");
         return new Overwrite(stmt);
+    }
+
+    private Node parseForeach() {
+        matchLexeme("foreach");
+        matchLexeme("(");
+        VarDecl iterator = (VarDecl) parseVarDecl();
+        matchLexeme("in");
+        Expression collection = parseExpression();
+        matchLexeme(")");
+
+        matchLexeme("{");
+        List<Node> body = new ArrayList<>();
+        while (!peek().getLexeme().equals("}")) {
+            body.add(parseStatement(true));
+        }
+        matchLexeme("}");
+
+        return new Foreach(iterator, collection, body);
     }
 }

@@ -39,3 +39,8 @@ fn main() {
         print(charAt($i, $test) "\n");
     }
 }
+
+//foreach
+foreach(var element in collection) {
+    print($element);
+}
