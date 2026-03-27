@@ -27,7 +27,7 @@ public class Internal implements Lib {
         environment.define("eval",
                 new NativeFunction(1, args -> {
                     String eval = String.valueOf(args.get(0));
-                    return Evaluator.evaluate(eval);
+                    return Evaluator.evaluate(eval, false);
                 }));
 
         environment.define("exec",
@@ -35,7 +35,7 @@ public class Internal implements Lib {
                     String code = String.valueOf(args.get(0));
                     Tokenizer tokenizer = new Tokenizer();
                     Parser parser = new Parser();
-                    List<Node> ast = parser.parseTokens(tokenizer.tokenize(code));
+                    List<Node> ast = parser.parseTokens(tokenizer.tokenize(code, true));
                     return Interpreter.getInstance().runWithoutLoadingNewContext(ast);
                 }));
 

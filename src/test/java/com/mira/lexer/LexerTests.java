@@ -17,54 +17,54 @@ public class LexerTests {
 
     @Test
     void testKeywords() {
-        assertEquals(TokenType.KEYWORD, tokenizer.tokenize("var").getFirst().getTokenType());
-        assertEquals(TokenType.KEYWORD, tokenizer.tokenize("ret").getFirst().getTokenType());
-        assertEquals(TokenType.KEYWORD, tokenizer.tokenize("fn").getFirst().getTokenType());
-        assertEquals(TokenType.KEYWORD, tokenizer.tokenize("if").getFirst().getTokenType());
-        assertEquals(TokenType.KEYWORD, tokenizer.tokenize("else").getFirst().getTokenType());
-        assertEquals(TokenType.KEYWORD, tokenizer.tokenize("for").getFirst().getTokenType());
-        assertEquals(TokenType.KEYWORD, tokenizer.tokenize("while").getFirst().getTokenType());
-        assertEquals(TokenType.KEYWORD, tokenizer.tokenize("import").getFirst().getTokenType());
-        assertEquals(TokenType.KEYWORD, tokenizer.tokenize("overwrite").getFirst().getTokenType());
-        assertEquals(TokenType.KEYWORD, tokenizer.tokenize("foreach").getFirst().getTokenType());
-         assertEquals(TokenType.KEYWORD, tokenizer.tokenize("in").getFirst().getTokenType());
+        assertEquals(TokenType.KEYWORD, tokenizer.tokenize("var", false).getFirst().getTokenType());
+        assertEquals(TokenType.KEYWORD, tokenizer.tokenize("ret", false).getFirst().getTokenType());
+        assertEquals(TokenType.KEYWORD, tokenizer.tokenize("fn", false).getFirst().getTokenType());
+        assertEquals(TokenType.KEYWORD, tokenizer.tokenize("if", false).getFirst().getTokenType());
+        assertEquals(TokenType.KEYWORD, tokenizer.tokenize("else", false).getFirst().getTokenType());
+        assertEquals(TokenType.KEYWORD, tokenizer.tokenize("for", false).getFirst().getTokenType());
+        assertEquals(TokenType.KEYWORD, tokenizer.tokenize("while", false).getFirst().getTokenType());
+        assertEquals(TokenType.KEYWORD, tokenizer.tokenize("import", false).getFirst().getTokenType());
+        assertEquals(TokenType.KEYWORD, tokenizer.tokenize("overwrite", false).getFirst().getTokenType());
+        assertEquals(TokenType.KEYWORD, tokenizer.tokenize("foreach", false).getFirst().getTokenType());
+         assertEquals(TokenType.KEYWORD, tokenizer.tokenize("in", false).getFirst().getTokenType());
     }
 
     @Test
     void testOperations() {
-        assertEquals(TokenType.OPERATION, tokenizer.tokenize("+").getFirst().getTokenType());
-        assertEquals(TokenType.OPERATION, tokenizer.tokenize("-").getFirst().getTokenType());
-        assertEquals(TokenType.OPERATION, tokenizer.tokenize("*").getFirst().getTokenType());
-        assertEquals(TokenType.OPERATION, tokenizer.tokenize("/").getFirst().getTokenType());
-        assertEquals(TokenType.OPERATION, tokenizer.tokenize("==").getFirst().getTokenType());
-        assertEquals(TokenType.OPERATION, tokenizer.tokenize("!=").getFirst().getTokenType());
-        assertEquals(TokenType.OPERATION, tokenizer.tokenize("<").getFirst().getTokenType());
-        assertEquals(TokenType.OPERATION, tokenizer.tokenize(">").getFirst().getTokenType());
-        assertEquals(TokenType.OPERATION, tokenizer.tokenize("<=").getFirst().getTokenType());
-        assertEquals(TokenType.OPERATION, tokenizer.tokenize(">=").getFirst().getTokenType());
-        assertEquals(TokenType.OPERATION, tokenizer.tokenize("&&").getFirst().getTokenType());
-        assertEquals(TokenType.OPERATION, tokenizer.tokenize("||").getFirst().getTokenType());
-        assertEquals(TokenType.OPERATION, tokenizer.tokenize("$").getFirst().getTokenType());
-        assertEquals(TokenType.OPERATION, tokenizer.tokenize(":").getFirst().getTokenType());
-        assertEquals(TokenType.OPERATION, tokenizer.tokenize("!").getFirst().getTokenType());
+        assertEquals(TokenType.OPERATION, tokenizer.tokenize("+",  false).getFirst().getTokenType());
+        assertEquals(TokenType.OPERATION, tokenizer.tokenize("-", false).getFirst().getTokenType());
+        assertEquals(TokenType.OPERATION, tokenizer.tokenize("*", false).getFirst().getTokenType());
+        assertEquals(TokenType.OPERATION, tokenizer.tokenize("/", false).getFirst().getTokenType());
+        assertEquals(TokenType.OPERATION, tokenizer.tokenize("==", false).getFirst().getTokenType());
+        assertEquals(TokenType.OPERATION, tokenizer.tokenize("!=", false).getFirst().getTokenType());
+        assertEquals(TokenType.OPERATION, tokenizer.tokenize("<", false).getFirst().getTokenType());
+        assertEquals(TokenType.OPERATION, tokenizer.tokenize(">", false).getFirst().getTokenType());
+        assertEquals(TokenType.OPERATION, tokenizer.tokenize("<=", false).getFirst().getTokenType());
+        assertEquals(TokenType.OPERATION, tokenizer.tokenize(">=", false).getFirst().getTokenType());
+        assertEquals(TokenType.OPERATION, tokenizer.tokenize("&&", false).getFirst().getTokenType());
+        assertEquals(TokenType.OPERATION, tokenizer.tokenize("||", false).getFirst().getTokenType());
+        assertEquals(TokenType.OPERATION, tokenizer.tokenize("$", false).getFirst().getTokenType());
+        assertEquals(TokenType.OPERATION, tokenizer.tokenize(":", false).getFirst().getTokenType());
+        assertEquals(TokenType.OPERATION, tokenizer.tokenize("!", false).getFirst().getTokenType());
     }
 
     @Test
     void testDelimiters() {
-        assertEquals(TokenType.DELIMITER, tokenizer.tokenize("(").getFirst().getTokenType());
-        assertEquals(TokenType.DELIMITER, tokenizer.tokenize(")").getFirst().getTokenType());
-        assertEquals(TokenType.DELIMITER, tokenizer.tokenize("{").getFirst().getTokenType());
-        assertEquals(TokenType.DELIMITER, tokenizer.tokenize("}").getFirst().getTokenType());
-        assertEquals(TokenType.DELIMITER, tokenizer.tokenize(";").getFirst().getTokenType());
-        assertEquals(TokenType.DELIMITER, tokenizer.tokenize(",").getFirst().getTokenType());
-        assertEquals(TokenType.DELIMITER, tokenizer.tokenize("[").getFirst().getTokenType());
-        assertEquals(TokenType.DELIMITER, tokenizer.tokenize("]").getFirst().getTokenType());
+        assertEquals(TokenType.DELIMITER, tokenizer.tokenize("(", false).getFirst().getTokenType());
+        assertEquals(TokenType.DELIMITER, tokenizer.tokenize(")", false).getFirst().getTokenType());
+        assertEquals(TokenType.DELIMITER, tokenizer.tokenize("{", false).getFirst().getTokenType());
+        assertEquals(TokenType.DELIMITER, tokenizer.tokenize("}", false).getFirst().getTokenType());
+        assertEquals(TokenType.DELIMITER, tokenizer.tokenize(";", false).getFirst().getTokenType());
+        assertEquals(TokenType.DELIMITER, tokenizer.tokenize(",", false).getFirst().getTokenType());
+        assertEquals(TokenType.DELIMITER, tokenizer.tokenize("[", false).getFirst().getTokenType());
+        assertEquals(TokenType.DELIMITER, tokenizer.tokenize("]", false).getFirst().getTokenType());
     }
 
     @Test
     void testVariableDeclaration() {
         String varDeclaration = "var x : 10.1;";
-        List<Token> tokens = tokenizer.tokenize(varDeclaration);
+        List<Token> tokens = tokenizer.tokenize(varDeclaration, false);
         assertEquals(tokens.get(0).getLexeme(), "var");
         assertEquals(tokens.get(1).getLexeme(), "x");
         assertEquals(tokens.get(2).getLexeme(), ":");
@@ -75,7 +75,7 @@ public class LexerTests {
     @Test
     void testEmptyVariableDeclaration() {
         String varDeclaration = "var x;";
-        List<Token> tokens = tokenizer.tokenize(varDeclaration);
+        List<Token> tokens = tokenizer.tokenize(varDeclaration, false);
         assertEquals(tokens.get(0).getLexeme(), "var");
         assertEquals(tokens.get(1).getLexeme(), "x");
         assertEquals(tokens.get(2).getLexeme(), ";");
@@ -84,7 +84,7 @@ public class LexerTests {
     @Test
     void testFunctionDeclaration() {
         String functionDeclaration = "fn test() {print}";
-        List<Token> tokens = tokenizer.tokenize(functionDeclaration);
+        List<Token> tokens = tokenizer.tokenize(functionDeclaration, false);
         assertEquals(tokens.get(0).getLexeme(), "fn");
         assertEquals(tokens.get(1).getLexeme(), "test");
         assertEquals(tokens.get(2).getLexeme(), "(");
@@ -97,7 +97,7 @@ public class LexerTests {
     @Test
     void testFunctionCall() {
         String functionCall = "test()";
-        List<Token> tokens = tokenizer.tokenize(functionCall);
+        List<Token> tokens = tokenizer.tokenize(functionCall, false);
         assertEquals(tokens.get(0).getLexeme(), "test");
         assertEquals(tokens.get(1).getLexeme(), "(");
         assertEquals(tokens.get(2).getLexeme(), ")");
@@ -106,14 +106,14 @@ public class LexerTests {
     @Test
     void testExplicitString() {
         String explicitString = "\"Hello World\"";
-        List<Token> tokens = tokenizer.tokenize(explicitString);
+        List<Token> tokens = tokenizer.tokenize(explicitString, false);
         assertEquals(tokens.get(0).getLexeme(), "Hello World");
     }
 
     @Test
     void testSimpleExpression() {
         String simpleExpression = "((1+2)+3)";
-        List<Token> tokens = tokenizer.tokenize(simpleExpression);
+        List<Token> tokens = tokenizer.tokenize(simpleExpression, false);
         assertEquals(tokens.get(0).getLexeme(), "(");
         assertEquals(tokens.get(1).getLexeme(), "(");
         assertEquals(tokens.get(2).getLexeme(), "1");
@@ -128,7 +128,7 @@ public class LexerTests {
     @Test
     void testComplexExpression() {
         String complexExpression = "((($val1 + $val3) + val()) + 1)";
-        List<Token> tokens = tokenizer.tokenize(complexExpression);
+        List<Token> tokens = tokenizer.tokenize(complexExpression, false);
         assertEquals(tokens.get(0).getLexeme(), "(");
         assertEquals(tokens.get(1).getLexeme(), "(");
         assertEquals(tokens.get(2).getLexeme(), "(");
@@ -151,20 +151,20 @@ public class LexerTests {
     @Test
     void testUnterminatedString() {
         String unterminatedString = "\"Hello World";
-        assertThrows(UnterminatedStringError.class, () -> tokenizer.tokenize(unterminatedString));
+        assertThrows(UnterminatedStringError.class, () -> tokenizer.tokenize(unterminatedString, false));
     }
 
     @Test
     void testUnexpectedSymbol() {
         String unexpectedSymbol = "@";
-        assertThrows(UnexpectedSymbolError.class, () -> tokenizer.tokenize(unexpectedSymbol));
+        assertThrows(UnexpectedSymbolError.class, () -> tokenizer.tokenize(unexpectedSymbol, false));
     }
 
     @Test
     void testEscapedString() {
         String escapedString = "\"Hello World\n\"";
-        assertEquals("Hello World\n", tokenizer.tokenize(escapedString).getFirst().getLexeme());
+        assertEquals("Hello World\n", tokenizer.tokenize(escapedString, false).getFirst().getLexeme());
         escapedString = "\"\\\"Hello World\\\"\"";
-        assertEquals("\"Hello World\"", tokenizer.tokenize(escapedString).getFirst().getLexeme());
+        assertEquals("\"Hello World\"", tokenizer.tokenize(escapedString, false).getFirst().getLexeme());
     }
 }

@@ -17,26 +17,26 @@ public class Math implements Lib {
         environment.define("pow",
                 new NativeFunction(2, args -> {
                     return java.lang.Math.pow(
-                            (double) Evaluator.evaluate(String.valueOf(args.get(0))),
-                            (double) Evaluator.evaluate(String.valueOf(args.get(1))));
+                            (double) Evaluator.evaluate(String.valueOf(args.get(0)), false),
+                            (double) Evaluator.evaluate(String.valueOf(args.get(1)), false));
                 }));
 
         environment.define("max",
                 new NativeFunction(2, args -> {
                     return java.lang.Math.max(
-                            (double) Evaluator.evaluate(String.valueOf(args.get(0))),
-                            (double) Evaluator.evaluate(String.valueOf(args.get(1))));
+                            (double) Evaluator.evaluate(String.valueOf(args.get(0)), false),
+                            (double) Evaluator.evaluate(String.valueOf(args.get(1)), false));
                 }));
 
         environment.define("min",
                 new NativeFunction(2, args -> {
                     return java.lang.Math.min(
-                            (double) Evaluator.evaluate(String.valueOf(args.get(0))),
-                            (double) Evaluator.evaluate(String.valueOf(args.get(1))));
+                            (double) Evaluator.evaluate(String.valueOf(args.get(0)), false),
+                            (double) Evaluator.evaluate(String.valueOf(args.get(1)), false));
                 }));
 
-        environment.define("abs", new NativeFunction(1, args -> java.lang.Math.abs((double) Evaluator.evaluate(String.valueOf(args.get(0))))));
+        environment.define("abs", new NativeFunction(1, args -> java.lang.Math.abs((double) Evaluator.evaluate(String.valueOf(args.get(0)), false))));
         environment.define("rand", new NativeFunction(0, args -> java.lang.Math.random()));
-        environment.define("round", new NativeFunction(1, args -> java.lang.Math.round((double) Evaluator.evaluate(String.valueOf(args.get(0))))));
+        environment.define("round", new NativeFunction(1, args -> java.lang.Math.round((double) Evaluator.evaluate(String.valueOf(args.get(0)), false))));
     }
 }

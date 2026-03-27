@@ -51,7 +51,7 @@ public class Main {
             }
 
             Tokenizer tokenizer = new Tokenizer();
-            List<Token> tokens = tokenizer.tokenize(readFile);
+            List<Token> tokens = tokenizer.tokenize(readFile, false);
             if (Flags.dumpTokens) {
                 tokens.forEach(token -> System.out.println(token.getLexeme() + "-" + token.getTokenType() + "-" + token.getLine() + ";" + token.getColumn()));
             }

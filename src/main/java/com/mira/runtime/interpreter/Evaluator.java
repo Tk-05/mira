@@ -13,9 +13,9 @@ public class Evaluator {
     private static List<Token> tokens;
     private static int current;
 
-    public static Object evaluate(String expression) {
+    public static Object evaluate(String expression, boolean ignoreSequences) {
         Tokenizer tokenizer = new Tokenizer();
-        tokens = tokenizer.tokenize(expression);
+        tokens = tokenizer.tokenize(expression, true);
         current = 0;
 
         Object result = or();
@@ -137,7 +137,6 @@ public class Evaluator {
     }
 
     private static Object unary() {
-
         if (match("!")) {
             return !toBoolean(unary());
         }
@@ -150,7 +149,6 @@ public class Evaluator {
     }
 
     private static Object primary() {
-
         if (match("(")) {
             Object value = or();
 
@@ -164,7 +162,6 @@ public class Evaluator {
         Token token = advance();
 
         if (token.getTokenType() == TokenType.EXPRESSION) {
-
             String value = token.getLexeme();
 
             if (isNumber(value)) {
@@ -178,7 +175,6 @@ public class Evaluator {
     }
 
     private static boolean match(String... ops) {
-
         if (isAtEnd()) {
             return false;
         }
@@ -210,7 +206,6 @@ public class Evaluator {
     }
 
     private static boolean toBoolean(Object o) {
-
         if (o instanceof Boolean b) {
             return b;
         }
@@ -223,7 +218,6 @@ public class Evaluator {
     }
 
     private static double toNumber(Object o) {
-
         if (o instanceof Number n) {
             return n.doubleValue();
         }

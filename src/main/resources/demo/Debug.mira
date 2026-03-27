@@ -1,6 +1,9 @@
+import string;
+
 fn main() {
-    var list1 : {{1,2,3}};
-    foreach(var element1 in $list1[0]) {
-        print($element1 "\n");
+    var test : "\n";
+
+    if(charAt(0, $test) == "\n") {
+        print("new line");
     }
 }

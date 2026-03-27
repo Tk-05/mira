@@ -33,7 +33,7 @@ public class ParserTest {
     void uninitializedVariable() {
         String source = "var x;";
 
-        List<Node> ast = parser.parseTokens(tokenizer.tokenize(source));
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize(source, false));
 
         assertEquals(1, ast.size());
         assertInstanceOf(VarDecl.class, ast.getFirst());
@@ -48,7 +48,7 @@ public class ParserTest {
     void initializedVariable() {
         String source = "var x : 10;";
 
-        List<Node> ast = parser.parseTokens(tokenizer.tokenize(source));
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize(source, false));
 
         assertEquals(1, ast.size());
         assertInstanceOf(VarDecl.class, ast.getFirst());
@@ -68,7 +68,7 @@ public class ParserTest {
     void stringInitializer() {
         String source = "var name : \"Mira\";";
 
-        List<Node> ast = parser.parseTokens(tokenizer.tokenize(source));
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize(source, false));
 
         VarDecl decl = (VarDecl) ast.getFirst();
 
@@ -84,7 +84,7 @@ public class ParserTest {
     void unaryExpression() {
         String unaryExpression = "$val1;";
 
-        List<Node> ast = parser.parseTokens(tokenizer.tokenize(unaryExpression));
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize(unaryExpression, false));
 
         assertEquals(1, ast.size());
 
@@ -100,7 +100,7 @@ public class ParserTest {
     void simpleExpression() {
         String simpleExpression = "((1+2)+3);";
 
-        List<Node> ast = parser.parseTokens(tokenizer.tokenize(simpleExpression));
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize(simpleExpression, false));
 
         ComplexExpression outer = (ComplexExpression) ast.getFirst();
 
@@ -113,7 +113,7 @@ public class ParserTest {
     void complexExpression() {
         String complexExpression = "((($val1 + $val3) + val()) + 1);";
 
-        List<Node> ast = parser.parseTokens(tokenizer.tokenize(complexExpression));
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize(complexExpression, false));
 
         assertEquals(1, ast.size());
 
@@ -139,7 +139,7 @@ public class ParserTest {
                     print(eval(fibonacci($i)));
                 }
                 """;
-        List<Node> ast = parser.parseTokens(tokenizer.tokenize(forStmt));
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize(forStmt, false));
         assertEquals(1, ast.size());
         assertInstanceOf(For.class, ast.getFirst());
     }
@@ -151,7 +151,7 @@ public class ParserTest {
                     print(eval(fibonacci($i)));
                 }
                 """;
-        List<Node> ast = parser.parseTokens(tokenizer.tokenize(forStmt));
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize(forStmt, false));
         assertEquals(1, ast.size());
         assertInstanceOf(For.class, ast.getFirst());
     }
@@ -163,7 +163,7 @@ public class ParserTest {
                     print("Hello World");
                 }
                 """;
-        List<Node> ast = parser.parseTokens(tokenizer.tokenize(forStmt));
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize(forStmt, false));
         assertEquals(1, ast.size());
         assertInstanceOf(For.class, ast.getFirst());
     }
@@ -173,7 +173,7 @@ public class ParserTest {
         String funcDecl = """
                 fn test() {}
                 """;
-        List<Node> ast = parser.parseTokens(tokenizer.tokenize(funcDecl));
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize(funcDecl, false));
         assertEquals(1, ast.size());
         assertInstanceOf(Statement.FuncDecl.class, ast.getFirst());
     }
@@ -183,7 +183,7 @@ public class ParserTest {
         String retStmt = """
                 ret();
                 """;
-        List<Node> ast = parser.parseTokens(tokenizer.tokenize(retStmt));
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize(retStmt, false));
         assertEquals(1, ast.size());
         assertInstanceOf(Statement.Return.class, ast.getFirst());
     }
@@ -193,7 +193,7 @@ public class ParserTest {
         String ifStmt = """
                 if(1){} else {}
                 """;
-        List<Node> ast = parser.parseTokens(tokenizer.tokenize(ifStmt));
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize(ifStmt, false));
         assertInstanceOf(Statement.If.class, ast.getFirst());
     }
 
@@ -202,7 +202,7 @@ public class ParserTest {
         String whileStmt = """
                 while(1){}
                 """;
-        List<Node> ast = parser.parseTokens(tokenizer.tokenize(whileStmt));
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize(whileStmt, false));
         assertEquals(1, ast.size());
         assertInstanceOf(Statement.While.class, ast.getFirst());
     }
@@ -212,7 +212,7 @@ public class ParserTest {
         String callExpression = """
                 test();
                 """;
-        List<Node> ast = parser.parseTokens(tokenizer.tokenize(callExpression));
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize(callExpression, false));
         assertEquals(1, ast.size());
         assertInstanceOf(CallExpression.class, ast.getFirst());
     }
@@ -222,7 +222,7 @@ public class ParserTest {
         String callExpression = """
                 test("test");
                 """;
-        List<Node> ast = parser.parseTokens(tokenizer.tokenize(callExpression));
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize(callExpression, false));
         assertEquals(1, ast.size());
         assertInstanceOf(CallExpression.class, ast.getFirst());
     }
@@ -232,7 +232,7 @@ public class ParserTest {
         String tuple = """
                 var tuple : [1,2,3];
                 """;
-        List<Node> ast = parser.parseTokens(tokenizer.tokenize(tuple));
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize(tuple, false));
         assertEquals(1, ast.size());
         assertInstanceOf(VarDecl.class, ast.getFirst());
     }
@@ -242,7 +242,7 @@ public class ParserTest {
         String accessExpression = """
                 $x[0];
                 """;
-        List<Node> ast = parser.parseTokens(tokenizer.tokenize(accessExpression));
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize(accessExpression, false));
         assertEquals(1, ast.size());
         assertInstanceOf(AccessExpression.class, ast.getFirst());
     }
@@ -252,7 +252,7 @@ public class ParserTest {
         String breakStmt = """
                 break();
                 """;
-        List<Node> ast = parser.parseTokens(tokenizer.tokenize(breakStmt));
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize(breakStmt, false));
         assertEquals(1, ast.size());
         assertInstanceOf(Break.class, ast.getFirst());
     }
@@ -262,7 +262,7 @@ public class ParserTest {
         String list = """
                 var list : {};
                 """;
-        List<Node> ast = parser.parseTokens(tokenizer.tokenize(list));
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize(list, false));
         assertEquals(1, ast.size());
         assertInstanceOf(VarDecl.class, ast.getFirst());
     }
@@ -274,7 +274,7 @@ public class ParserTest {
                     var ref : 10;
                 }
                 """;
-        List<Node> ast = parser.parseTokens(tokenizer.tokenize(block));
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize(block, false));
         assertEquals(1, ast.size());
         assertInstanceOf(Block.class, ast.getFirst());
     }
@@ -284,7 +284,7 @@ public class ParserTest {
         String importStmt = """
                 import HelloWorld;
                 """;
-        List<Node> ast = parser.parseTokens(tokenizer.tokenize(importStmt));
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize(importStmt, false));
         assertEquals(1, ast.size());
         assertInstanceOf(ImportExpression.class, ast.getFirst());
     }
@@ -294,7 +294,7 @@ public class ParserTest {
         String overwriteStmt = """
                 overwrite(1);
                 """;
-        List<Node> ast = parser.parseTokens(tokenizer.tokenize(overwriteStmt));
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize(overwriteStmt, false));
         assertEquals(1, ast.size());
         assertInstanceOf(Overwrite.class, ast.getFirst());
     }
@@ -304,7 +304,7 @@ public class ParserTest {
         String foreachStmt = """
                foreach(var i in $test) {} 
                 """;
-        List<Node> ast = parser.parseTokens(tokenizer.tokenize(foreachStmt));
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize(foreachStmt, false));
         assertEquals(1, ast.size());
         assertInstanceOf(Foreach.class, ast.getFirst());
     }

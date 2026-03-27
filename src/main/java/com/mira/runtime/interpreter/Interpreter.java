@@ -517,7 +517,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
     @Override
     public Object visitIf(If stmt) {
         String condition = (String) stmt.getCondition().accept(this);
-        boolean value = (boolean) Evaluator.evaluate(condition);
+        boolean value = (boolean) Evaluator.evaluate(condition, true);
 
         List<Node> body = value ? stmt.getThenBody() : stmt.getElseBody();
 
@@ -538,7 +538,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             while (true) {
                 if (stmt.getCondition() != null) {
                     String condition = (String) stmt.getCondition().accept(this);
-                    switch (Evaluator.evaluate(condition)) {
+                    switch (Evaluator.evaluate(condition, true)) {
                         case Boolean b -> {
                             if (!b) {
                                 return null;
@@ -568,7 +568,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         try {
             while (true) {
                 String condition = (String) stmt.getCondition().accept(this);
-                switch (Evaluator.evaluate(condition)) {
+                switch (Evaluator.evaluate(condition, true)) {
                     case Boolean b -> {
                         if (!b) {
                             return null;
@@ -611,7 +611,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         Tokenizer tokenizer = new Tokenizer();
         Parser parser = new Parser();
 
-        List<Node> asts = parser.parseTokens(tokenizer.tokenize(stmt.getStmt()));
+        List<Node> asts = parser.parseTokens(tokenizer.tokenize(stmt.getStmt(), false));
         Environment.setOverwriteMode(true);
         for (Node ast : asts) {
             switch (ast) {

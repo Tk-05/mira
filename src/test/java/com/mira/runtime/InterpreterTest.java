@@ -30,19 +30,19 @@ public class InterpreterTest {
     void createNewGlobalContext() {
         Tokenizer tokenizer = new Tokenizer();
         Parser parser = new Parser();
-        interpreter.run(parser.parseTokens(tokenizer.tokenize("")));
+        interpreter.run(parser.parseTokens(tokenizer.tokenize("", false)));
     }
 
     Object runWithNewGlobalContext(String source) {
         Tokenizer tokenizer = new Tokenizer();
         Parser parser = new Parser();
-        return interpreter.run(parser.parseTokens(tokenizer.tokenize(source)));
+        return interpreter.run(parser.parseTokens(tokenizer.tokenize(source, false)));
     }
 
     Object runWithoutNewGlobalContext(String source) {
         Tokenizer tokenizer = new Tokenizer();
         Parser parser = new Parser();
-        return interpreter.runWithoutLoadingNewContext(parser.parseTokens(tokenizer.tokenize(source)));
+        return interpreter.runWithoutLoadingNewContext(parser.parseTokens(tokenizer.tokenize(source, false)));
     }
 
     @Test
@@ -62,13 +62,13 @@ public class InterpreterTest {
 
     @Test
     void testParentheses() {
-        double result = (double) Evaluator.evaluate("(1+2)*3");
+        double result = (double) Evaluator.evaluate("(1+2)*3", false);
         assertEquals(9.0, result);
 
-        result = (double) Evaluator.evaluate("-(2+3)*4");
+        result = (double) Evaluator.evaluate("-(2+3)*4", false);
         assertEquals(-20.0, result);
 
-        result = (double) Evaluator.evaluate("((1+2)+(3+4))*2");
+        result = (double) Evaluator.evaluate("((1+2)+(3+4))*2", false);
         assertEquals(20.0, result);
     }
 
@@ -95,22 +95,22 @@ public class InterpreterTest {
 
     @Test
     void testDecimalNumbers() {
-        double result = (double) Evaluator.evaluate("1.5 + 2.3");
+        double result = (double) Evaluator.evaluate("1.5 + 2.3", false);
         assertEquals(3.8, result, 0.0001);
 
-        result = (double) Evaluator.evaluate("10.0 / 4.0");
+        result = (double) Evaluator.evaluate("10.0 / 4.0", false);
         assertEquals(2.5, result, 0.0001);
 
-        result = (double) Evaluator.evaluate("-0.5 * 8");
+        result = (double) Evaluator.evaluate("-0.5 * 8", false);
         assertEquals(-4.0, result, 0.0001);
     }
 
     @Test
     void testNestedParentheses() {
-        double result = (double) Evaluator.evaluate("((1+2)+(3+4))*2");
+        double result = (double) Evaluator.evaluate("((1+2)+(3+4))*2", false);
         assertEquals(20.0, result);
 
-        result = (double) Evaluator.evaluate("(1+(2+(3+4)))");
+        result = (double) Evaluator.evaluate("(1+(2+(3+4)))", false);
         assertEquals(10.0, result);
     }
 
@@ -126,7 +126,7 @@ public class InterpreterTest {
         Tokenizer tokenizer = new Tokenizer();
         Parser parser = new Parser();
         try {
-            interpreter.run((parser.parseTokens(tokenizer.tokenize(source))));
+            interpreter.run((parser.parseTokens(tokenizer.tokenize(source, true))));
         } catch (ReturnSignal returnSignal) {
             assertEquals(42.0, returnSignal.getValue());
         }
@@ -138,7 +138,7 @@ public class InterpreterTest {
         Tokenizer tokenizer = new Tokenizer();
         Parser parser = new Parser();
         try {
-            interpreter.run((parser.parseTokens(tokenizer.tokenize(source))));
+            interpreter.run((parser.parseTokens(tokenizer.tokenize(source, true))));
         } catch (ReturnSignal returnSignal) {
             assertEquals(0.0, returnSignal.getValue());
         }
@@ -163,7 +163,7 @@ public class InterpreterTest {
         Tokenizer tokenizer = new Tokenizer();
         Parser parser = new Parser();
         try {
-            interpreter.run((parser.parseTokens(tokenizer.tokenize(source))));
+            interpreter.run((parser.parseTokens(tokenizer.tokenize(source, true))));
         } catch (ReturnSignal returnSignal) {
             assertEquals(42.0, returnSignal.getValue());
         }
@@ -178,7 +178,7 @@ public class InterpreterTest {
         Tokenizer tokenizer = new Tokenizer();
         Parser parser = new Parser();
         try {
-            interpreter.run((parser.parseTokens(tokenizer.tokenize(source))));
+            interpreter.run((parser.parseTokens(tokenizer.tokenize(source, true))));
         } catch (ReturnSignal returnSignal) {
             assertEquals(null, returnSignal.getValue());
         }
@@ -193,7 +193,7 @@ public class InterpreterTest {
         Tokenizer tokenizer = new Tokenizer();
         Parser parser = new Parser();
         try {
-            interpreter.run((parser.parseTokens(tokenizer.tokenize(source))));
+            interpreter.run((parser.parseTokens(tokenizer.tokenize(source, true))));
         } catch (ReturnSignal returnSignal) {
             assertEquals(0.0, returnSignal.getValue());
         }
@@ -208,7 +208,7 @@ public class InterpreterTest {
         Tokenizer tokenizer = new Tokenizer();
         Parser parser = new Parser();
         try {
-            interpreter.run((parser.parseTokens(tokenizer.tokenize(source))));
+            interpreter.run((parser.parseTokens(tokenizer.tokenize(source, true))));
         } catch (ReturnSignal returnSignal) {
             assertEquals(4.0, returnSignal.getValue());
         }
@@ -224,7 +224,7 @@ public class InterpreterTest {
         Tokenizer tokenizer = new Tokenizer();
         Parser parser = new Parser();
         try {
-            interpreter.run((parser.parseTokens(tokenizer.tokenize(source))));
+            interpreter.run((parser.parseTokens(tokenizer.tokenize(source, true))));
         } catch (ReturnSignal returnSignal) {
             assertEquals(21.0, returnSignal.getValue());
         }
@@ -242,7 +242,7 @@ public class InterpreterTest {
         Tokenizer tokenizer = new Tokenizer();
         Parser parser = new Parser();
         try {
-            interpreter.run((parser.parseTokens(tokenizer.tokenize(source))));
+            interpreter.run((parser.parseTokens(tokenizer.tokenize(source, true))));
         } catch (ReturnSignal returnSignal) {
             assertEquals("Hello World", returnSignal.getValue());
         }
@@ -260,7 +260,7 @@ public class InterpreterTest {
         Tokenizer tokenizer = new Tokenizer();
         Parser parser = new Parser();
         try {
-            interpreter.run((parser.parseTokens(tokenizer.tokenize(source))));
+            interpreter.run((parser.parseTokens(tokenizer.tokenize(source, true))));
         } catch (ReturnSignal returnSignal) {
             assertEquals("1", returnSignal.getValue());
         }
@@ -280,7 +280,7 @@ public class InterpreterTest {
         Tokenizer tokenizer = new Tokenizer();
         Parser parser = new Parser();
         try {
-            interpreter.run((parser.parseTokens(tokenizer.tokenize(source))));
+            interpreter.run((parser.parseTokens(tokenizer.tokenize(source, true))));
         } catch (ReturnSignal returnSignal) {
             assertEquals("true", returnSignal.getValue());
         }
@@ -288,22 +288,22 @@ public class InterpreterTest {
 
     @Test
     void testSimpleConditions() {
-        assertTrue((boolean) Evaluator.evaluate("1 > 0"));
-        assertFalse((boolean) Evaluator.evaluate("1 < 0"));
-        assertTrue((boolean) Evaluator.evaluate("5 >= 5"));
+        assertTrue((boolean) Evaluator.evaluate("1 > 0", false));
+        assertFalse((boolean) Evaluator.evaluate("1 < 0", false));
+        assertTrue((boolean) Evaluator.evaluate("5 >= 5", false));
     }
 
     @Test
     void testConditionsWithPara() {
-        assertTrue((boolean) Evaluator.evaluate("(5 > 3 && 10 > 5)"));
-        assertFalse((boolean) Evaluator.evaluate("5 > 3 && 10 < 5"));
-        assertFalse((boolean) Evaluator.evaluate("!(5 > 3)"));
-        assertTrue((boolean) Evaluator.evaluate("((5 > 3 && 10 > 5) || (3 == 4)) && !(2 > 10)"));
+        assertTrue((boolean) Evaluator.evaluate("(5 > 3 && 10 > 5)", false));
+        assertFalse((boolean) Evaluator.evaluate("5 > 3 && 10 < 5", false));
+        assertFalse((boolean) Evaluator.evaluate("!(5 > 3)", false));
+        assertTrue((boolean) Evaluator.evaluate("((5 > 3 && 10 > 5) || (3 == 4)) && !(2 > 10)", false));
     }
 
     @Test
     void testEdgeCases() {
-        assertFalse((boolean) Evaluator.evaluate("1 == 1 == 1"));
+        assertFalse((boolean) Evaluator.evaluate("1 == 1 == 1", false));
     }
 
     @Test
@@ -694,7 +694,8 @@ public class InterpreterTest {
                 """;
         try {
             runWithNewGlobalContext(source);
-        } catch (BreakSignal breakSignal) {}
+        } catch (BreakSignal breakSignal) {
+        }
     }
 
     @Test
@@ -709,7 +710,8 @@ public class InterpreterTest {
                 """;
         try {
             runWithNewGlobalContext(source);
-        } catch (ReturnSignal returnSignal) {}
+        } catch (ReturnSignal returnSignal) {
+        }
     }
 
     @Test
@@ -727,7 +729,8 @@ public class InterpreterTest {
                 """;
         try {
             runWithNewGlobalContext(source);
-        } catch (ReturnSignal returnSignal) {}
+        } catch (ReturnSignal returnSignal) {
+        }
     }
 
     @Test
@@ -742,6 +745,25 @@ public class InterpreterTest {
                 """;
         try {
             runWithNewGlobalContext(source);
-        } catch (ReturnSignal returnSignal) {}
+        } catch (ReturnSignal returnSignal) {
+        }
+    }
+
+    @Test
+    void testIfWithNewline() {
+        String source = """
+            import string;
+            var test : "\n";
+
+            if(charAt(0, $test) == "\n") {
+                ret();
+            }
+            """;
+        try {
+            Tokenizer tokenizer = new Tokenizer();
+            Parser parser = new Parser();
+            interpreter.run(parser.parseTokens(tokenizer.tokenize(source, true)));
+        } catch (ReturnSignal returnSignal) {
+        }
     }
 }

@@ -13,7 +13,7 @@ TODO:
         var lines : {};
 
         for(var i : 0; $i < length(file); $i++){
-            if(charAt($i, $file) == "\n") {
+            if(charAt($i, $file) == \n) {
                 print("new line!");
             }
         }
