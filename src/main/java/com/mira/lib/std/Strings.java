@@ -37,5 +37,12 @@ public class Strings implements Lib {
                     int end = (int) Double.parseDouble(String.valueOf(args.get(1)));
                     return String.valueOf(args.get(2)).substring(start, end);
                 }));
+        
+        environment.define("strcompare",
+                new NativeFunction(2, args -> {
+                    String string1 = String.valueOf(args.get(0));
+                    String string2 = String.valueOf(args.get(1));
+                    return string1.equals(string2);
+                }));
     }
 }

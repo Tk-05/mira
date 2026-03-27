@@ -516,9 +516,13 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
     @Override
     public Object visitIf(If stmt) {
-        String condition = (String) stmt.getCondition().accept(this);
-        boolean value = (boolean) Evaluator.evaluate(condition, true);
-
+        Object condition = stmt.getCondition().accept(this);
+        boolean value;
+        switch (condition) {
+            case Boolean b -> value = b;
+            case String s -> value = (boolean) Evaluator.evaluate(s, true);
+            default -> throw new AssertionError();
+        }
         List<Node> body = value ? stmt.getThenBody() : stmt.getElseBody();
 
         if (body == null) {
