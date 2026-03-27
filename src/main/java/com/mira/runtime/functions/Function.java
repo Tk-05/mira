@@ -6,9 +6,8 @@ import com.mira.parser.nodes.Node;
 import com.mira.parser.nodes.expression.Expression;
 import com.mira.parser.nodes.expression.Expression.DumbExpression;
 import com.mira.parser.nodes.statement.Statement;
-import com.mira.runtime.Callable;
-import com.mira.runtime.Environment;
-import com.mira.runtime.Interpreter;
+import com.mira.runtime.interpreter.Environment;
+import com.mira.runtime.interpreter.Interpreter;
 
 public class Function implements Callable {
 

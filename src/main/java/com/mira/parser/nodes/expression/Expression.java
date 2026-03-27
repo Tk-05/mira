@@ -223,4 +223,27 @@ public abstract class Expression implements Node {
             return members.size();
         }
     }
+
+    public static class ImportExpression extends Expression {
+
+        private final Expression lib;
+
+        public ImportExpression(Expression lib) {
+            this.lib = lib;
+        }
+
+        @Override
+        public <T> T accept(ExprVisitor<T> visitor) {
+            return null;
+        }
+
+        @Override
+        public String toString() {
+            throw new AssertionError();
+        }
+
+        public String getLib() {
+            return lib.toString();
+        }
+    }
 }

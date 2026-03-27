@@ -1,6 +1,8 @@
-package com.mira.runtime;
+package com.mira.runtime.functions;
 
 import java.util.List;
+
+import com.mira.runtime.interpreter.Interpreter;
 
 public interface Callable {
 

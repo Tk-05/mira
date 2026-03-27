@@ -14,11 +14,16 @@ public class Vocabulary {
             "else",
             "for",
             "while",
-            "break"
+            "break",
+            "import",
+            "overwrite",
+            "foreach",
+            "in"
     );
 
     public static final Set<String> operations = Set.of(
             "+", "-", "*", "/",
+            "++", "--",
             "==", "!=", "<", ">", "<=", ">=",
             "&&", "||",
             "$", ":", "!"

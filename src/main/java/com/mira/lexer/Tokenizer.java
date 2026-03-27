@@ -13,6 +13,7 @@ public class Tokenizer {
 
     private String source;
     private final List<Token> tokens = new ArrayList<>();
+    private boolean ignoreSequences;
 
     private int start = 0;
     private int current = 0;
@@ -27,8 +28,9 @@ public class Tokenizer {
         tokens.clear();
     }
 
-    public List<Token> tokenize(String source) {
+    public List<Token> tokenize(String source, boolean ignoreSequences) {
         this.source = source;
+        this.ignoreSequences = ignoreSequences;
         reset();
 
         while (!isAtEnd()) {
@@ -41,24 +43,28 @@ public class Tokenizer {
     }
 
     private void scanToken() {
-
         char c = advance();
 
         switch (c) {
-
             case '\n' -> {
-                line++;
-                column = 0;
+                if (ignoreSequences) {
+                    addToken(TokenType.EXPRESSION);
+                } else {
+                    line++;
+                    column = 0;
+                }
             }
 
             case ' ', '\r', '\t' -> {
+                if (ignoreSequences) {
+                    addToken(TokenType.EXPRESSION);
+                }
             }
 
             case '"' ->
                 scanString();
 
             default -> {
-
                 if (Character.isDigit(c)) {
                     scanNumber();
                     return;

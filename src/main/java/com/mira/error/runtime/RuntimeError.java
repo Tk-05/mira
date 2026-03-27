@@ -6,6 +6,13 @@ public class RuntimeError extends RuntimeException {
         super(message);
     }
 
+    public static class ObjectAlreadyDefinedInScope extends RuntimeError {
+
+        public ObjectAlreadyDefinedInScope(String name) {
+            super("Object '" + name + "' is alreay defined in scope!");
+        }
+    }
+
     public static class UndefinedVariableError extends RuntimeError {
 
         public UndefinedVariableError(String identifier) {
@@ -56,6 +63,20 @@ public class RuntimeError extends RuntimeException {
 
         public UnknownOperatorError(String token) {
             super("Unknown operator: " + token);
+        }
+    }
+
+    public static class PostUnaryError extends RuntimeError {
+
+        public PostUnaryError(String operation) {
+            super(operation + "requires a variable reference like $x");
+        }
+    }
+
+    public static class PostExprNaNError extends RuntimeError {
+
+        public PostExprNaNError(String ident) {
+            super("Cannot change non-number: " + ident);
         }
     }
 }

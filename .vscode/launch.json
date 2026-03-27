@@ -3,7 +3,7 @@
     "configurations": [
         {
             "type": "java",
-            "name": "(Debug) Run",
+            "name": "(Debug) Run with main",
             "request": "launch",
             "mainClass": "com.mira.Main",
             "projectName": "mira",
@@ -12,6 +12,18 @@
                     "-c",
                     "-t",
                     "-m"
+                ]
+        },
+        {
+            "type": "java",
+            "name": "(Debug) Run without main",
+            "request": "launch",
+            "mainClass": "com.mira.Main",
+            "projectName": "mira",
+            "args": [
+                    "demo/Debug.mira",
+                    "-c",
+                    "-t"
                 ]
         },
         {

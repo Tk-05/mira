@@ -8,8 +8,8 @@ import com.mira.lexer.Tokenizer;
 import com.mira.lexer.token.Token;
 import com.mira.parser.Parser;
 import com.mira.parser.nodes.Node;
-import com.mira.runtime.Interpreter;
 import com.mira.runtime.functions.ReturnSignal;
+import com.mira.runtime.interpreter.Interpreter;
 import com.mira.utils.FileLoader;
 
 public class Main {
@@ -35,11 +35,7 @@ public class Main {
                         Flags.loadFromClasspath = true;
                     case "-m" ->
                         Flags.mainFunction = true;
-                    case "-args" -> {
-                        if (args.length > i) {
-                            Flags.args = args[i+1].substring(1, args[i+1].length() - 1).split(",");
-                        }
-                    }
+                    case "-args" -> Flags.args = args[i+1].substring(0, args[i+1].length()).split(",");
                 }
             }
 
@@ -55,7 +51,7 @@ public class Main {
             }
 
             Tokenizer tokenizer = new Tokenizer();
-            List<Token> tokens = tokenizer.tokenize(readFile);
+            List<Token> tokens = tokenizer.tokenize(readFile, false);
             if (Flags.dumpTokens) {
                 tokens.forEach(token -> System.out.println(token.getLexeme() + "-" + token.getTokenType() + "-" + token.getLine() + ";" + token.getColumn()));
             }

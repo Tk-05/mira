@@ -4,7 +4,7 @@ import java.util.Scanner;
 
 import com.mira.lexer.Tokenizer;
 import com.mira.parser.Parser;
-import com.mira.runtime.Interpreter;
+import com.mira.runtime.interpreter.Interpreter;
 
 public class Console {
 
@@ -31,7 +31,7 @@ public class Console {
                     }
                 }
 
-                Object result = interpreter.run(parser.parseTokens(tokenizer.tokenize(input)));
+                Object result = interpreter.run(parser.parseTokens(tokenizer.tokenize(input, true)));
 
                 if (result != null) {
                     System.out.println(result);

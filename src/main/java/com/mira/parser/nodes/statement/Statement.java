@@ -227,4 +227,52 @@ public abstract class Statement implements Node {
             return body;
         }
     }
+
+    public static class Overwrite extends Statement {
+
+        private final String stmt;
+
+        public Overwrite(String stmt) {
+            this.stmt = stmt;
+        }
+
+        @Override
+        public <T> T accept(StmtVisitor<T> visitor) {
+            return visitor.visitOverwrite(this);
+        }
+
+        public String getStmt() {
+            return stmt;
+        }
+    }
+
+    public static class Foreach extends Statement {
+
+        private final VarDecl iterator;
+        private final Expression collection;
+        private final List<Node> body;
+
+        public Foreach(VarDecl iterator, Expression collection, List<Node> body) {
+            this.iterator = iterator;
+            this.collection = collection;
+            this.body = body;
+        }
+
+        @Override
+        public <T> T accept(StmtVisitor<T> visitor) {
+            return visitor.visitForeach(this);
+        }
+
+        public VarDecl getIterator() {
+            return iterator;
+        }
+
+        public Expression getCollection() {
+            return collection;
+        }
+
+        public List<Node> getBody() {
+            return body;
+        }
+    }
 }

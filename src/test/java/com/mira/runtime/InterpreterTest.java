@@ -8,12 +8,15 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import com.mira.error.parser.ParserError.UnexpectedToken;
+import com.mira.error.runtime.RuntimeError.PostUnaryError;
 import com.mira.error.runtime.RuntimeError.ReferenceIsImmutableError;
 import com.mira.error.runtime.RuntimeError.UndefinedReferenceError;
 import com.mira.lexer.Tokenizer;
 import com.mira.parser.Parser;
+import com.mira.runtime.functions.BreakSignal;
 import com.mira.runtime.functions.ReturnSignal;
+import com.mira.runtime.interpreter.Evaluator;
+import com.mira.runtime.interpreter.Interpreter;
 
 public class InterpreterTest {
 
@@ -24,53 +27,66 @@ public class InterpreterTest {
         interpreter = new Interpreter();
     }
 
-    Object run(String source) {
+    void createNewGlobalContext() {
         Tokenizer tokenizer = new Tokenizer();
         Parser parser = new Parser();
-        return interpreter.run(parser.parseTokens(tokenizer.tokenize(source)));
+        interpreter.run(parser.parseTokens(tokenizer.tokenize("", false)));
+    }
+
+    Object runWithNewGlobalContext(String source) {
+        Tokenizer tokenizer = new Tokenizer();
+        Parser parser = new Parser();
+        return interpreter.run(parser.parseTokens(tokenizer.tokenize(source, false)));
+    }
+
+    Object runWithoutNewGlobalContext(String source) {
+        Tokenizer tokenizer = new Tokenizer();
+        Parser parser = new Parser();
+        return interpreter.runWithoutLoadingNewContext(parser.parseTokens(tokenizer.tokenize(source, false)));
     }
 
     @Test
     void testSimpleArithmetic() {
-        assertEquals(3.0, run("eval(1+2);"));
-        assertEquals(2.0, run("eval(5-3);"));
-        assertEquals(6.0, run("eval(2*3);"));
-        assertEquals(4.0, run("eval(8/2);"));
+        assertEquals(3.0, runWithNewGlobalContext("eval(1+2);"));
+        assertEquals(2.0, runWithNewGlobalContext("eval(5-3);"));
+        assertEquals(6.0, runWithNewGlobalContext("eval(2*3);"));
+        assertEquals(4.0, runWithNewGlobalContext("eval(8/2);"));
     }
 
     @Test
     void testUnaryOperators() {
-        assertEquals(-5.0, run("eval(-5);"));
-        assertEquals(1.0, run("eval(-1+2);"));
-        assertEquals(-3.0, run("eval(-1*3);"));
+        assertEquals(-5.0, runWithNewGlobalContext("eval(-5);"));
+        assertEquals(1.0, runWithNewGlobalContext("eval(-1+2);"));
+        assertEquals(-3.0, runWithNewGlobalContext("eval(-1*3);"));
     }
 
     @Test
     void testParentheses() {
-        double result = (double) Evaluator.evaluate("(1+2)*3");
+        double result = (double) Evaluator.evaluate("(1+2)*3", false);
         assertEquals(9.0, result);
 
-        result = (double) Evaluator.evaluate("-(2+3)*4");
+        result = (double) Evaluator.evaluate("-(2+3)*4", false);
         assertEquals(-20.0, result);
 
-        result = (double) Evaluator.evaluate("((1+2)+(3+4))*2");
+        result = (double) Evaluator.evaluate("((1+2)+(3+4))*2", false);
         assertEquals(20.0, result);
     }
 
     @Test
     void testVariableUsage() {
+        createNewGlobalContext();
         Interpreter.getGlobalEnvironment().define("x", 10);
         Interpreter.getGlobalEnvironment().define("y", 5);
         Interpreter.getGlobalEnvironment().define("val", 3);
 
-        assertEquals(15.0, run("eval($x + $y);"));
-        assertEquals(5.0, run("eval($val+2);"));
-        assertEquals(23.0, run("eval($val + $x * 2);"));
+        assertEquals(15.0, runWithoutNewGlobalContext("eval($x + $y);"));
+        assertEquals(5.0, runWithoutNewGlobalContext("eval($val+2);"));
+        assertEquals(23.0, runWithoutNewGlobalContext("eval($val + $x * 2);"));
     }
 
     @Test
     void testComplexExpressionWithUnaryAndParentheses() {
-        assertEquals(0.5, run("""
+        assertEquals(0.5, runWithNewGlobalContext("""
                 var a : 5;
                 var b : 3;
                 eval((-$a + ($b*2)) / 2);
@@ -79,22 +95,22 @@ public class InterpreterTest {
 
     @Test
     void testDecimalNumbers() {
-        double result = (double) Evaluator.evaluate("1.5 + 2.3");
+        double result = (double) Evaluator.evaluate("1.5 + 2.3", false);
         assertEquals(3.8, result, 0.0001);
 
-        result = (double) Evaluator.evaluate("10.0 / 4.0");
+        result = (double) Evaluator.evaluate("10.0 / 4.0", false);
         assertEquals(2.5, result, 0.0001);
 
-        result = (double) Evaluator.evaluate("-0.5 * 8");
+        result = (double) Evaluator.evaluate("-0.5 * 8", false);
         assertEquals(-4.0, result, 0.0001);
     }
 
     @Test
     void testNestedParentheses() {
-        double result = (double) Evaluator.evaluate("((1+2)+(3+4))*2");
+        double result = (double) Evaluator.evaluate("((1+2)+(3+4))*2", false);
         assertEquals(20.0, result);
 
-        result = (double) Evaluator.evaluate("(1+(2+(3+4)))");
+        result = (double) Evaluator.evaluate("(1+(2+(3+4)))", false);
         assertEquals(10.0, result);
     }
 
@@ -110,7 +126,7 @@ public class InterpreterTest {
         Tokenizer tokenizer = new Tokenizer();
         Parser parser = new Parser();
         try {
-            interpreter.run((parser.parseTokens(tokenizer.tokenize(source))));
+            interpreter.run((parser.parseTokens(tokenizer.tokenize(source, false))));
         } catch (ReturnSignal returnSignal) {
             assertEquals(42.0, returnSignal.getValue());
         }
@@ -122,7 +138,7 @@ public class InterpreterTest {
         Tokenizer tokenizer = new Tokenizer();
         Parser parser = new Parser();
         try {
-            interpreter.run((parser.parseTokens(tokenizer.tokenize(source))));
+            interpreter.run((parser.parseTokens(tokenizer.tokenize(source, true))));
         } catch (ReturnSignal returnSignal) {
             assertEquals(0.0, returnSignal.getValue());
         }
@@ -130,8 +146,8 @@ public class InterpreterTest {
 
     @Test
     void testErrors() {
-        assertThrows(UnexpectedToken.class, () -> run("eval(1++2);"));
-        assertThrows(RuntimeException.class, () -> run("eval(unknownVar+1);"));
+        assertThrows(PostUnaryError.class, () -> runWithNewGlobalContext("eval(1++2);"));
+        assertThrows(RuntimeException.class, () -> runWithNewGlobalContext("eval(unknownVar+1);"));
     }
 
     @Test
@@ -147,7 +163,7 @@ public class InterpreterTest {
         Tokenizer tokenizer = new Tokenizer();
         Parser parser = new Parser();
         try {
-            interpreter.run((parser.parseTokens(tokenizer.tokenize(source))));
+            interpreter.run((parser.parseTokens(tokenizer.tokenize(source, false))));
         } catch (ReturnSignal returnSignal) {
             assertEquals(42.0, returnSignal.getValue());
         }
@@ -162,7 +178,7 @@ public class InterpreterTest {
         Tokenizer tokenizer = new Tokenizer();
         Parser parser = new Parser();
         try {
-            interpreter.run((parser.parseTokens(tokenizer.tokenize(source))));
+            interpreter.run((parser.parseTokens(tokenizer.tokenize(source, false))));
         } catch (ReturnSignal returnSignal) {
             assertEquals(null, returnSignal.getValue());
         }
@@ -177,7 +193,7 @@ public class InterpreterTest {
         Tokenizer tokenizer = new Tokenizer();
         Parser parser = new Parser();
         try {
-            interpreter.run((parser.parseTokens(tokenizer.tokenize(source))));
+            interpreter.run((parser.parseTokens(tokenizer.tokenize(source, false))));
         } catch (ReturnSignal returnSignal) {
             assertEquals(0.0, returnSignal.getValue());
         }
@@ -192,7 +208,7 @@ public class InterpreterTest {
         Tokenizer tokenizer = new Tokenizer();
         Parser parser = new Parser();
         try {
-            interpreter.run((parser.parseTokens(tokenizer.tokenize(source))));
+            interpreter.run((parser.parseTokens(tokenizer.tokenize(source, false))));
         } catch (ReturnSignal returnSignal) {
             assertEquals(4.0, returnSignal.getValue());
         }
@@ -208,7 +224,7 @@ public class InterpreterTest {
         Tokenizer tokenizer = new Tokenizer();
         Parser parser = new Parser();
         try {
-            interpreter.run((parser.parseTokens(tokenizer.tokenize(source))));
+            interpreter.run((parser.parseTokens(tokenizer.tokenize(source, false))));
         } catch (ReturnSignal returnSignal) {
             assertEquals(21.0, returnSignal.getValue());
         }
@@ -220,13 +236,13 @@ public class InterpreterTest {
                 fn greet(name) {
                     ret("Hello " $name);
                 }
-                var print : "ret(greet(\"World\"));";
-                exec($print);
+                var greeting : "ret(greet(\"World\"));";
+                exec($greeting);
                 """;
         Tokenizer tokenizer = new Tokenizer();
         Parser parser = new Parser();
         try {
-            interpreter.run((parser.parseTokens(tokenizer.tokenize(source))));
+            interpreter.run((parser.parseTokens(tokenizer.tokenize(source, false))));
         } catch (ReturnSignal returnSignal) {
             assertEquals("Hello World", returnSignal.getValue());
         }
@@ -244,7 +260,7 @@ public class InterpreterTest {
         Tokenizer tokenizer = new Tokenizer();
         Parser parser = new Parser();
         try {
-            interpreter.run((parser.parseTokens(tokenizer.tokenize(source))));
+            interpreter.run((parser.parseTokens(tokenizer.tokenize(source, false))));
         } catch (ReturnSignal returnSignal) {
             assertEquals("1", returnSignal.getValue());
         }
@@ -264,7 +280,7 @@ public class InterpreterTest {
         Tokenizer tokenizer = new Tokenizer();
         Parser parser = new Parser();
         try {
-            interpreter.run((parser.parseTokens(tokenizer.tokenize(source))));
+            interpreter.run((parser.parseTokens(tokenizer.tokenize(source, false))));
         } catch (ReturnSignal returnSignal) {
             assertEquals("true", returnSignal.getValue());
         }
@@ -272,27 +288,27 @@ public class InterpreterTest {
 
     @Test
     void testSimpleConditions() {
-        assertTrue((boolean) Evaluator.evaluate("1 > 0"));
-        assertFalse((boolean) Evaluator.evaluate("1 < 0"));
-        assertTrue((boolean) Evaluator.evaluate("5 >= 5"));
+        assertTrue((boolean) Evaluator.evaluate("1 > 0", false));
+        assertFalse((boolean) Evaluator.evaluate("1 < 0", false));
+        assertTrue((boolean) Evaluator.evaluate("5 >= 5", false));
     }
 
     @Test
     void testConditionsWithPara() {
-        assertTrue((boolean) Evaluator.evaluate("(5 > 3 && 10 > 5)"));
-        assertFalse((boolean) Evaluator.evaluate("5 > 3 && 10 < 5"));
-        assertFalse((boolean) Evaluator.evaluate("!(5 > 3)"));
-        assertTrue((boolean) Evaluator.evaluate("((5 > 3 && 10 > 5) || (3 == 4)) && !(2 > 10)"));
+        assertTrue((boolean) Evaluator.evaluate("(5 > 3 && 10 > 5)", false));
+        assertFalse((boolean) Evaluator.evaluate("5 > 3 && 10 < 5", false));
+        assertFalse((boolean) Evaluator.evaluate("!(5 > 3)", false));
+        assertTrue((boolean) Evaluator.evaluate("((5 > 3 && 10 > 5) || (3 == 4)) && !(2 > 10)", false));
     }
 
     @Test
     void testEdgeCases() {
-        assertFalse((boolean) Evaluator.evaluate("1 == 1 == 1"));
+        assertFalse((boolean) Evaluator.evaluate("1 == 1 == 1", false));
     }
 
     @Test
     void testFibonacci() {
-        assertEquals(6765.0, run("""
+        assertEquals(6765.0, runWithNewGlobalContext("""
                 fn fibonacci(n){
                     if($n<=1){
                         ret($n);
@@ -307,7 +323,7 @@ public class InterpreterTest {
 
     @Test
     void testForWithFibonacci() {
-        assertEquals(88.0, run("""
+        assertEquals(88.0, runWithNewGlobalContext("""
                 var result : 0;
             
                 fn fibonacci(n){
@@ -329,7 +345,7 @@ public class InterpreterTest {
 
     @Test
     void testForWithoutInitalizer() {
-        assertEquals(null, run("""
+        assertEquals(null, runWithNewGlobalContext("""
                 var i : 0;
                 for (; $i < 3; $i : eval($i + 1)) {}
                 """));
@@ -337,7 +353,7 @@ public class InterpreterTest {
 
     @Test
     void testWhile() {
-        assertEquals(null, run("""
+        assertEquals(null, runWithNewGlobalContext("""
                 var i : 0;
                 while($i <= 10){
                     $i : eval($i + 1);
@@ -347,11 +363,11 @@ public class InterpreterTest {
 
     @Test
     void testBreak() {
-        assertThrows(BreakSignal.class, () -> run("""
+        assertThrows(BreakSignal.class, () -> runWithNewGlobalContext("""
                 break();
                 """));
 
-        assertEquals(null, run("""
+        assertEquals(null, runWithNewGlobalContext("""
                 while(1){
                     break();
                 }
@@ -360,7 +376,7 @@ public class InterpreterTest {
 
     @Test
     void testDeepNestedBreak() {
-        run("""
+        runWithNewGlobalContext("""
                     var outer : 0;
                     var middle : 0;
                     var inner : 0;
@@ -390,7 +406,7 @@ public class InterpreterTest {
 
     @Test
     void testDeepBreakWithPostExecution() {
-        run("""
+        runWithNewGlobalContext("""
                 var x : 0;
 
                 while ($x < 3) {
@@ -414,7 +430,7 @@ public class InterpreterTest {
                 var tuple : [];
                 $tuple[0];
                 """;
-        assertThrows(IndexOutOfBoundsException.class, () -> run(source));
+        assertThrows(IndexOutOfBoundsException.class, () -> runWithNewGlobalContext(source));
     }
 
     @Test
@@ -423,7 +439,7 @@ public class InterpreterTest {
                 var tuple : [1+2, 3*4, 5];
                 eval($tuple[0]);
                 """;
-        assertEquals(3.0, run(source));
+        assertEquals(3.0, runWithNewGlobalContext(source));
     }
 
     @Test
@@ -432,7 +448,7 @@ public class InterpreterTest {
                 var tuple : [[1,2],[3,69],69];
                 eval($tuple[1][1]);
                 """;
-        assertEquals(69.0, run(source));
+        assertEquals(69.0, runWithNewGlobalContext(source));
     }
 
     @Test
@@ -442,7 +458,21 @@ public class InterpreterTest {
                 eval($list[0]);
                 """;
 
-        assertEquals(1.0, run(source));
+        assertEquals(1.0, runWithNewGlobalContext(source));
+    }
+
+    @Test
+    void testImplicitListAccess() {
+        String source = """
+                fn getList() {
+                    var list : {1, 2, 3};
+                    ret($list);
+                }
+
+                eval(getList()[0]);
+                """;
+
+        assertEquals(1.0, runWithNewGlobalContext(source));
     }
 
     @Test
@@ -452,7 +482,7 @@ public class InterpreterTest {
                 eval($list[1][0]);
                 """;
 
-        assertEquals(3.0, run(source));
+        assertEquals(3.0, runWithNewGlobalContext(source));
     }
 
     @Test
@@ -463,7 +493,7 @@ public class InterpreterTest {
                 eval($list[1]);
                 """;
 
-        assertEquals(10.0, run(source));
+        assertEquals(10.0, runWithNewGlobalContext(source));
     }
 
     @Test
@@ -474,7 +504,7 @@ public class InterpreterTest {
                 eval($list[1][1]);
                 """;
 
-        assertEquals(99.0, run(source));
+        assertEquals(99.0, runWithNewGlobalContext(source));
     }
 
     @Test
@@ -485,7 +515,7 @@ public class InterpreterTest {
                 eval($list[1][1]);
                 """;
 
-        assertEquals(99.0, run(source));
+        assertEquals(99.0, runWithNewGlobalContext(source));
     }
 
     @Test
@@ -495,7 +525,7 @@ public class InterpreterTest {
                 eval($list[0]);
                 """;
 
-        assertEquals(3.0, run(source));
+        assertEquals(3.0, runWithNewGlobalContext(source));
     }
 
     @Test
@@ -505,7 +535,7 @@ public class InterpreterTest {
                 eval($list[eval(1+1)]);
                 """;
 
-        assertEquals(30.0, run(source));
+        assertEquals(30.0, runWithNewGlobalContext(source));
     }
 
     @Test
@@ -515,7 +545,7 @@ public class InterpreterTest {
                 $list[5];
                 """;
 
-        assertThrows(IndexOutOfBoundsException.class, () -> run(source));
+        assertThrows(IndexOutOfBoundsException.class, () -> runWithNewGlobalContext(source));
     }
 
     @Test
@@ -525,7 +555,7 @@ public class InterpreterTest {
                 $x[0] : 10;
                 """;
 
-        assertThrows(ReferenceIsImmutableError.class, () -> run(source));
+        assertThrows(ReferenceIsImmutableError.class, () -> runWithNewGlobalContext(source));
     }
 
     @Test
@@ -534,7 +564,7 @@ public class InterpreterTest {
                 var list : {};
                 """;
 
-        assertNull(run(source));
+        assertNull(runWithNewGlobalContext(source));
     }
 
     @Test
@@ -545,7 +575,7 @@ public class InterpreterTest {
                 eval($list[0]);
                 """;
 
-        assertEquals(3.0, run(source));
+        assertEquals(3.0, runWithNewGlobalContext(source));
     }
 
     @Test
@@ -557,7 +587,7 @@ public class InterpreterTest {
                 }
                 eval($ref);
                 """;
-        assertEquals(69.0, run(source));
+        assertEquals(69.0, runWithNewGlobalContext(source));
     }
 
     @Test
@@ -568,6 +598,172 @@ public class InterpreterTest {
                 }
                 $ref;
                 """;
-        assertThrows(UndefinedReferenceError.class, () -> run(source));
+        assertThrows(UndefinedReferenceError.class, () -> runWithNewGlobalContext(source));
+    }
+
+    @Test
+    void testOverwrite() {
+        Interpreter.getGlobalEnvironment().define("test", "Test");
+        String source = """
+                overwrite(
+                "
+                    var test : Hello World;
+                "
+                );
+                
+                $test;
+                """;
+        assertEquals("HelloWorld", runWithoutNewGlobalContext(source));
+    }
+
+    @Test
+    void testPostUnaryOperator() {
+        String source = """
+                var test : 10;
+                $test++;
+                $test--;
+        """;
+        assertEquals(10.0, runWithNewGlobalContext(source));
+    }
+
+    @Test
+    void testPostUnaryOperatorInExpression() {
+        String source = """
+                var test : 10;
+                $test : $test+++1;
+                eval($test);
+        """;
+        assertEquals(12.0, runWithNewGlobalContext(source));
+    }
+
+    @Test
+    void testMultiplePostUnaryOperatorInExpression() {
+        String source = """
+                var test : 5;
+                $test : $test+++$test+++$test;
+                eval($test);
+        """;
+        assertEquals(20.0, runWithNewGlobalContext(source));
+    }
+
+    @Test
+    void testNestedPostUnaryOperator() {
+        String source = """
+                var test : 0;
+                $test : (($test++) + 1) + $test;
+                eval($test);
+        """;
+        assertEquals(3.0, runWithNewGlobalContext(source));
+    }
+
+    @Test
+    void testForeachOnList() {
+        String source = """
+                var list : {1,2,3};
+                var lastResult;
+                foreach(var element in $list) {
+                    $lastResult : $element;
+                }
+                $lastResult;
+                """;
+        assertEquals("3", runWithNewGlobalContext(source));
+    }
+
+    @Test
+    void testForeachOnTuple() {
+        String source = """
+                var list : [1,2,3];
+                var lastResult;
+                foreach(var element in $list) {
+                    $lastResult : $element;
+                }
+                $lastResult;
+                """;
+        assertEquals("3", runWithNewGlobalContext(source));
+    }
+
+    @Test
+    void testForeachWithBreak() {
+        String source = """
+                var list : {1,2,3};
+                foreach(var element in $list) {
+                    if($element == 1) {
+                        break();
+                    }
+                }
+                """;
+        try {
+            runWithNewGlobalContext(source);
+        } catch (BreakSignal breakSignal) {
+        }
+    }
+
+    @Test
+    void testForeachWithReturn() {
+        String source = """
+                var list : {1,2,3};
+                foreach(var element in $list) {
+                    if($element == 1) {
+                        ret();
+                    }
+                }
+                """;
+        try {
+            runWithNewGlobalContext(source);
+        } catch (ReturnSignal returnSignal) {
+        }
+    }
+
+    @Test
+    void testNestedForeach() {
+        String source = """
+                var list1 : {1,2,3};
+                var list2 : {4,5,6};
+                foreach(var element1 in $list1) {
+                    foreach(var element2 in $list2) {
+                        if($element1 == 3 && $element2 == 6) {
+                            break();
+                        }
+                    }
+                }
+                """;
+        try {
+            runWithNewGlobalContext(source);
+        } catch (ReturnSignal returnSignal) {
+        }
+    }
+
+    @Test
+    void testForeachOnNestedList() {
+        String source = """
+                var list1 : {{1,2,3}};
+                foreach(var element in $list1[0]) {
+                    if($element == 3) {
+                        break();
+                    }
+                }
+                """;
+        try {
+            runWithNewGlobalContext(source);
+        } catch (ReturnSignal returnSignal) {
+        }
+    }
+
+    @Test
+    void testIfWithNewline() {
+        String source = """
+            import string;
+            var test : "\n";
+
+            if(charAt(0, $test) == "\n") {
+                ret();
+            }
+            """;
+        try {
+            Tokenizer tokenizer = new Tokenizer();
+            Parser parser = new Parser();
+            interpreter.run(parser.parseTokens(tokenizer.tokenize(source, false)));
+        } catch (ReturnSignal returnSignal) {
+        }
     }
 }
