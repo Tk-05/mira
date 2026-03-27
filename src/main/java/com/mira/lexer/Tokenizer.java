@@ -26,7 +26,6 @@ public class Tokenizer {
         line = 1;
         column = 0;
         tokens.clear();
-        ignoreSequences = false;
     }
 
     public List<Token> tokenize(String source, boolean ignoreSequences) {

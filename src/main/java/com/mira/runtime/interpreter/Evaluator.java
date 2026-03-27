@@ -15,7 +15,7 @@ public class Evaluator {
 
     public static Object evaluate(String expression, boolean ignoreSequences) {
         Tokenizer tokenizer = new Tokenizer();
-        tokens = tokenizer.tokenize(expression, true);
+        tokens = tokenizer.tokenize(expression, ignoreSequences);
         current = 0;
 
         Object result = or();

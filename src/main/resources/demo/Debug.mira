@@ -1,9 +1,3 @@
-import string;
-
 fn main() {
-    var test : "\n";
-
-    if(charAt(0, $test) == "\n") {
-        print("new line");
-    }
+    
 }
