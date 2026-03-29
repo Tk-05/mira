@@ -11,7 +11,8 @@
                     "demo/Debug.mira",
                     "-c",
                     "-t",
-                    "-m"
+                    "-m",
+                    "-li"
                 ]
         },
         {
@@ -23,7 +24,8 @@
             "args": [
                     "demo/Debug.mira",
                     "-c",
-                    "-t"
+                    "-t",
+                    "-li"
                 ]
         },
         {

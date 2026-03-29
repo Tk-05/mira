@@ -56,5 +56,11 @@ public class Internal implements Lib {
                     }
                 })
         );
+
+        environment.define("exit", new NativeFunction(1, args -> {
+            int code = (int) Double.parseDouble(String.valueOf(args.get(0)));
+            System.exit(code);
+            return null;
+        }));
     }
 }

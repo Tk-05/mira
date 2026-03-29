@@ -5,3 +5,6 @@ TODO:
     -Regex
     -strict var type
     -Pure keyword for call caching?
+    -libs
+        -import aliases       
+        -Test cases for all new libs
