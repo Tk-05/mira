@@ -1,12 +1,3 @@
-fn fibonacci(n){
-    if($n<=1){
-        ret($n);
-    }else{
-        ret(fibonacci(eval($n-2)) + fibonacci(eval($n-1)));
-    }
-    ret(0);
-}
-
 fn main() {
-    ret(eval(fibonacci(27)));
+    
 }

@@ -1,7 +1,9 @@
 package com.mira.runtime.interpreter;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import com.mira.Flags;
 import com.mira.error.runtime.RuntimeError.ArgMismatchError;
@@ -49,6 +51,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
     private static Interpreter instance;
     private static Environment globalEnvironment = new Environment();
     private Environment localEnvironment;
+    private final Map<String, Object> callCache = new HashMap<>();
 
     public static Interpreter getInstance() {
         if (instance == null) {
@@ -213,7 +216,17 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             throw new ArgMismatchError(calleeName, callable.getArity(), arguments.size());
         }
 
+        String cacheKey = calleeName + arguments;
+        Object cached = callCache.get(cacheKey);
+        if (cached != null) {
+            return (T) cached;
+        }
+
         Object result = callable.call(this, arguments);
+
+        if (result != null) {
+            callCache.put(cacheKey, result);
+        }
 
         return (T) result;
     }
@@ -276,18 +289,91 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             });
         }
 
+        Object arithmetic = tryEvaluateArithmetic(expressions);
+        if (arithmetic != null) {
+            return (T) arithmetic;
+        }
+
+        return (T) evaluateAsString(expressions);
+    }
+
+    private Object tryEvaluateArithmetic(List<Expression> expressions) {
+        List<Double> operands = new ArrayList<>();
+        List<String> operators = new ArrayList<>();
+
+        for (int i = 0; i < expressions.size(); i++) {
+            if (i % 2 == 0) {
+                Object val = expressions.get(i).accept(this);
+                if (val instanceof Double d) {
+                    operands.add(d);
+                } else {
+                    try {
+                        operands.add(Double.parseDouble(String.valueOf(val)));
+                    } catch (NumberFormatException e) {
+                        return null;
+                    }
+                }
+            } else {
+                if (!(expressions.get(i) instanceof UnaryExpression unary)) {
+                    return null;
+                }
+                String op = unary.getOperation().getLexeme();
+                if (!op.equals("+") && !op.equals("-") && !op.equals("*") && !op.equals("/")) {
+                    return null;
+                }
+                operators.add(op);
+            }
+        }
+
+        int i = 0;
+        while (i < operators.size()) {
+            String op = operators.get(i);
+            if (op.equals("*") || op.equals("/")) {
+                double left = operands.get(i);
+                double right = operands.get(i + 1);
+                double result = op.equals("*") ? left * right : left / right;
+                operands.set(i, result);
+                operands.remove(i + 1);
+                operators.remove(i);
+            } else {
+                i++;
+            }
+        }
+
+        double result = operands.get(0);
+        for (int j = 0; j < operators.size(); j++) {
+            double right = operands.get(j + 1);
+            result = switch (operators.get(j)) {
+                case "+" ->
+                    result + right;
+                case "-" ->
+                    result - right;
+                default ->
+                    throw new UnknownOperatorError(operators.get(j));
+            };
+        }
+
+        return result;
+    }
+
+    private double toDouble(Object val) {
+        if (val instanceof Double d) {
+            return d;
+        }
+        return Double.parseDouble(String.valueOf(val));
+    }
+
+    private String evaluateAsString(List<Expression> expressions) {
         StringBuilder builder = new StringBuilder();
 
-        Object first = expressions.getFirst().accept(this);
-
-        if (expressions.getFirst() instanceof ComplexExpression) {
+        Object first = expressions.get(0).accept(this);
+        if (expressions.get(0) instanceof ComplexExpression) {
             builder.append("(").append(first).append(")");
         } else {
             builder.append(first);
         }
 
         int i = 1;
-
         while (i < expressions.size()) {
             Expression expr = expressions.get(i);
 
@@ -299,23 +385,13 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
             String operator = unary.getOperation().getLexeme();
 
-            if (operator.equals("++") || operator.equals("--")) {
-                Object value = unary.accept(this);
-                builder.append(value);
+            if (operator.equals("++") || operator.equals("--") || operator.equals("$")) {
+                builder.append(unary.accept(this));
                 i++;
                 continue;
             }
 
-            if (operator.equals("$")) {
-                Object value = unary.accept(this);
-                builder.append(value);
-                i++;
-                continue;
-            }
-
-            Object right = unary.getRight() != null
-                    ? unary.accept(this)
-                    : null;
+            Object right = unary.getRight() != null ? unary.accept(this) : null;
 
             if (right == null) {
                 builder.append(operator);
@@ -333,7 +409,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             i++;
         }
 
-        return (T) builder.toString();
+        return builder.toString();
     }
 
     private boolean isComparisonOperator(String op) {
@@ -408,8 +484,11 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             case "$" -> {
                 String name = (String) expression.getRight().accept(this);
 
-                if (localEnvironment != null && localEnvironment.exists(name)) {
-                    return (T) localEnvironment.get(name);
+                if (localEnvironment != null) {
+                    Object val = localEnvironment.getOrNull(name);
+                    if (val != null) {
+                        return (T) val;
+                    }
                 }
 
                 return (T) globalEnvironment.get(name);
@@ -441,7 +520,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
                 String name = (String) varExpr.getRight().accept(this);
 
-                Environment env = (localEnvironment != null && localEnvironment.exists(name))
+                Environment env = (localEnvironment != null && localEnvironment.getOrNull(name) != null)
                         ? localEnvironment
                         : globalEnvironment;
 
@@ -463,7 +542,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
                 String name = (String) varExpr.getRight().accept(this);
 
-                Environment env = (localEnvironment != null && localEnvironment.exists(name))
+                Environment env = (localEnvironment != null && localEnvironment.getOrNull(name) != null)
                         ? localEnvironment
                         : globalEnvironment;
 
@@ -739,7 +818,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
     public Object visitForeach(Foreach stmt) {
         if (localEnvironment != null && !localEnvironment.exists(stmt.getIterator().getName())) {
             localEnvironment.define(stmt.getIterator().getName(), null);
-        } else if (!globalEnvironment.exists(stmt.getIterator().getName())) {
+        } else if (localEnvironment == null && !globalEnvironment.exists(stmt.getIterator().getName())) {
             globalEnvironment.define(stmt.getIterator().getName(), null);
         }
 
