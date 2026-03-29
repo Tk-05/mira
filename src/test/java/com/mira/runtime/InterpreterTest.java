@@ -254,7 +254,7 @@ public class InterpreterTest {
                 var x : 1;
                 var y : x;
                 var z : y;
-
+                
                 print($$$z);
                 """;
         Tokenizer tokenizer = new Tokenizer();
@@ -270,7 +270,7 @@ public class InterpreterTest {
     void testIfStatement() {
         String source = """
                 var x : 5;
-
+                
                 if ($x > 3) {
                     ret(true);
                 } else {
@@ -325,7 +325,7 @@ public class InterpreterTest {
     void testForWithFibonacci() {
         assertEquals(88.0, runWithNewGlobalContext("""
                 var result : 0;
-            
+                
                 fn fibonacci(n){
                     if($n<=1){
                         ret($n);
@@ -334,11 +334,11 @@ public class InterpreterTest {
                     }
                     ret(0);
                 }
-
+                
                 for (var i : 0, var j : 0; $i < 10 && $j == 0; $i : eval($i + 1)) {
                     $result : $result + fibonacci($i);
                 }
-
+                
                 eval($result);
                 """));
     }
@@ -368,32 +368,32 @@ public class InterpreterTest {
                 """));
 
         assertEquals(null, runWithNewGlobalContext("""
-                while(1){
-                    break();
-                }
-            """));
+                    while(1){
+                        break();
+                    }
+                """));
     }
 
     @Test
     void testDeepNestedBreak() {
         runWithNewGlobalContext("""
-                    var outer : 0;
-                    var middle : 0;
-                    var inner : 0;
-
-                    while ($outer < 3) {
-                        $outer : eval($outer + 1);
-
-                        while ($middle < 5) {
-                            $middle : eval($middle + 1);
-
-                            while (1) {
-                                $inner : eval($inner + 1);
-                                break();
+                        var outer : 0;
+                        var middle : 0;
+                        var inner : 0;
+                
+                        while ($outer < 3) {
+                            $outer : eval($outer + 1);
+                
+                            while ($middle < 5) {
+                                $middle : eval($middle + 1);
+                
+                                while (1) {
+                                    $inner : eval($inner + 1);
+                                    break();
+                                }
                             }
                         }
-                    }
-            """);
+                """);
 
         Object o = Interpreter.getGlobalEnvironment().get("outer");
         Object m = Interpreter.getGlobalEnvironment().get("middle");
@@ -407,18 +407,18 @@ public class InterpreterTest {
     @Test
     void testDeepBreakWithPostExecution() {
         runWithNewGlobalContext("""
-                var x : 0;
-
-                while ($x < 3) {
-                    $x : eval($x + 1);
-
-                    while (1) {
-                        break();
+                    var x : 0;
+                
+                    while ($x < 3) {
+                        $x : eval($x + 1);
+                
+                        while (1) {
+                            break();
+                        }
                     }
-                }
-
-                $x : eval($x + 10);
-            """);
+                
+                    $x : eval($x + 10);
+                """);
 
         Object result = Interpreter.getGlobalEnvironment().get("x");
         assertEquals(13.0, result);
@@ -468,7 +468,7 @@ public class InterpreterTest {
                     var list : {1, 2, 3};
                     ret($list);
                 }
-
+                
                 eval(getList()[0]);
                 """;
 
@@ -619,40 +619,40 @@ public class InterpreterTest {
     @Test
     void testPostUnaryOperator() {
         String source = """
-                var test : 10;
-                $test++;
-                $test--;
-        """;
+                        var test : 10;
+                        $test++;
+                        $test--;
+                """;
         assertEquals(10.0, runWithNewGlobalContext(source));
     }
 
     @Test
     void testPostUnaryOperatorInExpression() {
         String source = """
-                var test : 10;
-                $test : $test+++1;
-                eval($test);
-        """;
+                        var test : 10;
+                        $test : $test+++1;
+                        eval($test);
+                """;
         assertEquals(12.0, runWithNewGlobalContext(source));
     }
 
     @Test
     void testMultiplePostUnaryOperatorInExpression() {
         String source = """
-                var test : 5;
-                $test : $test+++$test+++$test;
-                eval($test);
-        """;
+                        var test : 5;
+                        $test : $test+++$test+++$test;
+                        eval($test);
+                """;
         assertEquals(20.0, runWithNewGlobalContext(source));
     }
 
     @Test
     void testNestedPostUnaryOperator() {
         String source = """
-                var test : 0;
-                $test : (($test++) + 1) + $test;
-                eval($test);
-        """;
+                        var test : 0;
+                        $test : (($test++) + 1) + $test;
+                        eval($test);
+                """;
         assertEquals(3.0, runWithNewGlobalContext(source));
     }
 
@@ -752,13 +752,30 @@ public class InterpreterTest {
     @Test
     void testIfWithNewline() {
         String source = """
-            import string;
-            var test : "\n";
+                import string;
+                var test : "\n";
+                
+                if(charAt(0, $test) == "\n") {
+                    ret();
+                }
+                """;
+        try {
+            Tokenizer tokenizer = new Tokenizer();
+            Parser parser = new Parser();
+            interpreter.run(parser.parseTokens(tokenizer.tokenize(source, false)));
+        } catch (ReturnSignal returnSignal) {
+        }
+    }
 
-            if(charAt(0, $test) == "\n") {
-                ret();
-            }
-            """;
+    @Test
+    void testIfWithDelimiter() {
+        String source = """
+                import string;
+                var test : "}";
+                if(charAt(0, $test) == "}") {
+                    ret();
+                }
+                """;
         try {
             Tokenizer tokenizer = new Tokenizer();
             Parser parser = new Parser();

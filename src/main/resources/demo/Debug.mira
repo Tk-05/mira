@@ -1,3 +1,9 @@
+import string;
+
 fn main() {
+    var test : "[";
     
+    if(charAt(0, $test) == "[") {
+        print("test \n");
+    }
 }

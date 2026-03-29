@@ -136,7 +136,7 @@ public class Tokenizer {
         advance();
 
         tokens.add(new Token(
-                TokenType.EXPRESSION,
+                TokenType.STRING_LITERAL,
                 valueBuilder.toString(),
                 line,
                 column

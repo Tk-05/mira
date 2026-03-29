@@ -242,6 +242,39 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
     @Override
     public <T> T visitComplexExpr(ComplexExpression expression) {
         List<Expression> expressions = expression.getExpressions();
+
+        if (expressions.size() == 3
+                && expressions.get(1) instanceof UnaryExpression unary
+                && isComparisonOperator(unary.getOperation().getLexeme())) {
+
+            String left = String.valueOf(expressions.get(0).accept(this));
+            String op = unary.getOperation().getLexeme();
+            String right = String.valueOf(expressions.get(2).accept(this));
+
+            return (T) evaluateComparison(left, op, right);
+        }
+
+        if (expressions.size() == 3
+                && expressions.get(1) instanceof UnaryExpression unary
+                && isLogicalOperator(unary.getOperation().getLexeme())) {
+
+            Object leftRaw = expressions.get(0).accept(this);
+            String op = unary.getOperation().getLexeme();
+            Object rightRaw = expressions.get(2).accept(this);
+
+            boolean left = resolveBoolean(leftRaw);
+            boolean right = resolveBoolean(rightRaw);
+
+            return (T) Boolean.valueOf(switch (op) {
+                case "&&" ->
+                    left && right;
+                case "||" ->
+                    left || right;
+                default ->
+                    throw new UnknownOperatorError(op);
+            });
+        }
+
         StringBuilder builder = new StringBuilder();
 
         Object first = expressions.getFirst().accept(this);
@@ -302,6 +335,70 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         return (T) builder.toString();
     }
 
+    private boolean isComparisonOperator(String op) {
+        return switch (op) {
+            case "==", "!=", "<", ">", "<=", ">=" ->
+                true;
+            default ->
+                false;
+        };
+    }
+
+    private boolean isLogicalOperator(String op) {
+        return op.equals("&&") || op.equals("||");
+    }
+
+    private Boolean evaluateComparison(String left, String op, String right) {
+        try {
+            double l = Double.parseDouble(left);
+            double r = Double.parseDouble(right);
+            return switch (op) {
+                case "==" ->
+                    l == r;
+                case "!=" ->
+                    l != r;
+                case "<" ->
+                    l < r;
+                case ">" ->
+                    l > r;
+                case "<=" ->
+                    l <= r;
+                case ">=" ->
+                    l >= r;
+                default ->
+                    throw new UnknownOperatorError(op);
+            };
+        } catch (NumberFormatException e) {
+            return switch (op) {
+                case "==" ->
+                    left.equals(right);
+                case "!=" ->
+                    !left.equals(right);
+                case "<" ->
+                    left.compareTo(right) < 0;
+                case ">" ->
+                    left.compareTo(right) > 0;
+                case "<=" ->
+                    left.compareTo(right) <= 0;
+                case ">=" ->
+                    left.compareTo(right) >= 0;
+                default ->
+                    throw new UnknownOperatorError(op);
+            };
+        }
+    }
+
+    private boolean resolveBoolean(Object value) {
+        return switch (value) {
+            case Boolean b ->
+                b;
+            case String s ->
+                (boolean) Evaluator.evaluate(s, true);
+            default ->
+                throw new AssertionError("Cannot resolve boolean from: " + value.getClass());
+        };
+    }
+
     @Override
     public <T> T visitUnaryExpr(UnaryExpression expression) {
         String operator = expression.getOperation().getLexeme();
@@ -327,6 +424,12 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                 } else {
                     return (T) ("-" + right);
                 }
+            }
+
+            case "!" -> {
+                Object right = expression.getRight().accept(this);
+                boolean val = resolveBoolean(right);
+                return (T) Boolean.valueOf(!val);
             }
 
             case "++" -> {
@@ -435,7 +538,6 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         switch (assign.getReference()) {
             case AccessExpression accessExpression -> {
                 Object referencedObject = accessExpression.getReference().accept(this);
-                //Last index reserved for assignment
                 for (int k = 0; k < accessExpression.getIndecies().size() - 1; k++) {
                     Object object = accessExpression.getIndecies().get(k).accept(this);
                     int i;
@@ -519,9 +621,12 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         Object condition = stmt.getCondition().accept(this);
         boolean value;
         switch (condition) {
-            case Boolean b -> value = b;
-            case String s -> value = (boolean) Evaluator.evaluate(s, true);
-            default -> throw new AssertionError();
+            case Boolean b ->
+                value = b;
+            case String s ->
+                value = (boolean) Evaluator.evaluate(s, true);
+            default ->
+                throw new AssertionError();
         }
         List<Node> body = value ? stmt.getThenBody() : stmt.getElseBody();
 
@@ -541,20 +646,9 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         try {
             while (true) {
                 if (stmt.getCondition() != null) {
-                    String condition = (String) stmt.getCondition().accept(this);
-                    switch (Evaluator.evaluate(condition, true)) {
-                        case Boolean b -> {
-                            if (!b) {
-                                return null;
-                            }
-                        }
-                        case Double d -> {
-                            if (d == 0) {
-                                return null;
-                            }
-                        }
-                        default ->
-                            throw new AssertionError();
+                    Object condition = stmt.getCondition().accept(this);
+                    if (!resolveLoopCondition(condition)) {
+                        return null;
                     }
                 }
 
@@ -571,20 +665,9 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
     public Object visitWhile(While stmt) {
         try {
             while (true) {
-                String condition = (String) stmt.getCondition().accept(this);
-                switch (Evaluator.evaluate(condition, true)) {
-                    case Boolean b -> {
-                        if (!b) {
-                            return null;
-                        }
-                    }
-                    case Double d -> {
-                        if (d == 0) {
-                            return null;
-                        }
-                    }
-                    default ->
-                        throw new AssertionError();
+                Object condition = stmt.getCondition().accept(this);
+                if (!resolveLoopCondition(condition)) {
+                    return null;
                 }
 
                 runBody(stmt.getBody());
@@ -592,6 +675,24 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         } catch (BreakSignal breakSignal) {
             return null;
         }
+    }
+
+    private boolean resolveLoopCondition(Object condition) {
+        return switch (condition) {
+            case Boolean b ->
+                b;
+            case String s ->
+                switch (Evaluator.evaluate(s, true)) {
+                    case Boolean b ->
+                        b;
+                    case Double d ->
+                        d != 0;
+                    default ->
+                        throw new AssertionError("Unexpected evaluator result");
+                };
+            default ->
+                throw new AssertionError("Unexpected condition type: " + condition.getClass());
+        };
     }
 
     @Override
