@@ -683,6 +683,19 @@ public class InterpreterTest {
     }
 
     @Test
+    void testForeachOnString() {
+        String source = """
+                var string : "ABC";
+                var lastResult;
+                foreach(var element in $string) {
+                    $lastResult : $element;
+                }
+                $lastResult;
+                """;
+        assertEquals('C', runWithNewGlobalContext(source));
+    }
+
+    @Test
     void testForeachWithBreak() {
         String source = """
                 var list : {1,2,3};

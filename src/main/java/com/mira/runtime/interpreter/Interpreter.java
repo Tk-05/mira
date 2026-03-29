@@ -852,7 +852,6 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
                 case ListExpression list -> {
                     for (Expression expr : list.getMembers()) {
-
                         Object value = expr.accept(this);
 
                         if (localEnvironment != null) {
@@ -873,8 +872,30 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                     }
                 }
 
+                case String string -> {
+                    for (char c : string.toCharArray()) {
+                        Object value = c;
+
+                        if (localEnvironment != null) {
+                            if (localEnvironment.exists(iteratorName)) {
+                                localEnvironment.assign(iteratorName, value);
+                            } else {
+                                throw new AssertionError();
+                            }
+                        } else {
+                            if (globalEnvironment.exists(iteratorName)) {
+                                globalEnvironment.assign(iteratorName, value);
+                            } else {
+                                throw new AssertionError();
+                            }
+                        }
+
+                        runBody(stmt.getBody());
+                    }
+                }
+
                 default ->
-                    throw new AssertionError("Foreach only supports tuples and lists");
+                    throw new AssertionError("Foreach only supports tuples, lists and strings");
             }
         } catch (BreakSignal breakSignal) {
             return null;
