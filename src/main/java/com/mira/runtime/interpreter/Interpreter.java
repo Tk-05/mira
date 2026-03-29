@@ -196,7 +196,8 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
     @Override
     public <T> T visitCallExpr(CallExpression expression) {
-        Object callee = globalEnvironment.get((String) expression.getCallee().accept(this));
+        String calleeName = (String) expression.getCallee().accept(this);
+        Object callee = globalEnvironment.get(calleeName);
 
         if (!(callee instanceof Callable callable)) {
             throw new RuntimeException("Object is not callable");
@@ -209,7 +210,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         }
 
         if (arguments.size() != callable.getArity()) {
-            throw new ArgMismatchError((String) expression.getCallee().accept(this), callable.getArity(), arguments.size());
+            throw new ArgMismatchError(calleeName, callable.getArity(), arguments.size());
         }
 
         Object result = callable.call(this, arguments);
