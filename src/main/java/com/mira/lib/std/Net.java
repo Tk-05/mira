@@ -13,9 +13,17 @@ import com.mira.runtime.interpreter.Environment;
 
 public class Net implements Lib {
 
-    private static final HttpClient client = HttpClient.newBuilder()
-            .connectTimeout(Duration.ofSeconds(10))
-            .build();
+    private final HttpClient client;
+
+    public Net() {
+        this.client = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(10))
+                .build();
+    }
+
+    public Net(HttpClient client) {
+        this.client = client;
+    }
 
     @Override
     public void loadLib(Environment environment) {

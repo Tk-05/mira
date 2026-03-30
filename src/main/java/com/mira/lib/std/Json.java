@@ -2,10 +2,13 @@ package com.mira.lib.std;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import com.mira.lexer.token.Token;
 import com.mira.lexer.token.TokenType;
 import com.mira.lib.Lib;
+import com.mira.parser.nodes.expression.Expression;
 import com.mira.parser.nodes.expression.Expression.DumbExpression;
 import com.mira.parser.nodes.expression.Expression.ListExpression;
 import com.mira.runtime.functions.NativeFunction;
@@ -19,14 +22,12 @@ public class Json implements Lib {
 
     @Override
     public void loadLib(Environment environment) {
-        // get a value from a flat JSON string by key
         environment.define("jsonGet", new NativeFunction(2, args -> {
             String json = String.valueOf(args.get(0));
             String key = String.valueOf(args.get(1));
             try {
-                String pattern = "\"" + key + "\"\\s*:\\s*";
-                java.util.regex.Matcher m = java.util.regex.Pattern
-                        .compile(pattern + "\"([^\"]*)\"|" + pattern + "([\\d.eE+\\-]+)|" + pattern + "(true|false|null)")
+                Matcher m = Pattern
+                        .compile("\"" + Pattern.quote(key) + "\"\\s*:\\s*(?:\"([^\"]*)\"|([\\d.eE+\\-]+)|(true|false|null))")
                         .matcher(json);
                 if (m.find()) {
                     for (int i = 1; i <= m.groupCount(); i++) {
@@ -53,13 +54,13 @@ public class Json implements Lib {
             String json = String.valueOf(args.get(0));
             String key = String.valueOf(args.get(1));
             try {
-                java.util.regex.Matcher arrayMatcher = java.util.regex.Pattern
+                Matcher arrayMatcher = Pattern
                         .compile("\"" + key + "\"\\s*:\\s*\\[([^\\]]*)]")
                         .matcher(json);
-                List<com.mira.parser.nodes.expression.Expression> results = new ArrayList<>();
+                List<Expression> results = new ArrayList<>();
                 if (arrayMatcher.find()) {
                     String arrayContent = arrayMatcher.group(1);
-                    java.util.regex.Matcher itemMatcher = java.util.regex.Pattern
+                    Matcher itemMatcher = Pattern
                             .compile("\"([^\"]*)\"|([\\d.eE+\\-]+)|(true|false|null)")
                             .matcher(arrayContent);
                     while (itemMatcher.find()) {
@@ -83,8 +84,8 @@ public class Json implements Lib {
                     || !(args.get(1) instanceof ListExpression values)) {
                 throw new RuntimeException("jsonBuild requires two lists");
             }
-            List<com.mira.parser.nodes.expression.Expression> k = keys.getMembers();
-            List<com.mira.parser.nodes.expression.Expression> v = values.getMembers();
+            List<Expression> k = keys.getMembers();
+            List<Expression> v = values.getMembers();
             if (k.size() != v.size()) {
                 throw new RuntimeException("jsonBuild: keys and values must have same size");
             }
