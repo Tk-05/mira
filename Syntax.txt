@@ -1,5 +1,8 @@
 //imports
-import ...;
+module main;
+
+import module "../../Test.mira";
+import math;
 
 //variable declaration
 var x : 10;

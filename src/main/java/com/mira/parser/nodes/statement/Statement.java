@@ -275,4 +275,22 @@ public abstract class Statement implements Node {
             return body;
         }
     }
+
+    public static class ModuleDecl extends Statement {
+
+        private final String moduleName;
+
+        public ModuleDecl(String moduleName) {
+            this.moduleName = moduleName;
+        }
+
+        @Override
+        public <T> T accept(StmtVisitor<T> visitor) {
+            return null;
+        }
+
+        public String getModuleName() {
+            return moduleName;
+        }
+    }
 }

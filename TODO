@@ -2,9 +2,8 @@ TODO:
     -arrays
         -List functions
         -Slices
-    -Regex
-    -strict var type
-    -Pure keyword for call caching?
-    -libs
-        -import aliases       
-        -Test cases for all new libs
+    -libs/modules
+        -import aliases
+        -proper namespaces
+        -Entry point module
+        -Import resolver tests

@@ -18,7 +18,8 @@ public class Vocabulary {
             "import",
             "overwrite",
             "foreach",
-            "in"
+            "in",
+            "module"
     );
 
     public static final Set<String> operations = Set.of(

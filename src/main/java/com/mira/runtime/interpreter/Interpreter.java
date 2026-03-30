@@ -14,7 +14,6 @@ import com.mira.error.runtime.RuntimeError.UnknownOperatorError;
 import com.mira.lexer.Tokenizer;
 import com.mira.lexer.token.Token;
 import com.mira.lexer.token.TokenType;
-import com.mira.lib.ImportResolver;
 import com.mira.parser.Parser;
 import com.mira.parser.nodes.Node;
 import com.mira.parser.nodes.expression.Expression;
@@ -71,7 +70,8 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                 imports.add(importExpression);
             }
         }
-        ImportResolver.resolveImports(imports, globalEnvironment);
+        ImportResolver.reset();
+        ImportResolver.resolveImports(imports, globalEnvironment, this, true);
 
         if (Flags.mainFunction) {
             for (Node ast : asts) {
@@ -173,6 +173,18 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         }
 
         return (T) lastResult;
+    }
+
+    public void loadASTIntoGlobalContext(Node ast) {
+        switch (ast) {
+            case Expression expression ->
+                expression.accept(this);
+            case Statement statement ->
+                statement.accept(this);
+            default -> {
+                throw new AssertionError();
+            }
+        }
     }
 
     @Override
@@ -924,6 +936,10 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
     public void setLocalEnvironment(Environment localEnvironment) {
         this.localEnvironment = localEnvironment;
+    }
+
+    public static void setGlobalEnvironment(Environment environment) {
+        Interpreter.globalEnvironment = environment;
     }
 
     public static Environment getGlobalEnvironment() {

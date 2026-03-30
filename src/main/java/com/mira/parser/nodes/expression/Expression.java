@@ -226,10 +226,12 @@ public abstract class Expression implements Node {
 
     public static class ImportExpression extends Expression {
 
-        private final Expression lib;
+        private final Expression module;
+        private final boolean isModule;
 
-        public ImportExpression(Expression lib) {
-            this.lib = lib;
+        public ImportExpression(Expression module, boolean isModule) {
+            this.module = module;
+            this.isModule = isModule;
         }
 
         @Override
@@ -242,8 +244,12 @@ public abstract class Expression implements Node {
             throw new AssertionError();
         }
 
-        public String getLib() {
-            return lib.toString();
+        public String getModule() {
+            return module.toString();
+        }
+
+        public boolean isExternalModule() {
+            return isModule;
         }
     }
 }

@@ -25,6 +25,7 @@ import com.mira.parser.nodes.statement.Statement.For;
 import com.mira.parser.nodes.statement.Statement.Foreach;
 import com.mira.parser.nodes.statement.Statement.FuncDecl;
 import com.mira.parser.nodes.statement.Statement.If;
+import com.mira.parser.nodes.statement.Statement.ModuleDecl;
 import com.mira.parser.nodes.statement.Statement.Overwrite;
 import com.mira.parser.nodes.statement.Statement.Return;
 import com.mira.parser.nodes.statement.Statement.VarDecl;
@@ -198,6 +199,10 @@ public class Parser {
             case "{" -> {
                 node = parseBlock();
             }
+            case "module" -> {
+                node = parseModuleDecl();
+                matchLexeme(";");
+            }
             case "import" -> {
                 node = parseImportExpression();
                 matchLexeme(";");
@@ -367,7 +372,13 @@ public class Parser {
             throw new AssertionError("Imports must be declared in global context!");
         }
         matchLexeme("import");
-        return new ImportExpression(parseExpression());
+
+        if (peek().getLexeme().equals("module")) {
+            consume();
+            return new ImportExpression(parseExpression(), true);
+        } else {
+            return new ImportExpression(parseExpression(), false);
+        }        
     }
 
     private Expression parseList() {
@@ -647,5 +658,11 @@ public class Parser {
         matchLexeme("}");
 
         return new Foreach(iterator, collection, body);
+    }
+
+    private Node parseModuleDecl() {
+        matchLexeme("module");
+        String moduleName = matchType(TokenType.EXPRESSION).getLexeme();
+        return new ModuleDecl(moduleName);
     }
 }
