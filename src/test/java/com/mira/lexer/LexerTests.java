@@ -27,12 +27,13 @@ public class LexerTests {
         assertEquals(TokenType.KEYWORD, tokenizer.tokenize("import", false).getFirst().getTokenType());
         assertEquals(TokenType.KEYWORD, tokenizer.tokenize("overwrite", false).getFirst().getTokenType());
         assertEquals(TokenType.KEYWORD, tokenizer.tokenize("foreach", false).getFirst().getTokenType());
-         assertEquals(TokenType.KEYWORD, tokenizer.tokenize("in", false).getFirst().getTokenType());
+        assertEquals(TokenType.KEYWORD, tokenizer.tokenize("in", false).getFirst().getTokenType());
+        assertEquals(TokenType.KEYWORD, tokenizer.tokenize("as", false).getFirst().getTokenType());
     }
 
     @Test
     void testOperations() {
-        assertEquals(TokenType.OPERATION, tokenizer.tokenize("+",  false).getFirst().getTokenType());
+        assertEquals(TokenType.OPERATION, tokenizer.tokenize("+", false).getFirst().getTokenType());
         assertEquals(TokenType.OPERATION, tokenizer.tokenize("-", false).getFirst().getTokenType());
         assertEquals(TokenType.OPERATION, tokenizer.tokenize("*", false).getFirst().getTokenType());
         assertEquals(TokenType.OPERATION, tokenizer.tokenize("/", false).getFirst().getTokenType());

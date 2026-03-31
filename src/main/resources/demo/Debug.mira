@@ -1,3 +1,7 @@
+module main;
+
+import module "./Debug2.mira" as test;
+
 fn main() {
-    
+    print(test.hello("test"));
 }

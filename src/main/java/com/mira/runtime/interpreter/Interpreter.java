@@ -34,6 +34,7 @@ import com.mira.parser.nodes.statement.Statement.For;
 import com.mira.parser.nodes.statement.Statement.Foreach;
 import com.mira.parser.nodes.statement.Statement.FuncDecl;
 import com.mira.parser.nodes.statement.Statement.If;
+import com.mira.parser.nodes.statement.Statement.ModuleDecl;
 import com.mira.parser.nodes.statement.Statement.Overwrite;
 import com.mira.parser.nodes.statement.Statement.Return;
 import com.mira.parser.nodes.statement.Statement.VarDecl;
@@ -59,9 +60,13 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         return instance;
     }
 
-    private void loadGlobalContext(List<Node> asts) {
+    private void loadGlobalContext(List<Node> asts, boolean enforceModule) {
         if (globalEnvironment.getSize() > 0) {
             globalEnvironment = new Environment();
+        }
+
+        if (enforceModule && !(asts.getFirst() instanceof ModuleDecl)) {
+            throw new AssertionError("Entry point has no module declaration!");
         }
 
         List<ImportExpression> imports = new ArrayList<>();
@@ -70,7 +75,6 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                 imports.add(importExpression);
             }
         }
-        ImportResolver.reset();
         ImportResolver.resolveImports(imports, globalEnvironment, this, true);
 
         if (Flags.mainFunction) {
@@ -102,8 +106,8 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         return new TupleExpression(argsList);
     }
 
-    public <T> T run(List<Node> asts, String[] args) {
-        loadGlobalContext(asts);
+    public <T> T run(List<Node> asts, String[] args, boolean enforceModule) {
+        loadGlobalContext(asts, enforceModule);
         Object lastResult = null;
 
         if (Flags.mainFunction) {
@@ -130,8 +134,8 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         return (T) lastResult;
     }
 
-    public <T> T run(List<Node> asts) {
-        loadGlobalContext(asts);
+    public <T> T run(List<Node> asts, boolean enforceModule) {
+        loadGlobalContext(asts, enforceModule);
         Object lastResult = null;
 
         if (Flags.mainFunction) {
@@ -173,18 +177,6 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         }
 
         return (T) lastResult;
-    }
-
-    public void loadASTIntoGlobalContext(Node ast) {
-        switch (ast) {
-            case Expression expression ->
-                expression.accept(this);
-            case Statement statement ->
-                statement.accept(this);
-            default -> {
-                throw new AssertionError();
-            }
-        }
     }
 
     @Override
@@ -291,14 +283,14 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             boolean left = resolveBoolean(leftRaw);
             boolean right = resolveBoolean(rightRaw);
 
-            return (T) Boolean.valueOf(switch (op) {
+            return (T) switch (op) {
                 case "&&" ->
-                    left && right;
+                    Boolean.valueOf(left && right);
                 case "||" ->
-                    left || right;
+                    Boolean.valueOf(left || right);
                 default ->
                     throw new UnknownOperatorError(op);
-            });
+            };
         }
 
         Object arithmetic = tryEvaluateArithmetic(expressions);
@@ -424,6 +416,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         return builder.toString();
     }
 
+    // Ist der Operator ein Vergleichsoperator?
     private boolean isComparisonOperator(String op) {
         return switch (op) {
             case "==", "!=", "<", ">", "<=", ">=" ->
@@ -433,10 +426,12 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         };
     }
 
+    // Ist der Operator ein logischer Operator?
     private boolean isLogicalOperator(String op) {
         return op.equals("&&") || op.equals("||");
     }
 
+    // Vergleich auswerten → Boolean (numerisch, dann String-Fallback)
     private Boolean evaluateComparison(String left, String op, String right) {
         try {
             double l = Double.parseDouble(left);
@@ -458,6 +453,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                     throw new UnknownOperatorError(op);
             };
         } catch (NumberFormatException e) {
+            // String-Vergleich als Fallback
             return switch (op) {
                 case "==" ->
                     left.equals(right);
@@ -477,6 +473,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         }
     }
 
+    // Einen beliebigen Wert zu Boolean auflösen
     private boolean resolveBoolean(Object value) {
         return switch (value) {
             case Boolean b ->
@@ -769,6 +766,8 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         }
     }
 
+    // Löst eine Loop-Bedingung zu boolean auf –
+    // unterstützt Boolean (direkt von visitComplexExpr) und String (via Evaluator)
     private boolean resolveLoopCondition(Object condition) {
         return switch (condition) {
             case Boolean b ->
@@ -885,8 +884,8 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                 }
 
                 case String string -> {
-                    for (char c : string.toCharArray()) {
-                        Object value = c;
+                    for (char ch : string.toCharArray()) {
+                        Object value = ch;
 
                         if (localEnvironment != null) {
                             if (localEnvironment.exists(iteratorName)) {
@@ -907,7 +906,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                 }
 
                 default ->
-                    throw new AssertionError("Foreach only supports tuples, lists and strings");
+                    throw new AssertionError("Foreach only supports tuples and lists");
             }
         } catch (BreakSignal breakSignal) {
             return null;
@@ -930,16 +929,75 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         }
     }
 
+    public <T> T visitNamespaceCallExpr(Expression.NamespaceCallExpression expression) {
+        Object namespaceObj = globalEnvironment.get(expression.getAlias());
+
+        if (!(namespaceObj instanceof Namespace namespace)) {
+            throw new RuntimeException("'" + expression.getAlias() + "' is not a namespace");
+        }
+
+        Object callee = namespace.get(expression.getFunctionName());
+
+        if (!(callee instanceof Callable callable)) {
+            throw new RuntimeException("'" + expression.getFunctionName() + "' is not callable in namespace '" + expression.getAlias() + "'");
+        }
+
+        List<Object> arguments = new ArrayList<>();
+        for (Expression arg : expression.getArguments()) {
+            arguments.add(arg.accept(this));
+        }
+
+        if (arguments.size() != callable.getArity()) {
+            throw new ArgMismatchError(expression.getFunctionName(), callable.getArity(), arguments.size());
+        }
+
+        String cacheKey = expression.getAlias() + "." + expression.getFunctionName() + arguments;
+        Object cached = callCache.get(cacheKey);
+        if (cached != null) {
+            return (T) cached;
+        }
+
+        Object result = callable.call(this, arguments);
+
+        if (result != null) {
+            callCache.put(cacheKey, result);
+        }
+
+        return (T) result;
+    }
+
+    public void loadASTIntoGlobalContext(Node ast) {
+        loadASTIntoContext(ast, globalEnvironment);
+    }
+
+    public void loadASTIntoContext(Node ast, Environment targetEnv) {
+        Environment previous = localEnvironment;
+        localEnvironment = null;
+
+        Environment previousGlobal = globalEnvironment;
+        if (targetEnv instanceof Namespace) {
+            globalEnvironment = targetEnv;
+        }
+
+        switch (ast) {
+            case Expression expression ->
+                expression.accept(this);
+            case Statement statement ->
+                statement.accept(this);
+            default ->
+                throw new AssertionError();
+        }
+
+        globalEnvironment = previousGlobal;
+        localEnvironment = previous;
+    }
+
     public Environment getLocalEnvironment() {
         return localEnvironment;
     }
 
     public void setLocalEnvironment(Environment localEnvironment) {
         this.localEnvironment = localEnvironment;
-    }
-
-    public static void setGlobalEnvironment(Environment environment) {
-        Interpreter.globalEnvironment = environment;
     }
 
     public static Environment getGlobalEnvironment() {

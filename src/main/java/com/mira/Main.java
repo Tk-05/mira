@@ -58,7 +58,7 @@ public class Main {
 
             Parser parser = new Parser();
             List<Node> asts = parser.parseTokens(tokens);
-            
+
             if (Flags.exitBeforeInterpreter) {
                 System.exit(1);
             }
@@ -66,11 +66,11 @@ public class Main {
             Interpreter interpreter = new Interpreter();
 
             if (Flags.mainFunction) {
-                Object exitValue = interpreter.run(asts, Flags.args);
+                Object exitValue = interpreter.run(asts, Flags.args, true);
                 System.out.println("Program exited with value: " + exitValue + " in " + (System.currentTimeMillis() - start) + " ms");
             } else {
                 try {
-                    interpreter.run(asts, Flags.args);
+                    interpreter.run(asts, Flags.args, true);
                 } catch (ReturnSignal returnSignal) {
                     System.out.println("Program exited with value: " + returnSignal.getValue() + " in " + (System.currentTimeMillis() - start) + " ms");
                 }

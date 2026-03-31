@@ -35,6 +35,8 @@ public class ImportResolver {
     private static final Internal internal = new Internal();
     private static final Set<String> loadedModules = new HashSet<>();
     private static final Set<String> loadedLibs = new HashSet<>();
+    private static final Tokenizer tokenizer = new Tokenizer();
+    private static final Parser parser = new Parser();
 
     private static final Map<String, Lib> libs = new HashMap<String, Lib>() {
         {
@@ -97,13 +99,10 @@ public class ImportResolver {
 
             Path currentFile = ((Path) Flags.inputPath).toAbsolutePath();
             Path modulePath;
-
             Path candidate = Paths.get(rawPath);
 
             if (candidate.isAbsolute()) {
                 modulePath = candidate.normalize();
-            } else if (rawPath.startsWith("./") || rawPath.startsWith("../")) {
-                modulePath = currentFile.getParent().resolve(candidate).normalize();
             } else {
                 modulePath = currentFile.getParent().resolve(candidate).normalize();
             }
@@ -118,15 +117,13 @@ public class ImportResolver {
             if (!Files.exists(modulePath)) {
                 throw new RuntimeException("Module file not found: " + modulePath);
             }
-            String source = Files.readString(modulePath);
 
+            String source = Files.readString(modulePath);
             Path previousFile = (Path) Flags.inputPath;
             Flags.inputPath = modulePath;
 
-            Tokenizer tokenizer = new Tokenizer();
             List<Token> tokens = tokenizer.tokenize(source, false);
 
-            Parser parser = new Parser();
             List<Node> asts = parser.parseTokens(tokens);
 
             String declaredModuleName = validateModuleDeclaration(asts, importExpression);
@@ -141,16 +138,25 @@ public class ImportResolver {
                 );
             }
 
-            List<ImportExpression> imports = new ArrayList<>();
+            String alias = importExpression.getNamespace();
+            boolean hasAlias = alias != null && !alias.isBlank();
+
+            Environment targetEnv = hasAlias ? new Namespace(alias) : environment;
+
+            List<ImportExpression> nestedImports = new ArrayList<>();
             for (Node ast : asts) {
                 if (ast instanceof ImportExpression expr) {
-                    imports.add(expr);
+                    nestedImports.add(expr);
                 } else if (!(ast instanceof ModuleDecl)) {
-                    interpreter.loadASTIntoGlobalContext(ast);
+                    interpreter.loadASTIntoContext(ast, targetEnv);
                 }
             }
 
-            resolveImports(imports, environment, interpreter, false);
+            resolveImports(nestedImports, targetEnv, interpreter, false);
+
+            if (hasAlias) {
+                environment.define(alias, targetEnv);
+            }
 
             Flags.inputPath = previousFile;
 
@@ -162,9 +168,8 @@ public class ImportResolver {
     private static String validateModuleDeclaration(List<Node> asts, ImportExpression expr) {
         if (!(asts.getFirst() instanceof ModuleDecl moduleDecl)) {
             throw new AssertionError("Module '" + expr.getModule() + "' has no module declaration");
-        } else {
-            return moduleDecl.getModuleName();
         }
+        return moduleDecl.getModuleName();
     }
 
     public static void reset() {

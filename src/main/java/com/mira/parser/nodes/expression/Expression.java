@@ -227,10 +227,12 @@ public abstract class Expression implements Node {
     public static class ImportExpression extends Expression {
 
         private final Expression module;
+        private final String namespace;
         private final boolean isModule;
 
-        public ImportExpression(Expression module, boolean isModule) {
+        public ImportExpression(Expression module, String namespace, boolean isModule) {
             this.module = module;
+            this.namespace = namespace;
             this.isModule = isModule;
         }
 
@@ -248,8 +250,47 @@ public abstract class Expression implements Node {
             return module.toString();
         }
 
+        public String getNamespace() {
+            return namespace;
+        }
+
         public boolean isExternalModule() {
             return isModule;
+        }
+    }
+
+    public static class NamespaceCallExpression extends Expression {
+
+        private final String alias;
+        private final String functionName;
+        private final List<Expression> arguments;
+
+        public NamespaceCallExpression(String alias, String functionName, List<Expression> arguments) {
+            this.alias = alias;
+            this.functionName = functionName;
+            this.arguments = arguments;
+        }
+
+        public String getAlias() {
+            return alias;
+        }
+
+        public String getFunctionName() {
+            return functionName;
+        }
+
+        public List<Expression> getArguments() {
+            return arguments;
+        }
+
+        @Override
+        public <T> T accept(ExprVisitor<T> visitor) {
+            return visitor.visitNamespaceCallExpr(this);
+        }
+
+        @Override
+        public String toString() {
+            return alias + "." + functionName;
         }
     }
 }

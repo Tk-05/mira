@@ -16,6 +16,7 @@ import com.mira.parser.Parser;
 import com.mira.runtime.functions.BreakSignal;
 import com.mira.runtime.functions.ReturnSignal;
 import com.mira.runtime.interpreter.Evaluator;
+import com.mira.runtime.interpreter.ImportResolver;
 import com.mira.runtime.interpreter.Interpreter;
 
 public class InterpreterTest {
@@ -30,13 +31,13 @@ public class InterpreterTest {
     void createNewGlobalContext() {
         Tokenizer tokenizer = new Tokenizer();
         Parser parser = new Parser();
-        interpreter.run(parser.parseTokens(tokenizer.tokenize("", false)));
+        interpreter.run(parser.parseTokens(tokenizer.tokenize("", false)), false);
     }
 
     Object runWithNewGlobalContext(String source) {
         Tokenizer tokenizer = new Tokenizer();
         Parser parser = new Parser();
-        return interpreter.run(parser.parseTokens(tokenizer.tokenize(source, false)));
+        return interpreter.run(parser.parseTokens(tokenizer.tokenize(source, false)), false);
     }
 
     Object runWithoutNewGlobalContext(String source) {
@@ -126,7 +127,7 @@ public class InterpreterTest {
         Tokenizer tokenizer = new Tokenizer();
         Parser parser = new Parser();
         try {
-            interpreter.run((parser.parseTokens(tokenizer.tokenize(source, false))));
+            interpreter.run((parser.parseTokens(tokenizer.tokenize(source, false))), false);
         } catch (ReturnSignal returnSignal) {
             assertEquals(42.0, returnSignal.getValue());
         }
@@ -138,7 +139,7 @@ public class InterpreterTest {
         Tokenizer tokenizer = new Tokenizer();
         Parser parser = new Parser();
         try {
-            interpreter.run((parser.parseTokens(tokenizer.tokenize(source, true))));
+            interpreter.run((parser.parseTokens(tokenizer.tokenize(source, true))), false);
         } catch (ReturnSignal returnSignal) {
             assertEquals(0.0, returnSignal.getValue());
         }
@@ -163,7 +164,7 @@ public class InterpreterTest {
         Tokenizer tokenizer = new Tokenizer();
         Parser parser = new Parser();
         try {
-            interpreter.run((parser.parseTokens(tokenizer.tokenize(source, false))));
+            interpreter.run((parser.parseTokens(tokenizer.tokenize(source, false))), false);
         } catch (ReturnSignal returnSignal) {
             assertEquals(42.0, returnSignal.getValue());
         }
@@ -178,7 +179,7 @@ public class InterpreterTest {
         Tokenizer tokenizer = new Tokenizer();
         Parser parser = new Parser();
         try {
-            interpreter.run((parser.parseTokens(tokenizer.tokenize(source, false))));
+            interpreter.run((parser.parseTokens(tokenizer.tokenize(source, false))), false);
         } catch (ReturnSignal returnSignal) {
             assertEquals(null, returnSignal.getValue());
         }
@@ -193,7 +194,7 @@ public class InterpreterTest {
         Tokenizer tokenizer = new Tokenizer();
         Parser parser = new Parser();
         try {
-            interpreter.run((parser.parseTokens(tokenizer.tokenize(source, false))));
+            interpreter.run((parser.parseTokens(tokenizer.tokenize(source, false))), false);
         } catch (ReturnSignal returnSignal) {
             assertEquals(0.0, returnSignal.getValue());
         }
@@ -208,7 +209,7 @@ public class InterpreterTest {
         Tokenizer tokenizer = new Tokenizer();
         Parser parser = new Parser();
         try {
-            interpreter.run((parser.parseTokens(tokenizer.tokenize(source, false))));
+            interpreter.run((parser.parseTokens(tokenizer.tokenize(source, false))), false);
         } catch (ReturnSignal returnSignal) {
             assertEquals(4.0, returnSignal.getValue());
         }
@@ -224,7 +225,7 @@ public class InterpreterTest {
         Tokenizer tokenizer = new Tokenizer();
         Parser parser = new Parser();
         try {
-            interpreter.run((parser.parseTokens(tokenizer.tokenize(source, false))));
+            interpreter.run((parser.parseTokens(tokenizer.tokenize(source, false))), false);
         } catch (ReturnSignal returnSignal) {
             assertEquals(21.0, returnSignal.getValue());
         }
@@ -242,7 +243,7 @@ public class InterpreterTest {
         Tokenizer tokenizer = new Tokenizer();
         Parser parser = new Parser();
         try {
-            interpreter.run((parser.parseTokens(tokenizer.tokenize(source, false))));
+            interpreter.run((parser.parseTokens(tokenizer.tokenize(source, false))), false);
         } catch (ReturnSignal returnSignal) {
             assertEquals("Hello World", returnSignal.getValue());
         }
@@ -260,7 +261,7 @@ public class InterpreterTest {
         Tokenizer tokenizer = new Tokenizer();
         Parser parser = new Parser();
         try {
-            interpreter.run((parser.parseTokens(tokenizer.tokenize(source, false))));
+            interpreter.run((parser.parseTokens(tokenizer.tokenize(source, false))), false);
         } catch (ReturnSignal returnSignal) {
             assertEquals("1", returnSignal.getValue());
         }
@@ -280,7 +281,7 @@ public class InterpreterTest {
         Tokenizer tokenizer = new Tokenizer();
         Parser parser = new Parser();
         try {
-            interpreter.run((parser.parseTokens(tokenizer.tokenize(source, false))));
+            interpreter.run((parser.parseTokens(tokenizer.tokenize(source, false))),false);
         } catch (ReturnSignal returnSignal) {
             assertEquals("true", returnSignal.getValue());
         }
@@ -775,7 +776,8 @@ public class InterpreterTest {
         try {
             Tokenizer tokenizer = new Tokenizer();
             Parser parser = new Parser();
-            interpreter.run(parser.parseTokens(tokenizer.tokenize(source, false)));
+            ImportResolver.reset();
+            interpreter.run(parser.parseTokens(tokenizer.tokenize(source, false)), false);
         } catch (ReturnSignal returnSignal) {
         }
     }
@@ -792,7 +794,7 @@ public class InterpreterTest {
         try {
             Tokenizer tokenizer = new Tokenizer();
             Parser parser = new Parser();
-            interpreter.run(parser.parseTokens(tokenizer.tokenize(source, false)));
+            interpreter.run(parser.parseTokens(tokenizer.tokenize(source, false)), false);
         } catch (ReturnSignal returnSignal) {
         }
     }

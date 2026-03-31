@@ -19,7 +19,8 @@ public class Vocabulary {
             "overwrite",
             "foreach",
             "in",
-            "module"
+            "module",
+            "as"
     );
 
     public static final Set<String> operations = Set.of(
@@ -38,7 +39,8 @@ public class Vocabulary {
             ";",
             ",",
             "[",
-            "]"
+            "]",
+            "."
     );
 
     public static boolean stringIsKeyword(String s) {

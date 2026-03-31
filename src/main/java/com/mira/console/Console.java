@@ -31,7 +31,7 @@ public class Console {
                     }
                 }
 
-                Object result = interpreter.run(parser.parseTokens(tokenizer.tokenize(input, true)));
+                Object result = interpreter.run(parser.parseTokens(tokenizer.tokenize(input, true)), false);
 
                 if (result != null) {
                     System.out.println(result);

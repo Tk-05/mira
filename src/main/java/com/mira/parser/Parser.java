@@ -25,7 +25,6 @@ import com.mira.parser.nodes.statement.Statement.For;
 import com.mira.parser.nodes.statement.Statement.Foreach;
 import com.mira.parser.nodes.statement.Statement.FuncDecl;
 import com.mira.parser.nodes.statement.Statement.If;
-import com.mira.parser.nodes.statement.Statement.ModuleDecl;
 import com.mira.parser.nodes.statement.Statement.Overwrite;
 import com.mira.parser.nodes.statement.Statement.Return;
 import com.mira.parser.nodes.statement.Statement.VarDecl;
@@ -126,11 +125,14 @@ public class Parser {
         throw new TypeMismatchError(peek(), "Expected " + expectedType);
     }
 
+    // Prüft ob das aktuelle Token ein Ausdrucks-Token ist (EXPRESSION oder STRING_LITERAL)
     private boolean isExpressionToken(Token token) {
         return token.getTokenType() == TokenType.EXPRESSION
                 || token.getTokenType() == TokenType.STRING_LITERAL;
     }
 
+    // Prüft ob ein Token ein echter struktureller Delimiter ist (kein String-Literal)
+    // String-Literale mit Werten wie "}", ")", ";" sollen NICHT als Abbruch gelten
     private boolean isStructuralDelimiter(Token token) {
         if (token.getTokenType() == TokenType.STRING_LITERAL) {
             return false;
@@ -143,6 +145,7 @@ public class Parser {
         };
     }
 
+    // Konsumiert ein EXPRESSION oder STRING_LITERAL Token
     private Token matchExpression() {
         if (isExpressionToken(peek())) {
             return consume();
@@ -201,7 +204,6 @@ public class Parser {
             }
             case "module" -> {
                 node = parseModuleDecl();
-                matchLexeme(";");
             }
             case "import" -> {
                 node = parseImportExpression();
@@ -259,15 +261,23 @@ public class Parser {
 
                 expressions.add(parsePostfix(maybeParseAccess(parseCallExpression())));
 
+            } else if (isExpressionToken(current)
+                    && peekNextSafe().getLexeme().equals(".")
+                    && peekNextSafe().getTokenType() != TokenType.STRING_LITERAL) {
+
+                expressions.add(parsePostfix(parseNamespaceCallExpression()));
+
             } else if (current.getLexeme().equals("(")
                     && current.getTokenType() != TokenType.STRING_LITERAL) {
 
+                // Echter Delimiter "(" → geklammerte Teilexpression
                 consume();
                 Expression inner = parseExpression();
                 consumeExpected(")");
                 expressions.add(parsePostfix(maybeParseAccess(inner)));
 
             } else {
+                // Alles andere (EXPRESSION, STRING_LITERAL) → DumbExpression
                 expressions.add(parsePostfix(maybeParseAccess(parseDumbExpression())));
             }
         }
@@ -322,6 +332,26 @@ public class Parser {
         throw new TypeMismatchError(token, "Expected EXPRESSION or STRING_LITERAL");
     }
 
+    private Expression parseNamespaceCallExpression() {
+        String alias = matchExpression().getLexeme();
+        matchLexeme(".");
+        String functionName = matchExpression().getLexeme();
+        matchLexeme("(");
+
+        List<Expression> args = new ArrayList<>();
+        while (!peek().getLexeme().equals(")")) {
+            args.add(parseExpression());
+            if (peek().getLexeme().equals(",")) {
+                matchLexeme(",");
+            } else if (!peek().getLexeme().equals(")")) {
+                throw new UnexpectedToken(peek(), "Expected ',' or ')'");
+            }
+        }
+
+        matchLexeme(")");
+        return new Expression.NamespaceCallExpression(alias, functionName, args);
+    }
+
     private Expression parseCallExpression() {
         Token referencedFunction = matchExpression();
 
@@ -367,18 +397,33 @@ public class Parser {
         return new AccessExpression(accessedExpression, indices);
     }
 
+    private Node parseModuleDecl() {
+        matchLexeme("module");
+        String name = matchExpression().getLexeme();
+        matchLexeme(";");
+        return new com.mira.parser.nodes.statement.Statement.ModuleDecl(name);
+    }
+
     private Node parseImportExpression() {
         if (parsingDepth != 0) {
             throw new AssertionError("Imports must be declared in global context!");
         }
         matchLexeme("import");
 
+        // import module "path" as alias;
         if (peek().getLexeme().equals("module")) {
             consume();
-            return new ImportExpression(parseExpression(), true);
-        } else {
-            return new ImportExpression(parseExpression(), false);
-        }        
+            String path = matchExpression().getLexeme();
+            String alias = null;
+            if (peek().getLexeme().equals("as")) {
+                consume();
+                alias = matchExpression().getLexeme();
+            }
+            return new ImportExpression(new DumbExpression(new Token(TokenType.STRING_LITERAL, path, 0, 0)), alias, true);
+        }
+
+        // import libname;
+        return new ImportExpression(parseExpression(), null, false);
     }
 
     private Expression parseList() {
@@ -658,11 +703,5 @@ public class Parser {
         matchLexeme("}");
 
         return new Foreach(iterator, collection, body);
-    }
-
-    private Node parseModuleDecl() {
-        matchLexeme("module");
-        String moduleName = matchType(TokenType.EXPRESSION).getLexeme();
-        return new ModuleDecl(moduleName);
     }
 }
