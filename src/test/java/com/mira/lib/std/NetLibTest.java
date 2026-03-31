@@ -40,7 +40,6 @@ public class NetLibTest {
     private HttpClient mockClient(String body, int status, Map<String, List<String>> headers) {
         return new HttpClient() {
             @Override
-            @SuppressWarnings("unchecked")
             public <T> HttpResponse<T> send(HttpRequest request, BodyHandler<T> handler)
                     throws IOException, InterruptedException {
                 return (HttpResponse<T>) new HttpResponse<String>() {

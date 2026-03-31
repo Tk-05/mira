@@ -1,6 +1,6 @@
 TODO:
-    -arrays
-        -List functions
+    -collections
         -Slices
     -libs/modules
         -Import resolver tests
+        -Range tests

@@ -259,7 +259,6 @@ public class Parser {
 
             } else if (isExpressionToken(current)
                     && peekNextSafe().getLexeme().equals(".")
-                    && !peekOffset(2).getLexeme().equals(".")
                     && peekNextSafe().getTokenType() != TokenType.STRING_LITERAL) {
 
                 expressions.add(parsePostfix(parseNamespaceCallExpression()));
@@ -274,9 +273,6 @@ public class Parser {
 
             } else {
                 expressions.add(parsePostfix(maybeParseAccess(parseDumbExpression())));
-                while (peek().getLexeme().equals(".")) {
-                    consume();
-                }
             }
         }
 
@@ -464,15 +460,8 @@ public class Parser {
             case ";" -> {
                 return new VarDecl(indentifier, null);
             }
-            // cases foreach and range
             case "in" -> {
-                consume();
-
-                if (peek().getLexeme().equals("<")) {
-                    return new VarDecl(indentifier, parseRangeExpression());
-                } else {
-                    return new VarDecl(indentifier, null);
-                }
+                return new VarDecl(indentifier, null);
             }
             default -> {
                 throw new UnexpectedToken(peek(), "Unexpected token");
@@ -609,42 +598,84 @@ public class Parser {
         matchLexeme("for");
         matchLexeme("(");
 
+        if (peek().getLexeme().equals("var")
+                && peekOffset(2).getLexeme().equals("in")
+                && peekOffset(3).getLexeme().equals("<")) {
+
+            matchLexeme("var");
+            String iteratorName = consume().getLexeme();
+            matchLexeme("in");
+            Expression range = parseRangeExpression();
+            matchLexeme(")");
+
+            matchLexeme("{");
+            List<Node> body = new ArrayList<>();
+            while (!peek().getLexeme().equals("}")) {
+                body.add(parseStatement(true));
+            }
+            matchLexeme("}");
+
+            return new Foreach(
+                    new VarDecl(iteratorName, null),
+                    range,
+                    body
+            );
+        }
+
         List<Node> varDecls = new ArrayList<>();
         boolean loop = true;
         while (loop) {
             switch (peek().getLexeme()) {
-                case ";" ->
+                case ";" -> {
                     loop = false;
+                    matchLexeme(";");
+                }
                 case "," -> {
                     matchLexeme(",");
                     expectLexeme("var");
                 }
-                default ->
-                    varDecls.add(parseVarDecl());
+                default -> {
+                    if (!isStructuralDelimiter(peek())) {
+                        varDecls.add(parseVarDecl());
+                    } else {
+                        loop = false;
+                    }
+                }
             }
         }
-        matchLexeme(";");
 
-        Expression condition = null;
-        if (!peek().getLexeme().equals(";")) {
-            condition = parseExpression();
+        if (!peek().getLexeme().equals(")")) {
+            Expression condition = null;
+            if (!peek().getLexeme().equals(";")) {
+                condition = parseExpression();
+            }
+            matchLexeme(";");
+
+            List<Node> postExpressions = new ArrayList<>();
+            while (!peek().getLexeme().equals(")")) {
+                postExpressions.add(parseStatement(false));
+            }
+            matchLexeme(")");
+
+            matchLexeme("{");
+            List<Node> body = new ArrayList<>();
+            while (!peek().getLexeme().equals("}")) {
+                body.add(parseStatement(true));
+            }
+            matchLexeme("}");
+
+            return new For(varDecls, condition, postExpressions, body);
+        } else {
+            matchLexeme(")");
+            matchLexeme("{");
+            List<Node> body = new ArrayList<>();
+            while (!peek().getLexeme().equals("}")) {
+                body.add(parseStatement(true));
+            }
+            matchLexeme("}");
+
+            return new For(varDecls, null, null, body);
         }
-        matchLexeme(";");
-
-        List<Node> postExpressions = new ArrayList<>();
-        while (!peek().getLexeme().equals(")")) {
-            postExpressions.add(parseStatement(false));
-        }
-        matchLexeme(")");
-
-        matchLexeme("{");
-        List<Node> body = new ArrayList<>();
-        while (!peek().getLexeme().equals("}")) {
-            body.add(parseStatement(true));
-        }
-        matchLexeme("}");
-
-        return new For(varDecls, condition, postExpressions, body);
     }
 
     private Node parseWhile() {
@@ -696,7 +727,11 @@ public class Parser {
         matchLexeme("(");
         VarDecl iterator = (VarDecl) parseVarDecl();
         matchLexeme("in");
-        Expression collection = parseExpression();
+
+        Expression collection = peek().getLexeme().equals("<")
+                ? parseRangeExpression()
+                : parseExpression();
+
         matchLexeme(")");
 
         matchLexeme("{");
@@ -711,18 +746,63 @@ public class Parser {
 
     private Expression parseRangeExpression() {
         matchLexeme("<");
-
-        Expression start = parseExpression();
-
-        if (!peek().getLexeme().equals("..")) {
-            throw new UnexpectedToken(peek(), "Expected '..' in range expression");
-        }
+        Expression start = parseRangeOperand();
         matchLexeme("..");
+        Expression end = parseRangeOperand();
 
-        Expression end = parseExpression();
+        Expression stepsize = null;
+        if (peek().getLexeme().equals(",")) {
+            consume();
+            stepsize = parseRangeOperand();
+        }
 
         matchLexeme(">");
+        return new Expression.RangeExpression(start, end, stepsize);
+    }
 
-        return new Expression.RangeExpression(start, end);
+    private Expression parseRangeOperand() {
+        List<Expression> expressions = new ArrayList<>();
+
+        while (peek().getTokenType() != TokenType.EOF
+                && !peek().getLexeme().equals("..")
+                && !peek().getLexeme().equals(">")
+                && !isStructuralDelimiter(peek())) {
+
+            Token current = peek();
+
+            if (current.getLexeme().equals("$")) {
+                Expression unary = parseUnaryExpression();
+                expressions.add(parsePostfix(maybeParseAccess(unary)));
+
+            } else if (isExpressionToken(current)
+                    && peekNextSafe().getLexeme().equals("(")
+                    && peekNextSafe().getTokenType() != TokenType.STRING_LITERAL) {
+
+                expressions.add(parsePostfix(maybeParseAccess(parseCallExpression())));
+
+            } else if (isExpressionToken(current)
+                    && peekNextSafe().getLexeme().equals(".")
+                    && !peekOffset(2).getLexeme().equals(".")
+                    && peekNextSafe().getTokenType() != TokenType.STRING_LITERAL) {
+
+                expressions.add(parsePostfix(parseNamespaceCallExpression()));
+
+            } else if (Vocabulary.stringIsOperation(current.getLexeme())
+                    && !current.getLexeme().equals("$")
+                    && !current.getLexeme().equals("++")
+                    && !current.getLexeme().equals("--")) {
+
+                expressions.add(new UnaryExpression(consume(), null));
+
+            } else {
+                expressions.add(parsePostfix(maybeParseAccess(parseDumbExpression())));
+            }
+        }
+
+        if (expressions.isEmpty()) {
+            throw new UnexpectedToken(peek(), "Expected range operand but got '" + peek().getLexeme() + "'");
+        }
+
+        return expressions.size() > 1 ? new ComplexExpression(expressions) : expressions.get(0);
     }
 }

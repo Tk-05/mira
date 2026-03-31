@@ -298,10 +298,12 @@ public abstract class Expression implements Node {
 
         private final Expression start;
         private final Expression end;
+        private final Expression stepsize;
 
-        public RangeExpression(Expression start, Expression end) {
+        public RangeExpression(Expression start, Expression end, Expression stepsize) {
             this.start = start;
             this.end = end;
+            this.stepsize = stepsize;
         }
 
         @Override
@@ -320,6 +322,10 @@ public abstract class Expression implements Node {
 
         public Expression getEnd() {
             return end;
+        }
+
+        public Expression getStepsize() {
+            return stepsize;
         }
     }
 }

@@ -15,12 +15,14 @@ import com.mira.parser.nodes.expression.Expression.CallExpression;
 import com.mira.parser.nodes.expression.Expression.ComplexExpression;
 import com.mira.parser.nodes.expression.Expression.DumbExpression;
 import com.mira.parser.nodes.expression.Expression.ImportExpression;
+import com.mira.parser.nodes.expression.Expression.NamespaceCallExpression;
 import com.mira.parser.nodes.expression.Expression.UnaryExpression;
 import com.mira.parser.nodes.statement.Statement;
 import com.mira.parser.nodes.statement.Statement.Block;
 import com.mira.parser.nodes.statement.Statement.Break;
 import com.mira.parser.nodes.statement.Statement.For;
 import com.mira.parser.nodes.statement.Statement.Foreach;
+import com.mira.parser.nodes.statement.Statement.ModuleDecl;
 import com.mira.parser.nodes.statement.Statement.Overwrite;
 import com.mira.parser.nodes.statement.Statement.VarDecl;
 
@@ -290,6 +292,16 @@ public class ParserTest {
     }
 
     @Test
+    void parseModuleImport() {
+        String importStmt = """
+                import module HelloWorld;
+                """;
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize(importStmt, false));
+        assertEquals(1, ast.size());
+        assertInstanceOf(ImportExpression.class, ast.getFirst());
+    }
+
+    @Test
     void parseOverwrite() {
         String overwriteStmt = """
                 overwrite(1);
@@ -300,12 +312,52 @@ public class ParserTest {
     }
 
     @Test
+    void parseModule() {
+        String moduleStmt = """
+                module test;
+                """;
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize(moduleStmt, false));
+        assertEquals(1, ast.size());
+        assertInstanceOf(ModuleDecl.class, ast.getFirst());
+    }
+
+    @Test
     void parseForeach() {
         String foreachStmt = """
-               foreach(var i in $test) {} 
+                foreach(var i in $test) {} 
                 """;
         List<Node> ast = parser.parseTokens(tokenizer.tokenize(foreachStmt, false));
         assertEquals(1, ast.size());
         assertInstanceOf(Foreach.class, ast.getFirst());
+    }
+
+    @Test
+    void parseForeachRange() {
+        String foreachStmt = """
+               foreach(var i in <0..5>) {} 
+                """;
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize(foreachStmt, false));
+        assertEquals(1, ast.size());
+        assertInstanceOf(Foreach.class, ast.getFirst());
+    }
+
+    @Test
+    void parseForWithRange() {
+        String forStmt = """
+                for(var i in <0..5>) {}
+                """;
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize(forStmt, false));
+        assertEquals(1, ast.size());
+        assertInstanceOf(Foreach.class, ast.getFirst());
+    }
+
+    @Test
+    void parseNamespaceCallExpression() {
+        String  callExpression = """
+                Test.test();
+                """;
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize(callExpression, false));
+        assertEquals(1, ast.size());
+        assertInstanceOf(NamespaceCallExpression.class, ast.getFirst());
     }
 }

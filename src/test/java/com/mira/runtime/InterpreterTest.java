@@ -281,7 +281,7 @@ public class InterpreterTest {
         Tokenizer tokenizer = new Tokenizer();
         Parser parser = new Parser();
         try {
-            interpreter.run((parser.parseTokens(tokenizer.tokenize(source, false))),false);
+            interpreter.run((parser.parseTokens(tokenizer.tokenize(source, false))), false);
         } catch (ReturnSignal returnSignal) {
             assertEquals("true", returnSignal.getValue());
         }
@@ -693,7 +693,7 @@ public class InterpreterTest {
                 }
                 $lastResult;
                 """;
-        assertEquals('C', runWithNewGlobalContext(source));
+        assertEquals("C", runWithNewGlobalContext(source));
     }
 
     @Test
@@ -761,6 +761,33 @@ public class InterpreterTest {
             runWithNewGlobalContext(source);
         } catch (ReturnSignal returnSignal) {
         }
+    }
+
+    @Test
+    void testForeachWithRange() {
+        String source = """
+                foreach(var element in <0..4>) {
+                    if($element == 3) {
+                        break();
+                    }
+                }
+                """;
+        try {
+            runWithNewGlobalContext(source);
+        } catch (ReturnSignal returnSignal) {
+        }
+    }
+
+    @Test
+    void testRangeWithStepsize() {
+        String source = """
+                var last : 0;
+                foreach(var element in <0..4,2>) {
+                    $last : $element;
+                }
+                $last;
+                """;
+        assertEquals(2.0, runWithNewGlobalContext(source));
     }
 
     @Test
