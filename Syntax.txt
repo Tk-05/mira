@@ -1,5 +1,6 @@
 //imports
 module main;
+import "./main" as test;
 
 import module "../../Test.mira";
 import math;

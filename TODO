@@ -3,7 +3,4 @@ TODO:
         -List functions
         -Slices
     -libs/modules
-        -import aliases
-        -proper namespaces
-        -Entry point module
         -Import resolver tests

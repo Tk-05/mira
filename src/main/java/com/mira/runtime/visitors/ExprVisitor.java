@@ -6,6 +6,7 @@ import com.mira.parser.nodes.expression.Expression.ComplexExpression;
 import com.mira.parser.nodes.expression.Expression.DumbExpression;
 import com.mira.parser.nodes.expression.Expression.ListExpression;
 import com.mira.parser.nodes.expression.Expression.NamespaceCallExpression;
+import com.mira.parser.nodes.expression.Expression.RangeExpression;
 import com.mira.parser.nodes.expression.Expression.TupleExpression;
 import com.mira.parser.nodes.expression.Expression.UnaryExpression;
 
@@ -26,4 +27,6 @@ public interface ExprVisitor<T> {
     public <T> T visitListExpr(ListExpression expression);
 
     public <T> T visitNamespaceCallExpr(NamespaceCallExpression expression);
+
+    public <T> T visitRangeExpression(RangeExpression expression);
 }

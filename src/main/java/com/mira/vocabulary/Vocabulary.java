@@ -40,7 +40,8 @@ public class Vocabulary {
             ",",
             "[",
             "]",
-            "."
+            ".",
+            ".."
     );
 
     public static boolean stringIsKeyword(String s) {

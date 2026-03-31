@@ -293,4 +293,33 @@ public abstract class Expression implements Node {
             return alias + "." + functionName;
         }
     }
+
+    public static class RangeExpression extends Expression {
+
+        private final Expression start;
+        private final Expression end;
+
+        public RangeExpression(Expression start, Expression end) {
+            this.start = start;
+            this.end = end;
+        }
+
+        @Override
+        public <T> T accept(ExprVisitor<T> visitor) {
+            return visitor.visitRangeExpression(this);
+        }
+
+        @Override
+        public String toString() {
+            throw new UnsupportedOperationException();
+        }
+
+        public Expression getStart() {
+            return start;
+        }
+
+        public Expression getEnd() {
+            return end;
+        }
+    }
 }

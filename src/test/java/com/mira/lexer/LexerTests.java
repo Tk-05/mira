@@ -60,6 +60,7 @@ public class LexerTests {
         assertEquals(TokenType.DELIMITER, tokenizer.tokenize(",", false).getFirst().getTokenType());
         assertEquals(TokenType.DELIMITER, tokenizer.tokenize("[", false).getFirst().getTokenType());
         assertEquals(TokenType.DELIMITER, tokenizer.tokenize("]", false).getFirst().getTokenType());
+        assertEquals(TokenType.DELIMITER, tokenizer.tokenize(".", false).getFirst().getTokenType());
     }
 
     @Test

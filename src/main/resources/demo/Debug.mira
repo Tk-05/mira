@@ -2,6 +2,12 @@ module main;
 
 import module "./Debug2.mira" as test;
 
+var list : [1,2,3];
+
 fn main() {
+    for(var i in <0..length($list)>) {
+        
+    }
+
     print(test.hello("test"));
 }

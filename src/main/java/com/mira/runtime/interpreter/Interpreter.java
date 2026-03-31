@@ -24,6 +24,7 @@ import com.mira.parser.nodes.expression.Expression.DumbExpression;
 import com.mira.parser.nodes.expression.Expression.ImportExpression;
 import com.mira.parser.nodes.expression.Expression.ListExpression;
 import com.mira.parser.nodes.expression.Expression.Mutability;
+import com.mira.parser.nodes.expression.Expression.RangeExpression;
 import com.mira.parser.nodes.expression.Expression.TupleExpression;
 import com.mira.parser.nodes.expression.Expression.UnaryExpression;
 import com.mira.parser.nodes.statement.Statement;
@@ -1002,5 +1003,11 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
     public static Environment getGlobalEnvironment() {
         return globalEnvironment;
+    }
+
+    @Override
+    public <T> T visitRangeExpression(RangeExpression expression) {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'visitRangeExpression'");
     }
 }

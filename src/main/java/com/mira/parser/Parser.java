@@ -125,14 +125,11 @@ public class Parser {
         throw new TypeMismatchError(peek(), "Expected " + expectedType);
     }
 
-    // Prüft ob das aktuelle Token ein Ausdrucks-Token ist (EXPRESSION oder STRING_LITERAL)
     private boolean isExpressionToken(Token token) {
         return token.getTokenType() == TokenType.EXPRESSION
                 || token.getTokenType() == TokenType.STRING_LITERAL;
     }
 
-    // Prüft ob ein Token ein echter struktureller Delimiter ist (kein String-Literal)
-    // String-Literale mit Werten wie "}", ")", ";" sollen NICHT als Abbruch gelten
     private boolean isStructuralDelimiter(Token token) {
         if (token.getTokenType() == TokenType.STRING_LITERAL) {
             return false;
@@ -145,7 +142,6 @@ public class Parser {
         };
     }
 
-    // Konsumiert ein EXPRESSION oder STRING_LITERAL Token
     private Token matchExpression() {
         if (isExpressionToken(peek())) {
             return consume();
@@ -263,6 +259,7 @@ public class Parser {
 
             } else if (isExpressionToken(current)
                     && peekNextSafe().getLexeme().equals(".")
+                    && !peekOffset(2).getLexeme().equals(".")
                     && peekNextSafe().getTokenType() != TokenType.STRING_LITERAL) {
 
                 expressions.add(parsePostfix(parseNamespaceCallExpression()));
@@ -270,15 +267,16 @@ public class Parser {
             } else if (current.getLexeme().equals("(")
                     && current.getTokenType() != TokenType.STRING_LITERAL) {
 
-                // Echter Delimiter "(" → geklammerte Teilexpression
                 consume();
                 Expression inner = parseExpression();
                 consumeExpected(")");
                 expressions.add(parsePostfix(maybeParseAccess(inner)));
 
             } else {
-                // Alles andere (EXPRESSION, STRING_LITERAL) → DumbExpression
                 expressions.add(parsePostfix(maybeParseAccess(parseDumbExpression())));
+                while (peek().getLexeme().equals(".")) {
+                    consume();
+                }
             }
         }
 
@@ -410,7 +408,6 @@ public class Parser {
         }
         matchLexeme("import");
 
-        // import module "path" as alias;
         if (peek().getLexeme().equals("module")) {
             consume();
             String path = matchExpression().getLexeme();
@@ -422,7 +419,6 @@ public class Parser {
             return new ImportExpression(new DumbExpression(new Token(TokenType.STRING_LITERAL, path, 0, 0)), alias, true);
         }
 
-        // import libname;
         return new ImportExpression(parseExpression(), null, false);
     }
 
@@ -468,9 +464,15 @@ public class Parser {
             case ";" -> {
                 return new VarDecl(indentifier, null);
             }
-            // foreach case
+            // cases foreach and range
             case "in" -> {
-                return new VarDecl(indentifier, null);
+                consume();
+
+                if (peek().getLexeme().equals("<")) {
+                    return new VarDecl(indentifier, parseRangeExpression());
+                } else {
+                    return new VarDecl(indentifier, null);
+                }
             }
             default -> {
                 throw new UnexpectedToken(peek(), "Unexpected token");
@@ -608,15 +610,17 @@ public class Parser {
         matchLexeme("(");
 
         List<Node> varDecls = new ArrayList<>();
-        while (true) {
-            if (peek().getLexeme().equals(";")) {
-                break;
-            } else {
-                varDecls.add(parseVarDecl());
-                if (peek().getLexeme().equals(",")) {
+        boolean loop = true;
+        while (loop) {
+            switch (peek().getLexeme()) {
+                case ";" ->
+                    loop = false;
+                case "," -> {
                     matchLexeme(",");
                     expectLexeme("var");
                 }
+                default ->
+                    varDecls.add(parseVarDecl());
             }
         }
         matchLexeme(";");
@@ -703,5 +707,22 @@ public class Parser {
         matchLexeme("}");
 
         return new Foreach(iterator, collection, body);
+    }
+
+    private Expression parseRangeExpression() {
+        matchLexeme("<");
+
+        Expression start = parseExpression();
+
+        if (!peek().getLexeme().equals("..")) {
+            throw new UnexpectedToken(peek(), "Expected '..' in range expression");
+        }
+        matchLexeme("..");
+
+        Expression end = parseExpression();
+
+        matchLexeme(">");
+
+        return new Expression.RangeExpression(start, end);
     }
 }

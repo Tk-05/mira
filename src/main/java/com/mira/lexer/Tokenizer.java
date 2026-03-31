@@ -75,8 +75,8 @@ public class Tokenizer {
                     return;
                 }
 
-                if (Vocabulary.stringIsDelimiter(String.valueOf(c))) {
-                    addToken(TokenType.DELIMITER);
+                if (startsDelimiter(c)) {
+                    scanDelimiter();
                     return;
                 }
 
@@ -88,6 +88,66 @@ public class Tokenizer {
                 throw new UnexpectedSymbolError(line, column, c);
             }
         }
+    }
+
+    private void scanDelimiter() {
+        String bestMatch = null;
+
+        for (int len = Vocabulary.MAX_OPERATOR_LENGTH; len > 0; len--) {
+            if (start + len > source.length()) {
+                continue;
+            }
+
+            String candidate = source.substring(start, start + len);
+
+            if (Vocabulary.stringIsDelimiter(candidate)) {
+                bestMatch = candidate;
+                break;
+            }
+        }
+
+        if (bestMatch == null) {
+            throw new UnexpectedSymbolError(line, column);
+        }
+
+        current = start + bestMatch.length();
+
+        tokens.add(new Token(
+                TokenType.DELIMITER,
+                bestMatch,
+                line,
+                column
+        ));
+    }
+
+    private void scanOperator() {
+        String bestMatch = null;
+
+        for (int len = Vocabulary.MAX_OPERATOR_LENGTH; len > 0; len--) {
+            if (start + len > source.length()) {
+                continue;
+            }
+
+            String candidate = source.substring(start, start + len);
+
+            if (Vocabulary.stringIsOperation(candidate)) {
+                bestMatch = candidate;
+                break;
+            }
+        }
+
+        if (bestMatch == null) {
+            throw new UnexpectedSymbolError(line, column);
+        }
+
+        current = start + bestMatch.length();
+
+        tokens.add(new Token(
+                TokenType.OPERATION,
+                bestMatch,
+                line,
+                column
+        ));
     }
 
     private void scanString() {
@@ -144,7 +204,6 @@ public class Tokenizer {
     }
 
     private void scanIdentifier() {
-
         while (!isAtEnd() && isIdentifierPart(peek())) {
             advance();
         }
@@ -159,13 +218,11 @@ public class Tokenizer {
     }
 
     private void scanNumber() {
-
         while (!isAtEnd() && Character.isDigit(peek())) {
             advance();
         }
 
         if (!isAtEnd() && peek() == '.' && Character.isDigit(peekNext())) {
-
             do {
                 advance();
             } while (!isAtEnd() && Character.isDigit(peek()));
@@ -173,42 +230,7 @@ public class Tokenizer {
 
         String value = source.substring(start, current);
 
-        tokens.add(new Token(
-                TokenType.EXPRESSION,
-                value,
-                line,
-                column
-        ));
-    }
-
-    private void scanOperator() {
-        String bestMatch = null;
-
-        for (int len = 1; len <= Vocabulary.MAX_OPERATOR_LENGTH; len++) {
-
-            if (start + len > source.length()) {
-                break;
-            }
-
-            String candidate = source.substring(start, start + len);
-
-            if (Vocabulary.stringIsOperation(candidate)) {
-                bestMatch = candidate;
-            }
-        }
-
-        if (bestMatch == null) {
-            throw new UnexpectedSymbolError(line, column);
-        }
-
-        current = start + bestMatch.length();
-
-        tokens.add(new Token(
-                TokenType.OPERATION,
-                bestMatch,
-                line,
-                column
-        ));
+        tokens.add(new Token(TokenType.EXPRESSION, value, line, column));
     }
 
     private char advance() {
@@ -235,9 +257,18 @@ public class Tokenizer {
         return Character.isLetter(c) || c == '_';
     }
 
-    public static boolean startsOperator(char c) {
+    private boolean startsOperator(char c) {
         for (String op : Vocabulary.operations) {
             if (op.charAt(0) == c) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean startsDelimiter(char c) {
+        for (String d : Vocabulary.delimiters) {
+            if (d.charAt(0) == c) {
                 return true;
             }
         }
