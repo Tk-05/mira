@@ -5,3 +5,29 @@ TODO:
         -Import resolver tests
         -Range tests
     -var wrapper struct
+
+    -module main;
+
+    -return finden
+    module main;
+    import module "./Debug2.mira" as test;
+
+    var list : {1,2,4};
+
+    fn main() {
+        overwrite(
+            "fn print(arg) {
+                ret(69);
+            }"
+        );
+        
+        for(var i in <0..length($list)>) {
+            print($i "\n");
+        }
+
+        foreach(var i in <0..5>) {
+            print($i "\n");
+        }
+
+        print(test.hello("test"));
+    }
