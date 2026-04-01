@@ -6,6 +6,7 @@ import com.mira.lexer.Tokenizer;
 import com.mira.lib.Lib;
 import com.mira.parser.Parser;
 import com.mira.parser.nodes.Node;
+import com.mira.parser.nodes.expression.Expression.ListExpression;
 import com.mira.parser.nodes.expression.Expression.TupleExpression;
 import com.mira.runtime.functions.NativeFunction;
 import com.mira.runtime.interpreter.Environment;
@@ -50,8 +51,11 @@ public class Internal implements Lib {
                         case String string -> {
                             return string.length();
                         }
+                        case ListExpression list -> {
+                            return list.getLength();
+                        }
                         default -> {
-                            throw new RuntimeException("Option has not been implemented yet!");
+                            throw new RuntimeException("Option has not been implemented yet in length function!");
                         }
                     }
                 })

@@ -20,7 +20,8 @@ public class Vocabulary {
             "foreach",
             "in",
             "module",
-            "as"
+            "as",
+            "const"
     );
 
     public static final Set<String> operations = Set.of(

@@ -188,10 +188,12 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             value = varDecl.getInitializer().accept(this);
         }
 
-        if (localEnvironment == null) {
-            globalEnvironment.define(varDecl.getName(), value);
+        Environment env = localEnvironment == null ? globalEnvironment : localEnvironment;
+
+        if (varDecl.isConst()) {
+            env.defineConst(varDecl.getName(), value);
         } else {
-            localEnvironment.define(varDecl.getName(), value);
+            env.define(varDecl.getName(), value);
         }
 
         return null;
@@ -313,7 +315,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                     operands.add(d);
                 } else {
                     try {
-                        operands.add(Double.parseDouble(String.valueOf(val)));
+                        operands.add(Double.valueOf(String.valueOf(val)));
                     } catch (NumberFormatException e) {
                         return null;
                     }
@@ -677,13 +679,13 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             }
             default -> {
                 if (assign.getReference() instanceof UnaryExpression unaryExpression) {
-                    String name = (String) unaryExpression.getRight().accept(this);
+                    String name = String.valueOf(unaryExpression.getRight().accept(this));
                     Object expression = assign.getExpression().accept(this);
 
-                    if (localEnvironment == null) {
-                        globalEnvironment.assign(name, expression);
-                    } else {
+                    if (localEnvironment != null && localEnvironment.exists(name)) {
                         localEnvironment.assign(name, expression);
+                    } else {
+                        globalEnvironment.assign(name, expression);
                     }
                 } else {
                     throw new AssertionError();
@@ -824,14 +826,14 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
         try {
             if (stmt.getCollection() instanceof RangeExpression range) {
-                double start = Double.parseDouble((String) range.getStart().accept(this));
-                double end = Double.parseDouble((String) range.getEnd().accept(this));
+                double start = Double.parseDouble(String.valueOf(range.getStart().accept(this)));
+                double end = Double.parseDouble(String.valueOf(range.getEnd().accept(this)));
                 double step = range.getStepsize() != null
                         ? Double.parseDouble((String) range.getStepsize().accept(this))
                         : 1.0;
 
                 if (step == 0) {
-                    throw new RuntimeException("Range stepsize cannot be zero");
+                    throw new AssertionError("Range stepsize cannot be zero");
                 }
 
                 for (double i = start; step > 0 ? i < end : i > end; i += step) {

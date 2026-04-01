@@ -15,10 +15,17 @@ public abstract class Statement implements Node {
 
         private final String name;
         private final Expression initializer;
+        private final boolean isConst;
 
-        public VarDecl(String name, Expression initializer) {
+        public VarDecl(String name, Expression initializer, boolean isConst) {
             this.name = name;
             this.initializer = initializer;
+            this.isConst = isConst;
+        }
+
+        @Override
+        public <T> T accept(StmtVisitor<T> visitor) {
+            return visitor.visitVarDecl(this);
         }
 
         public String getName() {
@@ -29,9 +36,8 @@ public abstract class Statement implements Node {
             return initializer;
         }
 
-        @Override
-        public <T> T accept(StmtVisitor<T> visitor) {
-            return visitor.visitVarDecl(this);
+        public boolean isConst() {
+            return isConst;
         }
     }
 

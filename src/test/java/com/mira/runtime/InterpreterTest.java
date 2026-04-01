@@ -825,4 +825,13 @@ public class InterpreterTest {
         } catch (ReturnSignal returnSignal) {
         }
     }
+
+    @Test
+    void testConstVarReassign() {
+        String source = """
+                const test : 0;
+                $test : 1;
+                """;
+        assertThrows(AssertionError.class, () -> runWithNewGlobalContext(source));
+    }
 }

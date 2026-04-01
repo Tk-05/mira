@@ -1,7 +1,9 @@
 package com.mira.runtime.interpreter;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 import com.mira.error.runtime.RuntimeError.ObjectAlreadyDefinedInScope;
 import com.mira.error.runtime.RuntimeError.UndefinedReferenceError;
@@ -11,6 +13,7 @@ public class Environment {
 
     private final Environment parent;
     private final Map<String, Object> values;
+    private final Set<String> constants = new HashSet<>();
     private static boolean overwriteMode = false;
 
     public Environment() {
@@ -36,6 +39,25 @@ public class Environment {
         }
     }
 
+    public void defineConst(String name, Object value) {
+        if (overwriteMode || !exists(name)) {
+            values.put(name, value);
+            constants.add(name);
+        } else {
+            throw new ObjectAlreadyDefinedInScope(name);
+        }
+    }
+
+    public boolean isConst(String name) {
+        if (constants.contains(name)) {
+            return true;
+        }
+        if (parent != null) {
+            return parent.isConst(name);
+        }
+        return false;
+    }
+
     public Object get(String name) {
         if (values.containsKey(name)) {
             return values.get(name);
@@ -57,11 +79,14 @@ public class Environment {
     }
 
     public void assign(String name, Object value) {
-        if (overwriteMode || values.containsKey(name)) {
+        if (values.containsKey(name)) {
+            if (!overwriteMode && constants.contains(name)) {
+                throw new AssertionError("Cannot reassign constant '" + name + "'");
+            }
             values.put(name, value);
             return;
         }
-        if (overwriteMode || parent != null) {
+        if (parent != null) {
             parent.assign(name, value);
             return;
         }

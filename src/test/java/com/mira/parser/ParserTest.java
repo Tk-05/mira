@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 
 import com.mira.lexer.Tokenizer;
@@ -359,5 +360,18 @@ public class ParserTest {
         List<Node> ast = parser.parseTokens(tokenizer.tokenize(callExpression, false));
         assertEquals(1, ast.size());
         assertInstanceOf(NamespaceCallExpression.class, ast.getFirst());
+    }
+
+    @Test
+    void parseConstVar() {
+        String  callExpression = """
+                const test : 0;
+                """;
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize(callExpression, false));
+        assertEquals(1, ast.size());
+        assertInstanceOf(VarDecl.class, ast.getFirst());
+        if (ast.getFirst() instanceof VarDecl varDecl) {
+            assertTrue(varDecl.isConst());
+        }
     }
 }

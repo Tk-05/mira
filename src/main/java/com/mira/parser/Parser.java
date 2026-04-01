@@ -101,7 +101,6 @@ public class Parser {
         if (!peek().getLexeme().equals(expectedLexeme)) {
             throw new LexemeMismatchError(peek(), "Expected '" + expectedLexeme + "'");
         }
-
         return true;
     }
 
@@ -109,7 +108,6 @@ public class Parser {
         if (peek().getLexeme().equals(expectedLexeme)) {
             return consume();
         }
-
         throw new LexemeMismatchError(peek(), "Expected '" + expectedLexeme + "'");
     }
 
@@ -117,11 +115,9 @@ public class Parser {
         if (peek().getTokenType() == TokenType.EOF) {
             return null;
         }
-
         if (peek().getTokenType() == expectedType) {
             return consume();
         }
-
         throw new TypeMismatchError(peek(), "Expected " + expectedType);
     }
 
@@ -154,7 +150,13 @@ public class Parser {
 
         switch (peek().getLexeme()) {
             case "var" -> {
-                node = parseVarDecl();
+                node = parseVarDecl(false);
+                if (expectSemicolon) {
+                    matchLexeme(";");
+                }
+            }
+            case "const" -> {
+                node = parseVarDecl(true);
                 if (expectSemicolon) {
                     matchLexeme(";");
                 }
@@ -190,7 +192,6 @@ public class Parser {
             }
             case "$" -> {
                 node = isAssignment() ? parseAssign() : parseExpression();
-
                 if (expectSemicolon) {
                     matchLexeme(";");
                 }
@@ -348,14 +349,11 @@ public class Parser {
 
     private Expression parseCallExpression() {
         Token referencedFunction = matchExpression();
-
         matchLexeme("(");
 
         List<Expression> args = new ArrayList<>();
         while (!peek().getLexeme().equals(")")) {
-
             args.add(parseExpression());
-
             if (peek().getLexeme().equals(",")) {
                 matchLexeme(",");
             } else if (!peek().getLexeme().equals(")")) {
@@ -364,11 +362,7 @@ public class Parser {
         }
 
         matchLexeme(")");
-
-        return new CallExpression(
-                new DumbExpression(referencedFunction),
-                args
-        );
+        return new CallExpression(new DumbExpression(referencedFunction), args);
     }
 
     private Expression parseAccessExpression(Expression accessedExpression) {
@@ -448,20 +442,23 @@ public class Parser {
         return new TupleExpression(members);
     }
 
-    private Node parseVarDecl() {
-        matchLexeme("var");
-        String indentifier = consume().getLexeme();
+    private Node parseVarDecl(boolean isConst) {
+        consume();
+        String identifier = consume().getLexeme();
         switch (peek().getLexeme()) {
             case ":" -> {
                 consume();
                 Expression expr = parseExpression();
-                return new VarDecl(indentifier, expr);
+                return new VarDecl(identifier, expr, isConst);
             }
             case ";" -> {
-                return new VarDecl(indentifier, null);
+                if (isConst) {
+                    throw new UnexpectedToken(peek(), "const '" + identifier + "' must have an initializer");
+                }
+                return new VarDecl(identifier, null, false);
             }
             case "in" -> {
-                return new VarDecl(indentifier, null);
+                return new VarDecl(identifier, null, false);
             }
             default -> {
                 throw new UnexpectedToken(peek(), "Unexpected token");
@@ -545,14 +542,12 @@ public class Parser {
 
             while (bracketDepth > 0) {
                 String lex = peekOffset(offset).getLexeme();
-
                 if (lex.equals("[")) {
                     bracketDepth++;
                 }
                 if (lex.equals("]")) {
                     bracketDepth--;
                 }
-
                 offset++;
             }
         }
@@ -587,7 +582,6 @@ public class Parser {
                 elseBody.add(parseStatement(true));
             }
             matchLexeme("}");
-
             return new If(condition, thenBody, elseBody);
         } else {
             return new If(condition, thenBody, null);
@@ -615,11 +609,7 @@ public class Parser {
             }
             matchLexeme("}");
 
-            return new Foreach(
-                    new VarDecl(iteratorName, null),
-                    range,
-                    body
-            );
+            return new Foreach(new VarDecl(iteratorName, null, false), range, body);
         }
 
         List<Node> varDecls = new ArrayList<>();
@@ -636,7 +626,7 @@ public class Parser {
                 }
                 default -> {
                     if (!isStructuralDelimiter(peek())) {
-                        varDecls.add(parseVarDecl());
+                        varDecls.add(parseVarDecl(false));
                     } else {
                         loop = false;
                     }
@@ -681,7 +671,6 @@ public class Parser {
     private Node parseWhile() {
         matchLexeme("while");
         matchLexeme("(");
-
         Expression condition = parseExpression();
         matchLexeme(")");
         matchLexeme("{");
@@ -725,7 +714,7 @@ public class Parser {
     private Node parseForeach() {
         matchLexeme("foreach");
         matchLexeme("(");
-        VarDecl iterator = (VarDecl) parseVarDecl();
+        VarDecl iterator = (VarDecl) parseVarDecl(false);
         matchLexeme("in");
 
         Expression collection = peek().getLexeme().equals("<")
