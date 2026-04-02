@@ -17,6 +17,7 @@ import com.mira.parser.nodes.expression.Expression.ComplexExpression;
 import com.mira.parser.nodes.expression.Expression.DumbExpression;
 import com.mira.parser.nodes.expression.Expression.ImportExpression;
 import com.mira.parser.nodes.expression.Expression.NamespaceCallExpression;
+import com.mira.parser.nodes.expression.Expression.ObjectExpression;
 import com.mira.parser.nodes.expression.Expression.UnaryExpression;
 import com.mira.parser.nodes.statement.Statement;
 import com.mira.parser.nodes.statement.Statement.Block;
@@ -354,7 +355,7 @@ public class ParserTest {
 
     @Test
     void parseNamespaceCallExpression() {
-        String  callExpression = """
+        String callExpression = """
                 Test.test();
                 """;
         List<Node> ast = parser.parseTokens(tokenizer.tokenize(callExpression, false));
@@ -364,7 +365,7 @@ public class ParserTest {
 
     @Test
     void parseConstVar() {
-        String  callExpression = """
+        String callExpression = """
                 const test : 0;
                 """;
         List<Node> ast = parser.parseTokens(tokenizer.tokenize(callExpression, false));
@@ -372,6 +373,21 @@ public class ParserTest {
         assertInstanceOf(VarDecl.class, ast.getFirst());
         if (ast.getFirst() instanceof VarDecl varDecl) {
             assertTrue(varDecl.isConst());
+        }
+    }
+
+    @Test
+    void parseObjectExpression() {
+        String callExpression = """
+                var wrapper : {
+                    var a;
+                };
+                """;
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize(callExpression, false));
+        assertEquals(1, ast.size());
+        assertInstanceOf(VarDecl.class, ast.getFirst());
+        if (ast.getFirst() instanceof VarDecl varDecl) {
+            assertTrue(varDecl.getInitializer() instanceof ObjectExpression);
         }
     }
 }

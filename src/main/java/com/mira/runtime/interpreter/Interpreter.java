@@ -21,10 +21,12 @@ import com.mira.parser.nodes.expression.Expression.AccessExpression;
 import com.mira.parser.nodes.expression.Expression.CallExpression;
 import com.mira.parser.nodes.expression.Expression.ComplexExpression;
 import com.mira.parser.nodes.expression.Expression.DumbExpression;
+import com.mira.parser.nodes.expression.Expression.FieldAccessExpression;
 import com.mira.parser.nodes.expression.Expression.ImportExpression;
 import com.mira.parser.nodes.expression.Expression.ListExpression;
 import com.mira.parser.nodes.expression.Expression.Mutability;
 import com.mira.parser.nodes.expression.Expression.NamespaceCallExpression;
+import com.mira.parser.nodes.expression.Expression.ObjectExpression;
 import com.mira.parser.nodes.expression.Expression.RangeExpression;
 import com.mira.parser.nodes.expression.Expression.TupleExpression;
 import com.mira.parser.nodes.expression.Expression.UnaryExpression;
@@ -989,6 +991,36 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
         globalEnvironment = previousGlobal;
         localEnvironment = previous;
+    }
+
+    @Override
+    public <T> T visitObjectExpression(ObjectExpression expression) {
+        Environment objectEnv = new Environment();
+
+        for (VarDecl field : expression.getVarDecls()) {
+            Object value = field.getInitializer() != null
+                    ? field.getInitializer().accept(this)
+                    : null;
+
+            if (field.isConst()) {
+                objectEnv.defineConst(field.getName(), value);
+            } else {
+                objectEnv.define(field.getName(), value);
+            }
+        }
+
+        return (T) objectEnv;
+    }
+
+    @Override
+    public <T> T visitFieldAccessExpression(FieldAccessExpression expression) {
+        Object object = expression.getObject().accept(this);
+
+        if (!(object instanceof Environment objectEnv)) {
+            throw new RuntimeException("Cannot access field '" + expression.getField() + "' on non-object");
+        }
+
+        return (T) objectEnv.get(expression.getField());
     }
 
     public Environment getLocalEnvironment() {

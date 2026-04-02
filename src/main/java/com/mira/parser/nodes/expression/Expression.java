@@ -4,6 +4,7 @@ import java.util.List;
 
 import com.mira.lexer.token.Token;
 import com.mira.parser.nodes.Node;
+import com.mira.parser.nodes.statement.Statement.VarDecl;
 import com.mira.runtime.visitors.ExprVisitor;
 import com.mira.utils.Formatter;
 
@@ -326,6 +327,59 @@ public abstract class Expression implements Node {
 
         public Expression getStepsize() {
             return stepsize;
+        }
+    }
+
+    public static class ObjectExpression extends Expression {
+
+        private final List<VarDecl> varDecls;
+
+        public ObjectExpression(List<VarDecl> varDecls) {
+            this.varDecls = varDecls;
+        }
+
+        @Override
+        public <T> T accept(ExprVisitor<T> visitor) {
+            return visitor.visitObjectExpression(this);
+        }
+
+        @Override
+        public String toString() {
+            // TODO Auto-generated method stub
+            throw new UnsupportedOperationException("Unimplemented method 'toString'");
+        }
+
+        public List<VarDecl> getVarDecls() {
+            return varDecls;
+        }
+    }
+
+    public static class FieldAccessExpression extends Expression {
+
+        private final Expression object;
+        private final String field;
+
+        public FieldAccessExpression(Expression object, String field) {
+            this.object = object;
+            this.field = field;
+        }
+
+        @Override
+        public <T> T accept(ExprVisitor<T> visitor) {
+            return visitor.visitFieldAccessExpression(this);
+        }
+
+        @Override
+        public String toString() {
+            return object.toString() + "." + field;
+        }
+
+        public Expression getObject() {
+            return object;
+        }
+
+        public String getField() {
+            return field;
         }
     }
 }

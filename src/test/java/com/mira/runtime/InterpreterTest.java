@@ -834,4 +834,28 @@ public class InterpreterTest {
                 """;
         assertThrows(AssertionError.class, () -> runWithNewGlobalContext(source));
     }
+
+    @Test
+    void testVarDeclWithObj() {
+        String source = """
+                var obj : {
+                    var test : 0;
+                    var test2;
+                };
+                $obj.test;
+                """;
+        assertEquals("0", runWithNewGlobalContext(source));
+    }
+
+    @Test
+    void testVarDeclNullWithObj() {
+        String source = """
+                var obj : {
+                    var test : 0;
+                    var test2;
+                };
+                $obj.test2;
+                """;
+        assertNull(runWithNewGlobalContext(source));
+    }
 }

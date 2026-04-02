@@ -14,8 +14,12 @@ import com.mira.parser.nodes.expression.Expression.AccessExpression;
 import com.mira.parser.nodes.expression.Expression.CallExpression;
 import com.mira.parser.nodes.expression.Expression.ComplexExpression;
 import com.mira.parser.nodes.expression.Expression.DumbExpression;
+import com.mira.parser.nodes.expression.Expression.FieldAccessExpression;
 import com.mira.parser.nodes.expression.Expression.ImportExpression;
 import com.mira.parser.nodes.expression.Expression.ListExpression;
+import com.mira.parser.nodes.expression.Expression.NamespaceCallExpression;
+import com.mira.parser.nodes.expression.Expression.ObjectExpression;
+import com.mira.parser.nodes.expression.Expression.RangeExpression;
 import com.mira.parser.nodes.expression.Expression.TupleExpression;
 import com.mira.parser.nodes.expression.Expression.UnaryExpression;
 import com.mira.parser.nodes.statement.Statement.Assign;
@@ -25,6 +29,7 @@ import com.mira.parser.nodes.statement.Statement.For;
 import com.mira.parser.nodes.statement.Statement.Foreach;
 import com.mira.parser.nodes.statement.Statement.FuncDecl;
 import com.mira.parser.nodes.statement.Statement.If;
+import com.mira.parser.nodes.statement.Statement.ModuleDecl;
 import com.mira.parser.nodes.statement.Statement.Overwrite;
 import com.mira.parser.nodes.statement.Statement.Return;
 import com.mira.parser.nodes.statement.Statement.VarDecl;
@@ -231,13 +236,18 @@ public class Parser {
 
             if (current.getLexeme().equals("$")) {
                 Expression unary = parseUnaryExpression();
+                unary = maybeParseFieldAccess(unary);
                 expressions.add(parsePostfix(maybeParseAccess(unary)));
 
             } else if (current.getLexeme().equals("{")
                     && current.getTokenType() != TokenType.STRING_LITERAL
                     && (expressions.isEmpty() || lastExpressionWasOperatorOrUnary(expressions))) {
 
-                expressions.add(parsePostfix(maybeParseAccess(parseList())));
+                if (peekOffset(1).getLexeme().equals("var") || peekOffset(1).getLexeme().equals("const")) {
+                    expressions.add(parseObjectExpression());
+                } else {
+                    expressions.add(parsePostfix(maybeParseAccess(parseList())));
+                }
 
             } else if (current.getLexeme().equals("[")
                     && current.getTokenType() != TokenType.STRING_LITERAL
@@ -286,6 +296,18 @@ public class Parser {
                 : expressions.get(0);
     }
 
+    private Expression maybeParseFieldAccess(Expression base) {
+        if (peek().getLexeme().equals(".")
+                && peek().getTokenType() != TokenType.STRING_LITERAL
+                && isExpressionToken(peekOffset(1))
+                && !peekOffset(2).getLexeme().equals("(")) {
+            consume();
+            String fieldName = matchExpression().getLexeme();
+            return new FieldAccessExpression(base, fieldName);
+        }
+        return base;
+    }
+
     private boolean lastExpressionWasOperatorOrUnary(List<Expression> exprs) {
         Expression last = exprs.get(exprs.size() - 1);
         return last instanceof UnaryExpression || last instanceof ComplexExpression;
@@ -327,6 +349,21 @@ public class Parser {
         throw new TypeMismatchError(token, "Expected EXPRESSION or STRING_LITERAL");
     }
 
+    private Expression parseObjectExpression() {
+        matchLexeme("{");
+        List<VarDecl> fields = new ArrayList<>();
+
+        while (!peek().getLexeme().equals("}")) {
+            boolean isConst = peek().getLexeme().equals("const");
+            VarDecl field = (VarDecl) parseVarDecl(isConst);
+            matchLexeme(";");
+            fields.add(field);
+        }
+
+        matchLexeme("}");
+        return new ObjectExpression(fields);
+    }
+
     private Expression parseNamespaceCallExpression() {
         String alias = matchExpression().getLexeme();
         matchLexeme(".");
@@ -344,7 +381,7 @@ public class Parser {
         }
 
         matchLexeme(")");
-        return new Expression.NamespaceCallExpression(alias, functionName, args);
+        return new NamespaceCallExpression(alias, functionName, args);
     }
 
     private Expression parseCallExpression() {
@@ -389,7 +426,7 @@ public class Parser {
         matchLexeme("module");
         String name = matchExpression().getLexeme();
         matchLexeme(";");
-        return new com.mira.parser.nodes.statement.Statement.ModuleDecl(name);
+        return new ModuleDecl(name);
     }
 
     private Node parseImportExpression() {
@@ -515,9 +552,18 @@ public class Parser {
 
     private Node parseAssign() {
         Expression reference = parseUnaryExpression();
-        if (peek().getLexeme().contains("[")) {
+
+        if (peek().getLexeme().equals(".")
+                && peek().getTokenType() != TokenType.STRING_LITERAL
+                && isExpressionToken(peekOffset(1))
+                && !peekOffset(2).getLexeme().equals("(")) {
+            consume();
+            String fieldName = matchExpression().getLexeme();
+            reference = new FieldAccessExpression(reference, fieldName);
+        } else if (peek().getLexeme().contains("[")) {
             reference = parseAccessExpression(reference);
         }
+
         matchLexeme(":");
         Expression expression = parseExpression();
         return new Assign(reference, expression);
@@ -534,6 +580,15 @@ public class Parser {
             return false;
         }
         offset++;
+
+        if (peekOffset(offset).getLexeme().equals(".")) {
+            offset++;
+            if (!isExpressionToken(peekOffset(offset))) {
+                return false;
+            }
+            offset++;
+            return peekOffset(offset).getLexeme().equals(":");
+        }
 
         while (peekOffset(offset).getLexeme().equals("[")) {
             offset++;
@@ -746,7 +801,7 @@ public class Parser {
         }
 
         matchLexeme(">");
-        return new Expression.RangeExpression(start, end, stepsize);
+        return new RangeExpression(start, end, stepsize);
     }
 
     private Expression parseRangeOperand() {

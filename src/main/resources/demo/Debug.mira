@@ -5,6 +5,13 @@ import module "./Debug2.mira" as test;
 var list : {1,2,4};
 
 fn main() {
+    var wrapper : {
+        var a : 0;
+        var b: 0;
+    };
+
+    print($wrapper.a "\n");
+
     overwrite(
         "fn print(arg) {
             ret(69);
