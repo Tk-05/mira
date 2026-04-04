@@ -382,6 +382,41 @@ public abstract class Expression implements Node {
         }
     }
 
+    public static class BinaryExpression extends Expression {
+
+        private final Expression left;
+        private final Token operator;
+        private final Expression right;
+
+        public BinaryExpression(Expression left, Token operator, Expression right) {
+            this.left = left;
+            this.operator = operator;
+            this.right = right;
+        }
+
+        public Expression getLeft() {
+            return left;
+        }
+
+        public Token getOperator() {
+            return operator;
+        }
+
+        public Expression getRight() {
+            return right;
+        }
+
+        @Override
+        public <T> T accept(ExprVisitor<T> visitor) {
+            return visitor.visitBinaryExpr(this);
+        }
+
+        @Override
+        public String toString() {
+            return "(" + left + " " + operator.getLexeme() + " " + right + ")";
+        }
+    }
+
     public static class LambdaExpression extends Expression {
 
         private final List<DumbExpression> parameters;

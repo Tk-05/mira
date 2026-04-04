@@ -11,6 +11,7 @@ import com.mira.lexer.token.TokenType;
 import com.mira.parser.nodes.Node;
 import com.mira.parser.nodes.expression.Expression;
 import com.mira.parser.nodes.expression.Expression.AccessExpression;
+import com.mira.parser.nodes.expression.Expression.BinaryExpression;
 import com.mira.parser.nodes.expression.Expression.CallExpression;
 import com.mira.parser.nodes.expression.Expression.ComplexExpression;
 import com.mira.parser.nodes.expression.Expression.DumbExpression;
@@ -227,79 +228,119 @@ public class Parser {
         return node;
     }
 
-    private Expression parseExpression() {
-        List<Expression> expressions = new ArrayList<>();
+    private boolean isWhitespaceToken(Token token) {
+        return token.getTokenType() == TokenType.EXPRESSION && token.getLexeme().isBlank();
+    }
 
-        while (peek().getTokenType() != TokenType.EOF
-                && !isStructuralDelimiter(peek())) {
+    private void skipWhitespaceTokens() {
+        while (peek().getTokenType() != TokenType.EOF && isWhitespaceToken(peek())) {
+            consume();
+        }
+    }
 
-            Token current = peek();
+    private int binaryOperatorBP(String op) {
+        return switch (op) {
+            case "||" -> 1;
+            case "&&" -> 2;
+            case "==", "!=" -> 3;
+            case "<", ">", "<=", ">=" -> 4;
+            case "+", "-" -> 5;
+            case "*", "/" -> 6;
+            default -> 0;
+        };
+    }
 
-            if (current.getLexeme().equals("$")) {
-                Expression unary = parseUnaryExpression();
-                unary = maybeParseFieldAccess(unary);
-                expressions.add(parsePostfix(maybeParseAccess(unary)));
+    private Expression parsePrimary() {
+        skipWhitespaceTokens();
+        Token current = peek();
+        Expression expr;
 
-            } else if (current.getLexeme().equals("{")
-                    && current.getTokenType() != TokenType.STRING_LITERAL
-                    && (expressions.isEmpty() || lastExpressionWasOperatorOrUnary(expressions))) {
+        if (current.getLexeme().equals("$")) {
+            Expression unary = parseUnaryExpression();
+            expr = maybeParseFieldAccess(unary);
 
-                if (peekOffset(1).getLexeme().equals("var") || peekOffset(1).getLexeme().equals("const")) {
-                    expressions.add(parseObjectExpression());
-                } else {
-                    expressions.add(parsePostfix(maybeParseAccess(parseList())));
-                }
+        } else if ((current.getLexeme().equals("!")
+                || current.getLexeme().equals("-")
+                || current.getLexeme().equals("+"))
+                && current.getTokenType() != TokenType.STRING_LITERAL) {
+            Token op = consume();
+            expr = new UnaryExpression(op, parsePrimary());
 
-            } else if (current.getLexeme().equals("[")
-                    && current.getTokenType() != TokenType.STRING_LITERAL
-                    && (expressions.isEmpty() || lastExpressionWasOperatorOrUnary(expressions))) {
-
-                expressions.add(parsePostfix(maybeParseAccess(parseTuple())));
-
-            } else if (Vocabulary.stringIsOperation(current.getLexeme())
-                    && !current.getLexeme().equals("$")
-                    && !current.getLexeme().equals("++")
-                    && !current.getLexeme().equals("--")) {
-
-                expressions.add(new UnaryExpression(consume(), null));
-
-            } else if (isExpressionToken(current)
-                    && peekNextSafe().getLexeme().equals("(")
-                    && peekNextSafe().getTokenType() != TokenType.STRING_LITERAL) {
-
-                expressions.add(parsePostfix(maybeParseAccess(parseCallExpression())));
-
-            } else if (isExpressionToken(current)
-                    && peekNextSafe().getLexeme().equals(".")
-                    && peekNextSafe().getTokenType() != TokenType.STRING_LITERAL) {
-
-                expressions.add(parsePostfix(parseNamespaceCallExpression()));
-
-            } else if (current.getLexeme().equals("(")
-                    && current.getTokenType() != TokenType.STRING_LITERAL) {
-
-                consume();
-                Expression inner = parseExpression();
-                consumeExpected(")");
-                expressions.add(parsePostfix(maybeParseAccess(inner)));
-
-            } else if (current.getLexeme().equals("fn")
-                    && current.getTokenType() == TokenType.KEYWORD) {
-
-                expressions.add(parseLambdaExpression());
-
+        } else if (current.getLexeme().equals("{")
+                && current.getTokenType() != TokenType.STRING_LITERAL) {
+            if (peekOffset(1).getLexeme().equals("var") || peekOffset(1).getLexeme().equals("const")) {
+                expr = parseObjectExpression();
             } else {
-                expressions.add(parsePostfix(maybeParseAccess(parseDumbExpression())));
+                expr = parseList();
             }
+
+        } else if (current.getLexeme().equals("[")
+                && current.getTokenType() != TokenType.STRING_LITERAL) {
+            expr = parseTuple();
+
+        } else if (current.getLexeme().equals("(")
+                && current.getTokenType() != TokenType.STRING_LITERAL) {
+            consume();
+            expr = parseExpression();
+            consumeExpected(")");
+
+        } else if (current.getLexeme().equals("fn")
+                && current.getTokenType() == TokenType.KEYWORD) {
+            expr = parseLambdaExpression();
+
+        } else if (isExpressionToken(current)
+                && peekNextSafe().getLexeme().equals("(")
+                && peekNextSafe().getTokenType() != TokenType.STRING_LITERAL) {
+            expr = parseCallExpression();
+
+        } else if (isExpressionToken(current)
+                && peekNextSafe().getLexeme().equals(".")
+                && peekNextSafe().getTokenType() != TokenType.STRING_LITERAL) {
+            expr = parseNamespaceCallExpression();
+
+        } else {
+            expr = parseDumbExpression();
         }
 
-        if (expressions.isEmpty()) {
+        expr = maybeParseAccess(expr);
+        expr = parsePostfix(expr);
+        return expr;
+    }
+
+    private Expression parsePratt(int minBP) {
+        Expression left = parsePrimary();
+
+        while (true) {
+            skipWhitespaceTokens();
+            Token opToken = peek();
+            int lbp = binaryOperatorBP(opToken.getLexeme());
+            if (lbp == 0 || lbp <= minBP) {
+                break;
+            }
+            consume();
+            Expression right = parsePratt(lbp);
+            left = new BinaryExpression(left, opToken, right);
+        }
+
+        return left;
+    }
+
+    private Expression parseExpression() {
+        List<Expression> items = new ArrayList<>();
+
+        while (peek().getTokenType() != TokenType.EOF && !isStructuralDelimiter(peek())) {
+            if (isWhitespaceToken(peek())) {
+                consume();
+                continue;
+            }
+            items.add(parsePratt(0));
+        }
+
+        if (items.isEmpty()) {
             throw new UnexpectedToken(peek(), "Expected expression but got '" + peek().getLexeme() + "'");
         }
 
-        return (expressions.size() > 1)
-                ? new ComplexExpression(expressions)
-                : expressions.get(0);
+        return items.size() == 1 ? items.get(0) : new ComplexExpression(items);
     }
 
     private Expression maybeParseFieldAccess(Expression base) {
@@ -312,11 +353,6 @@ public class Parser {
             base = new FieldAccessExpression(base, fieldName);
         }
         return base;
-    }
-
-    private boolean lastExpressionWasOperatorOrUnary(List<Expression> exprs) {
-        Expression last = exprs.get(exprs.size() - 1);
-        return last instanceof UnaryExpression || last instanceof ComplexExpression;
     }
 
     private Expression maybeParseAccess(Expression base) {

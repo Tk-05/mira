@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import com.mira.lexer.Tokenizer;
 import com.mira.parser.nodes.Node;
 import com.mira.parser.nodes.expression.Expression.AccessExpression;
+import com.mira.parser.nodes.expression.Expression.BinaryExpression;
 import com.mira.parser.nodes.expression.Expression.CallExpression;
 import com.mira.parser.nodes.expression.Expression.ComplexExpression;
 import com.mira.parser.nodes.expression.Expression.DumbExpression;
@@ -106,11 +107,10 @@ public class ParserTest {
 
         List<Node> ast = parser.parseTokens(tokenizer.tokenize(simpleExpression, false));
 
-        ComplexExpression outer = (ComplexExpression) ast.getFirst();
+        BinaryExpression outer = assertInstanceOf(BinaryExpression.class, ast.getFirst());
 
-        assertEquals(3, outer.getExpressions().size());
-
-        assertInstanceOf(ComplexExpression.class, outer.getExpressions().getFirst());
+        assertInstanceOf(BinaryExpression.class, outer.getLeft());
+        assertEquals("+", outer.getOperator().getLexeme());
     }
 
     @Test
@@ -121,19 +121,14 @@ public class ParserTest {
 
         assertEquals(1, ast.size());
 
-        assertInstanceOf(ComplexExpression.class, ast.getFirst());
+        BinaryExpression outer = assertInstanceOf(BinaryExpression.class, ast.getFirst());
+        assertEquals("+", outer.getOperator().getLexeme());
 
-        ComplexExpression outer = (ComplexExpression) ast.getFirst();
+        BinaryExpression mid = assertInstanceOf(BinaryExpression.class, outer.getLeft());
+        assertEquals("+", mid.getOperator().getLexeme());
 
-        assertEquals(3, outer.getExpressions().size());
-
-        assertInstanceOf(ComplexExpression.class, outer.getExpressions().getFirst());
-
-        ComplexExpression inner = (ComplexExpression) outer.getExpressions().getFirst();
-
-        assertEquals(3, inner.getExpressions().size());
-
-        assertInstanceOf(CallExpression.class, inner.getExpressions().get(2));
+        assertInstanceOf(BinaryExpression.class, mid.getLeft());
+        assertInstanceOf(CallExpression.class, mid.getRight());
     }
 
     @Test

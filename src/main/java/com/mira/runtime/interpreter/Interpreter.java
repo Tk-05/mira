@@ -18,6 +18,7 @@ import com.mira.parser.Parser;
 import com.mira.parser.nodes.Node;
 import com.mira.parser.nodes.expression.Expression;
 import com.mira.parser.nodes.expression.Expression.AccessExpression;
+import com.mira.parser.nodes.expression.Expression.BinaryExpression;
 import com.mira.parser.nodes.expression.Expression.CallExpression;
 import com.mira.parser.nodes.expression.Expression.ComplexExpression;
 import com.mira.parser.nodes.expression.Expression.DumbExpression;
@@ -329,6 +330,41 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         }
 
         return (T) evaluateAsString(expressions);
+    }
+
+    @Override
+    public <T> T visitBinaryExpr(BinaryExpression expression) {
+        Object left = expression.getLeft().accept(this);
+        Object right = expression.getRight().accept(this);
+        String op = expression.getOperator().getLexeme();
+
+        return (T) switch (op) {
+            case "+" -> {
+                try {
+                    yield toNumber(left) + toNumber(right);
+                } catch (NumberFormatException e) {
+                    yield String.valueOf(left) + String.valueOf(right);
+                }
+            }
+            case "-" -> toNumber(left) - toNumber(right);
+            case "*" -> toNumber(left) * toNumber(right);
+            case "/" -> toNumber(left) / toNumber(right);
+            case "==" -> evaluateComparison(String.valueOf(left), "==", String.valueOf(right));
+            case "!=" -> evaluateComparison(String.valueOf(left), "!=", String.valueOf(right));
+            case "<" -> evaluateComparison(String.valueOf(left), "<", String.valueOf(right));
+            case ">" -> evaluateComparison(String.valueOf(left), ">", String.valueOf(right));
+            case "<=" -> evaluateComparison(String.valueOf(left), "<=", String.valueOf(right));
+            case ">=" -> evaluateComparison(String.valueOf(left), ">=", String.valueOf(right));
+            case "&&" -> resolveBoolean(left) && resolveBoolean(right);
+            case "||" -> resolveBoolean(left) || resolveBoolean(right);
+            default -> throw new UnknownOperatorError(op);
+        };
+    }
+
+    private double toNumber(Object value) {
+        if (value instanceof Number n) return n.doubleValue();
+        if (value instanceof String s) return Double.parseDouble(s);
+        throw new NumberFormatException("Cannot convert " + value.getClass() + " to number");
     }
 
     private Object tryEvaluateArithmetic(List<Expression> expressions) {
