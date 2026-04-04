@@ -675,10 +675,20 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                             default ->
                                 throw new ReferenceIsImmutableError("Can not assign value to immutable data structure");
                         }
+                    } else {
+                        throw new ReferenceIsImmutableError("Can not assign value to immutable data structure");
                     }
                 } else {
                     throw new ReferenceIsImmutableError("Can not assign value to immutable data structure");
                 }
+            }
+            case FieldAccessExpression fieldAccessExpression -> {
+                Object object = fieldAccessExpression.getObject().accept(this);
+                if (!(object instanceof Environment objectEnv)) {
+                    throw new RuntimeException("Cannot assign field '" + fieldAccessExpression.getField() + "' on non-object");
+                }
+                Object value = assign.getExpression().accept(this);
+                objectEnv.assign(fieldAccessExpression.getField(), value);
             }
             default -> {
                 if (assign.getReference() instanceof UnaryExpression unaryExpression) {

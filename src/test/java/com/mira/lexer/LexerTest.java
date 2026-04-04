@@ -11,7 +11,7 @@ import com.mira.error.lexer.LexerError.UnterminatedStringError;
 import com.mira.lexer.token.Token;
 import com.mira.lexer.token.TokenType;
 
-public class LexerTests {
+public class LexerTest {
 
     Tokenizer tokenizer = new Tokenizer();
 
