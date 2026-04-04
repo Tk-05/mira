@@ -164,6 +164,53 @@ public class LexerTest {
     }
 
     @Test
+    void testSingleLineComment() {
+        List<Token> tokens = tokenizer.tokenize("// this is a comment", false);
+        assertEquals(1, tokens.size());
+        assertEquals(TokenType.EOF, tokens.getFirst().getTokenType());
+    }
+
+    @Test
+    void testSingleLineCommentDoesNotConsumeNextLine() {
+        List<Token> tokens = tokenizer.tokenize("// comment\nvar x;", false);
+        assertEquals(TokenType.KEYWORD, tokens.get(0).getTokenType());
+        assertEquals("var", tokens.get(0).getLexeme());
+    }
+
+    @Test
+    void testSingleLineCommentInCode() {
+        List<Token> tokens = tokenizer.tokenize("var x; // declare x", false);
+        assertEquals("var", tokens.get(0).getLexeme());
+        assertEquals("x", tokens.get(1).getLexeme());
+        assertEquals(";", tokens.get(2).getLexeme());
+        assertEquals(TokenType.EOF, tokens.get(3).getTokenType());
+    }
+
+    @Test
+    void testMultiLineComment() {
+        List<Token> tokens = tokenizer.tokenize("/* this is\na comment */", false);
+        assertEquals(1, tokens.size());
+        assertEquals(TokenType.EOF, tokens.getFirst().getTokenType());
+    }
+
+    @Test
+    void testMultiLineCommentInCode() {
+        List<Token> tokens = tokenizer.tokenize("var /* comment */ x;", false);
+        assertEquals("var", tokens.get(0).getLexeme());
+        assertEquals("x", tokens.get(1).getLexeme());
+        assertEquals(";", tokens.get(2).getLexeme());
+        assertEquals(TokenType.EOF, tokens.get(3).getTokenType());
+    }
+
+    @Test
+    void testDivisionOperatorNotConfusedWithComment() {
+        List<Token> tokens = tokenizer.tokenize("10 / 2", false);
+        assertEquals("10", tokens.get(0).getLexeme());
+        assertEquals("/", tokens.get(1).getLexeme());
+        assertEquals("2", tokens.get(2).getLexeme());
+    }
+
+    @Test
     void testEscapedString() {
         String escapedString = "\"Hello World\n\"";
         assertEquals("Hello World\n", tokenizer.tokenize(escapedString, false).getFirst().getLexeme());

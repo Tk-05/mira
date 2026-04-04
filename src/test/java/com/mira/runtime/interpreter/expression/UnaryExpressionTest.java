@@ -10,8 +10,6 @@ import com.mira.runtime.interpreter.InterpreterTestBase;
 
 public class UnaryExpressionTest extends InterpreterTestBase {
 
-    // --- Prefix (reference / negation) ---
-
     @Test
     void prefixNegation() {
         assertEquals(-5.0, run("eval(-5);"));
@@ -47,8 +45,6 @@ public class UnaryExpressionTest extends InterpreterTestBase {
     void referenceInArithmetic() {
         assertEquals(15.0, run("var x : 10; var y : 5; eval($x + $y);"));
     }
-
-    // --- Post-unary (++ / --) ---
 
     @Test
     void postIncrement() {

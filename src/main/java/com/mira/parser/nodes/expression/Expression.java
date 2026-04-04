@@ -345,7 +345,6 @@ public abstract class Expression implements Node {
 
         @Override
         public String toString() {
-            // TODO Auto-generated method stub
             throw new UnsupportedOperationException("Unimplemented method 'toString'");
         }
 
@@ -380,6 +379,39 @@ public abstract class Expression implements Node {
 
         public String getField() {
             return field;
+        }
+    }
+
+    public static class LambdaExpression extends Expression {
+
+        private final List<DumbExpression> parameters;
+        private final List<Node> body;
+
+        public LambdaExpression(List<DumbExpression> parameters, List<Node> body) {
+            this.parameters = parameters;
+            this.body = body;
+        }
+
+        public List<DumbExpression> getParameters() {
+            return parameters;
+        }
+
+        public List<Node> getBody() {
+            return body;
+        }
+
+        public int getArity() {
+            return parameters.size();
+        }
+
+        @Override
+        public <T> T accept(ExprVisitor<T> visitor) {
+            return visitor.visitLambdaExpr(this);
+        }
+
+        @Override
+        public String toString() {
+            return "<lambda/" + parameters.size() + ">";
         }
     }
 }

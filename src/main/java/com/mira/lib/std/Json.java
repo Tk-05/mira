@@ -42,14 +42,12 @@ public class Json implements Lib {
             }
         }));
 
-        // check if a key exists in flat JSON
         environment.define("jsonHas", new NativeFunction(2, args -> {
             String json = String.valueOf(args.get(0));
             String key = String.valueOf(args.get(1));
             return json.contains("\"" + key + "\"");
         }));
 
-        // extract a JSON array into a ListExpression
         environment.define("jsonArray", new NativeFunction(2, args -> {
             String json = String.valueOf(args.get(0));
             String key = String.valueOf(args.get(1));
@@ -78,7 +76,6 @@ public class Json implements Lib {
             }
         }));
 
-        // build a simple key-value JSON string
         environment.define("jsonBuild", new NativeFunction(2, args -> {
             if (!(args.get(0) instanceof ListExpression keys)
                     || !(args.get(1) instanceof ListExpression values)) {
@@ -95,7 +92,6 @@ public class Json implements Lib {
                 String key = k.get(i) instanceof DumbExpression d ? String.valueOf(d.getValue()) : String.valueOf(k.get(i));
                 String val = v.get(i) instanceof DumbExpression d ? String.valueOf(d.getValue()) : String.valueOf(v.get(i));
                 sb.append("\"").append(key).append("\":");
-                // numbers and booleans without quotes
                 if (val.matches("-?\\d+(\\.\\d+)?") || val.equals("true") || val.equals("false") || val.equals("null")) {
                     sb.append(val);
                 } else {
@@ -109,7 +105,6 @@ public class Json implements Lib {
             return sb.toString();
         }));
 
-        // pretty-print indented JSON (basic)
         environment.define("jsonFormat", new NativeFunction(1, args -> {
             String json = String.valueOf(args.get(0));
             StringBuilder sb = new StringBuilder();

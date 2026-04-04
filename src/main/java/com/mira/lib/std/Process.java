@@ -18,7 +18,6 @@ import com.mira.runtime.interpreter.Environment;
 
 public class Process implements Lib {
 
-    // Store running processes by id
     private static final Map<Double, java.lang.Process> processes = new ConcurrentHashMap<>();
     private static double nextId = 1;
 
@@ -29,7 +28,6 @@ public class Process implements Lib {
     @Override
     public void loadLib(Environment environment) {
 
-        // Start a process and return its id
         environment.define("processStart", new NativeFunction(1, args -> {
             String command = String.valueOf(args.get(0));
             try {
@@ -50,7 +48,6 @@ public class Process implements Lib {
             }
         }));
 
-        // Check if process is still running
         environment.define("processAlive", new NativeFunction(1, args -> {
             double id = Double.parseDouble(String.valueOf(args.get(0)));
             java.lang.Process p = processes.get(id);
@@ -60,7 +57,6 @@ public class Process implements Lib {
             return p.isAlive();
         }));
 
-        // Wait for process to finish and return exit code
         environment.define("processWait", new NativeFunction(1, args -> {
             double id = Double.parseDouble(String.valueOf(args.get(0)));
             java.lang.Process p = processes.get(id);
@@ -75,7 +71,6 @@ public class Process implements Lib {
             }
         }));
 
-        // Kill a process
         environment.define("processKill", new NativeFunction(1, args -> {
             double id = Double.parseDouble(String.valueOf(args.get(0)));
             java.lang.Process p = processes.get(id);
@@ -87,7 +82,6 @@ public class Process implements Lib {
             return null;
         }));
 
-        // Read output of a running/finished process
         environment.define("processOutput", new NativeFunction(1, args -> {
             double id = Double.parseDouble(String.valueOf(args.get(0)));
             java.lang.Process p = processes.get(id);
@@ -108,7 +102,6 @@ public class Process implements Lib {
             }
         }));
 
-        // Get exit code without waiting
         environment.define("processExitCode", new NativeFunction(1, args -> {
             double id = Double.parseDouble(String.valueOf(args.get(0)));
             java.lang.Process p = processes.get(id);
@@ -121,19 +114,16 @@ public class Process implements Lib {
             return (double) p.exitValue();
         }));
 
-        // Get current JVM PID
         environment.define("pid", new NativeFunction(0, args -> {
             return (double) ProcessHandle.current().pid();
         }));
 
-        // List all running system processes as a ListExpression of PIDs
         environment.define("listProcesses", new NativeFunction(0, args -> {
             List<com.mira.parser.nodes.expression.Expression> pids = new ArrayList<>();
             ProcessHandle.allProcesses().forEach(ph -> pids.add(wrap(String.valueOf(ph.pid()))));
             return new ListExpression(pids);
         }));
 
-        // Get process info by PID
         environment.define("processInfo", new NativeFunction(1, args -> {
             long pid = (long) Double.parseDouble(String.valueOf(args.get(0)));
             return ProcessHandle.of(pid)

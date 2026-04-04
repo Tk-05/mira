@@ -23,6 +23,7 @@ import com.mira.parser.nodes.expression.Expression.ComplexExpression;
 import com.mira.parser.nodes.expression.Expression.DumbExpression;
 import com.mira.parser.nodes.expression.Expression.FieldAccessExpression;
 import com.mira.parser.nodes.expression.Expression.ImportExpression;
+import com.mira.parser.nodes.expression.Expression.LambdaExpression;
 import com.mira.parser.nodes.expression.Expression.ListExpression;
 import com.mira.parser.nodes.expression.Expression.Mutability;
 import com.mira.parser.nodes.expression.Expression.NamespaceCallExpression;
@@ -210,7 +211,20 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
     @Override
     public <T> T visitCallExpr(CallExpression expression) {
         String calleeName = (String) expression.getCallee().accept(this);
-        Object callee = globalEnvironment.get(calleeName);
+
+        Object callee;
+        boolean isLocalCallee = false;
+        if (localEnvironment != null) {
+            Object local = localEnvironment.getOrNull(calleeName);
+            if (local != null) {
+                callee = local;
+                isLocalCallee = true;
+            } else {
+                callee = globalEnvironment.get(calleeName);
+            }
+        } else {
+            callee = globalEnvironment.get(calleeName);
+        }
 
         if (!(callee instanceof Callable callable)) {
             throw new RuntimeException("Object is not callable");
@@ -226,19 +240,23 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             throw new ArgMismatchError(calleeName, callable.getArity(), arguments.size());
         }
 
-        String cacheKey = calleeName + arguments;
-        Object cached = callCache.get(cacheKey);
-        if (cached != null) {
-            return (T) cached;
+        if (!isLocalCallee) {
+            String cacheKey = calleeName + arguments;
+            Object cached = callCache.get(cacheKey);
+            if (cached != null) {
+                return (T) cached;
+            }
+
+            Object result = callable.call(this, arguments);
+
+            if (result != null) {
+                callCache.put(cacheKey, result);
+            }
+
+            return (T) result;
         }
 
-        Object result = callable.call(this, arguments);
-
-        if (result != null) {
-            callCache.put(cacheKey, result);
-        }
-
-        return (T) result;
+        return (T) callable.call(this, arguments);
     }
 
     @Override
@@ -250,6 +268,12 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                         funcDecl.getArity()));
 
         return null;
+    }
+
+    @Override
+    public <T> T visitLambdaExpr(LambdaExpression lambda) {
+        Environment capturedEnv = localEnvironment != null ? localEnvironment : globalEnvironment;
+        return (T) new Function(capturedEnv, lambda.getBody(), lambda.getParameters(), lambda.getArity());
     }
 
     @Override

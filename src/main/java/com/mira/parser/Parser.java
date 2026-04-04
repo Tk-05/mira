@@ -16,6 +16,7 @@ import com.mira.parser.nodes.expression.Expression.ComplexExpression;
 import com.mira.parser.nodes.expression.Expression.DumbExpression;
 import com.mira.parser.nodes.expression.Expression.FieldAccessExpression;
 import com.mira.parser.nodes.expression.Expression.ImportExpression;
+import com.mira.parser.nodes.expression.Expression.LambdaExpression;
 import com.mira.parser.nodes.expression.Expression.ListExpression;
 import com.mira.parser.nodes.expression.Expression.NamespaceCallExpression;
 import com.mira.parser.nodes.expression.Expression.ObjectExpression;
@@ -282,6 +283,11 @@ public class Parser {
                 consumeExpected(")");
                 expressions.add(parsePostfix(maybeParseAccess(inner)));
 
+            } else if (current.getLexeme().equals("fn")
+                    && current.getTokenType() == TokenType.KEYWORD) {
+
+                expressions.add(parseLambdaExpression());
+
             } else {
                 expressions.add(parsePostfix(maybeParseAccess(parseDumbExpression())));
             }
@@ -535,6 +541,35 @@ public class Parser {
         matchLexeme("}");
 
         return new FuncDecl(name, parameters, body);
+    }
+
+    private Expression parseLambdaExpression() {
+        matchLexeme("fn");
+        matchLexeme("(");
+
+        List<DumbExpression> parameters = new ArrayList<>();
+        while (!peek().getLexeme().equals(")")) {
+            if (peek().getLexeme().equals(",")) {
+                throw new UnexpectedToken(peek(), "Unexpected token");
+            }
+            if (peekNext().getLexeme().equals(")")) {
+                parameters.add(new DumbExpression(matchExpression()));
+                break;
+            } else {
+                parameters.add(new DumbExpression(matchExpression()));
+                matchLexeme(",");
+            }
+        }
+        matchLexeme(")");
+
+        matchLexeme("{");
+        List<Node> body = new ArrayList<>();
+        while (!peek().getLexeme().equals("}")) {
+            body.add(parseStatement(true));
+        }
+        matchLexeme("}");
+
+        return new LambdaExpression(parameters, body);
     }
 
     private Node parseReturn() {

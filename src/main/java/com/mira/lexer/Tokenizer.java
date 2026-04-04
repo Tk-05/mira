@@ -65,6 +65,30 @@ public class Tokenizer {
                 scanString();
 
             default -> {
+                if (c == '/' && !isAtEnd() && peek() == '/') {
+                    while (!isAtEnd() && peek() != '\n') {
+                        advance();
+                    }
+                    return;
+                }
+
+                if (c == '/' && !isAtEnd() && peek() == '*') {
+                    advance();
+                    while (!isAtEnd()) {
+                        if (peek() == '*' && peekNext() == '/') {
+                            advance();
+                            advance();
+                            break;
+                        }
+                        if (peek() == '\n') {
+                            line++;
+                            column = 0;
+                        }
+                        advance();
+                    }
+                    return;
+                }
+
                 if (Character.isDigit(c)) {
                     scanNumber();
                     return;

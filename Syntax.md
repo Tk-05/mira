@@ -122,6 +122,59 @@ ret(<expression>);     // Return a value
 
 ---
 
+## Lambdas (Anonymous Functions)
+
+Lambdas sind namenlose Funktionen, die als Werte gespeichert und weitergegeben werden können.
+
+### Syntax
+
+```
+fn(<param1>, <param2>) {
+    <body>
+}
+```
+
+### Zuweisung an Variable
+
+```
+var double : fn(x) { ret(eval($x * 2)); };
+eval(double(5));    // => 10
+```
+
+### Als Argument übergeben
+
+```
+fn apply(f, x) {
+    ret(f($x));
+}
+
+eval(apply(fn(n) { ret(eval($n * $n)); }, 3));   // => 9
+```
+
+Über eine Variable:
+
+```
+var multiply : fn(a, b) { ret(eval($a * $b)); };
+eval(apply($multiply, 4));
+```
+
+### Closure: Zugriff auf äußere Variablen
+
+```
+var factor : 3;
+var scale : fn(x) { ret(eval($x * $factor)); };
+eval(scale(5));    // => 15
+```
+
+### Als Konstante
+
+```
+const square : fn(x) { ret(eval($x * $x)); };
+eval(square(4));   // => 16
+```
+
+---
+
 ## Control Flow
 
 ### If / Else
@@ -256,8 +309,20 @@ $wrapper.inner.a;
 
 ## Comments
 
+### Einzeilig
+
 ```
 // This is a line comment
+var x : 10; // inline comment
+```
+
+### Mehrzeilig
+
+```
+/* This is a
+   multi-line comment */
+
+var x : /* inline block */ 10;
 ```
 
 ---

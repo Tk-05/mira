@@ -10,8 +10,6 @@ import com.mira.runtime.interpreter.InterpreterTestBase;
 
 public class ComplexExpressionTest extends InterpreterTestBase {
 
-    // --- Arithmetic ---
-
     @Test
     void addition() {
         assertEquals(3.0, run("eval(1+2);"));
@@ -60,8 +58,6 @@ public class ComplexExpressionTest extends InterpreterTestBase {
                 eval((-$a + ($b*2)) / 2);
                 """));
     }
-
-    // --- Conditions ---
 
     @Test
     void greaterThan() {

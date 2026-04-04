@@ -8,7 +8,6 @@ public class Strings implements Lib {
 
     @Override
     public void loadLib(Environment environment) {
-        //functions
         environment.define("charAt",
                 new NativeFunction(2, args -> {
                     int index = (int) Double.parseDouble(String.valueOf(args.get(0)));
