@@ -6,11 +6,14 @@ var list : {1,2,4};
 
 fn main() {
     var wrapper : {
-        var a : 0;
+        var a : {
+            var a : 0;
+            var b : 0;
+        };
         var b: 0;
     };
 
-    print($wrapper.a "\n");
+    print($wrapper.a.a "\n");
 
     overwrite(
         "fn print(arg) {

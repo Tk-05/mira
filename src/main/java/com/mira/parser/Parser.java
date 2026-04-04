@@ -297,13 +297,13 @@ public class Parser {
     }
 
     private Expression maybeParseFieldAccess(Expression base) {
-        if (peek().getLexeme().equals(".")
+        while (peek().getLexeme().equals(".")
                 && peek().getTokenType() != TokenType.STRING_LITERAL
                 && isExpressionToken(peekOffset(1))
                 && !peekOffset(2).getLexeme().equals("(")) {
             consume();
             String fieldName = matchExpression().getLexeme();
-            return new FieldAccessExpression(base, fieldName);
+            base = new FieldAccessExpression(base, fieldName);
         }
         return base;
     }
@@ -553,14 +553,15 @@ public class Parser {
     private Node parseAssign() {
         Expression reference = parseUnaryExpression();
 
-        if (peek().getLexeme().equals(".")
+        while (peek().getLexeme().equals(".")
                 && peek().getTokenType() != TokenType.STRING_LITERAL
                 && isExpressionToken(peekOffset(1))
                 && !peekOffset(2).getLexeme().equals("(")) {
             consume();
             String fieldName = matchExpression().getLexeme();
             reference = new FieldAccessExpression(reference, fieldName);
-        } else if (peek().getLexeme().contains("[")) {
+        }
+        if (peek().getLexeme().contains("[")) {
             reference = parseAccessExpression(reference);
         }
 
@@ -581,13 +582,12 @@ public class Parser {
         }
         offset++;
 
-        if (peekOffset(offset).getLexeme().equals(".")) {
+        while (peekOffset(offset).getLexeme().equals(".")) {
             offset++;
             if (!isExpressionToken(peekOffset(offset))) {
                 return false;
             }
             offset++;
-            return peekOffset(offset).getLexeme().equals(":");
         }
 
         while (peekOffset(offset).getLexeme().equals("[")) {
