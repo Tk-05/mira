@@ -130,7 +130,13 @@ public class Parser {
 
     private boolean isExpressionToken(Token token) {
         return token.getTokenType() == TokenType.EXPRESSION
-                || token.getTokenType() == TokenType.STRING_LITERAL;
+                || token.getTokenType() == TokenType.STRING_LITERAL
+                || isBooleanLiteral(token);
+    }
+
+    private boolean isBooleanLiteral(Token token) {
+        return token.getTokenType() == TokenType.KEYWORD
+                && (token.getLexeme().equals("true") || token.getLexeme().equals("false"));
     }
 
     private boolean isStructuralDelimiter(Token token) {
@@ -287,6 +293,10 @@ public class Parser {
         } else if (current.getLexeme().equals("fn")
                 && current.getTokenType() == TokenType.KEYWORD) {
             expr = parseLambdaExpression();
+
+        } else if ((current.getLexeme().equals("true") || current.getLexeme().equals("false"))
+                && current.getTokenType() == TokenType.KEYWORD) {
+            expr = new DumbExpression(consume());
 
         } else if (isExpressionToken(current)
                 && peekNextSafe().getLexeme().equals("(")

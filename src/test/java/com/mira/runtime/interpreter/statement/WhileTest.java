@@ -38,7 +38,7 @@ public class WhileTest extends InterpreterTestBase {
                     $executed : true;
                 }
                 """);
-        assertEquals("false", Interpreter.getGlobalEnvironment().get("executed"));
+        assertEquals(Boolean.FALSE, Interpreter.getGlobalEnvironment().get("executed"));
     }
 
     @Test

@@ -1,5 +1,6 @@
 package com.mira.runtime.interpreter.statement;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import org.junit.jupiter.api.Test;
 
@@ -16,7 +17,7 @@ public class IfTest extends InterpreterTestBase {
         try {
             run("var x : 5; if ($x > 3) { ret(true); } else { ret(false); }");
         } catch (ReturnSignal r) {
-            org.junit.jupiter.api.Assertions.assertEquals("true", r.getValue());
+            assertEquals(Boolean.TRUE, r.getValue());
         }
     }
 
@@ -25,7 +26,7 @@ public class IfTest extends InterpreterTestBase {
         try {
             run("var x : 1; if ($x > 3) { ret(true); } else { ret(false); }");
         } catch (ReturnSignal r) {
-            org.junit.jupiter.api.Assertions.assertEquals("false", r.getValue());
+            assertEquals(Boolean.FALSE, r.getValue());
         }
     }
 
@@ -49,7 +50,7 @@ public class IfTest extends InterpreterTestBase {
                     }
                     """);
         } catch (ReturnSignal r) {
-            org.junit.jupiter.api.Assertions.assertEquals("true", r.getValue());
+            assertEquals(Boolean.TRUE, r.getValue());
         }
     }
 
@@ -66,7 +67,7 @@ public class IfTest extends InterpreterTestBase {
                     }
                     """);
         } catch (ReturnSignal r) {
-            org.junit.jupiter.api.Assertions.assertEquals("true", r.getValue());
+            assertEquals(Boolean.TRUE, r.getValue());
         }
     }
 
@@ -83,7 +84,34 @@ public class IfTest extends InterpreterTestBase {
                     }
                     """);
         } catch (ReturnSignal r) {
-            org.junit.jupiter.api.Assertions.assertEquals("true", r.getValue());
+            assertEquals(Boolean.TRUE, r.getValue());
+        }
+    }
+
+    @Test
+    void ifWithTrueLiteral() {
+        try {
+            run("if(true) { ret(true); } else { ret(false); }");
+        } catch (ReturnSignal r) {
+            assertEquals(Boolean.TRUE, r.getValue());
+        }
+    }
+
+    @Test
+    void ifWithFalseLiteral() {
+        try {
+            run("if(false) { ret(true); } else { ret(false); }");
+        } catch (ReturnSignal r) {
+            assertEquals(Boolean.FALSE, r.getValue());
+        }
+    }
+
+    @Test
+    void ifWithBooleanVariable() {
+        try {
+            run("var x : true; if($x) { ret(true); } else { ret(false); }");
+        } catch (ReturnSignal r) {
+            assertEquals(Boolean.TRUE, r.getValue());
         }
     }
 

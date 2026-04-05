@@ -59,6 +59,24 @@ public class VarDeclTest extends InterpreterTestBase {
     }
 
     @Test
+    void booleanTrueInitializer() {
+        try {
+            run("var x : true; ret($x);");
+        } catch (ReturnSignal r) {
+            assertEquals(Boolean.TRUE, r.getValue());
+        }
+    }
+
+    @Test
+    void booleanFalseInitializer() {
+        try {
+            run("var x : false; ret($x);");
+        } catch (ReturnSignal r) {
+            assertEquals(Boolean.FALSE, r.getValue());
+        }
+    }
+
+    @Test
     void constDeclaration() {
         assertEquals(0.0, run("const test : 0; eval($test);"));
     }

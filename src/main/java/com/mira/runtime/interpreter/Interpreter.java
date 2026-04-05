@@ -206,7 +206,10 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
     @Override
     public <T> T visitDumbExpr(DumbExpression expression) {
-        return (T) expression.getValue();
+        String value = expression.getValue();
+        if (value.equals("true")) return (T) Boolean.TRUE;
+        if (value.equals("false")) return (T) Boolean.FALSE;
+        return (T) value;
     }
 
     @Override

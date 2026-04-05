@@ -21,7 +21,9 @@ public class Vocabulary {
             "in",
             "module",
             "as",
-            "const"
+            "const",
+            "true",
+            "false"
     );
 
     public static final Set<String> operations = Set.of(

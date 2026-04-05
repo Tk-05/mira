@@ -92,4 +92,31 @@ public class UnaryExpressionTest extends InterpreterTestBase {
     void invalidPostUnaryThrows() {
         assertThrows(PostUnaryError.class, () -> run("eval(1++2);"));
     }
+
+    @Test
+    void booleanNegationTrue() {
+        try {
+            run("ret(!true);");
+        } catch (ReturnSignal r) {
+            assertEquals(Boolean.FALSE, r.getValue());
+        }
+    }
+
+    @Test
+    void booleanNegationFalse() {
+        try {
+            run("ret(!false);");
+        } catch (ReturnSignal r) {
+            assertEquals(Boolean.TRUE, r.getValue());
+        }
+    }
+
+    @Test
+    void booleanNegationVariable() {
+        try {
+            run("var x : true; ret(!$x);");
+        } catch (ReturnSignal r) {
+            assertEquals(Boolean.FALSE, r.getValue());
+        }
+    }
 }

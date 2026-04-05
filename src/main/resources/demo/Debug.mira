@@ -3,6 +3,7 @@ module main;
 import module "./Debug2.mira" as test;
 
 var list : {1,2,4};
+var boolean : true;
 
 fn main() {
     var wrapper : {
@@ -13,13 +14,9 @@ fn main() {
         var b: 0;
     };
 
-    print($wrapper.a.a "\n");
-
-    overwrite(
-        "fn print(arg) {
-            ret(69);
-        }"
-    );
+    if($boolean) {
+        print("test:" $wrapper.a.a "\n");
+    }
     
     for(var i in <0..length($list)>) {
         print($i "\n");
@@ -30,4 +27,20 @@ fn main() {
     }
 
     print(test.hello("test"));
+
+    var list : [
+                [0,0,0],
+                [0,0,0],
+                [0,0,69]
+               ];
+
+    var return : 0;
+
+    foreach(var element in $list) {
+        foreach(var inner in $element) {
+            $return : $return + $inner;
+        }
+    }
+
+    ret(eval($return));
 }
