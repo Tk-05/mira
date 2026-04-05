@@ -709,6 +709,11 @@ public class Parser {
 
         if (peek().getLexeme().equals("else")) {
             matchLexeme("else");
+            if (peek().getLexeme().equals("if")) {
+                List<Node> elseIfBody = new ArrayList<>();
+                elseIfBody.add(parseIf());
+                return new If(condition, thenBody, elseIfBody);
+            }
             matchLexeme("{");
             List<Node> elseBody = new ArrayList<>();
             while (!peek().getLexeme().equals("}")) {
