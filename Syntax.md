@@ -1,24 +1,5 @@
 # Mira Language Syntax Reference
 
-## Module System
-
-Every file declares its module name at the top:
-
-```
-module <name>;
-```
-
-### Imports
-
-```
-import <module-name>;                        // Standard library module
-import "./path/to/file.mira" as <alias>;     // File import with alias
-import module "./path/to/file.mira";         // File import without alias
-import module "./path/to/file.mira" as <alias>;
-```
-
----
-
 ## Variables
 
 ### Declaration
@@ -26,7 +7,17 @@ import module "./path/to/file.mira" as <alias>;
 ```
 var <name>;                  // Uninitialized (implicitly null)
 var <name> : <expression>;   // With initial value
-var <name> : null;           // Explicit null
+const <name> : <expression>; // Immutable
+```
+
+### Access
+
+Variables are accessed with a `$` prefix:
+
+```
+$<name>
+$<obj>.<field>
+$<obj>.<nested>.<field>
 ```
 
 ### Assignment
@@ -45,26 +36,16 @@ $<name> *= <expression>;
 $<name> /= <expression>;
 ```
 
-### Access
-
-Variables are accessed with a `$` prefix:
-
-```
-$<name>
-$<obj>.<field>
-$<obj>.<nested>.<field>
-```
-
 ---
 
 ## Literals
 
-| Type    | Example                   |
-|---------|---------------------------|
-| Number  | `10`, `3.14`              |
-| String  | `"hello world"`           |
-| Boolean | `true`, `false`           |
-| Null    | `null`                    |
+| Type    | Example         |
+| ------- | --------------- |
+| Number  | `10`, `3.14`    |
+| String  | `"hello world"` |
+| Boolean | `true`, `false` |
+| Null    | `null`          |
 
 String concatenation is done by placing values side by side:
 
@@ -76,9 +57,14 @@ String concatenation is done by placing values side by side:
 
 ## Expressions
 
-### Arithmetic / Comparison
+### Operators
 
-Operators: `+`, `-`, `*`, `/`, `<`, `>`, `<=`, `>=`, `==`, `!=`, `&&`, `||`
+| Category   | Operators                        |
+| ---------- | -------------------------------- |
+| Arithmetic | `+`, `-`, `*`, `/`               |
+| Comparison | `<`, `>`, `<=`, `>=`, `==`, `!=` |
+| Logical    | `&&`, `\|\|`, `!`                |
+| Postfix    | `++`, `--`                       |
 
 Arithmetic must be wrapped in `eval()`:
 
@@ -102,86 +88,59 @@ $x > 3 && $y == 0
 
 ---
 
-## Functions
+## Data Structures
 
-### Declaration
+### List
 
-```
-fn <name>(<param1>, <param2>) {
-    <body>
-}
-```
-
-### Return
+Ordered collection using curly braces:
 
 ```
-ret()                  // Return nothing
-ret(<expression>)      // Return a value
+var x : {10, 20, 30};
 ```
 
-### Call
+### Tuple
+
+Fixed-size sequence using square brackets:
 
 ```
-<name>(<arg1>, <arg2>)
+var x : [10, 20, 30];
+$x[0];                   // Index access
 ```
 
-### Module-qualified call
+### Object
+
+Inline struct with named fields declared as `var`:
 
 ```
-<alias>.<name>(<arg>)
+var obj : {
+    var x : 0;
+    var name : "hello";
+};
+
+$obj.x;
+$obj.name;
+$obj.x : 42;             // Field assignment
 ```
 
----
-
-## Lambdas (Anonymous Functions)
-
-Lambdas are nameless functions that can be stored as values and passed around.
-
-### Syntax
+Objects can be nested:
 
 ```
-fn(<param1>, <param2>) {
-    <body>
-}
+var wrapper : {
+    var inner : {
+        var a : 0;
+    };
+};
+$wrapper.inner.a;
 ```
 
-### Assignment to a variable
+### Range
+
+Used in loops, exclusive end:
 
 ```
-var double : fn(x) { ret(eval($x * 2)); };
-eval(double(5));    // => 10
-```
-
-### Passing as an argument
-
-```
-fn apply(f, x) {
-    ret(f($x));
-}
-
-eval(apply(fn(n) { ret(eval($n * $n)); }, 3));   // => 9
-```
-
-Via a variable:
-
-```
-var multiply : fn(a, b) { ret(eval($a * $b)); };
-eval(apply($multiply, 4));
-```
-
-### Closure: accessing outer variables
-
-```
-var factor : 3;
-var scale : fn(x) { ret(eval($x * $factor)); };
-eval(scale(5));    // => 15
-```
-
-### As a constant
-
-```
-const square : fn(x) { ret(eval($x * $x)); };
-eval(square(4));   // => 16
+<0..5>              // 0, 1, 2, 3, 4
+<0..length($x)>
+<0..10, 2>          // 0, 2, 4, 6, 8  (with step)
 ```
 
 ---
@@ -192,6 +151,8 @@ eval(square(4));   // => 16
 
 ```
 if (<condition>) {
+    <body>
+} else if (<condition>) {
     <body>
 } else {
     <body>
@@ -229,7 +190,7 @@ for (; <condition>; <update>) { }
 for (;;) { }              // Infinite loop
 ```
 
-Range-based for (becomes foreach):
+Range-based for:
 
 ```
 for (var <name> in <range>) {
@@ -239,22 +200,17 @@ for (var <name> in <range>) {
 
 ### Foreach
 
+Iterates over a collection, tuple, string, or range:
+
 ```
 foreach (var <name> in <collection>) {
     <body>
 }
 ```
 
-### Range Expression
-
-```
-<0..5>          // 0, 1, 2, 3, 4  (exclusive end)
-<0..length($x)>
-```
-
 ### Switch
 
-Vergleicht einen Ausdruck gegen eine Liste von `case`-Werten. Nur der erste passende Block wird ausgeführt — kein `break` nötig. `default` ist optional und wird ausgeführt, wenn kein `case` passt.
+Compares an expression against a list of `case` values. Only the first matching block is executed — no `break` needed. `default` is optional and runs when no `case` matches.
 
 ```
 switch (<expression>) {
@@ -270,95 +226,54 @@ switch (<expression>) {
 }
 ```
 
-Beispiel:
+Example:
 
 ```
 var x : 2;
 switch ($x) {
-    case (1) { print("eins\n"); }
-    case (2) { print("zwei\n"); }
-    default  { print("andere\n"); }
+    case (1) { print("one\n"); }
+    case (2) { print("two\n"); }
+    default  { print("other\n"); }
 }
 ```
 
-Switch-Ausdrücke können auch Strings oder berechnete Werte sein:
-
-```
-switch (eval($a + $b)) {
-    case (10) { print("zehn\n"); }
-    case (20) { print("zwanzig\n"); }
-}
-```
-
-### Break
+### Break / Continue
 
 ```
 break();
-```
-
-### Continue
-
-```
 continue();
 ```
 
 ---
 
-## Data Structures
+## Functions
 
-### List (ordered, curly braces with values)
-
-```
-var x : {10, 20, 30};
-```
-
-### Tuple (square brackets)
+### Declaration
 
 ```
-var x : [10, 20, 30];
-$x[0];                   // Index access
+fn <name>(<param1>, <param2>) {
+    <body>
+}
 ```
 
-### Object (inline struct)
-
-Fields are declared as `var` inside `{}`:
+### Return
 
 ```
-var obj : {
-    var x : 0;
-    var name : "hello";
-};
-
-$obj.x;
-$obj.name;
-$obj.x : 42;          // Field assignment
+ret()                  // Return nothing
+ret(<expression>)      // Return a value
 ```
 
-Objects can be nested:
+### Call
 
 ```
-var wrapper : {
-    var inner : {
-        var a : 0;
-    };
-};
-$wrapper.inner.a;
+<name>(<arg1>, <arg2>)
 ```
 
----
+### Module-qualified call
 
-## Built-in Functions
-
-| Function              | Description                              |
-|-----------------------|------------------------------------------|
-| `eval(<expr>)`        | Evaluate an arithmetic expression        |
-| `print(<args...>)`    | Print to stdout                          |
-| `ret(<value>)`        | Return a value from a function           |
-| `break()`             | Break out of a loop                      |
-| `length(<collection>)`| Get the length of a string or collection |
-| `charAt(<i>, <str>)`  | Get character at index `i`              |
-| `incr(<n>)`           | Increment a number by 1                  |
-| `overwrite(<code>)`   | Overwrite a function definition at runtime |
+```
+<alias>.<name>(<arg>)
+```
 
 ---
 
@@ -382,13 +297,82 @@ var x : /* inline block */ 10;
 
 ---
 
+## Module System
+
+Every file declares its module name at the top:
+
+```
+module <name>;
+```
+
+### Imports
+
+```
+import <module-name>;                           // Standard library module
+import "./path/to/file.mira" as <alias>;        // File import with alias
+import module "./path/to/file.mira";            // File import without alias
+import module "./path/to/file.mira" as <alias>;
+```
+
+---
+
+## Lambdas
+
+Lambdas are nameless functions that can be stored and passed around.
+
+```
+fn(<param1>, <param2>) {
+    <body>
+}
+```
+
+### As a variable
+
+```
+var double : fn(x) { ret(eval($x * 2)); };
+eval(double(5));    // => 10
+```
+
+### As an argument
+
+```
+fn apply(f, x) {
+    ret(f($x));
+}
+
+eval(apply(fn(n) { ret(eval($n * $n)); }, 3));   // => 9
+```
+
+### Closures
+
+Lambdas capture variables from their outer scope:
+
+```
+var factor : 3;
+var scale : fn(x) { ret(eval($x * $factor)); };
+eval(scale(5));    // => 15
+```
+
+---
+
+## Internal Functions
+
+Always available without any import.
+
+| Function          | Parameters             | Description                                               |
+| ----------------- | ---------------------- | --------------------------------------------------------- |
+| `eval(<expr>)`    | Arithmetic expression  | Evaluates an arithmetic expression and returns the result |
+| `print(<value>)`  | Any value              | Prints the value to stdout without a newline              |
+| `exec(<code>)`    | String                 | Parses and executes a string of Mira code at runtime      |
+| `length(<value>)` | String, List, or Tuple | Returns the number of characters / elements               |
+| `exit(<code>)`    | Number                 | Exits the program with the given exit code                |
+
+---
+
 ## Example Program
 
 ```mira
 module main;
-
-import "./utils.mira" as utils;
-import math;
 
 fn fibonacci(n) {
     if ($n <= 1) {
@@ -403,7 +387,7 @@ fn main() {
     var result : 0;
 
     for (var i : 0; $i < 10; $i : eval($i + 1)) {
-        $result : $result + fibonacci($i);
+        $result : eval($result + fibonacci($i));
     }
 
     print("Sum: " $result "\n");
