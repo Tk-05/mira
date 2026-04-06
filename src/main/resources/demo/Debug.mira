@@ -5,7 +5,14 @@ import module "./Debug2.mira" as test;
 var list : {1,2,4};
 var boolean : true;
 
+enum test {
+    TEST1,
+    TEST2,
+    TEST3
+};
+
 fn main() {
+    assert(0==0);
     var wrapper : {
         var a : {
             var a : 0;

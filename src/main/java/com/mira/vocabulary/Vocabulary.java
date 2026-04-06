@@ -28,7 +28,8 @@ public class Vocabulary {
             "null",
             "switch",
             "case",
-            "default"
+            "default",
+            "enum"
     );
 
     public static final Set<String> operations = Set.of(

@@ -1,7 +1,9 @@
 package com.mira.parser;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import com.mira.error.parser.ParserError.LexemeMismatchError;
 import com.mira.error.parser.ParserError.TypeMismatchError;
@@ -28,6 +30,7 @@ import com.mira.parser.nodes.statement.Statement.Assign;
 import com.mira.parser.nodes.statement.Statement.Block;
 import com.mira.parser.nodes.statement.Statement.Break;
 import com.mira.parser.nodes.statement.Statement.Continue;
+import com.mira.parser.nodes.statement.Statement.EnumDecl;
 import com.mira.parser.nodes.statement.Statement.For;
 import com.mira.parser.nodes.statement.Statement.Foreach;
 import com.mira.parser.nodes.statement.Statement.FuncDecl;
@@ -241,6 +244,9 @@ public class Parser {
                 node = parseOverwrite();
                 matchLexeme(";");
             }
+            case "enum" -> {
+                node = parseEnumDecl();
+            }
             default -> {
                 node = parseExpression();
                 if (expectSemicolon) {
@@ -330,11 +336,13 @@ public class Parser {
 
         } else if (isExpressionToken(current)
                 && peekNextSafe().getLexeme().equals(".")
-                && peekNextSafe().getTokenType() != TokenType.STRING_LITERAL) {
+                && peekNextSafe().getTokenType() != TokenType.STRING_LITERAL
+                && peekOffset(3).getLexeme().equals("(")) {
             expr = parseNamespaceCallExpression();
 
         } else {
             expr = parseDumbExpression();
+            expr = maybeParseFieldAccess(expr);
         }
 
         expr = maybeParseAccess(expr);
@@ -896,28 +904,31 @@ public class Parser {
         List<Node> defaultBody = null;
 
         while (!peek().getLexeme().equals("}")) {
-            if (peek().getLexeme().equals("case")) {
-                matchLexeme("case");
-                matchLexeme("(");
-                Expression value = parseExpression();
-                matchLexeme(")");
-                matchLexeme("{");
-                List<Node> body = new ArrayList<>();
-                while (!peek().getLexeme().equals("}")) {
-                    body.add(parseStatement(true));
+            switch (peek().getLexeme()) {
+                case "case" -> {
+                    matchLexeme("case");
+                    matchLexeme("(");
+                    Expression value = parseExpression();
+                    matchLexeme(")");
+                    matchLexeme("{");
+                    List<Node> body = new ArrayList<>();
+                    while (!peek().getLexeme().equals("}")) {
+                        body.add(parseStatement(true));
+                    }
+                    matchLexeme("}");
+                    cases.add(new SwitchCase(value, body));
                 }
-                matchLexeme("}");
-                cases.add(new SwitchCase(value, body));
-            } else if (peek().getLexeme().equals("default")) {
-                matchLexeme("default");
-                matchLexeme("{");
-                defaultBody = new ArrayList<>();
-                while (!peek().getLexeme().equals("}")) {
-                    defaultBody.add(parseStatement(true));
+                case "default" -> {
+                    matchLexeme("default");
+                    matchLexeme("{");
+                    defaultBody = new ArrayList<>();
+                    while (!peek().getLexeme().equals("}")) {
+                        defaultBody.add(parseStatement(true));
+                    }
+                    matchLexeme("}");
                 }
-                matchLexeme("}");
-            } else {
-                throw new UnexpectedToken(peek(), "Expected 'case' or 'default' in switch body");
+                default ->
+                    throw new UnexpectedToken(peek(), "Expected 'case' or 'default' in switch body");
             }
         }
 
@@ -1015,5 +1026,38 @@ public class Parser {
         }
 
         return expressions.size() > 1 ? new ComplexExpression(expressions) : expressions.get(0);
+    }
+
+    private Node parseEnumDecl() {
+        matchLexeme("enum");
+        String identifier = matchType(TokenType.EXPRESSION).getLexeme();
+        matchLexeme("{");
+
+        Map<String, Object> values = new LinkedHashMap<>();
+        int autoIndex = 0;
+
+        while (!peek().getLexeme().equals("}")) {
+            String name = matchType(TokenType.EXPRESSION).getLexeme();
+
+            Object value;
+            if (peek().getLexeme().equals(":")) {
+                consume();
+                value = consume().getLexeme();
+            } else {
+                value = String.valueOf(autoIndex);
+            }
+
+            values.put(name, value);
+            autoIndex++;
+
+            if (peek().getLexeme().equals(",")) {
+                consume();
+            }
+        }
+
+        matchLexeme("}");
+        matchLexeme(";");
+
+        return new EnumDecl(values, identifier);
     }
 }

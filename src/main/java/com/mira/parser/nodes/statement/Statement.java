@@ -1,6 +1,7 @@
 package com.mira.parser.nodes.statement;
 
 import java.util.List;
+import java.util.Map;
 
 import com.mira.parser.nodes.Node;
 import com.mira.parser.nodes.expression.Expression;
@@ -354,6 +355,30 @@ public abstract class Statement implements Node {
 
         public String getModuleName() {
             return moduleName;
+        }
+    }
+
+    public static class EnumDecl extends Statement {
+
+        private final Map<String, Object> values;
+        private final String identifier;
+
+        public EnumDecl(Map<String, Object> values, String identifier) {
+            this.values = values;
+            this.identifier = identifier;
+        }
+
+        @Override
+        public <T> T accept(StmtVisitor<T> visitor) {
+            return visitor.visitEnum(this);
+        }
+
+        public Map<String, Object> getValues() {
+            return values;
+        }
+
+        public String getIdentifier() {
+            return identifier;
         }
     }
 }

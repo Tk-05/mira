@@ -37,6 +37,7 @@ import com.mira.parser.nodes.statement.Statement.Assign;
 import com.mira.parser.nodes.statement.Statement.Block;
 import com.mira.parser.nodes.statement.Statement.Break;
 import com.mira.parser.nodes.statement.Statement.Continue;
+import com.mira.parser.nodes.statement.Statement.EnumDecl;
 import com.mira.parser.nodes.statement.Statement.For;
 import com.mira.parser.nodes.statement.Statement.Foreach;
 import com.mira.parser.nodes.statement.Statement.FuncDecl;
@@ -251,7 +252,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             arguments.add(arg.accept(this));
         }
 
-        if (arguments.size() != callable.getArity()) {
+        if (callable.getArity() != -1 && arguments.size() != callable.getArity()) {
             throw new ArgMismatchError(calleeName, callable.getArity(), arguments.size());
         }
 
@@ -1086,7 +1087,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             arguments.add(arg.accept(this));
         }
 
-        if (arguments.size() != callable.getArity()) {
+        if (callable.getArity() != -1 && arguments.size() != callable.getArity()) {
             throw new ArgMismatchError(expression.getFunctionName(), callable.getArity(), arguments.size());
         }
 
@@ -1174,11 +1175,27 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
     public <T> T visitFieldAccessExpression(FieldAccessExpression expression) {
         Object object = expression.getObject().accept(this);
 
+        if (object instanceof String name) {
+            object = localEnvironment != null && localEnvironment.exists(name)
+                    ? localEnvironment.get(name)
+                    : globalEnvironment.get(name);
+        }
+
         if (!(object instanceof Environment objectEnv)) {
             throw new RuntimeException("Cannot access field '" + expression.getField() + "' on non-object");
         }
 
         return (T) objectEnv.get(expression.getField());
+    }
+
+    @Override
+    public Object visitEnum(EnumDecl stmt) {
+        Environment enumEnv = new Environment(null, stmt.getValues().size());
+        for (Map.Entry<String, Object> entry : stmt.getValues().entrySet()) {
+            enumEnv.defineConst(entry.getKey(), entry.getValue());
+        }
+        globalEnvironment.defineConst(stmt.getIdentifier(), enumEnv);
+        return null;
     }
 
     public Environment getLocalEnvironment() {

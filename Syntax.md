@@ -246,6 +246,80 @@ continue();
 
 ---
 
+## Enums
+
+Enums declare a named set of constant variants. Each variant is immutable and accessed via dot notation.
+
+### Declaration
+
+```
+enum <Name> {
+    <VARIANT>,
+    <VARIANT>
+};
+```
+
+Variants are automatically assigned integer values starting at `0`:
+
+```
+enum Direction {
+    NORTH,
+    SOUTH,
+    EAST,
+    WEST
+};
+```
+
+### Explicit Values
+
+Variants can be assigned explicit integer or string values using `:`:
+
+```
+enum Status {
+    OK       : 200,
+    NOT_FOUND : 404,
+    ERROR    : 500
+};
+
+enum Color {
+    RED   : "red",
+    GREEN : "green",
+    BLUE  : "blue"
+};
+```
+
+Mixed enums (some explicit, some auto-indexed) are allowed. Auto-indexed variants count from their position regardless of any explicit values.
+
+### Access
+
+```
+Direction.NORTH   // => 0
+Status.OK         // => 200
+Color.RED         // => "red"
+```
+
+Enum values can be stored and compared like any other value:
+
+```
+var dir : Direction.SOUTH;
+if ($dir == Direction.SOUTH) {
+    print("heading south\n");
+}
+```
+
+### Usage with Switch
+
+```
+var code : Status.NOT_FOUND;
+switch ($code) {
+    case (200) { print("ok\n"); }
+    case (404) { print("not found\n"); }
+    default    { print("error\n"); }
+}
+```
+
+---
+
 ## Functions
 
 ### Declaration
@@ -259,8 +333,8 @@ fn <name>(<param1>, <param2>) {
 ### Return
 
 ```
-ret()                  // Return nothing
-ret(<expression>)      // Return a value
+ret();                 // Return nothing
+ret(<expression>);     // Return a value
 ```
 
 ### Call

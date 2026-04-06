@@ -30,6 +30,13 @@ public class LexerTest {
         assertEquals(TokenType.KEYWORD, tokenizer.tokenize("in", false).getFirst().getTokenType());
         assertEquals(TokenType.KEYWORD, tokenizer.tokenize("as", false).getFirst().getTokenType());
         assertEquals(TokenType.KEYWORD, tokenizer.tokenize("const", false).getFirst().getTokenType());
+        assertEquals(TokenType.KEYWORD, tokenizer.tokenize("true", false).getFirst().getTokenType());
+        assertEquals(TokenType.KEYWORD, tokenizer.tokenize("false", false).getFirst().getTokenType());
+        assertEquals(TokenType.KEYWORD, tokenizer.tokenize("continue", false).getFirst().getTokenType());
+        assertEquals(TokenType.KEYWORD, tokenizer.tokenize("null", false).getFirst().getTokenType());
+        assertEquals(TokenType.KEYWORD, tokenizer.tokenize("switch", false).getFirst().getTokenType());
+        assertEquals(TokenType.KEYWORD, tokenizer.tokenize("default", false).getFirst().getTokenType());
+        assertEquals(TokenType.KEYWORD, tokenizer.tokenize("enum", false).getFirst().getTokenType());
     }
 
     @Test
@@ -49,6 +56,10 @@ public class LexerTest {
         assertEquals(TokenType.OPERATION, tokenizer.tokenize("$", false).getFirst().getTokenType());
         assertEquals(TokenType.OPERATION, tokenizer.tokenize(":", false).getFirst().getTokenType());
         assertEquals(TokenType.OPERATION, tokenizer.tokenize("!", false).getFirst().getTokenType());
+        assertEquals(TokenType.OPERATION, tokenizer.tokenize("+=", false).getFirst().getTokenType());
+        assertEquals(TokenType.OPERATION, tokenizer.tokenize("-=", false).getFirst().getTokenType());
+        assertEquals(TokenType.OPERATION, tokenizer.tokenize("*=", false).getFirst().getTokenType());
+        assertEquals(TokenType.OPERATION, tokenizer.tokenize("/=", false).getFirst().getTokenType());
     }
 
     @Test
