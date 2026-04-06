@@ -6,7 +6,7 @@ import com.mira.lexer.token.Token;
 import com.mira.parser.nodes.Node;
 import com.mira.parser.nodes.statement.Statement.VarDecl;
 import com.mira.runtime.visitors.ExprVisitor;
-import com.mira.utils.Formatter;
+import com.mira.utils.StringFormatter;
 
 public abstract class Expression implements Node {
 
@@ -155,7 +155,7 @@ public abstract class Expression implements Node {
 
         @Override
         public String toString() {
-            return Formatter.formatToString(this);
+            return StringFormatter.formatToString(this);
         }
 
         @Override
@@ -208,7 +208,7 @@ public abstract class Expression implements Node {
 
         @Override
         public String toString() {
-            return Formatter.formatToString(this);
+            return StringFormatter.formatToString(this);
         }
 
         @Override

@@ -4,7 +4,7 @@ import com.mira.parser.nodes.expression.Expression;
 import com.mira.parser.nodes.expression.Expression.ListExpression;
 import com.mira.parser.nodes.expression.Expression.TupleExpression;
 
-public class Formatter {
+public class StringFormatter {
 
     public static String formatToString(Expression expression) {
         switch (expression) {
