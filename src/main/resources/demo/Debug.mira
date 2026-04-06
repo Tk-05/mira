@@ -1,6 +1,7 @@
 module main;
 
 import module "./Debug2.mira" as test;
+import collection;
 
 var list : {1,2,4};
 var boolean : true;
@@ -12,6 +13,18 @@ enum test {
 };
 
 fn main() {
+    var objs : {};
+    for(var i in <0..5>) {
+        var obj : {
+            var index : "test"$i;
+        };
+        push($objs, $obj);
+    }
+
+    foreach(var element in $objs) {
+        print($element.index "\n");
+    }
+
     assert(0==0);
     var wrapper : {
         var a : {

@@ -16,8 +16,25 @@ import com.mira.runtime.interpreter.Environment;
 
 public class Collection implements Lib {
 
-    private static DumbExpression wrap(Object val) {
-        return new DumbExpression(new Token(TokenType.EXPRESSION, String.valueOf(val), 0, 0));
+    private static Expression wrap(Object val) {
+        if (val instanceof Expression expr) {
+            return expr;
+        }
+        if (val instanceof String || val instanceof Double || val instanceof Boolean) {
+            return new DumbExpression(new Token(TokenType.EXPRESSION, String.valueOf(val), 0, 0));
+        }
+        final Object captured = val;
+        return new Expression() {
+            @Override
+            public <T> T accept(com.mira.runtime.visitors.ExprVisitor<T> visitor) {
+                return (T) captured;
+            }
+
+            @Override
+            public String toString() {
+                return String.valueOf(captured);
+            }
+        };
     }
 
     private static List<Expression> toMembers(Object arg) {

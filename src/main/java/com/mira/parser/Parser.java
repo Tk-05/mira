@@ -131,7 +131,7 @@ public class Parser {
         if (peek().getTokenType() == expectedType) {
             return consume();
         }
-        throw new TypeMismatchError(peek(), "Expected " + expectedType);
+        throw new TypeMismatchError(peek(), "Expected an expression");
     }
 
     private boolean isExpressionToken(Token token) {
@@ -167,7 +167,7 @@ public class Parser {
         if (isExpressionToken(peek())) {
             return consume();
         }
-        throw new TypeMismatchError(peek(), "Expected EXPRESSION or STRING_LITERAL");
+        throw new TypeMismatchError(peek(), "Expected an expression");
     }
 
     private Node parseStatement(boolean expectSemicolon) {
@@ -380,7 +380,7 @@ public class Parser {
         }
 
         if (items.isEmpty()) {
-            throw new UnexpectedToken(peek(), "Expected expression but got '" + peek().getLexeme() + "'");
+            throw new UnexpectedToken(peek(), "Expected an expression, but the statement is empty");
         }
 
         return items.size() == 1 ? items.get(0) : new ComplexExpression(items);

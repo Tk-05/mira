@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import org.junit.jupiter.api.Test;
 
+import com.mira.error.runtime.RuntimeError.ReferenceIsImmutableError;
 import com.mira.runtime.functions.ReturnSignal;
 import com.mira.runtime.interpreter.Interpreter;
 import com.mira.runtime.interpreter.InterpreterTestBase;
@@ -85,7 +86,7 @@ public class VarDeclTest extends InterpreterTestBase {
 
     @Test
     void constDeclarationReassignThrows() {
-        assertThrows(AssertionError.class, () -> run("const test : 0; $test : 1;"));
+        assertThrows(ReferenceIsImmutableError.class, () -> run("const test : 0; $test : 1;"));
     }
 
     @Test

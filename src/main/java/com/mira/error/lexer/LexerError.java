@@ -1,23 +1,31 @@
 package com.mira.error.lexer;
 
-public class LexerError extends RuntimeException {
-    public LexerError(String message) {
-        super(message);
+import com.mira.error.MiraError;
+
+public class LexerError extends MiraError {
+
+    protected LexerError(String errorCode, String message, int line, int column, String hint) {
+        super(errorCode, message, line, column, hint);
     }
 
-    public static class UnterminatedStringError extends LexerError{
-        public UnterminatedStringError(int line) {
-            super("Unterminated string at line " + line);
+    public static class UnterminatedStringError extends LexerError {
+
+        public UnterminatedStringError(int line, int column) {
+            super("E001", "Unterminated string literal", line, column,
+                    "Add a closing '\"' to end the string");
         }
     }
 
-    public static class UnexpectedSymbolError extends LexerError {
-        public UnexpectedSymbolError(int line, int column, char c) {
-            super("Unexpected symbol at line " + line + ":" + column + " '" + c + "'");
+    public static class UnexpectedCharacterError extends LexerError {
+
+        public UnexpectedCharacterError(int line, int column, char c) {
+            super("E002", "Unexpected character '" + c + "'", line, column,
+                    "Remove or replace this character — it is not part of the Mira syntax");
         }
 
-        public UnexpectedSymbolError(int line, int column) {
-            super("Unexpected symbol at line " + line + ":" + column);
+        public UnexpectedCharacterError(int line, int column) {
+            super("E002", "Unexpected character", line, column,
+                    "Remove or replace this character — it is not part of the Mira syntax");
         }
     }
 }

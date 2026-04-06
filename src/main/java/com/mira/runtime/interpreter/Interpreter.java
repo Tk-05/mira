@@ -7,9 +7,17 @@ import java.util.Map;
 
 import com.mira.Flags;
 import com.mira.error.runtime.RuntimeError.ArgMismatchError;
+import com.mira.error.runtime.RuntimeError.FieldAccessError;
+import com.mira.error.runtime.RuntimeError.ImmutableCollectionError;
+import com.mira.error.runtime.RuntimeError.NoModuleDeclarationError;
+import com.mira.error.runtime.RuntimeError.NotANamespaceError;
+import com.mira.error.runtime.RuntimeError.NotCallableError;
+import com.mira.error.runtime.RuntimeError.NotIterableError;
 import com.mira.error.runtime.RuntimeError.PostExprNaNError;
 import com.mira.error.runtime.RuntimeError.PostUnaryError;
+import com.mira.error.runtime.RuntimeError.RangeStepZeroError;
 import com.mira.error.runtime.RuntimeError.ReferenceIsImmutableError;
+import com.mira.error.runtime.RuntimeError.TypeConversionError;
 import com.mira.error.runtime.RuntimeError.UnknownOperatorError;
 import com.mira.lexer.Tokenizer;
 import com.mira.lexer.token.Token;
@@ -56,6 +64,8 @@ import com.mira.runtime.functions.Function;
 import com.mira.runtime.functions.ReturnSignal;
 import com.mira.runtime.visitors.ExprVisitor;
 import com.mira.runtime.visitors.StmtVisitor;
+import com.mira.warning.WarningCollector;
+import com.mira.warning.WarningLevel;
 
 public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
@@ -77,7 +87,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         }
 
         if (enforceModule && !(asts.getFirst() instanceof ModuleDecl)) {
-            throw new AssertionError("Entry point has no module declaration!");
+            throw new NoModuleDeclarationError();
         }
 
         List<ImportExpression> imports = new ArrayList<>();
@@ -200,6 +210,16 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
         Environment env = localEnvironment == null ? globalEnvironment : localEnvironment;
 
+        if (localEnvironment != null) {
+            boolean shadowsLocal  = localEnvironment.getParent() != null
+                    && localEnvironment.getParent().existsInChain(varDecl.getName());
+            boolean shadowsGlobal = globalEnvironment.existsInChain(varDecl.getName());
+            if (shadowsLocal || shadowsGlobal) {
+                WarningCollector.emit(WarningLevel.WARNING,
+                        "Variable '" + varDecl.getName() + "' shadows an outer variable");
+            }
+        }
+
         if (varDecl.isConst()) {
             env.defineConst(varDecl.getName(), value);
         } else {
@@ -243,7 +263,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         }
 
         if (!(callee instanceof Callable callable)) {
-            throw new RuntimeException("Object is not callable");
+            throw new NotCallableError(calleeName);
         }
 
         List<Object> arguments = new ArrayList<>();
@@ -358,6 +378,13 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                 try {
                     yield toNumber(left) + toNumber(right);
                 } catch (NumberFormatException e) {
+                    boolean leftIsStr  = left  instanceof String;
+                    boolean rightIsStr = right instanceof String;
+                    if (leftIsStr != rightIsStr) {
+                        WarningCollector.emit(WarningLevel.HINT,
+                                "Implicit string concatenation: mixed String and non-String operands",
+                                expression.getOperator());
+                    }
                     yield String.valueOf(left) + String.valueOf(right);
                 }
             }
@@ -365,8 +392,14 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                 toNumber(left) - toNumber(right);
             case "*" ->
                 toNumber(left) * toNumber(right);
-            case "/" ->
-                toNumber(left) / toNumber(right);
+            case "/" -> {
+                double divisor = toNumber(right);
+                if (divisor == 0) {
+                    WarningCollector.emit(WarningLevel.WARNING,
+                            "Division by zero", expression.getOperator());
+                }
+                yield toNumber(left) / divisor;
+            }
             case "==" ->
                 evaluateComparison(String.valueOf(left), "==", String.valueOf(right));
             case "!=" ->
@@ -395,7 +428,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         if (value instanceof String s) {
             return Double.parseDouble(s);
         }
-        throw new NumberFormatException("Cannot convert " + value.getClass() + " to number");
+        throw new TypeConversionError(value);
     }
 
     private Object tryEvaluateArithmetic(List<Expression> expressions) {
@@ -626,7 +659,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                     env.assign(name, newValue);
                     return (T) newValue;
                 } catch (NumberFormatException numberFormatException) {
-                    throw new PostExprNaNError("Cannot increment non-number: " + name);
+                    throw new PostExprNaNError(name);
                 }
             }
 
@@ -648,7 +681,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                     env.assign(name, newValue);
                     return (T) newValue;
                 } catch (NumberFormatException numberFormatException) {
-                    throw new PostExprNaNError("Cannot increment non-number: " + name);
+                    throw new PostExprNaNError(name);
                 }
             }
 
@@ -702,7 +735,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                     }
                 }
                 default ->
-                    throw new AssertionError("Acessed object is an instance of '" + accessedObject.getClass() + "' and not a type of collection!");
+                    throw new NotIterableError();
             }
         }
 
@@ -735,7 +768,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                             if (referencedObject instanceof ListExpression innerList) {
                                 referencedObject = innerList.accept(this);
                             } else {
-                                throw new ReferenceIsImmutableError("Can not assign value to immutable data structure");
+                                throw new ImmutableCollectionError();
                             }
                         }
                         case ListExpression list -> {
@@ -743,7 +776,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                             if (referencedObject instanceof ListExpression innerList) {
                                 referencedObject = innerList.accept(this);
                             } else {
-                                throw new ReferenceIsImmutableError("Can not assign value to immutable data structure");
+                                throw new ImmutableCollectionError();
                             }
                         }
                         default ->
@@ -766,10 +799,10 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                                         assignment);
                             }
                             default ->
-                                throw new ReferenceIsImmutableError("Can not assign value to immutable data structure");
+                                throw new ImmutableCollectionError();
                         }
                     } else {
-                        throw new ReferenceIsImmutableError("Can not assign value to immutable data structure");
+                        throw new ImmutableCollectionError();
                     }
                 } else {
                     throw new ReferenceIsImmutableError("Can not assign value to immutable data structure");
@@ -778,7 +811,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             case FieldAccessExpression fieldAccessExpression -> {
                 Object object = fieldAccessExpression.getObject().accept(this);
                 if (!(object instanceof Environment objectEnv)) {
-                    throw new RuntimeException("Cannot assign field '" + fieldAccessExpression.getField() + "' on non-object");
+                    throw new FieldAccessError(fieldAccessExpression.getField());
                 }
                 Object value = assign.getExpression().accept(this);
                 objectEnv.assign(fieldAccessExpression.getField(), value);
@@ -841,7 +874,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                 }
 
                 try {
-                    runBody(stmt.getBody());
+                    runBodyInFreshScope(stmt.getBody());
                 } catch (ContinueSignal continueSignal) {
                 }
 
@@ -862,7 +895,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                 }
 
                 try {
-                    runBody(stmt.getBody());
+                    runBodyInFreshScope(stmt.getBody());
                 } catch (ContinueSignal continueSignal) {
                 }
             }
@@ -954,13 +987,13 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                         : 1.0;
 
                 if (step == 0) {
-                    throw new AssertionError("Range stepsize cannot be zero");
+                    throw new RangeStepZeroError();
                 }
 
                 for (double i = start; step > 0 ? i < end : i > end; i += step) {
                     assignIterator(iteratorName, i);
                     try {
-                        runBody(stmt.getBody());
+                        runBodyInFreshScope(stmt.getBody());
                     } catch (ContinueSignal continueSignal) {
                     }
                 }
@@ -1000,7 +1033,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                     }
                 }
                 default ->
-                    throw new AssertionError("Foreach only supports tuples, lists and ranges");
+                    throw new NotIterableError();
             }
         } catch (BreakSignal breakSignal) {
             return null;
@@ -1068,18 +1101,28 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         }
     }
 
+    private void runBodyInFreshScope(List<Node> body) {
+        Environment previous = localEnvironment;
+        localEnvironment = new Environment(previous != null ? previous : globalEnvironment);
+        try {
+            runBody(body);
+        } finally {
+            localEnvironment = previous;
+        }
+    }
+
     @Override
     public <T> T visitNamespaceCallExpr(NamespaceCallExpression expression) {
         Object namespaceObj = globalEnvironment.get(expression.getAlias());
 
         if (!(namespaceObj instanceof Namespace namespace)) {
-            throw new RuntimeException("'" + expression.getAlias() + "' is not a namespace");
+            throw new NotANamespaceError(expression.getAlias());
         }
 
         Object callee = namespace.get(expression.getFunctionName());
 
         if (!(callee instanceof Callable callable)) {
-            throw new RuntimeException("'" + expression.getFunctionName() + "' is not callable in namespace '" + expression.getAlias() + "'");
+            throw new NotCallableError(expression.getAlias() + "." + expression.getFunctionName());
         }
 
         List<Object> arguments = new ArrayList<>();
@@ -1182,7 +1225,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         }
 
         if (!(object instanceof Environment objectEnv)) {
-            throw new RuntimeException("Cannot access field '" + expression.getField() + "' on non-object");
+            throw new FieldAccessError(expression.getField());
         }
 
         return (T) objectEnv.get(expression.getField());

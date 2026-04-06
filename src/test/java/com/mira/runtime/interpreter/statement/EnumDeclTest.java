@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import org.junit.jupiter.api.Test;
 
 import com.mira.error.runtime.RuntimeError.ObjectAlreadyDefinedInScope;
+import com.mira.error.runtime.RuntimeError.ReferenceIsImmutableError;
 import com.mira.error.runtime.RuntimeError.UndefinedReferenceError;
 import com.mira.runtime.interpreter.Environment;
 import com.mira.runtime.interpreter.Interpreter;
@@ -73,7 +74,7 @@ public class EnumDeclTest extends InterpreterTestBase {
     void enumVariantIsImmutable() {
         run("enum Dir { NORTH };");
         Environment dir = (Environment) Interpreter.getGlobalEnvironment().get("Dir");
-        assertThrows(AssertionError.class, () -> dir.assign("NORTH", 99.0));
+        assertThrows(ReferenceIsImmutableError.class, () -> dir.assign("NORTH", 99.0));
     }
 
     @Test

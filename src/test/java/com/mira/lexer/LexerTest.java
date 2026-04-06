@@ -6,7 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import org.junit.jupiter.api.Test;
 
-import com.mira.error.lexer.LexerError.UnexpectedSymbolError;
+import com.mira.error.lexer.LexerError.UnexpectedCharacterError;
 import com.mira.error.lexer.LexerError.UnterminatedStringError;
 import com.mira.lexer.token.Token;
 import com.mira.lexer.token.TokenType;
@@ -171,7 +171,7 @@ public class LexerTest {
     @Test
     void testUnexpectedSymbol() {
         String unexpectedSymbol = "@";
-        assertThrows(UnexpectedSymbolError.class, () -> tokenizer.tokenize(unexpectedSymbol, false));
+        assertThrows(UnexpectedCharacterError.class, () -> tokenizer.tokenize(unexpectedSymbol, false));
     }
 
     @Test

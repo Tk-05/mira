@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.Set;
 
 import com.mira.error.runtime.RuntimeError.ObjectAlreadyDefinedInScope;
+import com.mira.error.runtime.RuntimeError.ReferenceIsImmutableError;
 import com.mira.error.runtime.RuntimeError.UndefinedReferenceError;
 import com.mira.error.runtime.RuntimeError.UndefinedVariableError;
 
@@ -81,7 +82,7 @@ public class Environment {
     public void assign(String name, Object value) {
         if (values.containsKey(name)) {
             if (!overwriteMode && constants.contains(name)) {
-                throw new AssertionError("Cannot reassign constant '" + name + "'");
+                throw new ReferenceIsImmutableError(name);
             }
             values.put(name, value);
             return;
@@ -95,6 +96,16 @@ public class Environment {
 
     public boolean exists(String name) {
         return values.containsKey(name);
+    }
+
+    public boolean existsInChain(String name) {
+        if (values.containsKey(name)) return true;
+        if (parent != null) return parent.existsInChain(name);
+        return false;
+    }
+
+    public Environment getParent() {
+        return parent;
     }
 
     public int getSize() {

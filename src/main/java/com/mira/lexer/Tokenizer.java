@@ -3,7 +3,7 @@ package com.mira.lexer;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.mira.error.lexer.LexerError.UnexpectedSymbolError;
+import com.mira.error.lexer.LexerError.UnexpectedCharacterError;
 import com.mira.error.lexer.LexerError.UnterminatedStringError;
 import com.mira.lexer.token.Token;
 import com.mira.lexer.token.TokenType;
@@ -109,7 +109,7 @@ public class Tokenizer {
                     return;
                 }
 
-                throw new UnexpectedSymbolError(line, column, c);
+                throw new UnexpectedCharacterError(line, column, c);
             }
         }
     }
@@ -131,7 +131,7 @@ public class Tokenizer {
         }
 
         if (bestMatch == null) {
-            throw new UnexpectedSymbolError(line, column);
+            throw new UnexpectedCharacterError(line, column);
         }
 
         current = start + bestMatch.length();
@@ -161,7 +161,7 @@ public class Tokenizer {
         }
 
         if (bestMatch == null) {
-            throw new UnexpectedSymbolError(line, column);
+            throw new UnexpectedCharacterError(line, column);
         }
 
         current = start + bestMatch.length();
@@ -183,7 +183,7 @@ public class Tokenizer {
                 advance();
 
                 if (isAtEnd()) {
-                    throw new UnterminatedStringError(line);
+                    throw new UnterminatedStringError(line, column);
                 }
 
                 char escaped = peek();
@@ -214,7 +214,7 @@ public class Tokenizer {
         }
 
         if (isAtEnd()) {
-            throw new UnterminatedStringError(line);
+            throw new UnterminatedStringError(line, column);
         }
 
         advance();
