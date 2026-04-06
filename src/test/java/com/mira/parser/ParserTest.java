@@ -6,21 +6,26 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 
 import com.mira.lexer.Tokenizer;
 import com.mira.parser.nodes.Node;
 import com.mira.parser.nodes.expression.Expression.AccessExpression;
+import com.mira.parser.nodes.expression.Expression.BinaryExpression;
 import com.mira.parser.nodes.expression.Expression.CallExpression;
 import com.mira.parser.nodes.expression.Expression.ComplexExpression;
 import com.mira.parser.nodes.expression.Expression.DumbExpression;
 import com.mira.parser.nodes.expression.Expression.ImportExpression;
+import com.mira.parser.nodes.expression.Expression.NamespaceCallExpression;
+import com.mira.parser.nodes.expression.Expression.ObjectExpression;
 import com.mira.parser.nodes.expression.Expression.UnaryExpression;
 import com.mira.parser.nodes.statement.Statement;
 import com.mira.parser.nodes.statement.Statement.Block;
 import com.mira.parser.nodes.statement.Statement.Break;
 import com.mira.parser.nodes.statement.Statement.For;
 import com.mira.parser.nodes.statement.Statement.Foreach;
+import com.mira.parser.nodes.statement.Statement.ModuleDecl;
 import com.mira.parser.nodes.statement.Statement.Overwrite;
 import com.mira.parser.nodes.statement.Statement.VarDecl;
 
@@ -102,11 +107,10 @@ public class ParserTest {
 
         List<Node> ast = parser.parseTokens(tokenizer.tokenize(simpleExpression, false));
 
-        ComplexExpression outer = (ComplexExpression) ast.getFirst();
+        BinaryExpression outer = assertInstanceOf(BinaryExpression.class, ast.getFirst());
 
-        assertEquals(3, outer.getExpressions().size());
-
-        assertInstanceOf(ComplexExpression.class, outer.getExpressions().getFirst());
+        assertInstanceOf(BinaryExpression.class, outer.getLeft());
+        assertEquals("+", outer.getOperator().getLexeme());
     }
 
     @Test
@@ -117,19 +121,14 @@ public class ParserTest {
 
         assertEquals(1, ast.size());
 
-        assertInstanceOf(ComplexExpression.class, ast.getFirst());
+        BinaryExpression outer = assertInstanceOf(BinaryExpression.class, ast.getFirst());
+        assertEquals("+", outer.getOperator().getLexeme());
 
-        ComplexExpression outer = (ComplexExpression) ast.getFirst();
+        BinaryExpression mid = assertInstanceOf(BinaryExpression.class, outer.getLeft());
+        assertEquals("+", mid.getOperator().getLexeme());
 
-        assertEquals(3, outer.getExpressions().size());
-
-        assertInstanceOf(ComplexExpression.class, outer.getExpressions().getFirst());
-
-        ComplexExpression inner = (ComplexExpression) outer.getExpressions().getFirst();
-
-        assertEquals(3, inner.getExpressions().size());
-
-        assertInstanceOf(CallExpression.class, inner.getExpressions().get(2));
+        assertInstanceOf(BinaryExpression.class, mid.getLeft());
+        assertInstanceOf(CallExpression.class, mid.getRight());
     }
 
     @Test
@@ -290,6 +289,16 @@ public class ParserTest {
     }
 
     @Test
+    void parseModuleImport() {
+        String importStmt = """
+                import module HelloWorld;
+                """;
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize(importStmt, false));
+        assertEquals(1, ast.size());
+        assertInstanceOf(ImportExpression.class, ast.getFirst());
+    }
+
+    @Test
     void parseOverwrite() {
         String overwriteStmt = """
                 overwrite(1);
@@ -300,12 +309,80 @@ public class ParserTest {
     }
 
     @Test
+    void parseModule() {
+        String moduleStmt = """
+                module test;
+                """;
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize(moduleStmt, false));
+        assertEquals(1, ast.size());
+        assertInstanceOf(ModuleDecl.class, ast.getFirst());
+    }
+
+    @Test
     void parseForeach() {
         String foreachStmt = """
-               foreach(var i in $test) {} 
+                foreach(var i in $test) {} 
                 """;
         List<Node> ast = parser.parseTokens(tokenizer.tokenize(foreachStmt, false));
         assertEquals(1, ast.size());
         assertInstanceOf(Foreach.class, ast.getFirst());
+    }
+
+    @Test
+    void parseForeachRange() {
+        String foreachStmt = """
+               foreach(var i in <0..5>) {} 
+                """;
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize(foreachStmt, false));
+        assertEquals(1, ast.size());
+        assertInstanceOf(Foreach.class, ast.getFirst());
+    }
+
+    @Test
+    void parseForWithRange() {
+        String forStmt = """
+                for(var i in <0..5>) {}
+                """;
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize(forStmt, false));
+        assertEquals(1, ast.size());
+        assertInstanceOf(Foreach.class, ast.getFirst());
+    }
+
+    @Test
+    void parseNamespaceCallExpression() {
+        String callExpression = """
+                Test.test();
+                """;
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize(callExpression, false));
+        assertEquals(1, ast.size());
+        assertInstanceOf(NamespaceCallExpression.class, ast.getFirst());
+    }
+
+    @Test
+    void parseConstVar() {
+        String callExpression = """
+                const test : 0;
+                """;
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize(callExpression, false));
+        assertEquals(1, ast.size());
+        assertInstanceOf(VarDecl.class, ast.getFirst());
+        if (ast.getFirst() instanceof VarDecl varDecl) {
+            assertTrue(varDecl.isConst());
+        }
+    }
+
+    @Test
+    void parseObjectExpression() {
+        String callExpression = """
+                var wrapper : {
+                    var a;
+                };
+                """;
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize(callExpression, false));
+        assertEquals(1, ast.size());
+        assertInstanceOf(VarDecl.class, ast.getFirst());
+        if (ast.getFirst() instanceof VarDecl varDecl) {
+            assertTrue(varDecl.getInitializer() instanceof ObjectExpression);
+        }
     }
 }

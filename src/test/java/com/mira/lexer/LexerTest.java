@@ -11,7 +11,7 @@ import com.mira.error.lexer.LexerError.UnterminatedStringError;
 import com.mira.lexer.token.Token;
 import com.mira.lexer.token.TokenType;
 
-public class LexerTests {
+public class LexerTest {
 
     Tokenizer tokenizer = new Tokenizer();
 
@@ -27,12 +27,21 @@ public class LexerTests {
         assertEquals(TokenType.KEYWORD, tokenizer.tokenize("import", false).getFirst().getTokenType());
         assertEquals(TokenType.KEYWORD, tokenizer.tokenize("overwrite", false).getFirst().getTokenType());
         assertEquals(TokenType.KEYWORD, tokenizer.tokenize("foreach", false).getFirst().getTokenType());
-         assertEquals(TokenType.KEYWORD, tokenizer.tokenize("in", false).getFirst().getTokenType());
+        assertEquals(TokenType.KEYWORD, tokenizer.tokenize("in", false).getFirst().getTokenType());
+        assertEquals(TokenType.KEYWORD, tokenizer.tokenize("as", false).getFirst().getTokenType());
+        assertEquals(TokenType.KEYWORD, tokenizer.tokenize("const", false).getFirst().getTokenType());
+        assertEquals(TokenType.KEYWORD, tokenizer.tokenize("true", false).getFirst().getTokenType());
+        assertEquals(TokenType.KEYWORD, tokenizer.tokenize("false", false).getFirst().getTokenType());
+        assertEquals(TokenType.KEYWORD, tokenizer.tokenize("continue", false).getFirst().getTokenType());
+        assertEquals(TokenType.KEYWORD, tokenizer.tokenize("null", false).getFirst().getTokenType());
+        assertEquals(TokenType.KEYWORD, tokenizer.tokenize("switch", false).getFirst().getTokenType());
+        assertEquals(TokenType.KEYWORD, tokenizer.tokenize("default", false).getFirst().getTokenType());
+        assertEquals(TokenType.KEYWORD, tokenizer.tokenize("enum", false).getFirst().getTokenType());
     }
 
     @Test
     void testOperations() {
-        assertEquals(TokenType.OPERATION, tokenizer.tokenize("+",  false).getFirst().getTokenType());
+        assertEquals(TokenType.OPERATION, tokenizer.tokenize("+", false).getFirst().getTokenType());
         assertEquals(TokenType.OPERATION, tokenizer.tokenize("-", false).getFirst().getTokenType());
         assertEquals(TokenType.OPERATION, tokenizer.tokenize("*", false).getFirst().getTokenType());
         assertEquals(TokenType.OPERATION, tokenizer.tokenize("/", false).getFirst().getTokenType());
@@ -47,6 +56,10 @@ public class LexerTests {
         assertEquals(TokenType.OPERATION, tokenizer.tokenize("$", false).getFirst().getTokenType());
         assertEquals(TokenType.OPERATION, tokenizer.tokenize(":", false).getFirst().getTokenType());
         assertEquals(TokenType.OPERATION, tokenizer.tokenize("!", false).getFirst().getTokenType());
+        assertEquals(TokenType.OPERATION, tokenizer.tokenize("+=", false).getFirst().getTokenType());
+        assertEquals(TokenType.OPERATION, tokenizer.tokenize("-=", false).getFirst().getTokenType());
+        assertEquals(TokenType.OPERATION, tokenizer.tokenize("*=", false).getFirst().getTokenType());
+        assertEquals(TokenType.OPERATION, tokenizer.tokenize("/=", false).getFirst().getTokenType());
     }
 
     @Test
@@ -59,6 +72,7 @@ public class LexerTests {
         assertEquals(TokenType.DELIMITER, tokenizer.tokenize(",", false).getFirst().getTokenType());
         assertEquals(TokenType.DELIMITER, tokenizer.tokenize("[", false).getFirst().getTokenType());
         assertEquals(TokenType.DELIMITER, tokenizer.tokenize("]", false).getFirst().getTokenType());
+        assertEquals(TokenType.DELIMITER, tokenizer.tokenize(".", false).getFirst().getTokenType());
     }
 
     @Test
@@ -158,6 +172,53 @@ public class LexerTests {
     void testUnexpectedSymbol() {
         String unexpectedSymbol = "@";
         assertThrows(UnexpectedSymbolError.class, () -> tokenizer.tokenize(unexpectedSymbol, false));
+    }
+
+    @Test
+    void testSingleLineComment() {
+        List<Token> tokens = tokenizer.tokenize("// this is a comment", false);
+        assertEquals(1, tokens.size());
+        assertEquals(TokenType.EOF, tokens.getFirst().getTokenType());
+    }
+
+    @Test
+    void testSingleLineCommentDoesNotConsumeNextLine() {
+        List<Token> tokens = tokenizer.tokenize("// comment\nvar x;", false);
+        assertEquals(TokenType.KEYWORD, tokens.get(0).getTokenType());
+        assertEquals("var", tokens.get(0).getLexeme());
+    }
+
+    @Test
+    void testSingleLineCommentInCode() {
+        List<Token> tokens = tokenizer.tokenize("var x; // declare x", false);
+        assertEquals("var", tokens.get(0).getLexeme());
+        assertEquals("x", tokens.get(1).getLexeme());
+        assertEquals(";", tokens.get(2).getLexeme());
+        assertEquals(TokenType.EOF, tokens.get(3).getTokenType());
+    }
+
+    @Test
+    void testMultiLineComment() {
+        List<Token> tokens = tokenizer.tokenize("/* this is\na comment */", false);
+        assertEquals(1, tokens.size());
+        assertEquals(TokenType.EOF, tokens.getFirst().getTokenType());
+    }
+
+    @Test
+    void testMultiLineCommentInCode() {
+        List<Token> tokens = tokenizer.tokenize("var /* comment */ x;", false);
+        assertEquals("var", tokens.get(0).getLexeme());
+        assertEquals("x", tokens.get(1).getLexeme());
+        assertEquals(";", tokens.get(2).getLexeme());
+        assertEquals(TokenType.EOF, tokens.get(3).getTokenType());
+    }
+
+    @Test
+    void testDivisionOperatorNotConfusedWithComment() {
+        List<Token> tokens = tokenizer.tokenize("10 / 2", false);
+        assertEquals("10", tokens.get(0).getLexeme());
+        assertEquals("/", tokens.get(1).getLexeme());
+        assertEquals("2", tokens.get(2).getLexeme());
     }
 
     @Test

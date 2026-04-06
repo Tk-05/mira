@@ -61,4 +61,12 @@ public class StringLibTest {
             assertEquals("A", substring);
         }
     }
+
+    @Test
+    void testStrcomp() {
+        if (environment.get("strcompare") instanceof NativeFunction nativeFunction) {
+            boolean strcompare = (boolean) nativeFunction.call(interpreter, List.of("ABC", "ABC"));
+            assertEquals(true, strcompare);
+        }
+    }
 }

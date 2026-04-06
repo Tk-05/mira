@@ -8,10 +8,10 @@
             "mainClass": "com.mira.Main",
             "projectName": "mira",
             "args": [
-                    "demo/Debug.mira",
-                    "-c",
+                    "src/main/resources/demo/Debug.mira",
                     "-t",
-                    "-m"
+                    "-m",
+                    "-li"
                 ]
         },
         {
@@ -21,9 +21,9 @@
             "mainClass": "com.mira.Main",
             "projectName": "mira",
             "args": [
-                    "demo/Debug.mira",
-                    "-c",
-                    "-t"
+                    "src/main/resources/demo/Debug.mira",
+                    "-t",
+                    "-li"
                 ]
         },
         {

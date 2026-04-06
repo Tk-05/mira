@@ -18,12 +18,24 @@ public class Vocabulary {
             "import",
             "overwrite",
             "foreach",
-            "in"
+            "in",
+            "module",
+            "as",
+            "const",
+            "true",
+            "false",
+            "continue",
+            "null",
+            "switch",
+            "case",
+            "default",
+            "enum"
     );
 
     public static final Set<String> operations = Set.of(
             "+", "-", "*", "/",
             "++", "--",
+            "+=", "-=", "*=", "/=",
             "==", "!=", "<", ">", "<=", ">=",
             "&&", "||",
             "$", ":", "!"
@@ -37,7 +49,9 @@ public class Vocabulary {
             ";",
             ",",
             "[",
-            "]"
+            "]",
+            ".",
+            ".."
     );
 
     public static boolean stringIsKeyword(String s) {

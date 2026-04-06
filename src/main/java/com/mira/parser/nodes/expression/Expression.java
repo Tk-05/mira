@@ -4,6 +4,7 @@ import java.util.List;
 
 import com.mira.lexer.token.Token;
 import com.mira.parser.nodes.Node;
+import com.mira.parser.nodes.statement.Statement.VarDecl;
 import com.mira.runtime.visitors.ExprVisitor;
 import com.mira.utils.Formatter;
 
@@ -226,10 +227,14 @@ public abstract class Expression implements Node {
 
     public static class ImportExpression extends Expression {
 
-        private final Expression lib;
+        private final Expression module;
+        private final String namespace;
+        private final boolean isModule;
 
-        public ImportExpression(Expression lib) {
-            this.lib = lib;
+        public ImportExpression(Expression module, String namespace, boolean isModule) {
+            this.module = module;
+            this.namespace = namespace;
+            this.isModule = isModule;
         }
 
         @Override
@@ -242,8 +247,206 @@ public abstract class Expression implements Node {
             throw new AssertionError();
         }
 
-        public String getLib() {
-            return lib.toString();
+        public String getModule() {
+            return module.toString();
+        }
+
+        public String getNamespace() {
+            return namespace;
+        }
+
+        public boolean isExternalModule() {
+            return isModule;
+        }
+    }
+
+    public static class NamespaceCallExpression extends Expression {
+
+        private final String alias;
+        private final String functionName;
+        private final List<Expression> arguments;
+
+        public NamespaceCallExpression(String alias, String functionName, List<Expression> arguments) {
+            this.alias = alias;
+            this.functionName = functionName;
+            this.arguments = arguments;
+        }
+
+        public String getAlias() {
+            return alias;
+        }
+
+        public String getFunctionName() {
+            return functionName;
+        }
+
+        public List<Expression> getArguments() {
+            return arguments;
+        }
+
+        @Override
+        public <T> T accept(ExprVisitor<T> visitor) {
+            return visitor.visitNamespaceCallExpr(this);
+        }
+
+        @Override
+        public String toString() {
+            return alias + "." + functionName;
+        }
+    }
+
+    public static class RangeExpression extends Expression {
+
+        private final Expression start;
+        private final Expression end;
+        private final Expression stepsize;
+
+        public RangeExpression(Expression start, Expression end, Expression stepsize) {
+            this.start = start;
+            this.end = end;
+            this.stepsize = stepsize;
+        }
+
+        @Override
+        public <T> T accept(ExprVisitor<T> visitor) {
+            return visitor.visitRangeExpression(this);
+        }
+
+        @Override
+        public String toString() {
+            throw new UnsupportedOperationException();
+        }
+
+        public Expression getStart() {
+            return start;
+        }
+
+        public Expression getEnd() {
+            return end;
+        }
+
+        public Expression getStepsize() {
+            return stepsize;
+        }
+    }
+
+    public static class ObjectExpression extends Expression {
+
+        private final List<VarDecl> varDecls;
+
+        public ObjectExpression(List<VarDecl> varDecls) {
+            this.varDecls = varDecls;
+        }
+
+        @Override
+        public <T> T accept(ExprVisitor<T> visitor) {
+            return visitor.visitObjectExpression(this);
+        }
+
+        @Override
+        public String toString() {
+            throw new UnsupportedOperationException("Unimplemented method 'toString'");
+        }
+
+        public List<VarDecl> getVarDecls() {
+            return varDecls;
+        }
+    }
+
+    public static class FieldAccessExpression extends Expression {
+
+        private final Expression object;
+        private final String field;
+
+        public FieldAccessExpression(Expression object, String field) {
+            this.object = object;
+            this.field = field;
+        }
+
+        @Override
+        public <T> T accept(ExprVisitor<T> visitor) {
+            return visitor.visitFieldAccessExpression(this);
+        }
+
+        @Override
+        public String toString() {
+            return object.toString() + "." + field;
+        }
+
+        public Expression getObject() {
+            return object;
+        }
+
+        public String getField() {
+            return field;
+        }
+    }
+
+    public static class BinaryExpression extends Expression {
+
+        private final Expression left;
+        private final Token operator;
+        private final Expression right;
+
+        public BinaryExpression(Expression left, Token operator, Expression right) {
+            this.left = left;
+            this.operator = operator;
+            this.right = right;
+        }
+
+        public Expression getLeft() {
+            return left;
+        }
+
+        public Token getOperator() {
+            return operator;
+        }
+
+        public Expression getRight() {
+            return right;
+        }
+
+        @Override
+        public <T> T accept(ExprVisitor<T> visitor) {
+            return visitor.visitBinaryExpr(this);
+        }
+
+        @Override
+        public String toString() {
+            return "(" + left + " " + operator.getLexeme() + " " + right + ")";
+        }
+    }
+
+    public static class LambdaExpression extends Expression {
+
+        private final List<DumbExpression> parameters;
+        private final List<Node> body;
+
+        public LambdaExpression(List<DumbExpression> parameters, List<Node> body) {
+            this.parameters = parameters;
+            this.body = body;
+        }
+
+        public List<DumbExpression> getParameters() {
+            return parameters;
+        }
+
+        public List<Node> getBody() {
+            return body;
+        }
+
+        public int getArity() {
+            return parameters.size();
+        }
+
+        @Override
+        public <T> T accept(ExprVisitor<T> visitor) {
+            return visitor.visitLambdaExpr(this);
+        }
+
+        @Override
+        public String toString() {
+            return "<lambda/" + parameters.size() + ">";
         }
     }
 }

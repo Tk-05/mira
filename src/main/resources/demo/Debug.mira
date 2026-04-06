@@ -1,3 +1,57 @@
+module main;
+
+import module "./Debug2.mira" as test;
+
+var list : {1,2,4};
+var boolean : true;
+
+enum test {
+    TEST1,
+    TEST2,
+    TEST3
+};
+
 fn main() {
+    assert(0==0);
+    var wrapper : {
+        var a : {
+            var a : 0;
+            var b : 0;
+        };
+        var b: 0;
+    };
+
+    if($boolean) {
+        print("test:" $wrapper.a.a "\n");
+    }
     
+    for(var i in <0..length($list)>) {
+        print($i "\n");
+    }
+
+    foreach(var i in <0..5>) {
+        print($i "\n");
+    }
+
+    print(test.hello("test"));
+
+    var list : [
+                [0,0,0],
+                [0,0,0],
+                [0,0,69]
+               ];
+
+    var return : 0;
+
+    while(true) {
+        break();
+    }
+
+    foreach(var element in $list) {
+        foreach(var inner in $element) {
+            $return : $return + $inner;
+        }
+    }
+
+    ret(eval($return));
 }

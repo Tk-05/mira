@@ -79,4 +79,15 @@ public class RuntimeError extends RuntimeException {
             super("Cannot change non-number: " + ident);
         }
     }
+
+    public static class AssertionFailedError extends RuntimeError {
+
+        public AssertionFailedError() {
+            super("Assertion failed");
+        }
+
+        public AssertionFailedError(String message) {
+            super("Assertion failed: " + message);
+        }
+    }
 }

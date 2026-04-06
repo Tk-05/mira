@@ -1,6 +1,7 @@
 package com.mira.parser.nodes.statement;
 
 import java.util.List;
+import java.util.Map;
 
 import com.mira.parser.nodes.Node;
 import com.mira.parser.nodes.expression.Expression;
@@ -15,10 +16,17 @@ public abstract class Statement implements Node {
 
         private final String name;
         private final Expression initializer;
+        private final boolean isConst;
 
-        public VarDecl(String name, Expression initializer) {
+        public VarDecl(String name, Expression initializer, boolean isConst) {
             this.name = name;
             this.initializer = initializer;
+            this.isConst = isConst;
+        }
+
+        @Override
+        public <T> T accept(StmtVisitor<T> visitor) {
+            return visitor.visitVarDecl(this);
         }
 
         public String getName() {
@@ -29,9 +37,8 @@ public abstract class Statement implements Node {
             return initializer;
         }
 
-        @Override
-        public <T> T accept(StmtVisitor<T> visitor) {
-            return visitor.visitVarDecl(this);
+        public boolean isConst() {
+            return isConst;
         }
     }
 
@@ -210,6 +217,14 @@ public abstract class Statement implements Node {
         }
     }
 
+    public static class Continue extends Statement {
+
+        @Override
+        public <T> T accept(StmtVisitor<T> visitor) {
+            return visitor.visitContinue(this);
+        }
+    }
+
     public static class Block extends Statement {
 
         private final List<Node> body;
@@ -273,6 +288,97 @@ public abstract class Statement implements Node {
 
         public List<Node> getBody() {
             return body;
+        }
+    }
+
+    public static class SwitchCase {
+
+        private final Expression value;
+        private final List<Node> body;
+
+        public SwitchCase(Expression value, List<Node> body) {
+            this.value = value;
+            this.body = body;
+        }
+
+        public Expression getValue() {
+            return value;
+        }
+
+        public List<Node> getBody() {
+            return body;
+        }
+    }
+
+    public static class Switch extends Statement {
+
+        private final Expression subject;
+        private final List<SwitchCase> cases;
+        private final List<Node> defaultBody;
+
+        public Switch(Expression subject, List<SwitchCase> cases, List<Node> defaultBody) {
+            this.subject = subject;
+            this.cases = cases;
+            this.defaultBody = defaultBody;
+        }
+
+        @Override
+        public <T> T accept(StmtVisitor<T> visitor) {
+            return visitor.visitSwitch(this);
+        }
+
+        public Expression getSubject() {
+            return subject;
+        }
+
+        public List<SwitchCase> getCases() {
+            return cases;
+        }
+
+        public List<Node> getDefaultBody() {
+            return defaultBody;
+        }
+    }
+
+    public static class ModuleDecl extends Statement {
+
+        private final String moduleName;
+
+        public ModuleDecl(String moduleName) {
+            this.moduleName = moduleName;
+        }
+
+        @Override
+        public <T> T accept(StmtVisitor<T> visitor) {
+            return null;
+        }
+
+        public String getModuleName() {
+            return moduleName;
+        }
+    }
+
+    public static class EnumDecl extends Statement {
+
+        private final Map<String, Object> values;
+        private final String identifier;
+
+        public EnumDecl(Map<String, Object> values, String identifier) {
+            this.values = values;
+            this.identifier = identifier;
+        }
+
+        @Override
+        public <T> T accept(StmtVisitor<T> visitor) {
+            return visitor.visitEnum(this);
+        }
+
+        public Map<String, Object> getValues() {
+            return values;
+        }
+
+        public String getIdentifier() {
+            return identifier;
         }
     }
 }

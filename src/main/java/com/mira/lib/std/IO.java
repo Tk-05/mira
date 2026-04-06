@@ -11,7 +11,6 @@ public class IO implements Lib {
 
     @Override
     public void loadLib(Environment environment) {
-        //functions
         environment.define("readFile",
                 new NativeFunction(1, args -> {
                     try {

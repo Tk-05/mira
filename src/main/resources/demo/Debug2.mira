@@ -1,0 +1,5 @@
+module Debug2;
+
+fn hello(name) {
+    ret("hello " $name "\n");
+}

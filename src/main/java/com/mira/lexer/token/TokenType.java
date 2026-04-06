@@ -5,5 +5,6 @@ public enum TokenType {
     DELIMITER,
     KEYWORD,
     EOF,
-    OPERATION
+    OPERATION,
+    STRING_LITERAL
 }

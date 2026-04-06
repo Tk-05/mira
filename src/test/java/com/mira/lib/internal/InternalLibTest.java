@@ -12,7 +12,7 @@ import com.mira.runtime.functions.ReturnSignal;
 import com.mira.runtime.interpreter.Environment;
 import com.mira.runtime.interpreter.Interpreter;
 
-public class TestInternalLib {
+public class InternalLibTest {
 
     static com.mira.lib.internal.Internal internal = new com.mira.lib.internal.Internal();
     static Environment environment = new Environment();
