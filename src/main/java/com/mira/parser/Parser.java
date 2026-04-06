@@ -27,6 +27,7 @@ import com.mira.parser.nodes.expression.Expression.UnaryExpression;
 import com.mira.parser.nodes.statement.Statement.Assign;
 import com.mira.parser.nodes.statement.Statement.Block;
 import com.mira.parser.nodes.statement.Statement.Break;
+import com.mira.parser.nodes.statement.Statement.Continue;
 import com.mira.parser.nodes.statement.Statement.For;
 import com.mira.parser.nodes.statement.Statement.Foreach;
 import com.mira.parser.nodes.statement.Statement.FuncDecl;
@@ -34,6 +35,8 @@ import com.mira.parser.nodes.statement.Statement.If;
 import com.mira.parser.nodes.statement.Statement.ModuleDecl;
 import com.mira.parser.nodes.statement.Statement.Overwrite;
 import com.mira.parser.nodes.statement.Statement.Return;
+import com.mira.parser.nodes.statement.Statement.Switch;
+import com.mira.parser.nodes.statement.Statement.SwitchCase;
 import com.mira.parser.nodes.statement.Statement.VarDecl;
 import com.mira.parser.nodes.statement.Statement.While;
 import com.mira.vocabulary.Vocabulary;
@@ -131,12 +134,18 @@ public class Parser {
     private boolean isExpressionToken(Token token) {
         return token.getTokenType() == TokenType.EXPRESSION
                 || token.getTokenType() == TokenType.STRING_LITERAL
-                || isBooleanLiteral(token);
+                || isBooleanLiteral(token)
+                || isNullLiteral(token);
     }
 
     private boolean isBooleanLiteral(Token token) {
         return token.getTokenType() == TokenType.KEYWORD
                 && (token.getLexeme().equals("true") || token.getLexeme().equals("false"));
+    }
+
+    private boolean isNullLiteral(Token token) {
+        return token.getTokenType() == TokenType.KEYWORD
+                && token.getLexeme().equals("null");
     }
 
     private boolean isStructuralDelimiter(Token token) {
@@ -203,6 +212,12 @@ public class Parser {
                     matchLexeme(";");
                 }
             }
+            case "continue" -> {
+                node = parseContinue();
+                if (expectSemicolon) {
+                    matchLexeme(";");
+                }
+            }
             case "$" -> {
                 node = isAssignment() ? parseAssign() : parseExpression();
                 if (expectSemicolon) {
@@ -218,6 +233,9 @@ public class Parser {
             case "import" -> {
                 node = parseImportExpression();
                 matchLexeme(";");
+            }
+            case "switch" -> {
+                node = parseSwitch();
             }
             case "overwrite" -> {
                 node = parseOverwrite();
@@ -246,13 +264,20 @@ public class Parser {
 
     private int binaryOperatorBP(String op) {
         return switch (op) {
-            case "||" -> 1;
-            case "&&" -> 2;
-            case "==", "!=" -> 3;
-            case "<", ">", "<=", ">=" -> 4;
-            case "+", "-" -> 5;
-            case "*", "/" -> 6;
-            default -> 0;
+            case "||" ->
+                1;
+            case "&&" ->
+                2;
+            case "==", "!=" ->
+                3;
+            case "<", ">", "<=", ">=" ->
+                4;
+            case "+", "-" ->
+                5;
+            case "*", "/" ->
+                6;
+            default ->
+                0;
         };
     }
 
@@ -646,6 +671,14 @@ public class Parser {
             reference = parseAccessExpression(reference);
         }
 
+        String op = peek().getLexeme();
+        if (op.equals("+=") || op.equals("-=") || op.equals("*=") || op.equals("/=")) {
+            consume();
+            Expression rhs = parseExpression();
+            Token arithOp = new Token(TokenType.OPERATION, op.substring(0, 1), 0, 0);
+            return new Assign(reference, new BinaryExpression(reference, arithOp, rhs));
+        }
+
         matchLexeme(":");
         Expression expression = parseExpression();
         return new Assign(reference, expression);
@@ -688,7 +721,8 @@ public class Parser {
             }
         }
 
-        return peekOffset(offset).getLexeme().equals(":");
+        String lex = peekOffset(offset).getLexeme();
+        return lex.equals(":") || lex.equals("+=") || lex.equals("-=") || lex.equals("*=") || lex.equals("/=");
     }
 
     private Node parseIf() {
@@ -832,6 +866,13 @@ public class Parser {
         return new Break();
     }
 
+    private Node parseContinue() {
+        matchLexeme("continue");
+        matchLexeme("(");
+        matchLexeme(")");
+        return new Continue();
+    }
+
     private Node parseBlock() {
         matchLexeme("{");
 
@@ -842,6 +883,46 @@ public class Parser {
         matchLexeme("}");
 
         return new Block(body);
+    }
+
+    private Node parseSwitch() {
+        matchLexeme("switch");
+        matchLexeme("(");
+        Expression subject = parseExpression();
+        matchLexeme(")");
+        matchLexeme("{");
+
+        List<SwitchCase> cases = new ArrayList<>();
+        List<Node> defaultBody = null;
+
+        while (!peek().getLexeme().equals("}")) {
+            if (peek().getLexeme().equals("case")) {
+                matchLexeme("case");
+                matchLexeme("(");
+                Expression value = parseExpression();
+                matchLexeme(")");
+                matchLexeme("{");
+                List<Node> body = new ArrayList<>();
+                while (!peek().getLexeme().equals("}")) {
+                    body.add(parseStatement(true));
+                }
+                matchLexeme("}");
+                cases.add(new SwitchCase(value, body));
+            } else if (peek().getLexeme().equals("default")) {
+                matchLexeme("default");
+                matchLexeme("{");
+                defaultBody = new ArrayList<>();
+                while (!peek().getLexeme().equals("}")) {
+                    defaultBody.add(parseStatement(true));
+                }
+                matchLexeme("}");
+            } else {
+                throw new UnexpectedToken(peek(), "Expected 'case' or 'default' in switch body");
+            }
+        }
+
+        matchLexeme("}");
+        return new Switch(subject, cases, defaultBody);
     }
 
     private Node parseOverwrite() {

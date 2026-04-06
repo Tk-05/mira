@@ -1,6 +1,7 @@
 package com.mira.runtime.interpreter.statement;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import org.junit.jupiter.api.Test;
@@ -8,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import com.mira.runtime.functions.ReturnSignal;
 import com.mira.runtime.interpreter.Interpreter;
 import com.mira.runtime.interpreter.InterpreterTestBase;
+import com.mira.runtime.interpreter.NullValue;
 
 public class VarDeclTest extends InterpreterTestBase {
 
@@ -21,7 +23,7 @@ public class VarDeclTest extends InterpreterTestBase {
         try {
             run("var x; ret($x);");
         } catch (ReturnSignal r) {
-            assertNull(r.getValue());
+            assertInstanceOf(NullValue.class, r.getValue());
         }
     }
 

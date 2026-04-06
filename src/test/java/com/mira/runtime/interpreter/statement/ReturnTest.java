@@ -1,13 +1,14 @@
 package com.mira.runtime.interpreter.statement;
 
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import org.junit.jupiter.api.Test;
 
 import com.mira.lexer.Tokenizer;
 import com.mira.parser.Parser;
 import com.mira.runtime.functions.ReturnSignal;
 import com.mira.runtime.interpreter.InterpreterTestBase;
+import com.mira.runtime.interpreter.NullValue;
 
 public class ReturnTest extends InterpreterTestBase {
 
@@ -68,7 +69,7 @@ public class ReturnTest extends InterpreterTestBase {
         try {
             run("var x; ret($x);");
         } catch (ReturnSignal r) {
-            assertNull(r.getValue());
+            assertInstanceOf(NullValue.class, r.getValue());
         }
     }
 }

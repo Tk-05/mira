@@ -24,8 +24,9 @@ import module "./path/to/file.mira" as <alias>;
 ### Declaration
 
 ```
-var <name>;                  // Uninitialized
+var <name>;                  // Uninitialized (implicitly null)
 var <name> : <expression>;   // With initial value
+var <name> : null;           // Explicit null
 ```
 
 ### Assignment
@@ -33,6 +34,15 @@ var <name> : <expression>;   // With initial value
 ```
 $<name> : <expression>;
 $<obj>.<field> : <expression>;
+```
+
+### Compound Assignment
+
+```
+$<name> += <expression>;
+$<name> -= <expression>;
+$<name> *= <expression>;
+$<name> /= <expression>;
 ```
 
 ### Access
@@ -54,6 +64,7 @@ $<obj>.<nested>.<field>
 | Number  | `10`, `3.14`              |
 | String  | `"hello world"`           |
 | Boolean | `true`, `false`           |
+| Null    | `null`                    |
 
 String concatenation is done by placing values side by side:
 
@@ -104,8 +115,8 @@ fn <name>(<param1>, <param2>) {
 ### Return
 
 ```
-ret;                   // Return nothing
-ret(<expression>);     // Return a value
+ret()                  // Return nothing
+ret(<expression>)      // Return a value
 ```
 
 ### Call
@@ -124,7 +135,7 @@ ret(<expression>);     // Return a value
 
 ## Lambdas (Anonymous Functions)
 
-Lambdas sind namenlose Funktionen, die als Werte gespeichert und weitergegeben werden können.
+Lambdas are nameless functions that can be stored as values and passed around.
 
 ### Syntax
 
@@ -134,14 +145,14 @@ fn(<param1>, <param2>) {
 }
 ```
 
-### Zuweisung an Variable
+### Assignment to a variable
 
 ```
 var double : fn(x) { ret(eval($x * 2)); };
 eval(double(5));    // => 10
 ```
 
-### Als Argument übergeben
+### Passing as an argument
 
 ```
 fn apply(f, x) {
@@ -151,14 +162,14 @@ fn apply(f, x) {
 eval(apply(fn(n) { ret(eval($n * $n)); }, 3));   // => 9
 ```
 
-Über eine Variable:
+Via a variable:
 
 ```
 var multiply : fn(a, b) { ret(eval($a * $b)); };
 eval(apply($multiply, 4));
 ```
 
-### Closure: Zugriff auf äußere Variablen
+### Closure: accessing outer variables
 
 ```
 var factor : 3;
@@ -166,7 +177,7 @@ var scale : fn(x) { ret(eval($x * $factor)); };
 eval(scale(5));    // => 15
 ```
 
-### Als Konstante
+### As a constant
 
 ```
 const square : fn(x) { ret(eval($x * $x)); };
@@ -241,10 +252,54 @@ foreach (var <name> in <collection>) {
 <0..length($x)>
 ```
 
+### Switch
+
+Vergleicht einen Ausdruck gegen eine Liste von `case`-Werten. Nur der erste passende Block wird ausgeführt — kein `break` nötig. `default` ist optional und wird ausgeführt, wenn kein `case` passt.
+
+```
+switch (<expression>) {
+    case (<value>) {
+        <body>
+    }
+    case (<value>) {
+        <body>
+    }
+    default {
+        <body>
+    }
+}
+```
+
+Beispiel:
+
+```
+var x : 2;
+switch ($x) {
+    case (1) { print("eins\n"); }
+    case (2) { print("zwei\n"); }
+    default  { print("andere\n"); }
+}
+```
+
+Switch-Ausdrücke können auch Strings oder berechnete Werte sein:
+
+```
+switch (eval($a + $b)) {
+    case (10) { print("zehn\n"); }
+    case (20) { print("zwanzig\n"); }
+}
+```
+
 ### Break
 
 ```
 break();
+```
+
+### Continue
+
+```
+continue();
 ```
 
 ---
@@ -309,14 +364,14 @@ $wrapper.inner.a;
 
 ## Comments
 
-### Einzeilig
+### Single-line
 
 ```
 // This is a line comment
 var x : 10; // inline comment
 ```
 
-### Mehrzeilig
+### Multi-line
 
 ```
 /* This is a

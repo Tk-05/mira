@@ -36,6 +36,7 @@ import com.mira.parser.nodes.statement.Statement;
 import com.mira.parser.nodes.statement.Statement.Assign;
 import com.mira.parser.nodes.statement.Statement.Block;
 import com.mira.parser.nodes.statement.Statement.Break;
+import com.mira.parser.nodes.statement.Statement.Continue;
 import com.mira.parser.nodes.statement.Statement.For;
 import com.mira.parser.nodes.statement.Statement.Foreach;
 import com.mira.parser.nodes.statement.Statement.FuncDecl;
@@ -43,10 +44,13 @@ import com.mira.parser.nodes.statement.Statement.If;
 import com.mira.parser.nodes.statement.Statement.ModuleDecl;
 import com.mira.parser.nodes.statement.Statement.Overwrite;
 import com.mira.parser.nodes.statement.Statement.Return;
+import com.mira.parser.nodes.statement.Statement.Switch;
+import com.mira.parser.nodes.statement.Statement.SwitchCase;
 import com.mira.parser.nodes.statement.Statement.VarDecl;
 import com.mira.parser.nodes.statement.Statement.While;
 import com.mira.runtime.functions.BreakSignal;
 import com.mira.runtime.functions.Callable;
+import com.mira.runtime.functions.ContinueSignal;
 import com.mira.runtime.functions.Function;
 import com.mira.runtime.functions.ReturnSignal;
 import com.mira.runtime.visitors.ExprVisitor;
@@ -187,7 +191,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
     @Override
     public Void visitVarDecl(VarDecl varDecl) {
-        Object value = null;
+        Object value = NullValue.INSTANCE;
 
         if (varDecl.getInitializer() != null) {
             value = varDecl.getInitializer().accept(this);
@@ -207,8 +211,15 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
     @Override
     public <T> T visitDumbExpr(DumbExpression expression) {
         String value = expression.getValue();
-        if (value.equals("true")) return (T) Boolean.TRUE;
-        if (value.equals("false")) return (T) Boolean.FALSE;
+        if (value.equals("true")) {
+            return (T) Boolean.TRUE;
+        }
+        if (value.equals("false")) {
+            return (T) Boolean.FALSE;
+        }
+        if (value.equals("null")) {
+            return (T) NullValue.INSTANCE;
+        }
         return (T) value;
     }
 
@@ -349,24 +360,40 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                     yield String.valueOf(left) + String.valueOf(right);
                 }
             }
-            case "-" -> toNumber(left) - toNumber(right);
-            case "*" -> toNumber(left) * toNumber(right);
-            case "/" -> toNumber(left) / toNumber(right);
-            case "==" -> evaluateComparison(String.valueOf(left), "==", String.valueOf(right));
-            case "!=" -> evaluateComparison(String.valueOf(left), "!=", String.valueOf(right));
-            case "<" -> evaluateComparison(String.valueOf(left), "<", String.valueOf(right));
-            case ">" -> evaluateComparison(String.valueOf(left), ">", String.valueOf(right));
-            case "<=" -> evaluateComparison(String.valueOf(left), "<=", String.valueOf(right));
-            case ">=" -> evaluateComparison(String.valueOf(left), ">=", String.valueOf(right));
-            case "&&" -> resolveBoolean(left) && resolveBoolean(right);
-            case "||" -> resolveBoolean(left) || resolveBoolean(right);
-            default -> throw new UnknownOperatorError(op);
+            case "-" ->
+                toNumber(left) - toNumber(right);
+            case "*" ->
+                toNumber(left) * toNumber(right);
+            case "/" ->
+                toNumber(left) / toNumber(right);
+            case "==" ->
+                evaluateComparison(String.valueOf(left), "==", String.valueOf(right));
+            case "!=" ->
+                evaluateComparison(String.valueOf(left), "!=", String.valueOf(right));
+            case "<" ->
+                evaluateComparison(String.valueOf(left), "<", String.valueOf(right));
+            case ">" ->
+                evaluateComparison(String.valueOf(left), ">", String.valueOf(right));
+            case "<=" ->
+                evaluateComparison(String.valueOf(left), "<=", String.valueOf(right));
+            case ">=" ->
+                evaluateComparison(String.valueOf(left), ">=", String.valueOf(right));
+            case "&&" ->
+                resolveBoolean(left) && resolveBoolean(right);
+            case "||" ->
+                resolveBoolean(left) || resolveBoolean(right);
+            default ->
+                throw new UnknownOperatorError(op);
         };
     }
 
     private double toNumber(Object value) {
-        if (value instanceof Number n) return n.doubleValue();
-        if (value instanceof String s) return Double.parseDouble(s);
+        if (value instanceof Number n) {
+            return n.doubleValue();
+        }
+        if (value instanceof String s) {
+            return Double.parseDouble(s);
+        }
         throw new NumberFormatException("Cannot convert " + value.getClass() + " to number");
     }
 
@@ -535,6 +562,8 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         return switch (value) {
             case Boolean b ->
                 b;
+            case NullValue n ->
+                false;
             case String s ->
                 (boolean) Evaluator.evaluate(s, true);
             default ->
@@ -779,6 +808,8 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         switch (condition) {
             case Boolean b ->
                 value = b;
+            case NullValue n ->
+                value = false;
             case String s ->
                 value = (boolean) Evaluator.evaluate(s, true);
             default ->
@@ -808,7 +839,10 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                     }
                 }
 
-                runBody(stmt.getBody());
+                try {
+                    runBody(stmt.getBody());
+                } catch (ContinueSignal continueSignal) {
+                }
 
                 runBody(stmt.getPostExpressions());
             }
@@ -826,7 +860,10 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                     return null;
                 }
 
-                runBody(stmt.getBody());
+                try {
+                    runBody(stmt.getBody());
+                } catch (ContinueSignal continueSignal) {
+                }
             }
         } catch (BreakSignal breakSignal) {
             return null;
@@ -837,6 +874,8 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         return switch (condition) {
             case Boolean b ->
                 b;
+            case NullValue n ->
+                false;
             case String s ->
                 switch (Evaluator.evaluate(s, true)) {
                     case Boolean b ->
@@ -854,6 +893,11 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
     @Override
     public Object visitBreak(Break stmt) {
         throw new BreakSignal();
+    }
+
+    @Override
+    public Object visitContinue(Continue stmt) {
+        throw new ContinueSignal();
     }
 
     @Override
@@ -914,7 +958,10 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
                 for (double i = start; step > 0 ? i < end : i > end; i += step) {
                     assignIterator(iteratorName, i);
-                    runBody(stmt.getBody());
+                    try {
+                        runBody(stmt.getBody());
+                    } catch (ContinueSignal continueSignal) {
+                    }
                 }
                 return null;
             }
@@ -926,20 +973,29 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                     for (Expression expr : tuple.getMembers()) {
                         Object value = expr.accept(this);
                         assignIterator(iteratorName, value);
-                        runBody(stmt.getBody());
+                        try {
+                            runBody(stmt.getBody());
+                        } catch (ContinueSignal continueSignal) {
+                        }
                     }
                 }
                 case ListExpression list -> {
                     for (Expression expr : list.getMembers()) {
                         Object value = expr.accept(this);
                         assignIterator(iteratorName, value);
-                        runBody(stmt.getBody());
+                        try {
+                            runBody(stmt.getBody());
+                        } catch (ContinueSignal continueSignal) {
+                        }
                     }
                 }
                 case String string -> {
                     for (char ch : string.toCharArray()) {
                         assignIterator(iteratorName, String.valueOf(ch));
-                        runBody(stmt.getBody());
+                        try {
+                            runBody(stmt.getBody());
+                        } catch (ContinueSignal continueSignal) {
+                        }
                     }
                 }
                 default ->
@@ -966,6 +1022,35 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                 throw new AssertionError();
             }
         }
+    }
+
+    @Override
+    public Object visitSwitch(Switch stmt) {
+        Object subject = stmt.getSubject().accept(this);
+
+        for (SwitchCase switchCase : stmt.getCases()) {
+            Object caseValue = switchCase.getValue().accept(this);
+            if (valuesEqual(subject, caseValue)) {
+                runBody(switchCase.getBody());
+                return null;
+            }
+        }
+
+        if (stmt.getDefaultBody() != null) {
+            runBody(stmt.getDefaultBody());
+        }
+
+        return null;
+    }
+
+    private boolean valuesEqual(Object a, Object b) {
+        if (a == null || b == null) {
+            return a == b;
+        }
+        if (a instanceof Double da && b instanceof Double db) {
+            return da.compareTo(db) == 0;
+        }
+        return a.equals(b);
     }
 
     private void runBody(List<Node> body) {

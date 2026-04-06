@@ -23,12 +23,18 @@ public class Vocabulary {
             "as",
             "const",
             "true",
-            "false"
+            "false",
+            "continue",
+            "null",
+            "switch",
+            "case",
+            "default"
     );
 
     public static final Set<String> operations = Set.of(
             "+", "-", "*", "/",
             "++", "--",
+            "+=", "-=", "*=", "/=",
             "==", "!=", "<", ">", "<=", ">=",
             "&&", "||",
             "$", ":", "!"

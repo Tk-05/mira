@@ -36,6 +36,10 @@ fn main() {
 
     var return : 0;
 
+    while(true) {
+        break();
+    }
+
     foreach(var element in $list) {
         foreach(var inner in $element) {
             $return : $return + $inner;
