@@ -358,6 +358,54 @@ public abstract class Statement implements Node {
         }
     }
 
+    public static class Throw extends Statement {
+
+        private final Expression value;
+
+        public Throw(Expression value) {
+            this.value = value;
+        }
+
+        public Expression getValue() {
+            return value;
+        }
+
+        @Override
+        public <T> T accept(StmtVisitor<T> visitor) {
+            return visitor.visitThrow(this);
+        }
+    }
+
+    public static class TryCatch extends Statement {
+
+        private final List<Node> tryBody;
+        private final String catchParam;
+        private final List<Node> catchBody;
+
+        public TryCatch(List<Node> tryBody, String catchParam, List<Node> catchBody) {
+            this.tryBody = tryBody;
+            this.catchParam = catchParam;
+            this.catchBody = catchBody;
+        }
+
+        public List<Node> getTryBody() {
+            return tryBody;
+        }
+
+        public String getCatchParam() {
+            return catchParam;
+        }
+
+        public List<Node> getCatchBody() {
+            return catchBody;
+        }
+
+        @Override
+        public <T> T accept(StmtVisitor<T> visitor) {
+            return visitor.visitTryCatch(this);
+        }
+    }
+
     public static class EnumDecl extends Statement {
 
         private final Map<String, Object> values;

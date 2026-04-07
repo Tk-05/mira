@@ -55,6 +55,8 @@ import com.mira.parser.nodes.statement.Statement.Overwrite;
 import com.mira.parser.nodes.statement.Statement.Return;
 import com.mira.parser.nodes.statement.Statement.Switch;
 import com.mira.parser.nodes.statement.Statement.SwitchCase;
+import com.mira.parser.nodes.statement.Statement.Throw;
+import com.mira.parser.nodes.statement.Statement.TryCatch;
 import com.mira.parser.nodes.statement.Statement.VarDecl;
 import com.mira.parser.nodes.statement.Statement.While;
 import com.mira.runtime.functions.BreakSignal;
@@ -62,6 +64,7 @@ import com.mira.runtime.functions.Callable;
 import com.mira.runtime.functions.ContinueSignal;
 import com.mira.runtime.functions.Function;
 import com.mira.runtime.functions.ReturnSignal;
+import com.mira.runtime.functions.ThrowSignal;
 import com.mira.runtime.visitors.ExprVisitor;
 import com.mira.runtime.visitors.StmtVisitor;
 import com.mira.warning.WarningCollector;
@@ -1074,6 +1077,29 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             runBody(stmt.getDefaultBody());
         }
 
+        return null;
+    }
+
+    @Override
+    public Object visitThrow(Throw stmt) {
+        Object value = stmt.getValue().accept(this);
+        throw new ThrowSignal(value);
+    }
+
+    @Override
+    public Object visitTryCatch(TryCatch stmt) {
+        try {
+            runBodyInFreshScope(stmt.getTryBody());
+        } catch (ThrowSignal signal) {
+            Environment previous = localEnvironment;
+            localEnvironment = new Environment(previous != null ? previous : globalEnvironment);
+            localEnvironment.define(stmt.getCatchParam(), signal.getValue());
+            try {
+                runBody(stmt.getCatchBody());
+            } finally {
+                localEnvironment = previous;
+            }
+        }
         return null;
     }
 

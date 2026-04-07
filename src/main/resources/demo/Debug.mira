@@ -2,6 +2,7 @@ module main;
 
 import module "./Debug2.mira" as test;
 import collection;
+import net;
 
 var list : {1,2,4};
 var boolean : true;
@@ -13,6 +14,9 @@ enum test {
 };
 
 fn main() {
+    var url : "https://github.com";
+    print(getStatus($url)"\n");
+
     var objs : {};
     for(var i in <0..5>) {
         var obj : {
@@ -64,6 +68,12 @@ fn main() {
         foreach(var inner in $element) {
             $return : $return + $inner;
         }
+    }
+
+    try {
+        throw("Error");
+    } catch(e) {
+        print($e "\n");
     }
 
     ret(eval($return));

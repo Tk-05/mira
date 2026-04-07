@@ -40,6 +40,8 @@ import com.mira.parser.nodes.statement.Statement.Overwrite;
 import com.mira.parser.nodes.statement.Statement.Return;
 import com.mira.parser.nodes.statement.Statement.Switch;
 import com.mira.parser.nodes.statement.Statement.SwitchCase;
+import com.mira.parser.nodes.statement.Statement.Throw;
+import com.mira.parser.nodes.statement.Statement.TryCatch;
 import com.mira.parser.nodes.statement.Statement.VarDecl;
 import com.mira.parser.nodes.statement.Statement.While;
 import com.mira.vocabulary.Vocabulary;
@@ -246,6 +248,15 @@ public class Parser {
             }
             case "enum" -> {
                 node = parseEnumDecl();
+            }
+            case "try" -> {
+                node = parseTryCatch();
+            }
+            case "throw" -> {
+                node = parseThrow();
+                if (expectSemicolon) {
+                    matchLexeme(";");
+                }
             }
             default -> {
                 node = parseExpression();
@@ -879,6 +890,37 @@ public class Parser {
         matchLexeme("(");
         matchLexeme(")");
         return new Continue();
+    }
+
+    private Node parseThrow() {
+        matchLexeme("throw");
+        matchLexeme("(");
+        Expression value = parseExpression();
+        matchLexeme(")");
+        return new Throw(value);
+    }
+
+    private Node parseTryCatch() {
+        matchLexeme("try");
+        matchLexeme("{");
+        List<Node> tryBody = new ArrayList<>();
+        while (!peek().getLexeme().equals("}")) {
+            tryBody.add(parseStatement(true));
+        }
+        matchLexeme("}");
+
+        matchLexeme("catch");
+        matchLexeme("(");
+        String catchParam = matchExpression().getLexeme();
+        matchLexeme(")");
+        matchLexeme("{");
+        List<Node> catchBody = new ArrayList<>();
+        while (!peek().getLexeme().equals("}")) {
+            catchBody.add(parseStatement(true));
+        }
+        matchLexeme("}");
+
+        return new TryCatch(tryBody, catchParam, catchBody);
     }
 
     private Node parseBlock() {

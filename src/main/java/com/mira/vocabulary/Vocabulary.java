@@ -29,7 +29,10 @@ public class Vocabulary {
             "switch",
             "case",
             "default",
-            "enum"
+            "enum",
+            "try",
+            "catch",
+            "throw"
     );
 
     public static final Set<String> operations = Set.of(
