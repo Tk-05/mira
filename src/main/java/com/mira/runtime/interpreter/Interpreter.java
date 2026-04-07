@@ -1,8 +1,10 @@
 package com.mira.runtime.interpreter;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import com.mira.Flags;
 import com.mira.error.runtime.RuntimeError.ArgMismatchError;
@@ -74,6 +76,8 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
     private static Interpreter instance;
     private static Environment globalEnvironment = new Environment();
     private Environment localEnvironment;
+    private final Map<String, Object> callCache = new HashMap<>();
+    private Set<String> pureFunctions = Set.of();
 
     public static Interpreter getInstance() {
         if (instance == null) {
@@ -98,6 +102,9 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             }
         }
         ImportResolver.resolveImports(imports, globalEnvironment, this, true);
+
+        pureFunctions = PurityAnalyzer.analyze(asts);
+        callCache.clear();
 
         if (Flags.mainFunction) {
             for (Node ast : asts) {
@@ -269,6 +276,19 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
         if (callable.getArity() != -1 && arguments.size() != callable.getArity()) {
             throw new ArgMismatchError(calleeName, callable.getArity(), arguments.size());
+        }
+
+        if (pureFunctions.contains(calleeName)) {
+            String cacheKey = calleeName + arguments;
+            Object cached = callCache.get(cacheKey);
+            if (cached != null) {
+                return (T) cached;
+            }
+            Object result = callable.call(this, arguments);
+            if (result != null) {
+                callCache.put(cacheKey, result);
+            }
+            return (T) result;
         }
 
         return (T) callable.call(this, arguments);
@@ -863,7 +883,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                     String name = String.valueOf(unaryExpression.getRight().accept(this));
                     Object expression = assign.getExpression().accept(this);
 
-                    if (localEnvironment != null && localEnvironment.exists(name)) {
+                    if (localEnvironment != null && localEnvironment.existsInChain(name)) {
                         localEnvironment.assign(name, expression);
                     } else {
                         globalEnvironment.assign(name, expression);
