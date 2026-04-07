@@ -1,6 +1,7 @@
 package com.mira.runtime.interpreter;
 
 import java.util.List;
+import java.util.regex.Pattern;
 
 import com.mira.error.parser.ParserError.LexemeMismatchError;
 import com.mira.error.parser.ParserError.UnexpectedToken;
@@ -9,6 +10,8 @@ import com.mira.lexer.token.Token;
 import com.mira.lexer.token.TokenType;
 
 public class Evaluator {
+
+    private static final Pattern NUMBER_PATTERN = Pattern.compile("-?\\d+(\\.\\d+)?");
 
     private static List<Token> tokens;
     private static int current;
@@ -176,10 +179,14 @@ public class Evaluator {
             double r = toNumber(right);
 
             left = switch (op) {
-                case "*" -> l * r;
-                case "/" -> l / r;
-                case "%" -> l % r;
-                default -> throw new AssertionError();
+                case "*" ->
+                    l * r;
+                case "/" ->
+                    l / r;
+                case "%" ->
+                    l % r;
+                default ->
+                    throw new AssertionError();
             };
         }
 
@@ -284,6 +291,6 @@ public class Evaluator {
     }
 
     private static boolean isNumber(String s) {
-        return s.matches("-?\\d+(\\.\\d+)?");
+        return NUMBER_PATTERN.matcher(s).matches();
     }
 }

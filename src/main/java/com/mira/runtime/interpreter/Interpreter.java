@@ -1,7 +1,6 @@
 package com.mira.runtime.interpreter;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -75,7 +74,6 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
     private static Interpreter instance;
     private static Environment globalEnvironment = new Environment();
     private Environment localEnvironment;
-    private final Map<String, Object> callCache = new HashMap<>();
 
     public static Interpreter getInstance() {
         if (instance == null) {
@@ -214,7 +212,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         Environment env = localEnvironment == null ? globalEnvironment : localEnvironment;
 
         if (localEnvironment != null) {
-            boolean shadowsLocal  = localEnvironment.getParent() != null
+            boolean shadowsLocal = localEnvironment.getParent() != null
                     && localEnvironment.getParent().existsInChain(varDecl.getName());
             boolean shadowsGlobal = globalEnvironment.existsInChain(varDecl.getName());
             if (shadowsLocal || shadowsGlobal) {
@@ -252,15 +250,9 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         String calleeName = (String) expression.getCallee().accept(this);
 
         Object callee;
-        boolean isLocalCallee = false;
         if (localEnvironment != null) {
             Object local = localEnvironment.getOrNull(calleeName);
-            if (local != null) {
-                callee = local;
-                isLocalCallee = true;
-            } else {
-                callee = globalEnvironment.get(calleeName);
-            }
+            callee = local != null ? local : globalEnvironment.get(calleeName);
         } else {
             callee = globalEnvironment.get(calleeName);
         }
@@ -277,22 +269,6 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
         if (callable.getArity() != -1 && arguments.size() != callable.getArity()) {
             throw new ArgMismatchError(calleeName, callable.getArity(), arguments.size());
-        }
-
-        if (!isLocalCallee) {
-            String cacheKey = calleeName + arguments;
-            Object cached = callCache.get(cacheKey);
-            if (cached != null) {
-                return (T) cached;
-            }
-
-            Object result = callable.call(this, arguments);
-
-            if (result != null) {
-                callCache.put(cacheKey, result);
-            }
-
-            return (T) result;
         }
 
         return (T) callable.call(this, arguments);
@@ -334,9 +310,9 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                 && expressions.get(1) instanceof UnaryExpression unary
                 && isComparisonOperator(unary.getOperation().getLexeme())) {
 
-            String left = String.valueOf(expressions.get(0).accept(this));
+            Object left = expressions.get(0).accept(this);
             String op = unary.getOperation().getLexeme();
-            String right = String.valueOf(expressions.get(2).accept(this));
+            Object right = expressions.get(2).accept(this);
 
             return (T) evaluateComparison(left, op, right);
         }
@@ -381,7 +357,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                 try {
                     yield toNumber(left) + toNumber(right);
                 } catch (NumberFormatException e) {
-                    boolean leftIsStr  = left  instanceof String;
+                    boolean leftIsStr = left instanceof String;
                     boolean rightIsStr = right instanceof String;
                     if (leftIsStr != rightIsStr) {
                         WarningCollector.emit(WarningLevel.HINT,
@@ -416,17 +392,17 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             case ">>" ->
                 (double) ((long) toNumber(left) >> (long) toNumber(right));
             case "==" ->
-                evaluateComparison(String.valueOf(left), "==", String.valueOf(right));
+                evaluateComparison(left, "==", right);
             case "!=" ->
-                evaluateComparison(String.valueOf(left), "!=", String.valueOf(right));
+                evaluateComparison(left, "!=", right);
             case "<" ->
-                evaluateComparison(String.valueOf(left), "<", String.valueOf(right));
+                evaluateComparison(left, "<", right);
             case ">" ->
-                evaluateComparison(String.valueOf(left), ">", String.valueOf(right));
+                evaluateComparison(left, ">", right);
             case "<=" ->
-                evaluateComparison(String.valueOf(left), "<=", String.valueOf(right));
+                evaluateComparison(left, "<=", right);
             case ">=" ->
-                evaluateComparison(String.valueOf(left), ">=", String.valueOf(right));
+                evaluateComparison(left, ">=", right);
             case "&&" ->
                 resolveBoolean(left) && resolveBoolean(right);
             case "||" ->
@@ -567,7 +543,28 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         return op.equals("&&") || op.equals("||");
     }
 
-    private Boolean evaluateComparison(String left, String op, String right) {
+    private Boolean evaluateComparison(Object leftObj, String op, Object rightObj) {
+        if (leftObj instanceof Number ln && rightObj instanceof Number rn) {
+            double l = ln.doubleValue(), r = rn.doubleValue();
+            return switch (op) {
+                case "==" ->
+                    l == r;
+                case "!=" ->
+                    l != r;
+                case "<" ->
+                    l < r;
+                case ">" ->
+                    l > r;
+                case "<=" ->
+                    l <= r;
+                case ">=" ->
+                    l >= r;
+                default ->
+                    throw new UnknownOperatorError(op);
+            };
+        }
+        String left = String.valueOf(leftObj);
+        String right = String.valueOf(rightObj);
         try {
             double l = Double.parseDouble(left);
             double r = Double.parseDouble(right);
@@ -613,8 +610,21 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                 b;
             case NullValue n ->
                 false;
-            case String s ->
-                (boolean) Evaluator.evaluate(s, true);
+            case Double d ->
+                d != 0;
+            case String s -> {
+                if (s.equals("true")) {
+                    yield true;
+                }
+                if (s.equals("false")) {
+                    yield false;
+                }
+                try {
+                    yield Double.parseDouble(s) != 0;
+                } catch (NumberFormatException e) {
+                    throw new AssertionError("Cannot resolve boolean from string: " + s);
+                }
+            }
             default ->
                 throw new AssertionError("Cannot resolve boolean from: " + value.getClass());
         };
@@ -668,14 +678,20 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                         ? localEnvironment
                         : globalEnvironment;
 
-                try {
-                    Double value = Double.valueOf(String.valueOf(env.get(name)));
-                    Double newValue = value + 1;
-                    env.assign(name, newValue);
-                    return (T) newValue;
-                } catch (NumberFormatException numberFormatException) {
-                    throw new PostExprNaNError(name);
+                Object raw = env.get(name);
+                double val;
+                if (raw instanceof Double d) {
+                    val = d;
+                } else {
+                    try {
+                        val = Double.parseDouble(String.valueOf(raw));
+                    } catch (NumberFormatException e) {
+                        throw new PostExprNaNError(name);
+                    }
                 }
+                Double newValue = val + 1;
+                env.assign(name, newValue);
+                return (T) newValue;
             }
 
             case "--" -> {
@@ -690,20 +706,25 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                         ? localEnvironment
                         : globalEnvironment;
 
-                try {
-                    Double value = Double.valueOf(String.valueOf(env.get(name)));
-                    Double newValue = value - 1;
-                    env.assign(name, newValue);
-                    return (T) newValue;
-                } catch (NumberFormatException numberFormatException) {
-                    throw new PostExprNaNError(name);
+                Object raw = env.get(name);
+                double val;
+                if (raw instanceof Double d) {
+                    val = d;
+                } else {
+                    try {
+                        val = Double.parseDouble(String.valueOf(raw));
+                    } catch (NumberFormatException e) {
+                        throw new PostExprNaNError(name);
+                    }
                 }
+                Double newValue = val - 1;
+                env.assign(name, newValue);
+                return (T) newValue;
             }
 
             case "~" -> {
                 Object right = expression.getRight().accept(this);
-                double val = Double.parseDouble(String.valueOf(right));
-                return (T) Double.valueOf(~(long) val);
+                return (T) Double.valueOf(~(long) toNumber(right));
             }
 
             default ->
@@ -859,17 +880,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
     @Override
     public Object visitIf(If stmt) {
         Object condition = stmt.getCondition().accept(this);
-        boolean value;
-        switch (condition) {
-            case Boolean b ->
-                value = b;
-            case NullValue n ->
-                value = false;
-            case String s ->
-                value = (boolean) Evaluator.evaluate(s, true);
-            default ->
-                throw new AssertionError();
-        }
+        boolean value = resolveLoopCondition(condition);
         List<Node> body = value ? stmt.getThenBody() : stmt.getElseBody();
 
         if (body == null) {
@@ -931,15 +942,21 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                 b;
             case NullValue n ->
                 false;
-            case String s ->
-                switch (Evaluator.evaluate(s, true)) {
-                    case Boolean b ->
-                        b;
-                    case Double d ->
-                        d != 0;
-                    default ->
-                        throw new AssertionError("Unexpected evaluator result");
-                };
+            case Double d ->
+                d != 0;
+            case String s -> {
+                if (s.equals("true")) {
+                    yield true;
+                }
+                if (s.equals("false")) {
+                    yield false;
+                }
+                try {
+                    yield Double.parseDouble(s) != 0;
+                } catch (NumberFormatException e) {
+                    throw new AssertionError("Cannot resolve loop condition from string: " + s);
+                }
+            }
             default ->
                 throw new AssertionError("Unexpected condition type: " + condition.getClass());
         };
@@ -1178,19 +1195,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             throw new ArgMismatchError(expression.getFunctionName(), callable.getArity(), arguments.size());
         }
 
-        String cacheKey = expression.getAlias() + "." + expression.getFunctionName() + arguments;
-        Object cached = callCache.get(cacheKey);
-        if (cached != null) {
-            return (T) cached;
-        }
-
-        Object result = callable.call(this, arguments);
-
-        if (result != null) {
-            callCache.put(cacheKey, result);
-        }
-
-        return (T) result;
+        return (T) callable.call(this, arguments);
     }
 
     @Override

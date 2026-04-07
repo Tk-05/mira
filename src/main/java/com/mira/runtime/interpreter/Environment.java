@@ -60,8 +60,9 @@ public class Environment {
     }
 
     public Object get(String name) {
-        if (values.containsKey(name)) {
-            return values.get(name);
+        Object value = values.get(name);
+        if (value != null || values.containsKey(name)) {
+            return value;
         }
         if (parent != null) {
             return parent.get(name);
@@ -70,8 +71,9 @@ public class Environment {
     }
 
     public Object getOrNull(String name) {
-        if (values.containsKey(name)) {
-            return values.get(name);
+        Object value = values.get(name);
+        if (value != null || values.containsKey(name)) {
+            return value;
         }
         if (parent != null) {
             return parent.getOrNull(name);
@@ -99,8 +101,12 @@ public class Environment {
     }
 
     public boolean existsInChain(String name) {
-        if (values.containsKey(name)) return true;
-        if (parent != null) return parent.existsInChain(name);
+        if (values.containsKey(name)) {
+            return true;
+        }
+        if (parent != null) {
+            return parent.existsInChain(name);
+        }
         return false;
     }
 

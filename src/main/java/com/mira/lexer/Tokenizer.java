@@ -1,7 +1,9 @@
 package com.mira.lexer;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import com.mira.error.lexer.LexerError.UnexpectedCharacterError;
 import com.mira.error.lexer.LexerError.UnterminatedStringError;
@@ -10,6 +12,20 @@ import com.mira.lexer.token.TokenType;
 import com.mira.vocabulary.Vocabulary;
 
 public class Tokenizer {
+
+    private static final Set<Character> OPERATOR_START_CHARS;
+    private static final Set<Character> DELIMITER_START_CHARS;
+
+    static {
+        OPERATOR_START_CHARS = new HashSet<>();
+        for (String op : Vocabulary.operations) {
+            OPERATOR_START_CHARS.add(op.charAt(0));
+        }
+        DELIMITER_START_CHARS = new HashSet<>();
+        for (String d : Vocabulary.delimiters) {
+            DELIMITER_START_CHARS.add(d.charAt(0));
+        }
+    }
 
     private String source;
     private final List<Token> tokens = new ArrayList<>();
@@ -282,21 +298,11 @@ public class Tokenizer {
     }
 
     private boolean startsOperator(char c) {
-        for (String op : Vocabulary.operations) {
-            if (op.charAt(0) == c) {
-                return true;
-            }
-        }
-        return false;
+        return OPERATOR_START_CHARS.contains(c);
     }
 
     private boolean startsDelimiter(char c) {
-        for (String d : Vocabulary.delimiters) {
-            if (d.charAt(0) == c) {
-                return true;
-            }
-        }
-        return false;
+        return DELIMITER_START_CHARS.contains(c);
     }
 
     private boolean isIdentifierPart(char c) {
