@@ -34,6 +34,10 @@ $<name> += <expression>;
 $<name> -= <expression>;
 $<name> *= <expression>;
 $<name> /= <expression>;
+$<name> %= <expression>;
+$<name> &= <expression>;
+$<name> |= <expression>;
+$<name> ^= <expression>;
 ```
 
 ---
@@ -61,9 +65,10 @@ String concatenation is done by placing values side by side:
 
 | Category   | Operators                        |
 | ---------- | -------------------------------- |
-| Arithmetic | `+`, `-`, `*`, `/`               |
+| Arithmetic | `+`, `-`, `*`, `/`, `%`          |
 | Comparison | `<`, `>`, `<=`, `>=`, `==`, `!=` |
 | Logical    | `&&`, `\|\|`, `!`                |
+| Bitwise    | `&`, `\|`, `^`, `~`, `<<`, `>>`  |
 | Postfix    | `++`, `--`                       |
 
 Arithmetic must be wrapped in `eval()`:
@@ -242,6 +247,36 @@ switch ($x) {
 ```
 break();
 continue();
+```
+
+### Try / Catch
+
+Executes the `try` block and, if an exception is thrown, binds the value to the catch parameter and runs the `catch` block.
+
+```
+try {
+    <body>
+} catch(<param>) {
+    <body>
+}
+```
+
+### Throw
+
+Throws a value as an exception. Can be caught by an enclosing `try / catch`.
+
+```
+throw(<expression>);
+```
+
+Example:
+
+```
+try {
+    throw("something went wrong");
+} catch(e) {
+    print($e "\n");
+}
 ```
 
 ---
@@ -433,13 +468,14 @@ eval(scale(5));    // => 15
 
 Always available without any import.
 
-| Function          | Parameters             | Description                                               |
-| ----------------- | ---------------------- | --------------------------------------------------------- |
-| `eval(<expr>)`    | Arithmetic expression  | Evaluates an arithmetic expression and returns the result |
-| `print(<value>)`  | Any value              | Prints the value to stdout without a newline              |
-| `exec(<code>)`    | String                 | Parses and executes a string of Mira code at runtime      |
-| `length(<value>)` | String, List, or Tuple | Returns the number of characters / elements               |
-| `exit(<code>)`    | Number                 | Exits the program with the given exit code                |
+| Function           | Parameters             | Description                                               |
+| ------------------ | ---------------------- | --------------------------------------------------------- |
+| `eval(<expr>)`     | Arithmetic expression  | Evaluates an arithmetic expression and returns the result |
+| `print(<value>)`   | Any value              | Prints the value to stdout without a newline              |
+| `exec(<code>)`     | String                 | Parses and executes a string of Mira code at runtime      |
+| `length(<value>)`  | String, List, or Tuple | Returns the number of characters / elements               |
+| `exit(<code>)`     | Number                 | Exits the program with the given exit code                |
+| `assert(<condition>)` | Boolean expression  | Throws a runtime error if the condition is false          |
 
 ---
 

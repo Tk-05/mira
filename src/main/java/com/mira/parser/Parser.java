@@ -285,14 +285,22 @@ public class Parser {
                 1;
             case "&&" ->
                 2;
-            case "==", "!=" ->
+            case "|" ->
                 3;
-            case "<", ">", "<=", ">=" ->
+            case "^" ->
                 4;
-            case "+", "-" ->
+            case "&" ->
                 5;
-            case "*", "/" ->
+            case "==", "!=" ->
                 6;
+            case "<", ">", "<=", ">=" ->
+                7;
+            case "<<", ">>" ->
+                8;
+            case "+", "-" ->
+                9;
+            case "*", "/", "%" ->
+                10;
             default ->
                 0;
         };
@@ -309,7 +317,8 @@ public class Parser {
 
         } else if ((current.getLexeme().equals("!")
                 || current.getLexeme().equals("-")
-                || current.getLexeme().equals("+"))
+                || current.getLexeme().equals("+")
+                || current.getLexeme().equals("~"))
                 && current.getTokenType() != TokenType.STRING_LITERAL) {
             Token op = consume();
             expr = new UnaryExpression(op, parsePrimary());
@@ -691,7 +700,8 @@ public class Parser {
         }
 
         String op = peek().getLexeme();
-        if (op.equals("+=") || op.equals("-=") || op.equals("*=") || op.equals("/=")) {
+        if (op.equals("+=") || op.equals("-=") || op.equals("*=") || op.equals("/=")
+                || op.equals("%=") || op.equals("&=") || op.equals("|=") || op.equals("^=")) {
             consume();
             Expression rhs = parseExpression();
             Token arithOp = new Token(TokenType.OPERATION, op.substring(0, 1), 0, 0);
@@ -741,7 +751,8 @@ public class Parser {
         }
 
         String lex = peekOffset(offset).getLexeme();
-        return lex.equals(":") || lex.equals("+=") || lex.equals("-=") || lex.equals("*=") || lex.equals("/=");
+        return lex.equals(":") || lex.equals("+=") || lex.equals("-=") || lex.equals("*=") || lex.equals("/=")
+                || lex.equals("%=") || lex.equals("&=") || lex.equals("|=") || lex.equals("^=");
     }
 
     private Node parseIf() {
@@ -1098,7 +1109,6 @@ public class Parser {
         }
 
         matchLexeme("}");
-        matchLexeme(";");
 
         return new EnumDecl(values, identifier);
     }

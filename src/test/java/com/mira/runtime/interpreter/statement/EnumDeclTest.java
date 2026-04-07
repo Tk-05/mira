@@ -15,7 +15,7 @@ public class EnumDeclTest extends InterpreterTestBase {
 
     @Test
     void autoIndexedVariantsStartAtZero() {
-        run("enum Dir { NORTH, SOUTH, EAST, WEST };");
+        run("enum Dir { NORTH, SOUTH, EAST, WEST }");
         Environment dir = (Environment) Interpreter.getGlobalEnvironment().get("Dir");
         assertEquals("0", dir.get("NORTH"));
         assertEquals("1", dir.get("SOUTH"));
@@ -25,7 +25,7 @@ public class EnumDeclTest extends InterpreterTestBase {
 
     @Test
     void explicitIntegerValues() {
-        run("enum Status { OK : 200, NOT_FOUND : 404, ERROR : 500 };");
+        run("enum Status { OK : 200, NOT_FOUND : 404, ERROR : 500 }");
         Environment status = (Environment) Interpreter.getGlobalEnvironment().get("Status");
         assertEquals("200", status.get("OK"));
         assertEquals("404", status.get("NOT_FOUND"));
@@ -34,7 +34,7 @@ public class EnumDeclTest extends InterpreterTestBase {
 
     @Test
     void explicitStringValues() {
-        run("enum Color { RED : \"red\", GREEN : \"green\", BLUE : \"blue\" };");
+        run("enum Color { RED : \"red\", GREEN : \"green\", BLUE : \"blue\" }");
         Environment color = (Environment) Interpreter.getGlobalEnvironment().get("Color");
         assertEquals("red", color.get("RED"));
         assertEquals("green", color.get("GREEN"));
@@ -43,7 +43,7 @@ public class EnumDeclTest extends InterpreterTestBase {
 
     @Test
     void singleVariant() {
-        run("enum Single { ONLY };");
+        run("enum Single { ONLY }");
         Environment single = (Environment) Interpreter.getGlobalEnvironment().get("Single");
         assertEquals("0", single.get("ONLY"));
     }
@@ -51,7 +51,7 @@ public class EnumDeclTest extends InterpreterTestBase {
     @Test
     void enumAccessedViaFieldAccess() {
         run("""
-                enum Dir { NORTH, SOUTH };
+                enum Dir { NORTH, SOUTH }
                 var x : Dir.SOUTH;
                 """);
         assertEquals("1", Interpreter.getGlobalEnvironment().get("x"));
@@ -60,7 +60,7 @@ public class EnumDeclTest extends InterpreterTestBase {
     @Test
     void enumValueUsedInComparison() {
         run("""
-                enum Dir { NORTH, SOUTH };
+                enum Dir { NORTH, SOUTH }
                 var current : Dir.NORTH;
                 var isNorth : false;
                 if ($current == Dir.NORTH) {
@@ -72,7 +72,7 @@ public class EnumDeclTest extends InterpreterTestBase {
 
     @Test
     void enumVariantIsImmutable() {
-        run("enum Dir { NORTH };");
+        run("enum Dir { NORTH }");
         Environment dir = (Environment) Interpreter.getGlobalEnvironment().get("Dir");
         assertThrows(ReferenceIsImmutableError.class, () -> dir.assign("NORTH", 99.0));
     }
@@ -80,14 +80,14 @@ public class EnumDeclTest extends InterpreterTestBase {
     @Test
     void enumItselfIsImmutable() {
         assertThrows(ObjectAlreadyDefinedInScope.class, () -> run("""
-                enum Dir { NORTH };
-                enum Dir { SOUTH };
+                enum Dir { NORTH }
+                enum Dir { SOUTH }
                 """));
     }
 
     @Test
     void unknownVariantThrows() {
-        run("enum Dir { NORTH };");
+        run("enum Dir { NORTH }");
         Environment dir = (Environment) Interpreter.getGlobalEnvironment().get("Dir");
         assertThrows(UndefinedReferenceError.class, () -> dir.get("SOUTH"));
     }
@@ -95,7 +95,7 @@ public class EnumDeclTest extends InterpreterTestBase {
     @Test
     void enumValueUsedInSwitch() {
         run("""
-                enum Status { OK : 200, ERROR : 500 };
+                enum Status { OK : 200, ERROR : 500 }
                 var code : Status.OK;
                 var result : 0;
                 switch ($code) {

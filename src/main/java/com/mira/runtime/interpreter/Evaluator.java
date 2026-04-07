@@ -39,11 +39,44 @@ public class Evaluator {
     }
 
     private static Object and() {
-        Object left = equality();
+        Object left = bitwiseOr();
 
         while (match("&&")) {
-            Object right = equality();
+            Object right = bitwiseOr();
             left = toBoolean(left) && toBoolean(right);
+        }
+
+        return left;
+    }
+
+    private static Object bitwiseOr() {
+        Object left = bitwiseXor();
+
+        while (match("|")) {
+            Object right = bitwiseXor();
+            left = (double) ((long) toNumber(left) | (long) toNumber(right));
+        }
+
+        return left;
+    }
+
+    private static Object bitwiseXor() {
+        Object left = bitwiseAnd();
+
+        while (match("^")) {
+            Object right = bitwiseAnd();
+            left = (double) ((long) toNumber(left) ^ (long) toNumber(right));
+        }
+
+        return left;
+    }
+
+    private static Object bitwiseAnd() {
+        Object left = equality();
+
+        while (match("&")) {
+            Object right = equality();
+            left = (double) ((long) toNumber(left) & (long) toNumber(right));
         }
 
         return left;
@@ -67,12 +100,12 @@ public class Evaluator {
     }
 
     private static Object comparison() {
-        Object left = term();
+        Object left = shift();
 
         while (match(">", "<", ">=", "<=")) {
 
             String op = previous().getLexeme();
-            Object right = term();
+            Object right = shift();
 
             double l = toNumber(left);
             double r = toNumber(right);
@@ -89,6 +122,22 @@ public class Evaluator {
                 default ->
                     false;
             };
+        }
+
+        return left;
+    }
+
+    private static Object shift() {
+        Object left = term();
+
+        while (match("<<", ">>")) {
+            String op = previous().getLexeme();
+            Object right = term();
+
+            long l = (long) toNumber(left);
+            long r = (long) toNumber(right);
+
+            left = (double) (op.equals("<<") ? l << r : l >> r);
         }
 
         return left;
@@ -118,7 +167,7 @@ public class Evaluator {
     private static Object factor() {
         Object left = unary();
 
-        while (match("*", "/")) {
+        while (match("*", "/", "%")) {
 
             String op = previous().getLexeme();
             Object right = unary();
@@ -126,11 +175,12 @@ public class Evaluator {
             double l = toNumber(left);
             double r = toNumber(right);
 
-            if (op.equals("*")) {
-                left = l * r;
-            } else {
-                left = l / r;
-            }
+            left = switch (op) {
+                case "*" -> l * r;
+                case "/" -> l / r;
+                case "%" -> l % r;
+                default -> throw new AssertionError();
+            };
         }
 
         return left;
@@ -143,6 +193,10 @@ public class Evaluator {
 
         if (match("-")) {
             return -toNumber(unary());
+        }
+
+        if (match("~")) {
+            return (double) (~(long) toNumber(unary()));
         }
 
         return primary();

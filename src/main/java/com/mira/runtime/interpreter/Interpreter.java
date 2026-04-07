@@ -403,6 +403,18 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                 }
                 yield toNumber(left) / divisor;
             }
+            case "%" ->
+                toNumber(left) % toNumber(right);
+            case "&" ->
+                (double) ((long) toNumber(left) & (long) toNumber(right));
+            case "|" ->
+                (double) ((long) toNumber(left) | (long) toNumber(right));
+            case "^" ->
+                (double) ((long) toNumber(left) ^ (long) toNumber(right));
+            case "<<" ->
+                (double) ((long) toNumber(left) << (long) toNumber(right));
+            case ">>" ->
+                (double) ((long) toNumber(left) >> (long) toNumber(right));
             case "==" ->
                 evaluateComparison(String.valueOf(left), "==", String.valueOf(right));
             case "!=" ->
@@ -686,6 +698,12 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                 } catch (NumberFormatException numberFormatException) {
                     throw new PostExprNaNError(name);
                 }
+            }
+
+            case "~" -> {
+                Object right = expression.getRight().accept(this);
+                double val = Double.parseDouble(String.valueOf(right));
+                return (T) Double.valueOf(~(long) val);
             }
 
             default ->

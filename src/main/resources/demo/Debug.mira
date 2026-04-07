@@ -11,7 +11,7 @@ enum test {
     TEST1,
     TEST2,
     TEST3
-};
+}
 
 fn main() {
     var url : "https://github.com";
