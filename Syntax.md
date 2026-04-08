@@ -378,7 +378,9 @@ ret(<expression>);     // Return a value
 <name>(<arg1>, <arg2>)
 ```
 
-### Module-qualified call
+### Namespace-qualified call
+
+Functions from aliased imports are called via dot notation:
 
 ```
 <alias>.<name>(<arg>)
@@ -417,10 +419,22 @@ module <name>;
 ### Imports
 
 ```
-import <module-name>;                           // Standard library module
-import "./path/to/file.mira" as <alias>;        // File import with alias
-import module "./path/to/file.mira";            // File import without alias
-import module "./path/to/file.mira" as <alias>;
+import <lib>;                                   // Standard library (global scope)
+import <lib> as <alias>;                        // Standard library under alias
+import module "./path/to/file.mira";            // File import (global scope)
+import module "./path/to/file.mira" as <alias>; // File import under alias
+```
+
+When a lib is imported without an alias, all its functions are available globally. When imported with an alias, functions are accessed via `<alias>.<function>(...)`.
+
+If two libs imported without an alias define a function with the same name, a conflict error is thrown. Use aliases to resolve it:
+
+```
+import string;            // ok
+import collection as col; // avoids conflict with 'indexOf'
+
+trim($text);
+col.findIndex($list, "x");
 ```
 
 ---
@@ -464,24 +478,8 @@ eval(scale(5));    // => 15
 
 ---
 
-## Internal Functions
-
-Always available without any import.
-
-| Function           | Parameters             | Description                                               |
-| ------------------ | ---------------------- | --------------------------------------------------------- |
-| `eval(<expr>)`     | Arithmetic expression  | Evaluates an arithmetic expression and returns the result |
-| `print(<value>)`   | Any value              | Prints the value to stdout without a newline              |
-| `exec(<code>)`     | String                 | Parses and executes a string of Mira code at runtime      |
-| `length(<value>)`  | String, List, or Tuple | Returns the number of characters / elements               |
-| `exit(<code>)`     | Number                 | Exits the program with the given exit code                |
-| `assert(<condition>)` | Boolean expression  | Throws a runtime error if the condition is false          |
-
----
-
 ## Example Program
-
-```mira
+```
 module main;
 
 fn fibonacci(n) {
@@ -503,3 +501,183 @@ fn main() {
     print("Sum: " $result "\n");
 }
 ```
+
+---
+
+## Internal Functions
+
+Always available without any import.
+
+| Function                    | Parameters             | Description                                               |
+| --------------------------- | ---------------------- | --------------------------------------------------------- |
+| `print(<value>)`            | Any value              | Prints the value to stdout without a newline              |
+| `scan()`                    | —                      | Reads a line from stdin and returns it as a string        |
+| `eval(<expr>)`              | Arithmetic expression  | Evaluates an arithmetic expression and returns the result |
+| `exec(<code>)`              | String                 | Parses and executes a string of Mira code at runtime      |
+| `length(<value>)`           | String, List, or Tuple | Returns the number of characters / elements               |
+| `exit(<code>)`              | Number                 | Exits the program with the given exit code                |
+| `assert(<cond>)`            | Boolean expression     | Throws a runtime error if the condition is false          |
+| `assert(<cond>, <message>)` | Boolean, String        | Throws with a custom message if condition is false        |
+
+---
+
+## Standard Libraries
+
+### `string`
+
+| Function                        | Description                              |
+| ------------------------------- | ---------------------------------------- |
+| `charAt(str, index)`            | Returns the character at the given index |
+| `indexOf(str, char)`            | Returns the first index of a character   |
+| `trim(str)`                     | Removes leading and trailing whitespace  |
+| `split(str, delimiter)`         | Splits string into an array              |
+| `substr(str, start, end)`       | Returns a substring                      |
+| `strEqual(str1, str2)`          | Returns true if both strings are equal   |
+| `replace(str, from, to)`        | Replaces all occurrences of a character  |
+
+### `collection`
+
+| Function                    | Description                                          |
+| --------------------------- | ---------------------------------------------------- |
+| `size(list)`                | Returns the number of elements                       |
+| `push(list, value)`         | Appends a value to the list (mutates)                |
+| `pop(list)`                 | Removes the last element (mutates)                   |
+| `first(list)`               | Returns the first element                            |
+| `last(list)`                | Returns the last element                             |
+| `contains(list, value)`     | Returns true if the value is in the collection       |
+| `findIndex(list, value)`    | Returns the index of a value, or `-1`                |
+| `slice(list, from, to)`     | Returns a sub-list                                   |
+| `reverse(list)`             | Returns a reversed copy                              |
+| `concat(list1, list2)`      | Concatenates two collections into a new list         |
+| `flatten(list)`             | Flattens one level of nested lists                   |
+| `join(list, separator)`     | Joins elements into a string                         |
+| `newList()`                 | Creates an empty mutable list                        |
+| `newTuple()`                | Creates an empty tuple                               |
+
+### `math`
+
+Constants: `pi`, `e`, `inf`, `nan`
+
+| Function              | Description                        |
+| --------------------- | ---------------------------------- |
+| `pow(base, exp)`      | Exponentiation                     |
+| `sqrt(x)`             | Square root                        |
+| `cbrt(x)`             | Cube root                          |
+| `abs(x)`              | Absolute value                     |
+| `round(x)`            | Round to nearest integer           |
+| `floor(x)`            | Round down                         |
+| `ceil(x)`             | Round up                           |
+| `min(a, b)`           | Minimum of two values              |
+| `max(a, b)`           | Maximum of two values              |
+| `clamp(x, min, max)`  | Clamp value to range               |
+| `sign(x)`             | Sign: `-1`, `0`, or `1`            |
+| `log(x)`              | Natural logarithm                  |
+| `log10(x)`            | Base-10 logarithm                  |
+| `log2(x)`             | Base-2 logarithm                   |
+| `sin(x)`              | Sine (radians)                     |
+| `cos(x)`              | Cosine (radians)                   |
+| `tan(x)`              | Tangent (radians)                  |
+| `asin(x)`             | Arc sine                           |
+| `acos(x)`             | Arc cosine                         |
+| `atan(x)`             | Arc tangent                        |
+| `atan2(y, x)`         | Arc tangent of y/x                 |
+| `toRad(deg)`          | Degrees to radians                 |
+| `toDeg(rad)`          | Radians to degrees                 |
+| `rand()`              | Random float in `[0, 1)`           |
+| `randInt(min, max)`   | Random integer in `[min, max]`     |
+| `isNaN(x)`            | True if value is NaN               |
+| `isInf(x)`            | True if value is infinite          |
+
+### `net`
+
+| Function                           | Description                              |
+| ---------------------------------- | ---------------------------------------- |
+| `httpGet(url)`                     | Sends a GET request, returns body        |
+| `httpPost(url, body, contentType)` | Sends a POST request, returns body       |
+| `httpStatus(url)`                  | Returns the HTTP status code             |
+| `httpHeader(url, header)`          | Returns a response header value          |
+| `httpDownload(url, path)`          | Downloads a file to the given path       |
+
+### `dateTime`
+
+| Function               | Description                                       |
+| ---------------------- | ------------------------------------------------- |
+| `now()`                | Current date-time as ISO string                   |
+| `timestamp()`          | Current Unix timestamp in seconds                 |
+| `timestampMs()`        | Current Unix timestamp in milliseconds            |
+| `dateFormat(date, fmt)`| Formats a date string with a pattern              |
+| `year()`               | Current year                                      |
+| `month()`              | Current month (1–12)                              |
+| `day()`                | Current day of month                              |
+| `hour()`               | Current hour (0–23)                               |
+| `minute()`             | Current minute                                    |
+| `second()`             | Current second                                    |
+| `dayOfWeek()`          | Day name e.g. `"MONDAY"`                          |
+| `dayOfYear()`          | Day of year (1–366)                               |
+| `secondsSince(date)`   | Seconds elapsed since the given date string       |
+| `fromEpoch(seconds)`   | Converts a Unix timestamp (seconds) to date string|
+
+### `json`
+
+| Function                          | Description                                           |
+| --------------------------------- | ----------------------------------------------------- |
+| `jsonGet(json, key)`              | Gets a scalar value by key                            |
+| `jsonHas(json, key)`              | Returns true if the key exists                        |
+| `jsonArray(json, key)`            | Returns a top-level array as a list                   |
+| `jsonNested(json, parent, key)`   | Returns a nested array by parent key and array key    |
+| `jsonBuild(keys, values)`         | Builds a JSON string from two lists                   |
+| `jsonFormat(json)`                | Pretty-prints a JSON string                           |
+| `jsonIndexOf(list, value)`        | Returns the index of a value in a JSON list, or `-1`  |
+
+### `io`
+
+| Function          | Description                        |
+| ----------------- | ---------------------------------- |
+| `readFile(path)`  | Reads a file and returns its content as a string |
+
+### `regex`
+
+| Function                           | Description                                      |
+| ---------------------------------- | ------------------------------------------------ |
+| `matches(input, pattern)`          | True if the whole string matches the pattern     |
+| `contains(input, pattern)`         | True if the pattern is found anywhere            |
+| `findFirst(input, pattern)`        | Returns the first match, or `""`                 |
+| `findAll(input, pattern)`          | Returns all matches as a list                    |
+| `replaceAll(input, pattern, repl)` | Replaces all matches                             |
+| `replaceFirst(input, pattern, repl)`| Replaces the first match                        |
+| `split(input, pattern)`            | Splits by regex pattern into a list              |
+| `capture(input, pattern)`          | Returns capture groups of the first match        |
+| `countMatches(input, pattern)`     | Returns the number of matches                    |
+
+### `shell`
+
+| Function            | Description                                       |
+| ------------------- | ------------------------------------------------- |
+| `execute(cmd)`      | Runs a shell command and returns stdout           |
+| `executeCode(cmd)`  | Runs a shell command and returns the exit code    |
+| `getenv(name)`      | Returns an environment variable value             |
+| `hasenv(name)`      | Returns true if the environment variable exists   |
+| `osName()`          | Returns the OS name                               |
+| `isWindows()`       | True if running on Windows                        |
+| `isLinux()`         | True if running on Linux                          |
+| `isMac()`           | True if running on macOS                          |
+| `cwd()`             | Current working directory                         |
+| `username()`        | Current OS username                               |
+| `homedir()`         | Home directory path                               |
+
+### `process`
+
+| Function                  | Description                                         |
+| ------------------------- | --------------------------------------------------- |
+| `processStart(cmd)`       | Starts a background process, returns an ID          |
+| `processAlive(id)`        | True if the process is still running                |
+| `processWait(id)`         | Waits for the process to finish, returns exit code  |
+| `processKill(id)`         | Terminates the process                              |
+| `processOutput(id)`       | Returns buffered stdout of the process              |
+| `processExitCode(id)`     | Returns the exit code of a finished process         |
+| `pid()`                   | Returns the PID of the current process              |
+| `listProcesses()`         | Returns a list of all running PIDs                  |
+| `processInfo(pid)`        | Returns the command of a process by PID             |
+| `sleep(ms)`               | Pauses execution for the given number of milliseconds|
+
+---
