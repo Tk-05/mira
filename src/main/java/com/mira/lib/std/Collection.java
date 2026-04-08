@@ -134,12 +134,10 @@ public class Collection implements Lib {
         environment.define("flatten", new NativeFunction(1, args -> {
             List<Expression> result = new ArrayList<>();
             for (Expression e : toMembers(args.get(0))) {
-                if (e instanceof ListExpression inner) {
-                    result.addAll(inner.getMembers());
-                } else if (e instanceof TupleExpression inner) {
-                    result.addAll(inner.getMembers());
-                } else {
-                    result.add(e);
+                switch (e) {
+                    case ListExpression inner -> result.addAll(inner.getMembers());
+                    case TupleExpression inner -> result.addAll(inner.getMembers());
+                    default -> result.add(e);
                 }
             }
             return new ListExpression(result);

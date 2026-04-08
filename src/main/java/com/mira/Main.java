@@ -36,9 +36,8 @@ public class Main {
                         Flags.exitBeforeInterpreter = true;
                     case "-m" ->
                         Flags.mainFunction = true;
-                    case "-li" -> {
+                    case "-li" ->
                         Flags.libInfo = true;
-                    }
                     case "-args" ->
                         Flags.args = args[i + 1].substring(0, args[i + 1].length()).split(",");
                 }

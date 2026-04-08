@@ -35,6 +35,7 @@ import com.mira.parser.nodes.expression.Expression.FieldAccessExpression;
 import com.mira.parser.nodes.expression.Expression.ImportExpression;
 import com.mira.parser.nodes.expression.Expression.LambdaExpression;
 import com.mira.parser.nodes.expression.Expression.ListExpression;
+import com.mira.parser.nodes.expression.Expression.MapExpression;
 import com.mira.parser.nodes.expression.Expression.Mutability;
 import com.mira.parser.nodes.expression.Expression.NamespaceCallExpression;
 import com.mira.parser.nodes.expression.Expression.ObjectExpression;
@@ -763,41 +764,51 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
     }
 
     @Override
+    public <T> T visitMapExpr(MapExpression expression) {
+        return (T) expression;
+    }
+
+    @Override
     public <T> T visitAccessExpr(AccessExpression expression) {
         Object accessedObject = expression.getReference().accept(this);
 
         for (Expression index : expression.getIndecies()) {
             Object object = index.accept(this);
-            int i;
-
-            switch (object) {
-                case String s -> {
-                    i = Integer.parseInt(s);
-                }
-                case Double d -> {
-                    i = (int) d.doubleValue();
-                }
-                default ->
-                    throw new AssertionError();
-            }
 
             switch (accessedObject) {
-                case TupleExpression tuple -> {
-                    if (tuple.getMembers().get(i) instanceof TupleExpression innerTuple) {
-                        accessedObject = innerTuple.accept(this);
-                    } else {
-                        accessedObject = tuple.getMembers().get(i);
+                case MapExpression map -> {
+                    String key = String.valueOf(object);
+                    Expression val = map.getEntries().get(key);
+                    if (val == null) {
+                        throw new RuntimeException("Map key not found: " + key);
+                    }
+                    accessedObject = val.accept(this);
+                }
+                default -> {
+                    int i;
+                    switch (object) {
+                        case String s -> i = Integer.parseInt(s);
+                        case Double d -> i = (int) d.doubleValue();
+                        default -> throw new AssertionError();
+                    }
+                    switch (accessedObject) {
+                        case TupleExpression tuple -> {
+                            if (tuple.getMembers().get(i) instanceof TupleExpression innerTuple) {
+                                accessedObject = innerTuple.accept(this);
+                            } else {
+                                accessedObject = tuple.getMembers().get(i);
+                            }
+                        }
+                        case ListExpression list -> {
+                            if (list.getMembers().get(i) instanceof ListExpression innerList) {
+                                accessedObject = innerList.accept(this);
+                            } else {
+                                accessedObject = list.getMembers().get(i);
+                            }
+                        }
+                        default -> throw new NotIterableError();
                     }
                 }
-                case ListExpression list -> {
-                    if (list.getMembers().get(i) instanceof ListExpression innerList) {
-                        accessedObject = innerList.accept(this);
-                    } else {
-                        accessedObject = list.getMembers().get(i);
-                    }
-                }
-                default ->
-                    throw new NotIterableError();
             }
         }
 
@@ -859,6 +870,10 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                             case ListExpression list -> {
                                 list.getMembers().set(Integer.parseInt((String) accessExpression.getIndecies().getLast().accept(this)),
                                         assignment);
+                            }
+                            case MapExpression map -> {
+                                String key = String.valueOf(accessExpression.getIndecies().getLast().accept(this));
+                                map.getEntries().put(key, assignment);
                             }
                             default ->
                                 throw new ImmutableCollectionError();

@@ -2,6 +2,7 @@ package com.mira.utils;
 
 import com.mira.parser.nodes.expression.Expression;
 import com.mira.parser.nodes.expression.Expression.ListExpression;
+import com.mira.parser.nodes.expression.Expression.MapExpression;
 import com.mira.parser.nodes.expression.Expression.TupleExpression;
 
 public class StringFormatter {
@@ -39,6 +40,20 @@ public class StringFormatter {
                     }
                 }
 
+                sb.append("}");
+                return sb.toString();
+            }
+            case MapExpression map -> {
+                StringBuilder sb = new StringBuilder();
+                sb.append("{");
+                int i = 0;
+                for (var entry : map.getEntries().entrySet()) {
+                    sb.append("\"").append(entry.getKey()).append("\": ");
+                    sb.append(formatToString(entry.getValue()));
+                    if (i++ < map.getEntries().size() - 1) {
+                        sb.append(", ");
+                    }
+                }
                 sb.append("}");
                 return sb.toString();
             }

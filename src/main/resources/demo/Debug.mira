@@ -7,6 +7,7 @@ import collection as col;
 import net;
 import json;
 import dateTime;
+import map;
 
 var list : {1,2,4};
 var boolean : true;
@@ -17,7 +18,10 @@ enum test {
     TEST3
 }
 
+var vals : {"69" : 420};
+
 fn main() {
+    print($vals["69"]"\n");
     var objs : {};
     for(var i in <0..5>) {
         var obj : {

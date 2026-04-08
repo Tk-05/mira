@@ -138,6 +138,23 @@ var wrapper : {
 $wrapper.inner.a;
 ```
 
+### Map
+
+Key-value store using curly braces with `"key": value` pairs:
+
+```
+var m : {"name": "Alice", "score": 42};
+```
+
+Access and assignment use bracket notation with string keys:
+
+```
+$m["name"];              // => "Alice"
+$m["name"] : "Bob";      // reassign
+```
+
+Maps are mutable. An empty map is created with `newMap()` from the `map` library.
+
 ### Range
 
 Used in loops, exclusive end:
@@ -634,6 +651,17 @@ Constants: `pi`, `e`, `inf`, `nan`
 | Function          | Description                        |
 | ----------------- | ---------------------------------- |
 | `readFile(path)`  | Reads a file and returns its content as a string |
+
+### `map`
+
+| Function                  | Description                                      |
+| ------------------------- | ------------------------------------------------ |
+| `newMap()`                | Creates an empty mutable map                     |
+| `mapSize(map)`            | Returns the number of entries                    |
+| `mapHas(map, key)`        | Returns true if the key exists                   |
+| `mapRemove(map, key)`     | Removes the entry and returns the map            |
+| `mapKeys(map)`            | Returns a list of all keys                       |
+| `mapValues(map)`          | Returns a list of all values                     |
 
 ### `regex`
 

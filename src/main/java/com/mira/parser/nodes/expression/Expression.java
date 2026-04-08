@@ -1,5 +1,6 @@
 package com.mira.parser.nodes.expression;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 
 import com.mira.lexer.token.Token;
@@ -222,6 +223,34 @@ public abstract class Expression implements Node {
 
         public int getLength() {
             return members.size();
+        }
+    }
+
+    public static class MapExpression extends Expression implements Mutability {
+
+        private final LinkedHashMap<String, Expression> entries;
+
+        public MapExpression(LinkedHashMap<String, Expression> entries) {
+            this.entries = entries;
+        }
+
+        public LinkedHashMap<String, Expression> getEntries() {
+            return entries;
+        }
+
+        @Override
+        public <T> T accept(ExprVisitor<T> visitor) {
+            return visitor.visitMapExpr(this);
+        }
+
+        @Override
+        public String toString() {
+            return StringFormatter.formatToString(this);
+        }
+
+        @Override
+        public boolean isMutable() {
+            return true;
         }
     }
 

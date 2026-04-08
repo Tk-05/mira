@@ -52,6 +52,7 @@ public class ImportResolver {
             put("net", new Net());
             put("process", new com.mira.lib.std.Process());
             put("regex", new Regex());
+            put("map", new com.mira.lib.std.Map());
         }
     };
 

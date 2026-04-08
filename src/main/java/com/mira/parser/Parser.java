@@ -22,6 +22,7 @@ import com.mira.parser.nodes.expression.Expression.ImportExpression;
 import com.mira.parser.nodes.expression.Expression.LambdaExpression;
 import com.mira.parser.nodes.expression.Expression.ListExpression;
 import com.mira.parser.nodes.expression.Expression.NamespaceCallExpression;
+import com.mira.parser.nodes.expression.Expression.MapExpression;
 import com.mira.parser.nodes.expression.Expression.ObjectExpression;
 import com.mira.parser.nodes.expression.Expression.RangeExpression;
 import com.mira.parser.nodes.expression.Expression.TupleExpression;
@@ -327,6 +328,8 @@ public class Parser {
                 && current.getTokenType() != TokenType.STRING_LITERAL) {
             if (peekOffset(1).getLexeme().equals("var") || peekOffset(1).getLexeme().equals("const")) {
                 expr = parseObjectExpression();
+            } else if (peekOffset(1).getTokenType() == TokenType.STRING_LITERAL && peekOffset(2).getLexeme().equals(":")) {
+                expr = parseMap();
             } else {
                 expr = parseList();
             }
@@ -558,6 +561,22 @@ public class Parser {
             libAlias = matchExpression().getLexeme();
         }
         return new ImportExpression(libExpr, libAlias, false);
+    }
+
+    private Expression parseMap() {
+        matchLexeme("{");
+        LinkedHashMap<String, Expression> entries = new LinkedHashMap<>();
+        while (!peek().getLexeme().equals("}")) {
+            String key = matchExpression().getLexeme();
+            matchLexeme(":");
+            Expression value = parseExpression();
+            entries.put(key, value);
+            if (!peek().getLexeme().equals("}")) {
+                matchLexeme(",");
+            }
+        }
+        matchLexeme("}");
+        return new MapExpression(entries);
     }
 
     private Expression parseList() {
