@@ -75,15 +75,5 @@ public class DateTime implements Lib {
             long epoch = (long) Double.parseDouble(String.valueOf(args.get(0)));
             return LocalDateTime.ofEpochSecond(epoch, 0, ZoneOffset.UTC).toString();
         }));
-
-        environment.define("sleep", new NativeFunction(1, args -> {
-            long ms = (long) Double.parseDouble(String.valueOf(args.get(0)));
-            try {
-                Thread.sleep(ms);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
-            return null;
-        }));
     }
 }

@@ -1,8 +1,12 @@
 module main;
 
 import module "./Debug2.mira" as test;
+
+import string;
 import collection;
 import net;
+import json;
+import dateTime;
 
 var list : {1,2,4};
 var boolean : true;
@@ -14,9 +18,6 @@ enum test {
 }
 
 fn main() {
-    var url : "https://github.com";
-    print(getStatus($url)"\n");
-
     var objs : {};
     for(var i in <0..5>) {
         var obj : {
@@ -75,6 +76,13 @@ fn main() {
     } catch(e) {
         print($e "\n");
     }
+
+    var url : "https://api.open-meteo.com/v1/forecast?latitude=53.5507&longitude=9.993&hourly=temperature_2m";
+    var response : jsonFormat(get($url));
+    var timestamp : replace(formatDate(now(), "yyyy.MM.dd"), ".", "-") "T" formatDate(now(), "HH") ":00";
+
+    var times : getArray($response, "hourly", "time");
+    var temps : getArray($response, "hourly", "temperature_2m");
 
     ret(eval($return));
 }

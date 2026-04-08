@@ -130,5 +130,15 @@ public class Process implements Lib {
                     .flatMap(ph -> ph.info().command())
                     .orElse("unknown");
         }));
+
+        environment.define("sleep", new NativeFunction(1, args -> {
+            long ms = (long) Double.parseDouble(String.valueOf(args.get(0)));
+            try {
+                Thread.sleep(ms);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            return null;
+        }));
     }
 }

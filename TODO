@@ -2,3 +2,4 @@ TODO:
     -libs/modules
         -Import resolver tests
         -Range tests
+        -namespaces for lib imports

@@ -98,7 +98,7 @@ public class Collection implements Lib {
                     .anyMatch(target::equals);
         }));
 
-        environment.define("indexOf", new NativeFunction(2, args -> {
+        environment.define("findIndex", new NativeFunction(2, args -> {
             String target = String.valueOf(args.get(1));
             List<Expression> members = toMembers(args.get(0));
             for (int i = 0; i < members.size(); i++) {
