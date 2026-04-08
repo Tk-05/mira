@@ -47,12 +47,14 @@ public abstract class Statement implements Node {
         private final String name;
         private final List<DumbExpression> parameters;
         private final List<Node> body;
+        private final String variadicParam;
 
         public FuncDecl(String name, List<DumbExpression> parameters,
-                List<Node> body) {
+                List<Node> body, String variadicParam) {
             this.name = name;
             this.parameters = parameters;
             this.body = body;
+            this.variadicParam = variadicParam;
         }
 
         public String getName() {
@@ -67,8 +69,12 @@ public abstract class Statement implements Node {
             return body;
         }
 
+        public String getVariadicParam() {
+            return variadicParam;
+        }
+
         public int getArity() {
-            return parameters.size();
+            return variadicParam != null ? -1 : parameters.size();
         }
 
         @Override

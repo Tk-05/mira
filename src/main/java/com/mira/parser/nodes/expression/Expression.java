@@ -450,10 +450,12 @@ public abstract class Expression implements Node {
 
         private final List<DumbExpression> parameters;
         private final List<Node> body;
+        private final String variadicParam;
 
-        public LambdaExpression(List<DumbExpression> parameters, List<Node> body) {
+        public LambdaExpression(List<DumbExpression> parameters, List<Node> body, String variadicParam) {
             this.parameters = parameters;
             this.body = body;
+            this.variadicParam = variadicParam;
         }
 
         public List<DumbExpression> getParameters() {
@@ -464,8 +466,12 @@ public abstract class Expression implements Node {
             return body;
         }
 
+        public String getVariadicParam() {
+            return variadicParam;
+        }
+
         public int getArity() {
-            return parameters.size();
+            return variadicParam != null ? -1 : parameters.size();
         }
 
         @Override

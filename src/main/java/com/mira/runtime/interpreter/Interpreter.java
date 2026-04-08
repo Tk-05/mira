@@ -301,7 +301,8 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                 new Function(localEnvironment,
                         funcDecl.getBody(),
                         funcDecl.getParameters(),
-                        funcDecl.getArity()));
+                        funcDecl.getArity(),
+                        funcDecl.getVariadicParam()));
 
         return null;
     }
@@ -309,7 +310,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
     @Override
     public <T> T visitLambdaExpr(LambdaExpression lambda) {
         Environment capturedEnv = localEnvironment != null ? localEnvironment : globalEnvironment;
-        return (T) new Function(capturedEnv, lambda.getBody(), lambda.getParameters(), lambda.getArity());
+        return (T) new Function(capturedEnv, lambda.getBody(), lambda.getParameters(), lambda.getArity(), lambda.getVariadicParam());
     }
 
     @Override

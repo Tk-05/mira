@@ -639,9 +639,16 @@ public class Parser {
         matchLexeme("(");
 
         List<DumbExpression> parameters = new ArrayList<>();
+        String variadicParam = null;
         while (!peek().getLexeme().equals(")")) {
             if (peek().getLexeme().equals(",")) {
                 throw new UnexpectedToken(peek(), "Unexpected token");
+            }
+
+            if (peek().getLexeme().equals("...")) {
+                consume();
+                variadicParam = matchExpression().getLexeme();
+                break;
             }
 
             if (peekNext().getLexeme().equals(")")) {
@@ -664,7 +671,7 @@ public class Parser {
         }
         matchLexeme("}");
 
-        return new FuncDecl(name, parameters, body);
+        return new FuncDecl(name, parameters, body, variadicParam);
     }
 
     private Expression parseLambdaExpression() {
@@ -672,10 +679,18 @@ public class Parser {
         matchLexeme("(");
 
         List<DumbExpression> parameters = new ArrayList<>();
+        String variadicParam = null;
         while (!peek().getLexeme().equals(")")) {
             if (peek().getLexeme().equals(",")) {
                 throw new UnexpectedToken(peek(), "Unexpected token");
             }
+
+            if (peek().getLexeme().equals("...")) {
+                consume();
+                variadicParam = matchExpression().getLexeme();
+                break;
+            }
+
             if (peekNext().getLexeme().equals(")")) {
                 parameters.add(new DumbExpression(matchExpression()));
                 break;
@@ -693,7 +708,7 @@ public class Parser {
         }
         matchLexeme("}");
 
-        return new LambdaExpression(parameters, body);
+        return new LambdaExpression(parameters, body, variadicParam);
     }
 
     private Node parseReturn() {

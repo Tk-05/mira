@@ -382,6 +382,46 @@ fn <name>(<param1>, <param2>) {
 }
 ```
 
+### Variadic Parameters
+
+The last parameter can be variadic using `...`. All remaining arguments are collected into a list:
+
+```
+fn <name>(<param1>, ...<rest>) {
+    <body>
+}
+```
+
+Example:
+
+```
+fn sum(...args) {
+    var total : 0;
+    foreach (var x in $args) {
+        $total : eval($total + $x);
+    }
+    ret($total);
+}
+
+sum(1, 2, 3)    // => 6
+sum()           // => 0  ($args is an empty list)
+```
+
+Mixed (fixed + variadic):
+
+```
+fn log(prefix, ...args) {
+    print($prefix ": ");
+    foreach (var a in $args) { print($a " "); }
+}
+```
+
+Lambdas support variadic parameters too:
+
+```
+var join : fn(sep, ...parts) { ret(join($parts, $sep)); };
+```
+
 ### Return
 
 ```
