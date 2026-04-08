@@ -124,7 +124,7 @@ public class IfTest extends InterpreterTestBase {
             interpreter.run(parser.parseTokens(tokenizer.tokenize("""
                     import string;
                     var test : "\n";
-                    if(charAt(0, $test) == "\n") {
+                    if(charAt($test, 0) == "\n") {
                         ret();
                     }
                     """, false)), false);
@@ -178,7 +178,7 @@ public class IfTest extends InterpreterTestBase {
             interpreter.run(parser.parseTokens(tokenizer.tokenize("""
                     import string;
                     var test : "}";
-                    if(charAt(0, $test) == "}") {
+                    if(charAt($test, 0) == "}") {
                         ret();
                     }
                     """, false)), false);

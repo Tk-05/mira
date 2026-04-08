@@ -190,4 +190,14 @@ public class RuntimeError extends MiraError {
                     null);
         }
     }
+
+    public static class LibImportConflictError extends RuntimeError {
+
+        public LibImportConflictError(String libA, String libB, java.util.Set<String> conflicting) {
+            super("E221",
+                    "Import conflict between '" + libA + "' and '" + libB + "': "
+                    + "conflicting names: " + conflicting,
+                    "Use 'import " + libB + " as <alias>;' to avoid name collisions");
+        }
+    }
 }

@@ -28,7 +28,7 @@ public class Net implements Lib {
     @Override
     public void loadLib(Environment environment) {
 
-        environment.define("get", new NativeFunction(1, args -> {
+        environment.define("httpGet", new NativeFunction(1, args -> {
             String url = String.valueOf(args.get(0));
             try {
                 HttpRequest request = HttpRequest.newBuilder()
@@ -42,7 +42,7 @@ public class Net implements Lib {
             }
         }));
 
-        environment.define("post", new NativeFunction(3, args -> {
+        environment.define("httpPost", new NativeFunction(3, args -> {
             String url = String.valueOf(args.get(0));
             String body = String.valueOf(args.get(1));
             String contentType = String.valueOf(args.get(2));
@@ -59,7 +59,7 @@ public class Net implements Lib {
             }
         }));
 
-        environment.define("getStatus", new NativeFunction(1, args -> {
+        environment.define("httpStatus", new NativeFunction(1, args -> {
             String url = String.valueOf(args.get(0));
             try {
                 HttpRequest request = HttpRequest.newBuilder()
@@ -73,7 +73,7 @@ public class Net implements Lib {
             }
         }));
 
-        environment.define("getHeader", new NativeFunction(2, args -> {
+        environment.define("httpHeader", new NativeFunction(2, args -> {
             String url = String.valueOf(args.get(0));
             String header = String.valueOf(args.get(1));
             try {
@@ -88,7 +88,7 @@ public class Net implements Lib {
             }
         }));
 
-        environment.define("download", new NativeFunction(2, args -> {
+        environment.define("httpDownload", new NativeFunction(2, args -> {
             String url = String.valueOf(args.get(0));
             String path = String.valueOf(args.get(1));
             try {

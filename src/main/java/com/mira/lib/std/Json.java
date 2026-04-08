@@ -141,7 +141,7 @@ public class Json implements Lib {
             return sb.toString();
         }));
 
-        environment.define("getArray", new NativeFunction(3, args -> {
+        environment.define("jsonNested", new NativeFunction(3, args -> {
             String json = String.valueOf(args.get(0));
             String parentKey = String.valueOf(args.get(1));
             String arrayKey = String.valueOf(args.get(2));
@@ -176,6 +176,23 @@ public class Json implements Lib {
             } catch (RuntimeException e) {
                 throw new RuntimeException("jsonGetArray failed: " + e.getMessage());
             }
+        }));
+
+        environment.define("jsonIndexOf", new NativeFunction(2, args -> {
+            if (!(args.get(0) instanceof ListExpression list)) {
+                throw new RuntimeException("jsonIndexOf: first argument must be a list");
+            }
+            String target = String.valueOf(args.get(1));
+            List<Expression> members = list.getMembers();
+            for (int i = 0; i < members.size(); i++) {
+                String val = members.get(i) instanceof DumbExpression d
+                        ? String.valueOf(d.getValue())
+                        : String.valueOf(members.get(i));
+                if (val.equals(target)) {
+                    return (double) i;
+                }
+            }
+            return (double) -1;
         }));
     }
 }

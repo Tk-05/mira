@@ -1,6 +1,7 @@
 package com.mira.lib.internal;
 
 import java.util.List;
+import java.util.Scanner;
 
 import com.mira.error.runtime.RuntimeError.ArgMismatchError;
 import com.mira.error.runtime.RuntimeError.AssertionFailedError;
@@ -19,6 +20,8 @@ import com.mira.runtime.interpreter.NullValue;
 
 public class Internal implements Lib {
 
+    private static final Scanner stdin = new Scanner(System.in);
+
     @Override
     public void loadLib(Environment environment) {
         environment.define("print",
@@ -26,6 +29,12 @@ public class Internal implements Lib {
                     Object value = args.get(0);
                     System.out.print(value);
                     return null;
+                })
+        );
+
+        environment.define("scan",
+                new NativeFunction(0, args -> {
+                    return stdin.nextLine();
                 })
         );
 

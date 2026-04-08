@@ -551,7 +551,13 @@ public class Parser {
             return new ImportExpression(new DumbExpression(new Token(TokenType.STRING_LITERAL, path, 0, 0)), alias, true);
         }
 
-        return new ImportExpression(parseExpression(), null, false);
+        Expression libExpr = new DumbExpression(matchExpression());
+        String libAlias = null;
+        if (peek().getLexeme().equals("as")) {
+            consume();
+            libAlias = matchExpression().getLexeme();
+        }
+        return new ImportExpression(libExpr, libAlias, false);
     }
 
     private Expression parseList() {

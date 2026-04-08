@@ -246,4 +246,51 @@ public class JsonLibTest {
         String result = (String) call("jsonFormat", "{}");
         assertNotNull(result);
     }
+
+    static final String NESTED_JSON = "{\"hourly\":{\"time\":[\"08:00\",\"09:00\",\"10:00\"]}}";
+
+    @Test
+    void testJsonNestedReturnsListExpression() {
+        assertInstanceOf(ListExpression.class, call("jsonNested", NESTED_JSON, "hourly", "time"));
+    }
+
+    @Test
+    void testJsonNestedCorrectSize() {
+        ListExpression result = (ListExpression) call("jsonNested", NESTED_JSON, "hourly", "time");
+        assertEquals(3, result.getMembers().size());
+    }
+
+    @Test
+    void testJsonNestedFirstElement() {
+        ListExpression result = (ListExpression) call("jsonNested", NESTED_JSON, "hourly", "time");
+        assertEquals("08:00", ((DumbExpression) result.getMembers().get(0)).getValue());
+    }
+
+    @Test
+    void testJsonNestedMissingParentThrows() {
+        assertThrows(RuntimeException.class, () -> call("jsonNested", NESTED_JSON, "missing", "time"));
+    }
+
+    @Test
+    void testJsonIndexOfFound() {
+        ListExpression list = makeList("08:00", "09:00", "10:00");
+        assertEquals(1.0, call("jsonIndexOf", list, "09:00"));
+    }
+
+    @Test
+    void testJsonIndexOfNotFound() {
+        ListExpression list = makeList("08:00", "09:00");
+        assertEquals(-1.0, call("jsonIndexOf", list, "12:00"));
+    }
+
+    @Test
+    void testJsonIndexOfFirstOccurrence() {
+        ListExpression list = makeList("a", "b", "a");
+        assertEquals(0.0, call("jsonIndexOf", list, "a"));
+    }
+
+    @Test
+    void testJsonIndexOfNonListThrows() {
+        assertThrows(RuntimeException.class, () -> call("jsonIndexOf", "notAList", "val"));
+    }
 }

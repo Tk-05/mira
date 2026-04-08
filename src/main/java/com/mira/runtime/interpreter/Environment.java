@@ -118,6 +118,10 @@ public class Environment {
         return values.size();
     }
 
+    public Set<String> keySet() {
+        return values.keySet();
+    }
+
     public static void setOverwriteMode(boolean overwriteMode) {
         Environment.overwriteMode = overwriteMode;
     }

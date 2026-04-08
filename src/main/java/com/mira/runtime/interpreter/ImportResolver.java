@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.Set;
 
 import com.mira.Flags;
+import com.mira.error.runtime.RuntimeError.LibImportConflictError;
 import com.mira.lexer.Tokenizer;
 import com.mira.lexer.token.Token;
 import com.mira.lib.Lib;
@@ -35,6 +36,7 @@ public class ImportResolver {
     private static final Internal internal = new Internal();
     private static final Set<String> loadedModules = new HashSet<>();
     private static final Set<String> loadedLibs = new HashSet<>();
+    private static final Map<String, String> globalLibNames = new HashMap<>();
     private static final Tokenizer tokenizer = new Tokenizer();
     private static final Parser parser = new Parser();
 
@@ -66,8 +68,11 @@ public class ImportResolver {
                     resolveModuleImport(interpreter, expr, environment);
                 } else {
                     String libName = expr.getModule();
+                    String alias = expr.getNamespace();
+                    boolean hasAlias = alias != null && !alias.isBlank();
 
-                    if (loadedLibs.contains(libName)) {
+                    String cacheKey = hasAlias ? libName + "#" + alias : libName;
+                    if (loadedLibs.contains(cacheKey)) {
                         continue;
                     }
 
@@ -76,9 +81,29 @@ public class ImportResolver {
                         throw new RuntimeException("Import '" + libName + "' could not be resolved");
                     }
 
-                    loadedLibs.add(libName);
-                    lib.loadLib(environment);
+                    loadedLibs.add(cacheKey);
+
+                    if (hasAlias) {
+                        Namespace ns = new Namespace(alias);
+                        lib.loadLib(ns);
+                        environment.define(alias, ns);
+                    } else {
+                        Environment temp = new Environment();
+                        lib.loadLib(temp);
+                        Set<String> conflicts = new HashSet<>(temp.keySet());
+                        conflicts.retainAll(globalLibNames.keySet());
+                        if (!conflicts.isEmpty()) {
+                            String conflictingLib = globalLibNames.get(conflicts.iterator().next());
+                            throw new LibImportConflictError(conflictingLib, libName, conflicts);
+                        }
+                        for (String name : temp.keySet()) {
+                            environment.define(name, temp.get(name));
+                            globalLibNames.put(name, libName);
+                        }
+                    }
                 }
+            } catch (com.mira.error.MiraError e) {
+                throw e;
             } catch (RuntimeException e) {
                 throw new RuntimeException("Import '" + expr.getModule() + "' could not be resolved", e);
             }
@@ -175,5 +200,6 @@ public class ImportResolver {
     public static void reset() {
         loadedModules.clear();
         loadedLibs.clear();
+        globalLibNames.clear();
     }
 }

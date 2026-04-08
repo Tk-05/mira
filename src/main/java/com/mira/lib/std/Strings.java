@@ -10,14 +10,16 @@ public class Strings implements Lib {
     public void loadLib(Environment environment) {
         environment.define("charAt",
                 new NativeFunction(2, args -> {
-                    int index = (int) Double.parseDouble(String.valueOf(args.get(0)));
-                    return String.valueOf(args.get(1)).charAt(index);
+                    String str = String.valueOf(args.get(0));
+                    int index = (int) Double.parseDouble(String.valueOf(args.get(1)));
+                    return str.charAt(index);
                 }));
 
         environment.define("indexOf",
                 new NativeFunction(2, args -> {
-                    char ch = String.valueOf(args.get(0)).charAt(0);
-                    return String.valueOf(args.get(1)).indexOf(ch);
+                    String str = String.valueOf(args.get(0));
+                    char ch = String.valueOf(args.get(1)).charAt(0);
+                    return str.indexOf(ch);
                 }));
 
         environment.define("trim",
@@ -27,17 +29,20 @@ public class Strings implements Lib {
 
         environment.define("split",
                 new NativeFunction(2, args -> {
-                    return String.valueOf(args.get(1)).split(String.valueOf(args.get(0)));
+                    String str = String.valueOf(args.get(0));
+                    String delimiter = String.valueOf(args.get(1));
+                    return str.split(delimiter);
                 }));
 
-        environment.define("substring",
+        environment.define("substr",
                 new NativeFunction(3, args -> {
-                    int start = (int) Double.parseDouble(String.valueOf(args.get(0)));
-                    int end = (int) Double.parseDouble(String.valueOf(args.get(1)));
-                    return String.valueOf(args.get(2)).substring(start, end);
+                    String str = String.valueOf(args.get(0));
+                    int start = (int) Double.parseDouble(String.valueOf(args.get(1)));
+                    int end = (int) Double.parseDouble(String.valueOf(args.get(2)));
+                    return str.substring(start, end);
                 }));
 
-        environment.define("strcompare",
+        environment.define("strEqual",
                 new NativeFunction(2, args -> {
                     String string1 = String.valueOf(args.get(0));
                     String string2 = String.valueOf(args.get(1));

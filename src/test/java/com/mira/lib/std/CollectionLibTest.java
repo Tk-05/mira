@@ -162,17 +162,17 @@ public class CollectionLibTest {
 
     @Test
     void testIndexOfFound() {
-        assertEquals(1.0, call("findIndex", makeList("a", "b", "c"), "b"));
+        assertEquals(1.0, call("indexOf", makeList("a", "b", "c"), "b"));
     }
 
     @Test
     void testIndexOfNotFound() {
-        assertEquals(-1.0, call("findIndex", makeList("a", "b", "c"), "z"));
+        assertEquals(-1.0, call("indexOf", makeList("a", "b", "c"), "z"));
     }
 
     @Test
     void testIndexOfFirstOccurrence() {
-        assertEquals(0.0, call("findIndex", makeList("a", "a", "b"), "a"));
+        assertEquals(0.0, call("indexOf", makeList("a", "a", "b"), "a"));
     }
 
     @Test
@@ -266,15 +266,15 @@ public class CollectionLibTest {
     }
 
     @Test
-    void testEmptyList() {
-        Object result = call("emptyList");
+    void testNewList() {
+        Object result = call("newList");
         assertInstanceOf(ListExpression.class, result);
         assertEquals(0, ((ListExpression) result).getMembers().size());
     }
 
     @Test
-    void testEmptyTuple() {
-        Object result = call("emptyTuple");
+    void testNewTuple() {
+        Object result = call("newTuple");
         assertInstanceOf(TupleExpression.class, result);
         assertEquals(0, ((TupleExpression) result).getMembers().size());
     }

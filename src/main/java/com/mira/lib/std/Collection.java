@@ -98,7 +98,7 @@ public class Collection implements Lib {
                     .anyMatch(target::equals);
         }));
 
-        environment.define("findIndex", new NativeFunction(2, args -> {
+        environment.define("indexOf", new NativeFunction(2, args -> {
             String target = String.valueOf(args.get(1));
             List<Expression> members = toMembers(args.get(0));
             for (int i = 0; i < members.size(); i++) {
@@ -159,11 +159,11 @@ public class Collection implements Lib {
             return sb.toString();
         }));
 
-        environment.define("emptyList", new NativeFunction(0, args -> {
+        environment.define("newList", new NativeFunction(0, args -> {
             return new ListExpression(new ArrayList<>());
         }));
 
-        environment.define("emptyTuple", new NativeFunction(0, args -> {
+        environment.define("newTuple", new NativeFunction(0, args -> {
             return new TupleExpression(new ArrayList<>());
         }));
     }
