@@ -30,6 +30,8 @@ fn main() {
         col.push($objs, $obj);
     }
 
+    print(1 == 1 ? true : false "\n");
+
     foreach(var element in $objs) {
         print($element.index "\n");
     }

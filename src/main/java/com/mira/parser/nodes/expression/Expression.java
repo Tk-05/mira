@@ -446,6 +446,41 @@ public abstract class Expression implements Node {
         }
     }
 
+    public static class TernaryExpression extends Expression {
+
+        private final Expression condition;
+        private final Expression thenExpr;
+        private final Expression elseExpr;
+
+        public TernaryExpression(Expression condition, Expression thenExpr, Expression elseExpr) {
+            this.condition = condition;
+            this.thenExpr = thenExpr;
+            this.elseExpr = elseExpr;
+        }
+
+        public Expression getCondition() {
+            return condition;
+        }
+
+        public Expression getThenExpr() {
+            return thenExpr;
+        }
+
+        public Expression getElseExpr() {
+            return elseExpr;
+        }
+
+        @Override
+        public <T> T accept(ExprVisitor<T> visitor) {
+            return visitor.visitTernaryExpr(this);
+        }
+
+        @Override
+        public String toString() {
+            return condition + " ? " + thenExpr + " : " + elseExpr;
+        }
+    }
+
     public static class LambdaExpression extends Expression {
 
         private final List<DumbExpression> parameters;

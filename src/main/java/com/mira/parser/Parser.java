@@ -25,6 +25,7 @@ import com.mira.parser.nodes.expression.Expression.NamespaceCallExpression;
 import com.mira.parser.nodes.expression.Expression.MapExpression;
 import com.mira.parser.nodes.expression.Expression.ObjectExpression;
 import com.mira.parser.nodes.expression.Expression.RangeExpression;
+import com.mira.parser.nodes.expression.Expression.TernaryExpression;
 import com.mira.parser.nodes.expression.Expression.TupleExpression;
 import com.mira.parser.nodes.expression.Expression.UnaryExpression;
 import com.mira.parser.nodes.statement.Statement.Assign;
@@ -379,6 +380,19 @@ public class Parser {
         while (true) {
             skipWhitespaceTokens();
             Token opToken = peek();
+
+            if (opToken.getLexeme().equals("?") && opToken.getTokenType() != TokenType.STRING_LITERAL) {
+                if (minBP > 0) {
+                    break;
+                }
+                consume();
+                Expression thenExpr = parsePratt(0);
+                matchLexeme(":");
+                Expression elseExpr = parsePratt(0);
+                left = new TernaryExpression(left, thenExpr, elseExpr);
+                break;
+            }
+
             int lbp = binaryOperatorBP(opToken.getLexeme());
             if (lbp == 0 || lbp <= minBP) {
                 break;

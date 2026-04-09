@@ -40,6 +40,7 @@ import com.mira.parser.nodes.expression.Expression.Mutability;
 import com.mira.parser.nodes.expression.Expression.NamespaceCallExpression;
 import com.mira.parser.nodes.expression.Expression.ObjectExpression;
 import com.mira.parser.nodes.expression.Expression.RangeExpression;
+import com.mira.parser.nodes.expression.Expression.TernaryExpression;
 import com.mira.parser.nodes.expression.Expression.TupleExpression;
 import com.mira.parser.nodes.expression.Expression.UnaryExpression;
 import com.mira.parser.nodes.statement.Statement;
@@ -650,6 +651,16 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             default ->
                 throw new AssertionError("Cannot resolve boolean from: " + value.getClass());
         };
+    }
+
+    @Override
+    public <T> T visitTernaryExpr(TernaryExpression expression) {
+        Object condition = expression.getCondition().accept(this);
+        if (resolveLoopCondition(condition)) {
+            return (T) expression.getThenExpr().accept(this);
+        } else {
+            return (T) expression.getElseExpr().accept(this);
+        }
     }
 
     @Override
