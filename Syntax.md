@@ -70,6 +70,7 @@ String concatenation is done by placing values side by side:
 | Logical    | `&&`, `\|\|`, `!`                |
 | Bitwise    | `&`, `\|`, `^`, `~`, `<<`, `>>`  |
 | Postfix    | `++`, `--`                       |
+| Ternary    | `? :`                            |
 
 Arithmetic must be wrapped in `eval()`:
 
@@ -83,6 +84,27 @@ Comparisons can be used directly in conditions:
 ```
 $i < 5
 $x > 3 && $y == 0
+```
+
+### Ternary Operator
+
+Evaluates a condition and returns one of two values:
+
+```
+<condition> ? <then> : <else>
+```
+
+Example:
+
+```
+var label : $score >= 50 ? "pass" : "fail";
+$x > 0 ? "positive" : "negative"
+```
+
+Ternaries can be nested:
+
+```
+$x > 10 ? "high" : ($x > 5 ? "mid" : "low")
 ```
 
 ### Grouping
