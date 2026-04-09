@@ -176,9 +176,9 @@ public class IfTest extends InterpreterTestBase {
             Tokenizer tokenizer = new Tokenizer();
             Parser parser = new Parser();
             interpreter.run(parser.parseTokens(tokenizer.tokenize("""
-                    import string;
+                    import string as s;
                     var test : "}";
-                    if(charAt($test, 0) == "}") {
+                    if(s.charAt($test, 0) == "}") {
                         ret();
                     }
                     """, false)), false);
