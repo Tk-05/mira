@@ -11,7 +11,7 @@ public class TernaryExpressionTest extends InterpreterTestBase {
     @Test
     void trueBranchReturned() {
         try {
-            run("ret(true ? \"yes\" : \"no\");");
+            run("return true ? \"yes\" : \"no\";");
         } catch (ReturnSignal r) {
             assertEquals("yes", r.getValue());
         }
@@ -20,7 +20,7 @@ public class TernaryExpressionTest extends InterpreterTestBase {
     @Test
     void falseBranchReturned() {
         try {
-            run("ret(false ? \"yes\" : \"no\");");
+            run("return false ? \"yes\" : \"no\";");
         } catch (ReturnSignal r) {
             assertEquals("no", r.getValue());
         }
@@ -29,7 +29,7 @@ public class TernaryExpressionTest extends InterpreterTestBase {
     @Test
     void conditionFromComparison() {
         try {
-            run("var x : 10; ret($x > 5 ? \"big\" : \"small\");");
+            run("var x : 10; return $x > 5 ? \"big\" : \"small\";");
         } catch (ReturnSignal r) {
             assertEquals("big", r.getValue());
         }
@@ -38,7 +38,7 @@ public class TernaryExpressionTest extends InterpreterTestBase {
     @Test
     void conditionFromComparisonFalse() {
         try {
-            run("var x : 3; ret($x > 5 ? \"big\" : \"small\");");
+            run("var x : 3; return $x > 5 ? \"big\" : \"small\";");
         } catch (ReturnSignal r) {
             assertEquals("small", r.getValue());
         }
@@ -47,7 +47,7 @@ public class TernaryExpressionTest extends InterpreterTestBase {
     @Test
     void numericBranches() {
         try {
-            run("var x : 1; ret($x == 1 ? 100 : 200);");
+            run("var x : 1; return $x == 1 ? 100 : 200;");
         } catch (ReturnSignal r) {
             assertEquals("100", r.getValue());
         }
@@ -56,7 +56,7 @@ public class TernaryExpressionTest extends InterpreterTestBase {
     @Test
     void resultStoredInVariable() {
         try {
-            run("var x : 7; var label : $x >= 5 ? \"pass\" : \"fail\"; ret($label);");
+            run("var x : 7; var label : $x >= 5 ? \"pass\" : \"fail\"; return $label;");
         } catch (ReturnSignal r) {
             assertEquals("pass", r.getValue());
         }
@@ -65,7 +65,7 @@ public class TernaryExpressionTest extends InterpreterTestBase {
     @Test
     void nestedTernaryInThenBranch() {
         try {
-            run("var x : 10; ret($x > 5 ? ($x > 8 ? \"high\" : \"mid\") : \"low\");");
+            run("var x : 10; return $x > 5 ? ($x > 8 ? \"high\" : \"mid\") : \"low\";");
         } catch (ReturnSignal r) {
             assertEquals("high", r.getValue());
         }
@@ -74,7 +74,7 @@ public class TernaryExpressionTest extends InterpreterTestBase {
     @Test
     void nestedTernaryInElseBranch() {
         try {
-            run("var x : 2; ret($x > 5 ? \"high\" : ($x > 1 ? \"mid\" : \"low\"));");
+            run("var x : 2; return $x > 5 ? \"high\" : ($x > 1 ? \"mid\" : \"low\");");
         } catch (ReturnSignal r) {
             assertEquals("mid", r.getValue());
         }
@@ -83,7 +83,7 @@ public class TernaryExpressionTest extends InterpreterTestBase {
     @Test
     void ternaryWithArithmeticInBranch() {
         try {
-            run("var x : 4; ret($x > 3 ? eval($x * 2) : eval($x + 1));");
+            run("var x : 4; return $x > 3 ? eval($x * 2) : eval($x + 1);");
         } catch (ReturnSignal r) {
             assertEquals(8.0, r.getValue());
         }
@@ -92,7 +92,7 @@ public class TernaryExpressionTest extends InterpreterTestBase {
     @Test
     void ternaryWithLogicalAndCondition() {
         try {
-            run("var x : 5; var y : 10; ret($x > 3 && $y > 5 ? \"both\" : \"not both\");");
+            run("var x : 5; var y : 10; return $x > 3 && $y > 5 ? \"both\" : \"not both\";");
         } catch (ReturnSignal r) {
             assertEquals("both", r.getValue());
         }
@@ -101,7 +101,7 @@ public class TernaryExpressionTest extends InterpreterTestBase {
     @Test
     void ternaryWithLogicalOrCondition() {
         try {
-            run("var x : 1; var y : 10; ret($x > 5 || $y > 5 ? \"one\" : \"none\");");
+            run("var x : 1; var y : 10; return $x > 5 || $y > 5 ? \"one\" : \"none\";");
         } catch (ReturnSignal r) {
             assertEquals("one", r.getValue());
         }
@@ -111,9 +111,9 @@ public class TernaryExpressionTest extends InterpreterTestBase {
     void ternaryPassedToFunction() {
         try {
             run("""
-                    fn identity(v) { ret($v); }
+                    fn identity(v) { return $v; }
                     var x : 3;
-                    ret(identity($x > 2 ? "ok" : "fail"));
+                    return identity($x > 2 ? "ok" : "fail");
                     """);
         } catch (ReturnSignal r) {
             assertEquals("ok", r.getValue());
@@ -123,7 +123,7 @@ public class TernaryExpressionTest extends InterpreterTestBase {
     @Test
     void ternaryWithBooleanVariable() {
         try {
-            run("var flag : true; ret($flag ? 1 : 0);");
+            run("var flag : true; return $flag ? 1 : 0;");
         } catch (ReturnSignal r) {
             assertEquals("1", r.getValue());
         }
@@ -132,7 +132,7 @@ public class TernaryExpressionTest extends InterpreterTestBase {
     @Test
     void ternaryZeroIsFalsy() {
         try {
-            run("ret(eval(0) ? \"yes\" : \"no\");");
+            run("return eval(0) ? \"yes\" : \"no\";");
         } catch (ReturnSignal r) {
             assertEquals("no", r.getValue());
         }

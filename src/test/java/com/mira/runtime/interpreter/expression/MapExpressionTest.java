@@ -58,7 +58,7 @@ public class MapExpressionTest extends InterpreterTestBase {
     void mapPassedToFunction() {
         assertEquals("Alice", run("""
                 fn getName(m) {
-                    ret($m["name"]);
+                    return $m["name"];
                 }
                 var person : {"name": "Alice"};
                 getName($person);

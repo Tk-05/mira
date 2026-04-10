@@ -16,8 +16,8 @@ public class SwitchTest extends InterpreterTestBase {
             run("""
                     var x : 1;
                     switch ($x) {
-                        case (1) { ret(true); }
-                        case (2) { ret(false); }
+                        case (1) { return true; }
+                        case (2) { return false; }
                     }
                     """);
         } catch (ReturnSignal r) {
@@ -31,8 +31,8 @@ public class SwitchTest extends InterpreterTestBase {
             run("""
                     var x : 2;
                     switch ($x) {
-                        case (1) { ret(false); }
-                        case (2) { ret(true); }
+                        case (1) { return false; }
+                        case (2) { return true; }
                     }
                     """);
         } catch (ReturnSignal r) {
@@ -46,9 +46,9 @@ public class SwitchTest extends InterpreterTestBase {
             run("""
                     var x : 99;
                     switch ($x) {
-                        case (1) { ret(false); }
-                        case (2) { ret(false); }
-                        default { ret(true); }
+                        case (1) { return false; }
+                        case (2) { return false; }
+                        default { return true; }
                     }
                     """);
         } catch (ReturnSignal r) {
@@ -61,8 +61,8 @@ public class SwitchTest extends InterpreterTestBase {
         assertNull(run("""
                 var x : 99;
                 switch ($x) {
-                    case (1) { ret(false); }
-                    case (2) { ret(false); }
+                    case (1) { return false; }
+                    case (2) { return false; }
                 }
                 """));
     }
@@ -86,8 +86,8 @@ public class SwitchTest extends InterpreterTestBase {
             run("""
                     var x : "hello";
                     switch ($x) {
-                        case ("world") { ret(false); }
-                        case ("hello") { ret(true); }
+                        case ("world") { return false; }
+                        case ("hello") { return true; }
                     }
                     """);
         } catch (ReturnSignal r) {
@@ -117,8 +117,8 @@ public class SwitchTest extends InterpreterTestBase {
                     var x : 3;
                     var y : 2;
                     switch (eval($x - $y)) {
-                        case (1) { ret(true); }
-                        case (2) { ret(false); }
+                        case (1) { return true; }
+                        case (2) { return false; }
                     }
                     """);
         } catch (ReturnSignal r) {
@@ -131,9 +131,9 @@ public class SwitchTest extends InterpreterTestBase {
         assertEquals(42.0, run("""
                 fn classify(n) {
                     switch ($n) {
-                        case (1) { ret(10); }
-                        case (2) { ret(42); }
-                        default  { ret(0); }
+                        case (1) { return 10; }
+                        case (2) { return 42; }
+                        default  { return 0; }
                     }
                 }
                 eval(classify(2));

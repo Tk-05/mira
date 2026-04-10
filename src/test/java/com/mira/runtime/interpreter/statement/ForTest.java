@@ -43,9 +43,9 @@ public class ForTest extends InterpreterTestBase {
                 var result : 0;
 
                 fn fibonacci(n){
-                    if($n<=1){ ret($n); }
-                    else{ ret(fibonacci(eval($n-2)) + fibonacci(eval($n-1))); }
-                    ret(0);
+                    if($n<=1){ return $n; }
+                    else{ return fibonacci(eval($n-2)) + fibonacci(eval($n-1)); }
+                    return 0;
                 }
 
                 for (var i : 0, var j : 0; $i < 10 && $j == 0; $i : eval($i + 1)) {
@@ -61,7 +61,7 @@ public class ForTest extends InterpreterTestBase {
         run("""
                 var count : 0;
                 for (var i : 0; $i < 100; $i : eval($i + 1)) {
-                    if($i == 5) { break(); }
+                    if($i == 5) { break; }
                     $count : eval($count + 1);
                 }
                 """);
@@ -74,7 +74,7 @@ public class ForTest extends InterpreterTestBase {
                 var broken : false;
                 for (;;) {
                     $broken : true;
-                    break();
+                    break;
                 }
                 """));
     }

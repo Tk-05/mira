@@ -13,14 +13,14 @@ public class BreakTest extends InterpreterTestBase {
 
     @Test
     void breakAtTopLevelThrows() {
-        assertThrows(BreakSignal.class, () -> run("break();"));
+        assertThrows(BreakSignal.class, () -> run("break;"));
     }
 
     @Test
     void breakInsideWhile() {
         assertNull(run("""
                 while(1){
-                    break();
+                    break;
                 }
                 """));
     }
@@ -29,7 +29,7 @@ public class BreakTest extends InterpreterTestBase {
     void breakInsideFor() {
         assertNull(run("""
                 for (var i : 0; $i < 100; $i : eval($i + 1)) {
-                    break();
+                    break;
                 }
                 """));
     }
@@ -39,7 +39,7 @@ public class BreakTest extends InterpreterTestBase {
         assertNull(run("""
                 var list : {1, 2, 3};
                 foreach(var e in $list) {
-                    break();
+                    break;
                 }
                 """));
     }
@@ -59,7 +59,7 @@ public class BreakTest extends InterpreterTestBase {
 
                         while (1) {
                             $inner : eval($inner + 1);
-                            break();
+                            break;
                         }
                     }
                 }
@@ -79,7 +79,7 @@ public class BreakTest extends InterpreterTestBase {
                     $x : eval($x + 1);
 
                     while (1) {
-                        break();
+                        break;
                     }
                 }
 
@@ -94,7 +94,7 @@ public class BreakTest extends InterpreterTestBase {
                 var outer : 0;
                 while($outer < 3) {
                     $outer : eval($outer + 1);
-                    while(1) { break(); }
+                    while(1) { break; }
                 }
                 """);
         assertEquals(3.0, Interpreter.getGlobalEnvironment().get("outer"));

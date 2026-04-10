@@ -8,7 +8,7 @@ public class Vocabulary {
 
     private static final Set<String> keywords = Set.of(
             "var",
-            "ret",
+            "return",
             "fn",
             "if",
             "else",

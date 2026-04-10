@@ -12,7 +12,7 @@ public class ContinueTest extends InterpreterTestBase {
 
     @Test
     void continueAtTopLevelThrows() {
-        assertThrows(ContinueSignal.class, () -> run("continue();"));
+        assertThrows(ContinueSignal.class, () -> run("continue;"));
     }
 
     @Test
@@ -23,7 +23,7 @@ public class ContinueTest extends InterpreterTestBase {
                 while ($i < 5) {
                     $i : eval($i + 1);
                     if ($i == 3) {
-                        continue();
+                        continue;
                     }
                     $count : eval($count + 1);
                 }
@@ -37,7 +37,7 @@ public class ContinueTest extends InterpreterTestBase {
                 var sum : 0;
                 for (var i : 0; $i < 5; $i : eval($i + 1)) {
                     if ($i == 2) {
-                        continue();
+                        continue;
                     }
                     $sum : eval($sum + $i);
                 }
@@ -52,7 +52,7 @@ public class ContinueTest extends InterpreterTestBase {
                 var count : 0;
                 for (var j : 0; $j < 10; $j : eval($j + 1)) {
                     if ($j == 5) {
-                        continue();
+                        continue;
                     }
                     $count : eval($count + 1);
                 }
@@ -69,7 +69,7 @@ public class ContinueTest extends InterpreterTestBase {
                 var list : {1, 2, 3, 4, 5};
                 foreach (var e in $list) {
                     if ($e == 3) {
-                        continue();
+                        continue;
                     }
                     $sum : eval($sum + $e);
                 }
@@ -83,7 +83,7 @@ public class ContinueTest extends InterpreterTestBase {
                 var sum : 0;
                 foreach (var i in <0..6>) {
                     if ($i == 4) {
-                        continue();
+                        continue;
                     }
                     $sum : eval($sum + $i);
                 }
@@ -103,7 +103,7 @@ public class ContinueTest extends InterpreterTestBase {
                     while ($j < 4) {
                         $j : eval($j + 1);
                         if ($j == 2) {
-                            continue();
+                            continue;
                         }
                         $inner : eval($inner + 1);
                     }
@@ -119,7 +119,7 @@ public class ContinueTest extends InterpreterTestBase {
                 var x : 0;
                 while ($x < 3) {
                     $x : eval($x + 1);
-                    continue();
+                    continue;
                 }
                 $x : eval($x + 10);
                 """);

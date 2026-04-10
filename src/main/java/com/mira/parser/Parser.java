@@ -195,7 +195,7 @@ public class Parser {
                 node = parseFuncDecl();
                 decreaseDepth();
             }
-            case "ret" -> {
+            case "return" -> {
                 node = parseReturn();
                 if (expectSemicolon) {
                     matchLexeme(";");
@@ -727,14 +727,12 @@ public class Parser {
 
     private Node parseReturn() {
         consume();
-        matchLexeme("(");
         Expression value;
         if (isExpressionToken(peek()) || peek().getTokenType() == TokenType.OPERATION) {
             value = parseExpression();
         } else {
             value = new DumbExpression(new Token(null, "0.0", -1, -1));
         }
-        matchLexeme(")");
         return new Return(value);
     }
 
@@ -945,23 +943,17 @@ public class Parser {
 
     private Node parseBreak() {
         matchLexeme("break");
-        matchLexeme("(");
-        matchLexeme(")");
         return new Break();
     }
 
     private Node parseContinue() {
         matchLexeme("continue");
-        matchLexeme("(");
-        matchLexeme(")");
         return new Continue();
     }
 
     private Node parseThrow() {
         matchLexeme("throw");
-        matchLexeme("(");
         Expression value = parseExpression();
-        matchLexeme(")");
         return new Throw(value);
     }
 

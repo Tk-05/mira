@@ -46,7 +46,7 @@ public class AccessExpressionTest extends InterpreterTestBase {
     @Test
     void accessOnFunctionResult() {
         assertEquals(1.0, run("""
-                fn getList() { var list : {1, 2, 3}; ret($list); }
+                fn getList() { var list : {1, 2, 3}; return $list; }
                 eval(getList()[0]);
                 """));
     }

@@ -65,20 +65,20 @@ fn main() {
                 [0,0,69]
                ];
 
-    var return : 0;
+    var ret : 0;
 
     while(true) {
-        break();
+        break;
     }
 
     foreach(var element in $list) {
         foreach(var inner in $element) {
-            $return : $return + $inner;
+            $ret : $ret + $inner;
         }
     }
 
     try {
-        throw("Error");
+        throw "Error";
     } catch(e) {
         print($e "\n");
     }
@@ -101,5 +101,5 @@ fn main() {
 
     print("It's " $temps[$idx] " on " $timestamp "\n");
 
-    ret(eval($return));
+    return eval($ret);
 }

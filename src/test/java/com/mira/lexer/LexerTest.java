@@ -18,7 +18,7 @@ public class LexerTest {
     @Test
     void testKeywords() {
         assertEquals(TokenType.KEYWORD, tokenizer.tokenize("var", false).getFirst().getTokenType());
-        assertEquals(TokenType.KEYWORD, tokenizer.tokenize("ret", false).getFirst().getTokenType());
+        assertEquals(TokenType.KEYWORD, tokenizer.tokenize("return", false).getFirst().getTokenType());
         assertEquals(TokenType.KEYWORD, tokenizer.tokenize("fn", false).getFirst().getTokenType());
         assertEquals(TokenType.KEYWORD, tokenizer.tokenize("if", false).getFirst().getTokenType());
         assertEquals(TokenType.KEYWORD, tokenizer.tokenize("else", false).getFirst().getTokenType());

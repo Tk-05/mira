@@ -21,17 +21,17 @@ public class FuncDeclTest extends InterpreterTestBase {
 
     @Test
     void functionWithReturn() {
-        assertEquals(42.0, run("fn answer() { ret(42); } eval(answer());"));
+        assertEquals(42.0, run("fn answer() { return 42; } eval(answer());"));
     }
 
     @Test
     void functionWithSingleParameter() {
-        assertEquals(10.0, run("fn double(n) { ret(eval($n * 2)); } eval(double(5));"));
+        assertEquals(10.0, run("fn double(n) { return eval($n * 2); } eval(double(5));"));
     }
 
     @Test
     void functionWithMultipleParameters() {
-        assertEquals(7.0, run("fn add(a, b) { ret(eval($a + $b)); } eval(add(3, 4));"));
+        assertEquals(7.0, run("fn add(a, b) { return eval($a + $b); } eval(add(3, 4));"));
     }
 
     @Test
@@ -39,9 +39,9 @@ public class FuncDeclTest extends InterpreterTestBase {
         try {
             run("""
                     fn greet(name) {
-                        ret("Hello " $name);
+                        return "Hello " $name;
                     }
-                    var greeting : "ret(greet(\"World\"));";
+                    var greeting : "return greet(\"World\");";
                     exec($greeting);
                     """);
         } catch (ReturnSignal r) {
@@ -54,11 +54,11 @@ public class FuncDeclTest extends InterpreterTestBase {
         assertEquals(6765.0, run("""
                 fn fibonacci(n){
                     if($n<=1){
-                        ret($n);
+                        return $n;
                     }else{
-                        ret(fibonacci(eval($n-2)) + fibonacci(eval($n-1)));
+                        return fibonacci(eval($n-2)) + fibonacci(eval($n-1));
                     }
-                    ret(0);
+                    return 0;
                 }
                 eval(fibonacci(20));
                 """));
@@ -67,8 +67,8 @@ public class FuncDeclTest extends InterpreterTestBase {
     @Test
     void functionCallingAnotherFunction() {
         assertEquals(20.0, run("""
-                fn double(n) { ret(eval($n * 2)); }
-                fn quadruple(n) { ret(eval(double(eval($n * 2)))); }
+                fn double(n) { return eval($n * 2); }
+                fn quadruple(n) { return eval(double(eval($n * 2))); }
                 eval(quadruple(5));
                 """));
     }
@@ -77,9 +77,9 @@ public class FuncDeclTest extends InterpreterTestBase {
     void functionWithMultipleReturnPaths() {
         assertEquals(1.0, run("""
                 fn sign(n) {
-                    if($n > 0) { ret(1); }
-                    if($n < 0) { ret(-1); }
-                    ret(0);
+                    if($n > 0) { return 1; }
+                    if($n < 0) { return -1; }
+                    return 0;
                 }
                 eval(sign(42));
                 """));
@@ -91,9 +91,9 @@ public class FuncDeclTest extends InterpreterTestBase {
                 var result : 0;
 
                 fn fibonacci(n){
-                    if($n<=1){ ret($n); }
-                    else{ ret(fibonacci(eval($n-2)) + fibonacci(eval($n-1))); }
-                    ret(0);
+                    if($n<=1){ return $n; }
+                    else{ return fibonacci(eval($n-2)) + fibonacci(eval($n-1)); }
+                    return 0;
                 }
 
                 for (var i : 0, var j : 0; $i < 10 && $j == 0; $i : eval($i + 1)) {

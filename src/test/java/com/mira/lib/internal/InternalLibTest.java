@@ -42,7 +42,7 @@ public class InternalLibTest {
     void testExec() {
         if (environment.get("exec") instanceof NativeFunction nativeFunction) {
             try {
-                nativeFunction.call(interpreter, List.of("ret(2.0);"));
+                nativeFunction.call(interpreter, List.of("return 2.0;"));
             } catch (ReturnSignal returnSignal) {
                 assertEquals("2.0", returnSignal.getValue());
             }

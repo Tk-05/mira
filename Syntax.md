@@ -284,8 +284,8 @@ switch ($x) {
 ### Break / Continue
 
 ```
-break();
-continue();
+break;
+continue;
 ```
 
 ### Try / Catch
@@ -305,14 +305,14 @@ try {
 Throws a value as an exception. Can be caught by an enclosing `try / catch`.
 
 ```
-throw(<expression>);
+throw <expression>;
 ```
 
 Example:
 
 ```
 try {
-    throw("something went wrong");
+    throw "something went wrong";
 } catch(e) {
     print($e "\n");
 }
@@ -422,7 +422,7 @@ fn sum(...args) {
     foreach (var x in $args) {
         $total : eval($total + $x);
     }
-    ret($total);
+    return $total;
 }
 
 sum(1, 2, 3)    // => 6
@@ -441,14 +441,14 @@ fn log(prefix, ...args) {
 Lambdas support variadic parameters too:
 
 ```
-var join : fn(sep, ...parts) { ret(join($parts, $sep)); };
+var join : fn(sep, ...parts) { return join($parts, $sep); };
 ```
 
 ### Return
 
 ```
-ret();                 // Return nothing
-ret(<expression>);     // Return a value
+return;                // Return nothing
+return <expression>;   // Return a value
 ```
 
 ### Call
@@ -531,7 +531,7 @@ fn(<param1>, <param2>) {
 ### As a variable
 
 ```
-var double : fn(x) { ret(eval($x * 2)); };
+var double : fn(x) { return eval($x * 2); };
 eval(double(5));    // => 10
 ```
 
@@ -539,10 +539,10 @@ eval(double(5));    // => 10
 
 ```
 fn apply(f, x) {
-    ret(f($x));
+    return f($x);
 }
 
-eval(apply(fn(n) { ret(eval($n * $n)); }, 3));   // => 9
+eval(apply(fn(n) { return eval($n * $n); }, 3));   // => 9
 ```
 
 ### Closures
@@ -551,7 +551,7 @@ Lambdas capture variables from their outer scope:
 
 ```
 var factor : 3;
-var scale : fn(x) { ret(eval($x * $factor)); };
+var scale : fn(x) { return eval($x * $factor); };
 eval(scale(5));    // => 15
 ```
 
@@ -563,11 +563,11 @@ module main;
 
 fn fibonacci(n) {
     if ($n <= 1) {
-        ret($n);
+        return $n;
     } else {
-        ret(fibonacci(eval($n - 2)) + fibonacci(eval($n - 1)));
+        return fibonacci(eval($n - 2)) + fibonacci(eval($n - 1));
     }
-    ret(0);
+    return 0;
 }
 
 fn main() {

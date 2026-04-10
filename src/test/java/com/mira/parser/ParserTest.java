@@ -185,8 +185,8 @@ public class ParserTest {
     @Test
     void parseReturn() {
         String retStmt = """
-                ret();
-                """;
+                return;
+""";
         List<Node> ast = parser.parseTokens(tokenizer.tokenize(retStmt, false));
         assertEquals(1, ast.size());
         assertInstanceOf(Statement.Return.class, ast.getFirst());
@@ -254,8 +254,8 @@ public class ParserTest {
     @Test
     void parseBreak() {
         String breakStmt = """
-                break();
-                """;
+                break;
+""";
         List<Node> ast = parser.parseTokens(tokenizer.tokenize(breakStmt, false));
         assertEquals(1, ast.size());
         assertInstanceOf(Break.class, ast.getFirst());
@@ -393,7 +393,7 @@ public class ParserTest {
 
     @Test
     void parseContinue() {
-        List<Node> ast = parser.parseTokens(tokenizer.tokenize("continue();", false));
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize("continue;", false));
         assertEquals(1, ast.size());
         assertInstanceOf(Continue.class, ast.getFirst());
     }
@@ -418,8 +418,8 @@ public class ParserTest {
     void parseSwitch() {
         List<Node> ast = parser.parseTokens(tokenizer.tokenize("""
                 switch ($x) {
-                    case (1) { ret(true); }
-                    case (2) { ret(false); }
+                    case (1) { return true; }
+                    case (2) { return false; }
                 }
                 """, false));
         assertEquals(1, ast.size());
@@ -431,8 +431,8 @@ public class ParserTest {
     void parseSwitchWithDefault() {
         List<Node> ast = parser.parseTokens(tokenizer.tokenize("""
                 switch ($x) {
-                    case (1) { ret(true); }
-                    default { ret(false); }
+                    case (1) { return true; }
+                    default { return false; }
                 }
                 """, false));
         assertEquals(1, ast.size());
@@ -442,7 +442,7 @@ public class ParserTest {
 
     @Test
     void parseThrow() {
-        List<Node> ast = parser.parseTokens(tokenizer.tokenize("throw(\"error\");", false));
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize("throw \"error\";", false));
         assertEquals(1, ast.size());
         assertInstanceOf(Throw.class, ast.getFirst());
     }
@@ -451,7 +451,7 @@ public class ParserTest {
     void parseTryCatch() {
         List<Node> ast = parser.parseTokens(tokenizer.tokenize("""
                 try {
-                    throw("err");
+                    throw "err";
                 } catch(e) {
                     print($e);
                 }
@@ -465,7 +465,7 @@ public class ParserTest {
 
     @Test
     void parseLambdaExpression() {
-        List<Node> ast = parser.parseTokens(tokenizer.tokenize("var f : fn(x) { ret($x); };", false));
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize("var f : fn(x) { return $x; };", false));
         assertEquals(1, ast.size());
         VarDecl decl = assertInstanceOf(VarDecl.class, ast.getFirst());
         LambdaExpression lambda = assertInstanceOf(LambdaExpression.class, decl.getInitializer());
@@ -474,7 +474,7 @@ public class ParserTest {
 
     @Test
     void parseLambdaExpressionNoParams() {
-        List<Node> ast = parser.parseTokens(tokenizer.tokenize("var f : fn() { ret(42); };", false));
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize("var f : fn() { return 42; };", false));
         assertEquals(1, ast.size());
         VarDecl decl = assertInstanceOf(VarDecl.class, ast.getFirst());
         LambdaExpression lambda = assertInstanceOf(LambdaExpression.class, decl.getInitializer());
@@ -483,7 +483,7 @@ public class ParserTest {
 
     @Test
     void parseLambdaExpressionMultipleParams() {
-        List<Node> ast = parser.parseTokens(tokenizer.tokenize("var f : fn(a, b, c) { ret($a); };", false));
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize("var f : fn(a, b, c) { return $a; };", false));
         assertEquals(1, ast.size());
         VarDecl decl = assertInstanceOf(VarDecl.class, ast.getFirst());
         LambdaExpression lambda = assertInstanceOf(LambdaExpression.class, decl.getInitializer());

@@ -47,7 +47,7 @@ public class WhileTest extends InterpreterTestBase {
                 var x : 0;
                 while($x < 100) {
                     $x : eval($x + 1);
-                    if($x == 5) { break(); }
+                    if($x == 5) { break; }
                 }
                 """));
     }
@@ -58,7 +58,7 @@ public class WhileTest extends InterpreterTestBase {
                 var x : 0;
                 while(1) {
                     $x : eval($x + 1);
-                    if($x >= 3) { break(); }
+                    if($x >= 3) { break; }
                 }
                 """);
         assertEquals(3.0, Interpreter.getGlobalEnvironment().get("x"));

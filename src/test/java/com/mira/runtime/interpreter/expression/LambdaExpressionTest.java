@@ -15,7 +15,7 @@ public class LambdaExpressionTest extends InterpreterTestBase {
     @Test
     void lambdaAssignedToVariable() {
         try {
-            run("var f : fn(x) { ret($x); }; ret($f);");
+            run("var f : fn(x) { return $x; }; return $f;");
         } catch (ReturnSignal r) {
             assertInstanceOf(Function.class, r.getValue());
         }
@@ -23,23 +23,23 @@ public class LambdaExpressionTest extends InterpreterTestBase {
 
     @Test
     void lambdaWithNoParams() {
-        assertEquals(42.0, run("var answer : fn() { ret(42); }; eval(answer());"));
+        assertEquals(42.0, run("var answer : fn() { return 42; }; eval(answer());"));
     }
 
     @Test
     void lambdaWithOneParam() {
-        assertEquals(10.0, run("var double : fn(x) { ret(eval($x * 2)); }; eval(double(5));"));
+        assertEquals(10.0, run("var double : fn(x) { return eval($x * 2); }; eval(double(5));"));
     }
 
     @Test
     void lambdaWithTwoParams() {
-        assertEquals(7.0, run("var add : fn(a, b) { ret(eval($a + $b)); }; eval(add(3, 4));"));
+        assertEquals(7.0, run("var add : fn(a, b) { return eval($a + $b); }; eval(add(3, 4));"));
     }
 
     @Test
     void lambdaReturnsString() {
         try {
-            run("var greet : fn(name) { ret(\"Hello \" $name); }; ret(greet(\"World\"));");
+            run("var greet : fn(name) { return \"Hello \" $name; }; return greet(\"World\");");
         } catch (ReturnSignal r) {
             assertEquals("Hello World", r.getValue());
         }
@@ -53,8 +53,8 @@ public class LambdaExpressionTest extends InterpreterTestBase {
     @Test
     void lambdaPassedAsArgument() {
         assertEquals(24.0, run("""
-                fn apply(f, x) { ret(f($x)); }
-                var triple : fn(n) { ret(eval($n * 3)); };
+                fn apply(f, x) { return f($x); }
+                var triple : fn(n) { return eval($n * 3); };
                 eval(apply($triple, 8));
                 """));
     }
@@ -62,16 +62,16 @@ public class LambdaExpressionTest extends InterpreterTestBase {
     @Test
     void lambdaInlineAsArgument() {
         assertEquals(9.0, run("""
-                fn apply(f, x) { ret(f($x)); }
-                eval(apply(fn(n) { ret(eval($n * $n)); }, 3));
+                fn apply(f, x) { return f($x); }
+                eval(apply(fn(n) { return eval($n * $n); }, 3));
                 """));
     }
 
     @Test
     void higherOrderFunctionWithMultipleParams() {
         assertEquals(12.0, run("""
-                fn applyTwo(f, a, b) { ret(f($a, $b)); }
-                var multiply : fn(x, y) { ret(eval($x * $y)); };
+                fn applyTwo(f, a, b) { return f($a, $b); }
+                var multiply : fn(x, y) { return eval($x * $y); };
                 eval(applyTwo($multiply, 3, 4));
                 """));
     }
@@ -80,20 +80,20 @@ public class LambdaExpressionTest extends InterpreterTestBase {
     void lambdaCapturesOuterVariable() {
         assertEquals(15.0, run("""
                 var factor : 5;
-                var scale : fn(x) { ret(eval($x * $factor)); };
+                var scale : fn(x) { return eval($x * $factor); };
                 eval(scale(3));
                 """));
     }
 
     @Test
     void constLambda() {
-        assertEquals(4.0, run("const square : fn(x) { ret(eval($x * $x)); }; eval(square(2));"));
+        assertEquals(4.0, run("const square : fn(x) { return eval($x * $x); }; eval(square(2));"));
     }
 
     @Test
     void lambdaCalledMultipleTimes() {
         assertEquals(9.0, run("""
-                var inc : fn(x) { ret(eval($x + 1)); };
+                var inc : fn(x) { return eval($x + 1); };
                 var a : eval(inc(1));
                 var b : eval(inc(2));
                 var c : eval(inc(3));

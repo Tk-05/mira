@@ -22,7 +22,7 @@ public class VarDeclTest extends InterpreterTestBase {
     @Test
     void uninitializedDeclarationValueIsNull() {
         try {
-            run("var x; ret($x);");
+            run("var x; return $x;");
         } catch (ReturnSignal r) {
             assertInstanceOf(NullValue.class, r.getValue());
         }
@@ -36,7 +36,7 @@ public class VarDeclTest extends InterpreterTestBase {
     @Test
     void stringInitializer() {
         try {
-            run("var x : \"hello\"; ret($x);");
+            run("var x : \"hello\"; return $x;");
         } catch (ReturnSignal r) {
             assertEquals("hello", r.getValue());
         }
@@ -55,7 +55,7 @@ public class VarDeclTest extends InterpreterTestBase {
     @Test
     void declarationWithFunctionResult() {
         assertEquals(5.0, run("""
-                fn getValue() { ret(5); }
+                fn getValue() { return 5; }
                 var x : eval(getValue());
                 eval($x);
                 """));
@@ -64,7 +64,7 @@ public class VarDeclTest extends InterpreterTestBase {
     @Test
     void booleanTrueInitializer() {
         try {
-            run("var x : true; ret($x);");
+            run("var x : true; return $x;");
         } catch (ReturnSignal r) {
             assertEquals(Boolean.TRUE, r.getValue());
         }
@@ -73,7 +73,7 @@ public class VarDeclTest extends InterpreterTestBase {
     @Test
     void booleanFalseInitializer() {
         try {
-            run("var x : false; ret($x);");
+            run("var x : false; return $x;");
         } catch (ReturnSignal r) {
             assertEquals(Boolean.FALSE, r.getValue());
         }

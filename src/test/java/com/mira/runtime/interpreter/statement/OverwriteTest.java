@@ -43,7 +43,7 @@ public class OverwriteTest extends InterpreterTestBase {
         assertEquals(42.0, runContinued("""
                 overwrite(
                 "
-                    fn answer() { ret(42); }
+                    fn answer() { return 42; }
                 "
                 );
 

@@ -22,7 +22,7 @@ public class VariadicFuncTest extends InterpreterTestBase {
     void variadicArgsIsListExpression() {
         assertEquals(3.0, run("""
                 import collection;
-                fn f(...args) { ret(eval(size($args))); }
+                fn f(...args) { return eval(size($args)); }
                 eval(f(10, 20, 30));
                 """));
     }
@@ -31,7 +31,7 @@ public class VariadicFuncTest extends InterpreterTestBase {
     void variadicEmptyArgsIsEmptyList() {
         assertEquals(0.0, run("""
                 import collection;
-                fn f(...args) { ret(eval(length($args))); }
+                fn f(...args) { return eval(length($args)); }
                 eval(f());
                 """));
     }
@@ -44,7 +44,7 @@ public class VariadicFuncTest extends InterpreterTestBase {
                     foreach (var x in $args) {
                         $total : eval($total + $x);
                     }
-                    ret($total);
+                    return $total;
                 }
                 eval(sum(1, 2, 3));
                 """));
@@ -58,7 +58,7 @@ public class VariadicFuncTest extends InterpreterTestBase {
                     foreach (var x in $args) {
                         $total : eval($total + $x);
                     }
-                    ret($total);
+                    return $total;
                 }
                 eval(sum(42));
                 """));
@@ -72,7 +72,7 @@ public class VariadicFuncTest extends InterpreterTestBase {
                     foreach (var x in $args) {
                         $total : eval($total + $x);
                     }
-                    ret($total);
+                    return $total;
                 }
                 eval(sum());
                 """));
@@ -81,7 +81,7 @@ public class VariadicFuncTest extends InterpreterTestBase {
     @Test
     void variadicAccessByIndex() {
         assertEquals("b", run("""
-                fn second(...args) { ret($args[1]); }
+                fn second(...args) { return $args[1]; }
                 eval(second("a", "b", "c"));
                 """));
     }
@@ -90,7 +90,7 @@ public class VariadicFuncTest extends InterpreterTestBase {
     void fixedPlusVariadic() {
         assertEquals(3.0, run("""
                 import collection;
-                fn f(a, ...rest) { ret(eval(length($rest))); }
+                fn f(a, ...rest) { return eval(length($rest)); }
                 eval(f(1, 2, 3, 4));
                 """));
     }
@@ -98,7 +98,7 @@ public class VariadicFuncTest extends InterpreterTestBase {
     @Test
     void fixedParamBindsCorrectly() {
         assertEquals("hello", run("""
-                fn f(prefix, ...rest) { ret($prefix); }
+                fn f(prefix, ...rest) { return $prefix; }
                 f("hello", 1, 2, 3);
                 """));
     }
@@ -107,7 +107,7 @@ public class VariadicFuncTest extends InterpreterTestBase {
     void fixedPlusVariadicNoRestArgs() {
         assertEquals(0.0, run("""
                 import collection;
-                fn f(a, ...rest) { ret(eval(length($rest))); }
+                fn f(a, ...rest) { return eval(length($rest)); }
                 eval(f(99));
                 """));
     }
@@ -115,7 +115,7 @@ public class VariadicFuncTest extends InterpreterTestBase {
     @Test
     void fixedPlusVariadicRestContainsCorrectValues() {
         assertEquals("b", run("""
-                fn f(a, ...rest) { ret($rest[0]); }
+                fn f(a, ...rest) { return $rest[0]; }
                 eval(f("a", "b", "c"));
                 """));
     }
@@ -124,7 +124,7 @@ public class VariadicFuncTest extends InterpreterTestBase {
     void lambdaVariadic() {
         assertEquals(3.0, run("""
                 import collection;
-                var f : fn(...args) { ret(eval(length($args))); };
+                var f : fn(...args) { return eval(length($args)); };
                 eval(f(1, 2, 3));
                 """));
     }
@@ -133,7 +133,7 @@ public class VariadicFuncTest extends InterpreterTestBase {
     void lambdaVariadicEmpty() {
         assertEquals(0.0, run("""
                 import collection;
-                var f : fn(...args) { ret(eval(length($args))); };
+                var f : fn(...args) { return eval(length($args)); };
                 eval(f());
                 """));
     }
@@ -142,7 +142,7 @@ public class VariadicFuncTest extends InterpreterTestBase {
     void lambdaFixedPlusVariadic() {
         assertEquals(2.0, run("""
                 import collection;
-                var f : fn(x, ...rest) { ret(eval(length($rest))); };
+                var f : fn(x, ...rest) { return eval(length($rest)); };
                 eval(f(0, 1, 2));
                 """));
     }
@@ -151,7 +151,7 @@ public class VariadicFuncTest extends InterpreterTestBase {
     void variadicListPassedToCollectionFunctions() {
         assertEquals(1.0, run("""
                 import collection as col;
-                fn first(...args) { ret($args); }
+                fn first(...args) { return $args; }
                 eval(first(1, 2, 3)[0]);
                 """));
     }
@@ -164,7 +164,7 @@ public class VariadicFuncTest extends InterpreterTestBase {
                     foreach (var x in $args) {
                         $total : eval($total + $x);
                     }
-                    ret($total);
+                    return $total;
                 }
                 eval(sum(1, 2, 3, 4));
                 """));

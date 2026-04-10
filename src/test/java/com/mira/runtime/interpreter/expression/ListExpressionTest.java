@@ -69,7 +69,7 @@ public class ListExpressionTest extends InterpreterTestBase {
         assertEquals(1.0, run("""
                 fn getList() {
                     var list : {1, 2, 3};
-                    ret($list);
+                    return $list;
                 }
 
                 eval(getList()[0]);

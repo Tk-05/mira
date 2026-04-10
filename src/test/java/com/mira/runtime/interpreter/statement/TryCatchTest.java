@@ -14,7 +14,7 @@ public class TryCatchTest extends InterpreterTestBase {
 
     @Test
     void throwAtTopLevelPropagates() {
-        ThrowSignal signal = assertThrows(ThrowSignal.class, () -> run("throw(\"error\");"));
+        ThrowSignal signal = assertThrows(ThrowSignal.class, () -> run("throw \"error\";"));
         assertEquals("error", signal.getValue());
     }
 
@@ -23,9 +23,9 @@ public class TryCatchTest extends InterpreterTestBase {
         try {
             run("""
                     try {
-                        throw("something went wrong");
+                        throw "something went wrong";
                     } catch (e) {
-                        ret($e);
+                        return $e;
                     }
                     """);
         } catch (ReturnSignal r) {
@@ -35,13 +35,13 @@ public class TryCatchTest extends InterpreterTestBase {
 
     @Test
     void catchReceivesNumberValue() {
-        ThrowSignal signal = assertThrows(ThrowSignal.class, () -> run("throw(42);"));
+        ThrowSignal signal = assertThrows(ThrowSignal.class, () -> run("throw 42;"));
         assertEquals("42", signal.getValue());
     }
 
     @Test
     void catchReceivesBooleanValue() {
-        ThrowSignal signal = assertThrows(ThrowSignal.class, () -> run("throw(true);"));
+        ThrowSignal signal = assertThrows(ThrowSignal.class, () -> run("throw true;"));
         assertEquals(Boolean.TRUE, signal.getValue());
     }
 
@@ -63,7 +63,7 @@ public class TryCatchTest extends InterpreterTestBase {
         run("""
                 var x : 0;
                 try {
-                    throw("err");
+                    throw "err";
                 } catch (e) {
                     $x : 1;
                 }
@@ -77,9 +77,9 @@ public class TryCatchTest extends InterpreterTestBase {
         try {
             run("""
                     try {
-                        throw("hello");
+                        throw "hello";
                     } catch (msg) {
-                        ret($msg);
+                        return $msg;
                     }
                     """);
         } catch (ReturnSignal r) {
@@ -93,7 +93,7 @@ public class TryCatchTest extends InterpreterTestBase {
                 var x : 0;
                 try {
                     try {
-                        throw("inner");
+                        throw "inner";
                     } catch (e) {
                         $x : 1;
                     }
@@ -110,9 +110,9 @@ public class TryCatchTest extends InterpreterTestBase {
                 var x : 0;
                 try {
                     try {
-                        throw("rethrow");
+                        throw "rethrow";
                     } catch (e) {
-                        throw($e);
+                        throw $e;
                     }
                 } catch (e) {
                     $x : 99;
@@ -126,12 +126,12 @@ public class TryCatchTest extends InterpreterTestBase {
         try {
             run("""
                     fn risky() {
-                        throw("from function");
+                        throw "from function";
                     }
                     try {
                         risky();
                     } catch (e) {
-                        ret($e);
+                        return $e;
                     }
                     """);
         } catch (ReturnSignal r) {
@@ -146,7 +146,7 @@ public class TryCatchTest extends InterpreterTestBase {
                 try {
                     while (true) {
                         $x : eval($x + 1);
-                        throw("stop");
+                        throw "stop";
                     }
                 } catch (e) {
                     $x : eval($x + 10);
@@ -169,7 +169,7 @@ public class TryCatchTest extends InterpreterTestBase {
     void catchVariableIsScopedToBlock() {
         assertThrows(RuntimeException.class, () -> run("""
                 try {
-                    throw("scoped");
+                    throw "scoped";
                 } catch (e) {
                 }
                 var result : $e;
