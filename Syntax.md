@@ -710,9 +710,10 @@ Constants: `pi`, `e`, `inf`, `nan`
 
 ### `io`
 
-| Function          | Description                        |
-| ----------------- | ---------------------------------- |
-| `readFile(path)`  | Reads a file and returns its content as a string |
+| Function                    | Description                                              |
+| --------------------------- | -------------------------------------------------------- |
+| `readFile(path)`            | Reads a file and returns its content as a string         |
+| `writeFile(path, content)`  | Writes a string to a file, creating directories if needed |
 
 ### `map`
 
