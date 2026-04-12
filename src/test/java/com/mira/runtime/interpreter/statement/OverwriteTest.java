@@ -10,7 +10,7 @@ public class OverwriteTest extends InterpreterTestBase {
 
     @Test
     void overwriteExistingVariable() {
-        Interpreter.getGlobalEnvironment().define("test", "Test");
+        interpreter.getGlobalEnvironment().define("test", "Test");
         assertEquals("HelloWorld", runContinued("""
                 overwrite(
                 "

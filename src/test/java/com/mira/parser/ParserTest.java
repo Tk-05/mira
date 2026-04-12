@@ -16,10 +16,11 @@ import com.mira.parser.nodes.expression.Expression.BinaryExpression;
 import com.mira.parser.nodes.expression.Expression.CallExpression;
 import com.mira.parser.nodes.expression.Expression.DumbExpression;
 import com.mira.parser.nodes.expression.Expression.ImportExpression;
+import com.mira.parser.nodes.expression.Expression.LambdaExpression;
+import com.mira.parser.nodes.expression.Expression.MapExpression;
 import com.mira.parser.nodes.expression.Expression.NamespaceCallExpression;
 import com.mira.parser.nodes.expression.Expression.ObjectExpression;
 import com.mira.parser.nodes.expression.Expression.UnaryExpression;
-import com.mira.parser.nodes.expression.Expression.LambdaExpression;
 import com.mira.parser.nodes.statement.Statement;
 import com.mira.parser.nodes.statement.Statement.Block;
 import com.mira.parser.nodes.statement.Statement.Break;
@@ -535,5 +536,12 @@ public class ParserTest {
         NamespaceCallExpression expr = assertInstanceOf(NamespaceCallExpression.class, ast.getFirst());
         assertEquals("str", expr.getAlias());
         assertEquals("trim", expr.getFunctionName());
+    }
+
+    @Test
+    void parseMap() {
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize("var vals : {\"69\" : 420};", false));
+        assertEquals(1, ast.size());
+        assertInstanceOf(VarDecl.class, ast.get(0));
     }
 }

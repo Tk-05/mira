@@ -9,7 +9,6 @@
             "projectName": "mira",
             "args": [
                     "src/main/resources/demo/Debug.mira",
-                    "-t",
                     "-m",
                     "-li"
                 ]

@@ -6,6 +6,7 @@ import java.net.URLClassLoader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.attribute.FileTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -13,6 +14,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ConcurrentHashMap;
 
 import com.mira.Flags;
 import com.mira.error.runtime.RuntimeError.LibImportConflictError;
@@ -39,15 +43,17 @@ import com.mira.parser.nodes.statement.Statement.ModuleDecl;
 
 public class ImportResolver {
 
+    private record CachedModule(List<Node> ast, FileTime lastModified) {
+
+    }
+
     private static final Internal internal = new Internal();
-    private static final Set<String> loadedModules = new HashSet<>();
+    private static final Map<String, CachedModule> astCache = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<String, CompletableFuture<Void>> moduleLoadFutures = new ConcurrentHashMap<>();
     private static final Set<String> loadedLibs = new HashSet<>();
     private static final Map<String, String> globalLibNames = new HashMap<>();
     private static final Map<String, Lib> loadedNativeLibs = new HashMap<>();
     private static final List<URLClassLoader> nativeClassLoaders = new ArrayList<>();
-    private static final Tokenizer tokenizer = new Tokenizer();
-    private static final Parser parser = new Parser();
-
     private static final Map<String, Lib> libs = new HashMap<String, Lib>() {
         {
             put("math", new Math());
@@ -71,12 +77,44 @@ public class ImportResolver {
             internal.loadLib(environment);
         }
 
+        // Aliased MODULE-Imports: jeder hat seine eigene Namespace → vollständig parallel ladbar
+        Path parentInputPath = Flags.inputPath.get();
+        List<ImportExpression> aliasedModules = imports.stream()
+                .filter(e -> e.getKind() == ImportExpression.ImportKind.MODULE
+                        && e.getNamespace() != null && !e.getNamespace().isBlank())
+                .toList();
+
+        if (!aliasedModules.isEmpty()) {
+            List<CompletableFuture<Void>> futures = aliasedModules.stream()
+                    .map(e -> CompletableFuture.runAsync(() -> {
+                        Flags.inputPath.set(parentInputPath);
+                        resolveModuleImport(new Interpreter(), e, environment);
+                    }))
+                    .toList();
+            try {
+                CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new)).join();
+            } catch (CompletionException e) {
+                Throwable cause = e.getCause();
+                if (cause instanceof com.mira.error.MiraError me) throw me;
+                if (cause instanceof RuntimeException re) throw re;
+                throw new RuntimeException(cause);
+            }
+        }
+
+        // Nicht-aliased Module, stdlib, native: sequenziell
         for (ImportExpression expr : imports) {
+            if (expr.getKind() == ImportExpression.ImportKind.MODULE
+                    && expr.getNamespace() != null && !expr.getNamespace().isBlank()) {
+                continue; // bereits parallel abgearbeitet
+            }
             try {
                 switch (expr.getKind()) {
-                    case MODULE -> resolveModuleImport(interpreter, expr, environment);
-                    case NATIVE -> resolveNativeImport(expr, environment);
-                    case STDLIB -> resolveStdlibImport(expr, environment);
+                    case MODULE ->
+                        resolveModuleImport(interpreter, expr, environment);
+                    case NATIVE ->
+                        resolveNativeImport(expr, environment);
+                    case STDLIB ->
+                        resolveStdlibImport(expr, environment);
                 }
             } catch (com.mira.error.MiraError e) {
                 throw e;
@@ -91,44 +129,53 @@ public class ImportResolver {
     }
 
     private static void resolveModuleImport(Interpreter interpreter, ImportExpression importExpression, Environment environment) {
+        String rawPath = importExpression.getModule().replace("\"", "");
+        if (!rawPath.endsWith(".mira")) {
+            rawPath += ".mira";
+        }
+
+        Path currentFile = Flags.inputPath.get().toAbsolutePath();
+        Path candidate = Paths.get(rawPath);
+        Path modulePath = candidate.isAbsolute()
+                ? candidate.normalize()
+                : currentFile.getParent().resolve(candidate).normalize();
+        String moduleKey = modulePath.toAbsolutePath().toString();
+
+        // Atomic: erster Aufruf lädt, alle anderen warten auf Abschluss
+        CompletableFuture<Void> loadFuture = new CompletableFuture<>();
+        CompletableFuture<Void> existing = moduleLoadFutures.putIfAbsent(moduleKey, loadFuture);
+        if (existing != null) {
+            try {
+                existing.join();
+            } catch (CompletionException ce) {
+                Throwable cause = ce.getCause();
+                if (cause instanceof RuntimeException re) throw re;
+                throw new RuntimeException(cause);
+            }
+            return;
+        }
+
         try {
-            String rawPath = importExpression.getModule().replace("\"", "");
-
-            if (!rawPath.endsWith(".mira")) {
-                rawPath += ".mira";
-            }
-
-            Path currentFile = ((Path) Flags.inputPath).toAbsolutePath();
-            Path modulePath;
-            Path candidate = Paths.get(rawPath);
-
-            if (candidate.isAbsolute()) {
-                modulePath = candidate.normalize();
-            } else {
-                modulePath = currentFile.getParent().resolve(candidate).normalize();
-            }
-
-            String moduleKey = modulePath.toAbsolutePath().toString();
-
-            if (loadedModules.contains(moduleKey)) {
-                return;
-            }
-            loadedModules.add(moduleKey);
-
             if (!Files.exists(modulePath)) {
                 throw new RuntimeException("Module file not found: " + modulePath);
             }
 
-            String source = Files.readString(modulePath);
-            Path previousFile = (Path) Flags.inputPath;
-            Flags.inputPath = modulePath;
+            FileTime currentModTime = Files.getLastModifiedTime(modulePath);
+            CachedModule cached = astCache.get(moduleKey);
+            List<Node> asts;
+            if (cached != null && cached.lastModified().equals(currentModTime)) {
+                asts = cached.ast();
+            } else {
+                String source = Files.readString(modulePath);
+                List<Token> tokens = new Tokenizer().tokenize(source, false);
+                asts = new Parser().parseTokens(tokens);
+                astCache.put(moduleKey, new CachedModule(asts, currentModTime));
+            }
 
-            List<Token> tokens = tokenizer.tokenize(source, false);
-
-            List<Node> asts = parser.parseTokens(tokens);
+            Path previousFile = Flags.inputPath.get();
+            Flags.inputPath.set(modulePath);
 
             String declaredModuleName = validateModuleDeclaration(asts, importExpression);
-
             String fileName = modulePath.getFileName().toString();
             String expectedModuleName = fileName.replace(".mira", "");
 
@@ -141,7 +188,6 @@ public class ImportResolver {
 
             String alias = importExpression.getNamespace();
             boolean hasAlias = alias != null && !alias.isBlank();
-
             Environment targetEnv = hasAlias ? new Namespace(alias) : environment;
 
             List<ImportExpression> nestedImports = new ArrayList<>();
@@ -156,12 +202,17 @@ public class ImportResolver {
             resolveImports(nestedImports, targetEnv, interpreter, false);
 
             if (hasAlias) {
-                environment.define(alias, targetEnv);
+                synchronized (environment) {
+                    environment.define(alias, targetEnv);
+                }
             }
 
-            Flags.inputPath = previousFile;
+            Flags.inputPath.set(previousFile);
+            loadFuture.complete(null);
 
-        } catch (IOException e) {
+        } catch (Exception e) {
+            loadFuture.completeExceptionally(e);
+            if (e instanceof RuntimeException re) throw re;
             throw new RuntimeException("Module '" + importExpression.getModule() + "' could not be loaded", e);
         }
     }
@@ -214,7 +265,7 @@ public class ImportResolver {
         String rawPath = expr.getModule();
         String alias = expr.getNamespace();
 
-        Path currentFile = ((Path) Flags.inputPath).toAbsolutePath();
+        Path currentFile = Flags.inputPath.get().toAbsolutePath();
         Path candidate = Paths.get(rawPath);
         Path jarPath = candidate.isAbsolute()
                 ? candidate.normalize()
@@ -254,13 +305,20 @@ public class ImportResolver {
         environment.define(alias, ns);
     }
 
+    public static void loadInternal(Environment environment) {
+        internal.loadLib(environment);
+    }
+
     public static void reset() {
-        loadedModules.clear();
+        moduleLoadFutures.clear();
         loadedLibs.clear();
         loadedNativeLibs.clear();
         globalLibNames.clear();
         for (URLClassLoader loader : nativeClassLoaders) {
-            try { loader.close(); } catch (IOException ignored) {}
+            try {
+                loader.close();
+            } catch (IOException ignored) {
+            }
         }
         nativeClassLoaders.clear();
     }

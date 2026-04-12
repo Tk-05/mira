@@ -27,7 +27,7 @@ public class WhileTest extends InterpreterTestBase {
                     $i : eval($i + 1);
                 }
                 """);
-        assertEquals(5.0, Interpreter.getGlobalEnvironment().get("i"));
+        assertEquals(5.0, interpreter.getGlobalEnvironment().get("i"));
     }
 
     @Test
@@ -38,7 +38,7 @@ public class WhileTest extends InterpreterTestBase {
                     $executed : true;
                 }
                 """);
-        assertEquals(Boolean.FALSE, Interpreter.getGlobalEnvironment().get("executed"));
+        assertEquals(Boolean.FALSE, interpreter.getGlobalEnvironment().get("executed"));
     }
 
     @Test
@@ -61,7 +61,7 @@ public class WhileTest extends InterpreterTestBase {
                     if($x >= 3) { break; }
                 }
                 """);
-        assertEquals(3.0, Interpreter.getGlobalEnvironment().get("x"));
+        assertEquals(3.0, interpreter.getGlobalEnvironment().get("x"));
     }
 
     @Test
@@ -79,6 +79,6 @@ public class WhileTest extends InterpreterTestBase {
                     }
                 }
                 """);
-        assertEquals(9.0, Interpreter.getGlobalEnvironment().get("total"));
+        assertEquals(9.0, interpreter.getGlobalEnvironment().get("total"));
     }
 }

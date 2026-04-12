@@ -39,6 +39,7 @@ public class LexerTest {
         assertEquals(TokenType.KEYWORD, tokenizer.tokenize("enum", false).getFirst().getTokenType());
         assertEquals(TokenType.KEYWORD, tokenizer.tokenize("try", false).getFirst().getTokenType());
         assertEquals(TokenType.KEYWORD, tokenizer.tokenize("throw", false).getFirst().getTokenType());
+        assertEquals(TokenType.KEYWORD, tokenizer.tokenize("native", false).getFirst().getTokenType());
     }
 
     @Test

@@ -37,7 +37,7 @@ import com.mira.parser.nodes.statement.Statement.While;
 public class PurityAnalyzer {
 
     private static final Set<String> IMPURE_GLOBALS = Set.of(
-            "print", "exec", "exit", "readFile"
+            "print", "exec", "exit", "readFile", "writeFile"
     );
 
     private static final Set<String> IMPURE_NAMESPACES = Set.of(

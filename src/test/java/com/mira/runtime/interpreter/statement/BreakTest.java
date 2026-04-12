@@ -65,9 +65,9 @@ public class BreakTest extends InterpreterTestBase {
                 }
                 """);
 
-        assertEquals(3.0, Interpreter.getGlobalEnvironment().get("outer"));
-        assertEquals(5.0, Interpreter.getGlobalEnvironment().get("middle"));
-        assertEquals(5.0, Interpreter.getGlobalEnvironment().get("inner"));
+        assertEquals(3.0, interpreter.getGlobalEnvironment().get("outer"));
+        assertEquals(5.0, interpreter.getGlobalEnvironment().get("middle"));
+        assertEquals(5.0, interpreter.getGlobalEnvironment().get("inner"));
     }
 
     @Test
@@ -85,7 +85,7 @@ public class BreakTest extends InterpreterTestBase {
 
                 $x : eval($x + 10);
                 """);
-        assertEquals(13.0, Interpreter.getGlobalEnvironment().get("x"));
+        assertEquals(13.0, interpreter.getGlobalEnvironment().get("x"));
     }
 
     @Test
@@ -97,6 +97,6 @@ public class BreakTest extends InterpreterTestBase {
                     while(1) { break; }
                 }
                 """);
-        assertEquals(3.0, Interpreter.getGlobalEnvironment().get("outer"));
+        assertEquals(3.0, interpreter.getGlobalEnvironment().get("outer"));
     }
 }

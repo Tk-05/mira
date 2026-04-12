@@ -76,12 +76,19 @@ import com.mira.warning.WarningLevel;
 public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
     private static Interpreter instance;
-    private static Environment globalEnvironment = new Environment();
+    private static final ThreadLocal<Interpreter> activeInterpreter = new ThreadLocal<>();
+    private Environment globalEnvironment = new Environment();
     private Environment localEnvironment;
     private final Map<String, Object> callCache = new HashMap<>();
     private Set<String> pureFunctions = Set.of();
 
+    public Interpreter() {
+        ImportResolver.loadInternal(globalEnvironment);
+    }
+
     public static Interpreter getInstance() {
+        Interpreter active = activeInterpreter.get();
+        if (active != null) return active;
         if (instance == null) {
             instance = new Interpreter();
         }
@@ -138,76 +145,94 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
     }
 
     public <T> T run(List<Node> asts, String[] args, boolean enforceModule) {
-        loadGlobalContext(asts, enforceModule);
-        Object lastResult = null;
+        Interpreter prev = activeInterpreter.get();
+        activeInterpreter.set(this);
+        try {
+            loadGlobalContext(asts, enforceModule);
+            Object lastResult = null;
 
-        if (Flags.mainFunction) {
-            Expression argsTuple = getArgsTuple(args);
-            return (T) new CallExpression(new DumbExpression(
-                    new Token(null, "main", 0, 0)),
-                    argsTuple == null ? List.of() : List.of(argsTuple)).
-                    accept(this);
-        } else {
-            globalEnvironment.define("args", getArgsTuple(args));
-            for (Node ast : asts) {
-                lastResult = switch (ast) {
-                    case Expression expression ->
-                        expression.accept(this);
-                    case Statement statement ->
-                        statement.accept(this);
-                    default -> {
-                        throw new AssertionError();
-                    }
-                };
+            if (Flags.mainFunction) {
+                Expression argsTuple = getArgsTuple(args);
+                return (T) new CallExpression(new DumbExpression(
+                        new Token(null, "main", 0, 0)),
+                        argsTuple == null ? List.of() : List.of(argsTuple)).
+                        accept(this);
+            } else {
+                globalEnvironment.define("args", getArgsTuple(args));
+                for (Node ast : asts) {
+                    lastResult = switch (ast) {
+                        case Expression expression ->
+                            expression.accept(this);
+                        case Statement statement ->
+                            statement.accept(this);
+                        default -> {
+                            throw new AssertionError();
+                        }
+                    };
+                }
             }
-        }
 
-        return (T) lastResult;
+            return (T) lastResult;
+        } finally {
+            activeInterpreter.set(prev);
+        }
     }
 
     public <T> T run(List<Node> asts, boolean enforceModule) {
-        loadGlobalContext(asts, enforceModule);
-        Object lastResult = null;
+        Interpreter prev = activeInterpreter.get();
+        activeInterpreter.set(this);
+        try {
+            loadGlobalContext(asts, enforceModule);
+            Object lastResult = null;
 
-        if (Flags.mainFunction) {
-            return (T) new CallExpression(new DumbExpression(new Token(null, "main", 0, 0)), new ArrayList<>()).accept(this);
-        } else {
-            for (Node ast : asts) {
-                lastResult = switch (ast) {
-                    case Expression expression ->
-                        expression.accept(this);
-                    case Statement statement ->
-                        statement.accept(this);
-                    default -> {
-                        throw new AssertionError();
-                    }
-                };
+            if (Flags.mainFunction) {
+                return (T) new CallExpression(new DumbExpression(new Token(null, "main", 0, 0)), new ArrayList<>()).accept(this);
+            } else {
+                for (Node ast : asts) {
+                    lastResult = switch (ast) {
+                        case Expression expression ->
+                            expression.accept(this);
+                        case Statement statement ->
+                            statement.accept(this);
+                        default -> {
+                            throw new AssertionError();
+                        }
+                    };
+                }
             }
-        }
 
-        return (T) lastResult;
+            return (T) lastResult;
+        } finally {
+            activeInterpreter.set(prev);
+        }
     }
 
     public <T> T runWithoutLoadingNewContext(List<Node> asts) {
-        Object lastResult = null;
+        Interpreter prev = activeInterpreter.get();
+        activeInterpreter.set(this);
+        try {
+            Object lastResult = null;
 
-        if (Flags.mainFunction) {
-            return (T) new CallExpression(new DumbExpression(new Token(null, "main", 0, 0)), new ArrayList<>()).accept(this);
-        } else {
-            for (Node ast : asts) {
-                lastResult = switch (ast) {
-                    case Expression expression ->
-                        expression.accept(this);
-                    case Statement statement ->
-                        statement.accept(this);
-                    default -> {
-                        throw new AssertionError();
-                    }
-                };
+            if (Flags.mainFunction) {
+                return (T) new CallExpression(new DumbExpression(new Token(null, "main", 0, 0)), new ArrayList<>()).accept(this);
+            } else {
+                for (Node ast : asts) {
+                    lastResult = switch (ast) {
+                        case Expression expression ->
+                            expression.accept(this);
+                        case Statement statement ->
+                            statement.accept(this);
+                        default -> {
+                            throw new AssertionError();
+                        }
+                    };
+                }
             }
-        }
 
-        return (T) lastResult;
+            return (T) lastResult;
+        } finally {
+            activeInterpreter.set(prev);
+        }
     }
 
     @Override
@@ -1345,7 +1370,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         this.localEnvironment = localEnvironment;
     }
 
-    public static Environment getGlobalEnvironment() {
+    public Environment getGlobalEnvironment() {
         return globalEnvironment;
     }
 }

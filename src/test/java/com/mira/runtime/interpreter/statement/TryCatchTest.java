@@ -55,7 +55,7 @@ public class TryCatchTest extends InterpreterTestBase {
                     $x : eval($x + 100);
                 }
                 """);
-        assertEquals(2.0, Interpreter.getGlobalEnvironment().get("x"));
+        assertEquals(2.0, interpreter.getGlobalEnvironment().get("x"));
     }
 
     @Test
@@ -69,7 +69,7 @@ public class TryCatchTest extends InterpreterTestBase {
                 }
                 $x : eval($x + 10);
                 """);
-        assertEquals(11.0, Interpreter.getGlobalEnvironment().get("x"));
+        assertEquals(11.0, interpreter.getGlobalEnvironment().get("x"));
     }
 
     @Test
@@ -101,7 +101,7 @@ public class TryCatchTest extends InterpreterTestBase {
                     $x : 2;
                 }
                 """);
-        assertEquals("1", Interpreter.getGlobalEnvironment().get("x"));
+        assertEquals("1", interpreter.getGlobalEnvironment().get("x"));
     }
 
     @Test
@@ -118,7 +118,7 @@ public class TryCatchTest extends InterpreterTestBase {
                     $x : 99;
                 }
                 """);
-        assertEquals("99", Interpreter.getGlobalEnvironment().get("x"));
+        assertEquals("99", interpreter.getGlobalEnvironment().get("x"));
     }
 
     @Test
@@ -152,7 +152,7 @@ public class TryCatchTest extends InterpreterTestBase {
                     $x : eval($x + 10);
                 }
                 """);
-        assertEquals(11.0, Interpreter.getGlobalEnvironment().get("x"));
+        assertEquals(11.0, interpreter.getGlobalEnvironment().get("x"));
     }
 
     @Test

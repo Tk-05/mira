@@ -25,7 +25,7 @@ public class Main {
                 System.out.println(Help.getHelp());
                 System.exit(1);
             } else {
-                Flags.inputPath = Paths.get((args[0])).toAbsolutePath().normalize();
+                Flags.inputPath.set(Paths.get((args[0])).toAbsolutePath().normalize());
             }
 
             for (int i = 1; i < args.length; i++) {
@@ -45,13 +45,13 @@ public class Main {
 
             String readFile = "";
             try {
-                readFile = FileLoader.readFileFromPath(Flags.inputPath.toString());
+                readFile = FileLoader.readFileFromPath(Flags.inputPath.get().toString());
             } catch (IOException e) {
                 System.err.println(DiagnosticFormatter.format(e));
                 System.exit(1);
             }
 
-            Flags.fileName = Flags.inputPath.getFileName().toString();
+            Flags.fileName = Flags.inputPath.get().getFileName().toString();
             Flags.sourceLines = readFile.split("\n", -1);
 
             try {

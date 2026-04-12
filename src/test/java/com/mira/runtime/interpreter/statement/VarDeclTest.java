@@ -92,16 +92,16 @@ public class VarDeclTest extends InterpreterTestBase {
     @Test
     void variableUsageInExpression() {
         createNewGlobalContext();
-        Interpreter.getGlobalEnvironment().define("x", 10);
-        Interpreter.getGlobalEnvironment().define("y", 5);
+        interpreter.getGlobalEnvironment().define("x", 10);
+        interpreter.getGlobalEnvironment().define("y", 5);
         assertEquals(15.0, runContinued("eval($x + $y);"));
     }
 
     @Test
     void variableUsageWithMultipleVars() {
         createNewGlobalContext();
-        Interpreter.getGlobalEnvironment().define("val", 3);
-        Interpreter.getGlobalEnvironment().define("x", 10);
+        interpreter.getGlobalEnvironment().define("val", 3);
+        interpreter.getGlobalEnvironment().define("x", 10);
         assertEquals(23.0, runContinued("eval($val + $x * 2);"));
     }
 }

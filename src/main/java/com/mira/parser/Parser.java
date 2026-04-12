@@ -19,10 +19,11 @@ import com.mira.parser.nodes.expression.Expression.ComplexExpression;
 import com.mira.parser.nodes.expression.Expression.DumbExpression;
 import com.mira.parser.nodes.expression.Expression.FieldAccessExpression;
 import com.mira.parser.nodes.expression.Expression.ImportExpression;
+import com.mira.parser.nodes.expression.Expression.ImportExpression.ImportKind;
 import com.mira.parser.nodes.expression.Expression.LambdaExpression;
 import com.mira.parser.nodes.expression.Expression.ListExpression;
-import com.mira.parser.nodes.expression.Expression.NamespaceCallExpression;
 import com.mira.parser.nodes.expression.Expression.MapExpression;
+import com.mira.parser.nodes.expression.Expression.NamespaceCallExpression;
 import com.mira.parser.nodes.expression.Expression.ObjectExpression;
 import com.mira.parser.nodes.expression.Expression.RangeExpression;
 import com.mira.parser.nodes.expression.Expression.TernaryExpression;
@@ -569,7 +570,7 @@ public class Parser {
                 throw new LexemeMismatchError(peek(),
                         "'import native' requires an alias: import native \"path.jar\" as name;");
             }
-            return new ImportExpression(new DumbExpression(new Token(TokenType.STRING_LITERAL, path, 0, 0)), alias, ImportExpression.ImportKind.NATIVE);
+            return new ImportExpression(new DumbExpression(new Token(TokenType.STRING_LITERAL, path, 0, 0)), alias, ImportKind.NATIVE);
         }
 
         if (peek().getLexeme().equals("module")) {
@@ -580,7 +581,7 @@ public class Parser {
                 consume();
                 alias = matchExpression().getLexeme();
             }
-            return new ImportExpression(new DumbExpression(new Token(TokenType.STRING_LITERAL, path, 0, 0)), alias, ImportExpression.ImportKind.MODULE);
+            return new ImportExpression(new DumbExpression(new Token(TokenType.STRING_LITERAL, path, 0, 0)), alias, ImportKind.MODULE);
         }
 
         Expression libExpr = new DumbExpression(matchExpression());
@@ -589,7 +590,7 @@ public class Parser {
             consume();
             libAlias = matchExpression().getLexeme();
         }
-        return new ImportExpression(libExpr, libAlias, ImportExpression.ImportKind.STDLIB);
+        return new ImportExpression(libExpr, libAlias, ImportKind.STDLIB);
     }
 
     private Expression parseMap() {

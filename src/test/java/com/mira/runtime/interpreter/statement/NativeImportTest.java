@@ -63,7 +63,7 @@ public class NativeImportTest extends InterpreterTestBase {
     @BeforeEach
     void setUp() {
         ImportResolver.reset();
-        Flags.inputPath = Paths.get(System.getProperty("user.dir")).toAbsolutePath();
+        Flags.inputPath.set(Paths.get(System.getProperty("user.dir")).toAbsolutePath());
     }
 
     @Test
@@ -139,11 +139,9 @@ public class NativeImportTest extends InterpreterTestBase {
 
         Path jar = Files.createTempFile("mira-greet-fixture", ".jar");
         try (JarOutputStream jos = new JarOutputStream(new FileOutputStream(jar.toFile()))) {
-            // Services descriptor
             jos.putNextEntry(new JarEntry("META-INF/services/com.mira.lib.Lib"));
             jos.write(binaryName.getBytes());
             jos.closeEntry();
-            // Class file
             jos.putNextEntry(new JarEntry(classResourcePath));
             jos.write(classBytes);
             jos.closeEntry();

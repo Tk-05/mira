@@ -17,7 +17,7 @@ public class ForTest extends InterpreterTestBase {
                     $count : eval($count + 1);
                 }
                 """);
-        assertEquals(5.0, Interpreter.getGlobalEnvironment().get("count"));
+        assertEquals(5.0, interpreter.getGlobalEnvironment().get("count"));
     }
 
     @Test
@@ -65,7 +65,7 @@ public class ForTest extends InterpreterTestBase {
                     $count : eval($count + 1);
                 }
                 """);
-        assertEquals(5.0, Interpreter.getGlobalEnvironment().get("count"));
+        assertEquals(5.0, interpreter.getGlobalEnvironment().get("count"));
     }
 
     @Test
@@ -87,6 +87,6 @@ public class ForTest extends InterpreterTestBase {
                     $last : $i;
                 }
                 """);
-        assertEquals(4.0, Interpreter.getGlobalEnvironment().get("last"));
+        assertEquals(4.0, interpreter.getGlobalEnvironment().get("last"));
     }
 }
