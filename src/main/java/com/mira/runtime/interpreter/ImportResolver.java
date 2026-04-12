@@ -44,6 +44,7 @@ public class ImportResolver {
     private static final Set<String> loadedLibs = new HashSet<>();
     private static final Map<String, String> globalLibNames = new HashMap<>();
     private static final Map<String, Lib> loadedNativeLibs = new HashMap<>();
+    private static final List<URLClassLoader> nativeClassLoaders = new ArrayList<>();
     private static final Tokenizer tokenizer = new Tokenizer();
     private static final Parser parser = new Parser();
 
@@ -232,12 +233,12 @@ public class ImportResolver {
         Lib lib;
         try {
             URL jarUrl = jarPath.toUri().toURL();
-            try (URLClassLoader loader = new URLClassLoader(
+            URLClassLoader loader = new URLClassLoader(
                     new URL[]{jarUrl},
-                    ImportResolver.class.getClassLoader())) {
-                ServiceLoader<Lib> serviceLoader = ServiceLoader.load(Lib.class, loader);
-                lib = serviceLoader.findFirst().orElse(null);
-            }
+                    ImportResolver.class.getClassLoader());
+            nativeClassLoaders.add(loader);
+            ServiceLoader<Lib> serviceLoader = ServiceLoader.load(Lib.class, loader);
+            lib = serviceLoader.findFirst().orElse(null);
             if (lib == null) {
                 throw new NativeLibNoImplementationError(jarPath.toString());
             }
@@ -258,5 +259,9 @@ public class ImportResolver {
         loadedLibs.clear();
         loadedNativeLibs.clear();
         globalLibNames.clear();
+        for (URLClassLoader loader : nativeClassLoaders) {
+            try { loader.close(); } catch (IOException ignored) {}
+        }
+        nativeClassLoaders.clear();
     }
 }
