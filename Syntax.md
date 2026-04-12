@@ -502,6 +502,7 @@ import <lib>;                                   // Standard library (global scop
 import <lib> as <alias>;                        // Standard library under alias
 import module "./path/to/file.mira";            // File import (global scope)
 import module "./path/to/file.mira" as <alias>; // File import under alias
+import native "./path/to/lib.jar" as <alias>;   // Native JAR extension (alias required)
 ```
 
 When a lib is imported without an alias, all its functions are available globally. When imported with an alias, functions are accessed via `<alias>.<function>(...)`.
@@ -515,6 +516,37 @@ import collection as col; // avoids conflict with 'indexOf'
 trim($text);
 col.findIndex($list, "x");
 ```
+
+### Native JAR Extensions
+
+`import native` loads an external Java JAR at runtime. The JAR must implement the `com.mira.lib.Lib` interface and register itself via the Java `ServiceLoader` mechanism (`META-INF/services/com.mira.lib.Lib`).
+
+An alias is always required — native imports never pollute the global scope.
+
+```
+import native "./extensions/mylib.jar" as ext;
+
+ext.greet("world");
+ext.compute(42);
+```
+
+The path is resolved relative to the importing file. Absolute paths are also accepted.
+
+**JAR structure required:**
+
+```
+mylib.jar
+├── META-INF/services/com.mira.lib.Lib   ← fully-qualified class name
+└── com/example/MyLib.class              ← implements Lib
+```
+
+**Errors:**
+
+| Error | Cause |
+| ----- | ----- |
+| `E222 NativeLibNotFoundError` | JAR file does not exist at the given path |
+| `E223 NativeLibNoImplementationError` | JAR has no `META-INF/services/com.mira.lib.Lib` entry |
+| `E224 NativeLibLoadError` | JAR is invalid or incompatible with the interpreter |
 
 ---
 

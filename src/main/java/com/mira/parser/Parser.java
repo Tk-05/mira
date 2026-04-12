@@ -557,6 +557,21 @@ public class Parser {
         }
         matchLexeme("import");
 
+        if (peek().getLexeme().equals("native")) {
+            consume();
+            String path = matchExpression().getLexeme();
+            String alias = null;
+            if (peek().getLexeme().equals("as")) {
+                consume();
+                alias = matchExpression().getLexeme();
+            }
+            if (alias == null || alias.isBlank()) {
+                throw new LexemeMismatchError(peek(),
+                        "'import native' requires an alias: import native \"path.jar\" as name;");
+            }
+            return new ImportExpression(new DumbExpression(new Token(TokenType.STRING_LITERAL, path, 0, 0)), alias, ImportExpression.ImportKind.NATIVE);
+        }
+
         if (peek().getLexeme().equals("module")) {
             consume();
             String path = matchExpression().getLexeme();
@@ -565,7 +580,7 @@ public class Parser {
                 consume();
                 alias = matchExpression().getLexeme();
             }
-            return new ImportExpression(new DumbExpression(new Token(TokenType.STRING_LITERAL, path, 0, 0)), alias, true);
+            return new ImportExpression(new DumbExpression(new Token(TokenType.STRING_LITERAL, path, 0, 0)), alias, ImportExpression.ImportKind.MODULE);
         }
 
         Expression libExpr = new DumbExpression(matchExpression());
@@ -574,7 +589,7 @@ public class Parser {
             consume();
             libAlias = matchExpression().getLexeme();
         }
-        return new ImportExpression(libExpr, libAlias, false);
+        return new ImportExpression(libExpr, libAlias, ImportExpression.ImportKind.STDLIB);
     }
 
     private Expression parseMap() {

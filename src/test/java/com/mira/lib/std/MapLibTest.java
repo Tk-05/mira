@@ -46,8 +46,6 @@ public class MapLibTest {
         return fn.call(interpreter, List.of(args));
     }
 
-    // newMap
-
     @Test
     void newMapReturnsEmptyMap() {
         Object result = call("newMap");
@@ -61,8 +59,6 @@ public class MapLibTest {
         m.getEntries().put("key", wrap("val"));
         assertEquals(1, m.getEntries().size());
     }
-
-    // mapSize
 
     @Test
     void mapSizeEmpty() {
@@ -84,8 +80,6 @@ public class MapLibTest {
         assertThrows(RuntimeException.class, () -> call("mapSize", "not a map"));
     }
 
-    // mapHas
-
     @Test
     void mapHasExistingKey() {
         assertEquals(true, call("mapHas", makeMap("name", "Alice"), "name"));
@@ -100,8 +94,6 @@ public class MapLibTest {
     void mapHasOnEmptyMap() {
         assertEquals(false, call("mapHas", makeMap(), "key"));
     }
-
-    // mapRemove
 
     @Test
     void mapRemoveDecreasesSize() {
@@ -131,8 +123,6 @@ public class MapLibTest {
         assertEquals(1, m.getEntries().size());
     }
 
-    // mapKeys
-
     @Test
     void mapKeysReturnsList() {
         Object result = call("mapKeys", makeMap("x", "1"));
@@ -157,8 +147,6 @@ public class MapLibTest {
         ListExpression keys = (ListExpression) call("mapKeys", makeMap());
         assertEquals(0, keys.getMembers().size());
     }
-
-    // mapValues
 
     @Test
     void mapValuesReturnsList() {

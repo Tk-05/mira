@@ -32,7 +32,8 @@ public class Vocabulary {
             "enum",
             "try",
             "catch",
-            "throw"
+            "throw",
+            "native"
     );
 
     public static final Set<String> operations = Set.of(

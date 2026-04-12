@@ -200,4 +200,33 @@ public class RuntimeError extends MiraError {
                     "Use 'import " + libB + " as <alias>;' to avoid name collisions");
         }
     }
+
+    public static class NativeLibNotFoundError extends RuntimeError {
+
+        public NativeLibNotFoundError(String path) {
+            super("E222",
+                    "Native JAR not found: '" + path + "'",
+                    "Check that the file path is correct and the JAR exists");
+        }
+    }
+
+    public static class NativeLibNoImplementationError extends RuntimeError {
+
+        public NativeLibNoImplementationError(String path) {
+            super("E223",
+                    "No Lib implementation found in native JAR: '" + path + "'",
+                    "Ensure the JAR contains META-INF/services/com.mira.lib.Lib "
+                    + "and that the listed class implements com.mira.lib.Lib");
+        }
+    }
+
+    public static class NativeLibLoadError extends RuntimeError {
+
+        public NativeLibLoadError(String path, Throwable cause) {
+            super("E224",
+                    "Failed to load native JAR '" + path + "': " + cause.getMessage(),
+                    "Verify the JAR is a valid archive and its classes are compatible "
+                    + "with the current interpreter version");
+        }
+    }
 }

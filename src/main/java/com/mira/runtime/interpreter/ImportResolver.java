@@ -1,6 +1,8 @@
 package com.mira.runtime.interpreter;
 
 import java.io.IOException;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -9,10 +11,14 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.ServiceLoader;
 import java.util.Set;
 
 import com.mira.Flags;
 import com.mira.error.runtime.RuntimeError.LibImportConflictError;
+import com.mira.error.runtime.RuntimeError.NativeLibLoadError;
+import com.mira.error.runtime.RuntimeError.NativeLibNoImplementationError;
+import com.mira.error.runtime.RuntimeError.NativeLibNotFoundError;
 import com.mira.lexer.Tokenizer;
 import com.mira.lexer.token.Token;
 import com.mira.lib.Lib;
@@ -37,6 +43,7 @@ public class ImportResolver {
     private static final Set<String> loadedModules = new HashSet<>();
     private static final Set<String> loadedLibs = new HashSet<>();
     private static final Map<String, String> globalLibNames = new HashMap<>();
+    private static final Map<String, Lib> loadedNativeLibs = new HashMap<>();
     private static final Tokenizer tokenizer = new Tokenizer();
     private static final Parser parser = new Parser();
 
@@ -65,43 +72,10 @@ public class ImportResolver {
 
         for (ImportExpression expr : imports) {
             try {
-                if (expr.isExternalModule()) {
-                    resolveModuleImport(interpreter, expr, environment);
-                } else {
-                    String libName = expr.getModule();
-                    String alias = expr.getNamespace();
-                    boolean hasAlias = alias != null && !alias.isBlank();
-
-                    String cacheKey = hasAlias ? libName + "#" + alias : libName;
-                    if (loadedLibs.contains(cacheKey)) {
-                        continue;
-                    }
-
-                    Lib lib = libs.get(libName);
-                    if (lib == null) {
-                        throw new RuntimeException("Import '" + libName + "' could not be resolved");
-                    }
-
-                    loadedLibs.add(cacheKey);
-
-                    if (hasAlias) {
-                        Namespace ns = new Namespace(alias);
-                        lib.loadLib(ns);
-                        environment.define(alias, ns);
-                    } else {
-                        Environment temp = new Environment();
-                        lib.loadLib(temp);
-                        Set<String> conflicts = new HashSet<>(temp.keySet());
-                        conflicts.retainAll(globalLibNames.keySet());
-                        if (!conflicts.isEmpty()) {
-                            String conflictingLib = globalLibNames.get(conflicts.iterator().next());
-                            throw new LibImportConflictError(conflictingLib, libName, conflicts);
-                        }
-                        for (String name : temp.keySet()) {
-                            environment.define(name, temp.get(name));
-                            globalLibNames.put(name, libName);
-                        }
-                    }
+                switch (expr.getKind()) {
+                    case MODULE -> resolveModuleImport(interpreter, expr, environment);
+                    case NATIVE -> resolveNativeImport(expr, environment);
+                    case STDLIB -> resolveStdlibImport(expr, environment);
                 }
             } catch (com.mira.error.MiraError e) {
                 throw e;
@@ -198,9 +172,91 @@ public class ImportResolver {
         return moduleDecl.getModuleName();
     }
 
+    private static void resolveStdlibImport(ImportExpression expr, Environment environment) {
+        String libName = expr.getModule();
+        String alias = expr.getNamespace();
+        boolean hasAlias = alias != null && !alias.isBlank();
+
+        String cacheKey = hasAlias ? libName + "#" + alias : libName;
+        if (loadedLibs.contains(cacheKey)) {
+            return;
+        }
+
+        Lib lib = libs.get(libName);
+        if (lib == null) {
+            throw new RuntimeException("Import '" + libName + "' could not be resolved");
+        }
+
+        loadedLibs.add(cacheKey);
+
+        if (hasAlias) {
+            Namespace ns = new Namespace(alias);
+            lib.loadLib(ns);
+            environment.define(alias, ns);
+        } else {
+            Environment temp = new Environment();
+            lib.loadLib(temp);
+            Set<String> conflicts = new HashSet<>(temp.keySet());
+            conflicts.retainAll(globalLibNames.keySet());
+            if (!conflicts.isEmpty()) {
+                String conflictingLib = globalLibNames.get(conflicts.iterator().next());
+                throw new LibImportConflictError(conflictingLib, libName, conflicts);
+            }
+            for (String name : temp.keySet()) {
+                environment.define(name, temp.get(name));
+                globalLibNames.put(name, libName);
+            }
+        }
+    }
+
+    private static void resolveNativeImport(ImportExpression expr, Environment environment) {
+        String rawPath = expr.getModule();
+        String alias = expr.getNamespace();
+
+        Path currentFile = ((Path) Flags.inputPath).toAbsolutePath();
+        Path candidate = Paths.get(rawPath);
+        Path jarPath = candidate.isAbsolute()
+                ? candidate.normalize()
+                : currentFile.getParent().resolve(candidate).normalize();
+
+        String cacheKey = jarPath.toAbsolutePath() + "#" + alias;
+
+        if (loadedNativeLibs.containsKey(cacheKey)) {
+            return;
+        }
+
+        if (!Files.exists(jarPath)) {
+            throw new NativeLibNotFoundError(jarPath.toString());
+        }
+
+        Lib lib;
+        try {
+            URL jarUrl = jarPath.toUri().toURL();
+            try (URLClassLoader loader = new URLClassLoader(
+                    new URL[]{jarUrl},
+                    ImportResolver.class.getClassLoader())) {
+                ServiceLoader<Lib> serviceLoader = ServiceLoader.load(Lib.class, loader);
+                lib = serviceLoader.findFirst().orElse(null);
+            }
+            if (lib == null) {
+                throw new NativeLibNoImplementationError(jarPath.toString());
+            }
+        } catch (NativeLibNoImplementationError | NativeLibNotFoundError e) {
+            throw e;
+        } catch (Exception e) {
+            throw new NativeLibLoadError(jarPath.toString(), e);
+        }
+
+        loadedNativeLibs.put(cacheKey, lib);
+        Namespace ns = new Namespace(alias);
+        lib.loadLib(ns);
+        environment.define(alias, ns);
+    }
+
     public static void reset() {
         loadedModules.clear();
         loadedLibs.clear();
+        loadedNativeLibs.clear();
         globalLibNames.clear();
     }
 }

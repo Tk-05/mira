@@ -256,14 +256,16 @@ public abstract class Expression implements Node {
 
     public static class ImportExpression extends Expression {
 
+        public enum ImportKind { STDLIB, MODULE, NATIVE }
+
         private final Expression module;
         private final String namespace;
-        private final boolean isModule;
+        private final ImportKind kind;
 
-        public ImportExpression(Expression module, String namespace, boolean isModule) {
+        public ImportExpression(Expression module, String namespace, ImportKind kind) {
             this.module = module;
             this.namespace = namespace;
-            this.isModule = isModule;
+            this.kind = kind;
         }
 
         @Override
@@ -284,8 +286,16 @@ public abstract class Expression implements Node {
             return namespace;
         }
 
+        public ImportKind getKind() {
+            return kind;
+        }
+
         public boolean isExternalModule() {
-            return isModule;
+            return kind == ImportKind.MODULE;
+        }
+
+        public boolean isNativeJar() {
+            return kind == ImportKind.NATIVE;
         }
     }
 
