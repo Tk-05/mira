@@ -77,7 +77,6 @@ public class ImportResolver {
             internal.loadLib(environment);
         }
 
-        // Aliased MODULE-Imports: jeder hat seine eigene Namespace → vollständig parallel ladbar
         Path parentInputPath = Flags.inputPath.get();
         List<ImportExpression> aliasedModules = imports.stream()
                 .filter(e -> e.getKind() == ImportExpression.ImportKind.MODULE
@@ -101,11 +100,10 @@ public class ImportResolver {
             }
         }
 
-        // Nicht-aliased Module, stdlib, native: sequenziell
         for (ImportExpression expr : imports) {
             if (expr.getKind() == ImportExpression.ImportKind.MODULE
                     && expr.getNamespace() != null && !expr.getNamespace().isBlank()) {
-                continue; // bereits parallel abgearbeitet
+                continue;
             }
             try {
                 switch (expr.getKind()) {
@@ -141,7 +139,6 @@ public class ImportResolver {
                 : currentFile.getParent().resolve(candidate).normalize();
         String moduleKey = modulePath.toAbsolutePath().toString();
 
-        // Atomic: erster Aufruf lädt, alle anderen warten auf Abschluss
         CompletableFuture<Void> loadFuture = new CompletableFuture<>();
         CompletableFuture<Void> existing = moduleLoadFutures.putIfAbsent(moduleKey, loadFuture);
         if (existing != null) {
