@@ -17,7 +17,7 @@ public class ReturnTest extends InterpreterTestBase {
         try {
             run("return eval(42);");
         } catch (ReturnSignal r) {
-            assertEquals(42.0, r.getValue());
+            assertEquals(42.0, normNum(r.getValue()));
         }
     }
 
@@ -28,7 +28,7 @@ public class ReturnTest extends InterpreterTestBase {
             Parser parser = new Parser();
             interpreter.run(parser.parseTokens(tokenizer.tokenize("return eval(0);", true)), false);
         } catch (ReturnSignal r) {
-            assertEquals(0.0, r.getValue());
+            assertEquals(0.0, normNum(r.getValue()));
         }
     }
 
@@ -46,7 +46,7 @@ public class ReturnTest extends InterpreterTestBase {
         try {
             run("var x : 24; var y : 18; var z : eval($x + $y); return $z;");
         } catch (ReturnSignal r) {
-            assertEquals(42.0, r.getValue());
+            assertEquals(42.0, normNum(r.getValue()));
         }
     }
 

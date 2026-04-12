@@ -8,14 +8,18 @@ import com.mira.runtime.interpreter.InterpreterTestBase;
 
 public class ModuloExpressionTest extends InterpreterTestBase {
 
+    private static double eval(String expr, boolean ignoreSequences) {
+        return ((Number) Evaluator.evaluate(expr, ignoreSequences)).doubleValue();
+    }
+
     @Test
     void modulo() {
-        assertEquals(1.0, (double) Evaluator.evaluate("10 % 3", false), 0.0001);
+        assertEquals(1.0, eval("10 % 3", false), 0.0001);
     }
 
     @Test
     void moduloEven() {
-        assertEquals(0.0, (double) Evaluator.evaluate("8 % 4", false), 0.0001);
+        assertEquals(0.0, eval("8 % 4", false), 0.0001);
     }
 
     @Test

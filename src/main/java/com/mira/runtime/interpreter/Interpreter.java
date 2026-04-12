@@ -88,7 +88,9 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
     public static Interpreter getInstance() {
         Interpreter active = activeInterpreter.get();
-        if (active != null) return active;
+        if (active != null) {
+            return active;
+        }
         if (instance == null) {
             instance = new Interpreter();
         }
@@ -276,6 +278,12 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         if (value.equals("null")) {
             return (T) NullValue.INSTANCE;
         }
+        if (expression.getTokenType() == TokenType.EXPRESSION) {
+            try {
+                return (T) parseNumber(value);
+            } catch (NumberFormatException e) {
+            }
+        }
         return (T) value;
     }
 
@@ -403,7 +411,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         return (T) switch (op) {
             case "+" -> {
                 try {
-                    yield toNumber(left) + toNumber(right);
+                    yield numericAdd(left, right);
                 } catch (NumberFormatException e) {
                     boolean leftIsStr = left instanceof String;
                     boolean rightIsStr = right instanceof String;
@@ -416,9 +424,9 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                 }
             }
             case "-" ->
-                toNumber(left) - toNumber(right);
+                numericSub(left, right);
             case "*" ->
-                toNumber(left) * toNumber(right);
+                numericMul(left, right);
             case "/" -> {
                 double divisor = toNumber(right);
                 if (divisor == 0) {
@@ -427,8 +435,12 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                 }
                 yield toNumber(left) / divisor;
             }
-            case "%" ->
-                toNumber(left) % toNumber(right);
+            case "%" -> {
+                if (left instanceof Long la && right instanceof Long lb) {
+                    yield la % lb;
+                }
+                yield toNumber(left) % toNumber(right);
+            }
             case "&" ->
                 (double) ((long) toNumber(left) & (long) toNumber(right));
             case "|" ->
@@ -470,18 +482,62 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         throw new TypeConversionError(value);
     }
 
+    private Number parseNumber(String s) {
+        if (s.contains(".")) {
+            return Double.parseDouble(s);
+        }
+        try {
+            return Long.parseLong(s);
+        } catch (NumberFormatException e) {
+            return Double.parseDouble(s);
+        }
+    }
+
+    private Object numericAdd(Object a, Object b) {
+        if (a instanceof Long la && b instanceof Long lb) {
+            try {
+                return Math.addExact(la, lb);
+            } catch (ArithmeticException e) {
+                return (double) la + (double) lb;
+            }
+        }
+        return toNumber(a) + toNumber(b);
+    }
+
+    private Object numericSub(Object a, Object b) {
+        if (a instanceof Long la && b instanceof Long lb) {
+            try {
+                return Math.subtractExact(la, lb);
+            } catch (ArithmeticException e) {
+                return (double) la - (double) lb;
+            }
+        }
+        return toNumber(a) - toNumber(b);
+    }
+
+    private Object numericMul(Object a, Object b) {
+        if (a instanceof Long la && b instanceof Long lb) {
+            try {
+                return Math.multiplyExact(la, lb);
+            } catch (ArithmeticException e) {
+                return (double) la * (double) lb;
+            }
+        }
+        return toNumber(a) * toNumber(b);
+    }
+
     private Object tryEvaluateArithmetic(List<Expression> expressions) {
-        List<Double> operands = new ArrayList<>();
+        List<Number> operands = new ArrayList<>();
         List<String> operators = new ArrayList<>();
 
         for (int i = 0; i < expressions.size(); i++) {
             if (i % 2 == 0) {
                 Object val = expressions.get(i).accept(this);
-                if (val instanceof Double d) {
-                    operands.add(d);
+                if (val instanceof Number n) {
+                    operands.add(n);
                 } else {
                     try {
-                        operands.add(Double.valueOf(String.valueOf(val)));
+                        operands.add(parseNumber(String.valueOf(val)));
                     } catch (NumberFormatException e) {
                         return null;
                     }
@@ -502,9 +558,11 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         while (i < operators.size()) {
             String op = operators.get(i);
             if (op.equals("*") || op.equals("/")) {
-                double left = operands.get(i);
-                double right = operands.get(i + 1);
-                double result = op.equals("*") ? left * right : left / right;
+                Number left = operands.get(i);
+                Number right = operands.get(i + 1);
+                Number result = op.equals("*")
+                        ? (Number) numericMul(left, right)
+                        : left.doubleValue() / right.doubleValue();
                 operands.set(i, result);
                 operands.remove(i + 1);
                 operators.remove(i);
@@ -513,14 +571,14 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             }
         }
 
-        double result = operands.get(0);
+        Object result = operands.get(0);
         for (int j = 0; j < operators.size(); j++) {
-            double right = operands.get(j + 1);
+            Number right = operands.get(j + 1);
             result = switch (operators.get(j)) {
                 case "+" ->
-                    result + right;
+                    numericAdd(result, right);
                 case "-" ->
-                    result - right;
+                    numericSub(result, right);
                 default ->
                     throw new UnknownOperatorError(operators.get(j));
             };
@@ -658,8 +716,8 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                 b;
             case NullValue n ->
                 false;
-            case Double d ->
-                d != 0;
+            case Number n ->
+                n.doubleValue() != 0;
             case String s -> {
                 if (s.equals("true")) {
                     yield true;
@@ -737,17 +795,17 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                         : globalEnvironment;
 
                 Object raw = env.get(name);
-                double val;
-                if (raw instanceof Double d) {
-                    val = d;
+                Number numVal;
+                if (raw instanceof Number n) {
+                    numVal = n;
                 } else {
                     try {
-                        val = Double.parseDouble(String.valueOf(raw));
+                        numVal = parseNumber(String.valueOf(raw));
                     } catch (NumberFormatException e) {
                         throw new PostExprNaNError(name);
                     }
                 }
-                Double newValue = val + 1;
+                Object newValue = numericAdd(numVal, 1L);
                 env.assign(name, newValue);
                 return (T) newValue;
             }
@@ -765,17 +823,17 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                         : globalEnvironment;
 
                 Object raw = env.get(name);
-                double val;
-                if (raw instanceof Double d) {
-                    val = d;
+                Number numVal;
+                if (raw instanceof Number n) {
+                    numVal = n;
                 } else {
                     try {
-                        val = Double.parseDouble(String.valueOf(raw));
+                        numVal = parseNumber(String.valueOf(raw));
                     } catch (NumberFormatException e) {
                         throw new PostExprNaNError(name);
                     }
                 }
-                Double newValue = val - 1;
+                Object newValue = numericSub(numVal, 1L);
                 env.assign(name, newValue);
                 return (T) newValue;
             }
@@ -824,9 +882,12 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                 default -> {
                     int i;
                     switch (object) {
-                        case String s -> i = Integer.parseInt(s);
-                        case Double d -> i = (int) d.doubleValue();
-                        default -> throw new AssertionError();
+                        case String s ->
+                            i = Integer.parseInt(s);
+                        case Number n ->
+                            i = (int) n.longValue();
+                        default ->
+                            throw new AssertionError();
                     }
                     switch (accessedObject) {
                         case TupleExpression tuple -> {
@@ -843,7 +904,8 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                                 accessedObject = list.getMembers().get(i);
                             }
                         }
-                        default -> throw new NotIterableError();
+                        default ->
+                            throw new NotIterableError();
                     }
                 }
             }
@@ -865,8 +927,8 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                         case String s -> {
                             i = Integer.parseInt(s);
                         }
-                        case Double d -> {
-                            i = (int) d.doubleValue();
+                        case Number n -> {
+                            i = (int) n.longValue();
                         }
                         default ->
                             throw new AssertionError();
@@ -905,8 +967,9 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
                         switch (referencedObject) {
                             case ListExpression list -> {
-                                list.getMembers().set(Integer.parseInt((String) accessExpression.getIndecies().getLast().accept(this)),
-                                        assignment);
+                                Object lastIdx = accessExpression.getIndecies().getLast().accept(this);
+                                int listIdx = lastIdx instanceof Number n ? (int) n.longValue() : Integer.parseInt((String) lastIdx);
+                                list.getMembers().set(listIdx, assignment);
                             }
                             case MapExpression map -> {
                                 String key = String.valueOf(accessExpression.getIndecies().getLast().accept(this));
@@ -1014,8 +1077,8 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                 b;
             case NullValue n ->
                 false;
-            case Double d ->
-                d != 0;
+            case Number n ->
+                n.doubleValue() != 0;
             case String s -> {
                 if (s.equals("true")) {
                     yield true;
@@ -1090,21 +1153,34 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
         try {
             if (stmt.getCollection() instanceof RangeExpression range) {
-                double start = Double.parseDouble(String.valueOf(range.getStart().accept(this)));
-                double end = Double.parseDouble(String.valueOf(range.getEnd().accept(this)));
-                double step = range.getStepsize() != null
-                        ? Double.parseDouble((String) range.getStepsize().accept(this))
-                        : 1.0;
+                Number startN = parseNumber(String.valueOf(range.getStart().accept(this)));
+                Number endN = parseNumber(String.valueOf(range.getEnd().accept(this)));
+                Number stepN = range.getStepsize() != null
+                        ? parseNumber(String.valueOf(range.getStepsize().accept(this)))
+                        : 1L;
 
-                if (step == 0) {
-                    throw new RangeStepZeroError();
-                }
-
-                for (double i = start; step > 0 ? i < end : i > end; i += step) {
-                    assignIterator(iteratorName, i);
-                    try {
-                        runBodyInFreshScope(stmt.getBody());
-                    } catch (ContinueSignal continueSignal) {
+                if (startN instanceof Long ls && endN instanceof Long le && stepN instanceof Long lStep) {
+                    if (lStep == 0) {
+                        throw new RangeStepZeroError();
+                    }
+                    for (long i = ls; lStep > 0 ? i < le : i > le; i += lStep) {
+                        assignIterator(iteratorName, i);
+                        try {
+                            runBodyInFreshScope(stmt.getBody());
+                        } catch (ContinueSignal continueSignal) {
+                        }
+                    }
+                } else {
+                    double start = startN.doubleValue(), end = endN.doubleValue(), step = stepN.doubleValue();
+                    if (step == 0) {
+                        throw new RangeStepZeroError();
+                    }
+                    for (double i = start; step > 0 ? i < end : i > end; i += step) {
+                        assignIterator(iteratorName, i);
+                        try {
+                            runBodyInFreshScope(stmt.getBody());
+                        } catch (ContinueSignal continueSignal) {
+                        }
                     }
                 }
                 return null;
@@ -1214,8 +1290,20 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         if (a == null || b == null) {
             return a == b;
         }
-        if (a instanceof Double da && b instanceof Double db) {
-            return da.compareTo(db) == 0;
+        if (a instanceof Number na && b instanceof Number nb) {
+            return Double.compare(na.doubleValue(), nb.doubleValue()) == 0;
+        }
+        if (a instanceof String sa && b instanceof Number nb) {
+            try {
+                return Double.parseDouble(sa) == nb.doubleValue();
+            } catch (NumberFormatException ignored) {
+            }
+        }
+        if (a instanceof Number na && b instanceof String sb) {
+            try {
+                return na.doubleValue() == Double.parseDouble(sb);
+            } catch (NumberFormatException ignored) {
+            }
         }
         return a.equals(b);
     }
@@ -1272,19 +1360,28 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
     @Override
     public <T> T visitRangeExpression(RangeExpression expression) {
-        double start = Double.parseDouble((String) expression.getStart().accept(this));
-        double end = Double.parseDouble((String) expression.getEnd().accept(this));
-        double step = expression.getStepsize() != null
-                ? Double.parseDouble((String) expression.getStepsize().accept(this))
-                : 1.0;
-
-        if (step == 0) {
-            throw new RuntimeException("Range stepsize cannot be zero");
-        }
+        Number startN = parseNumber(String.valueOf(expression.getStart().accept(this)));
+        Number endN = parseNumber(String.valueOf(expression.getEnd().accept(this)));
+        Number stepN = expression.getStepsize() != null
+                ? parseNumber(String.valueOf(expression.getStepsize().accept(this)))
+                : 1L;
 
         List<Expression> members = new ArrayList<>();
-        for (double i = start; step > 0 ? i < end : i > end; i += step) {
-            members.add(new DumbExpression(new Token(TokenType.EXPRESSION, String.valueOf(i), 0, 0)));
+        if (startN instanceof Long ls && endN instanceof Long le && stepN instanceof Long lStep) {
+            if (lStep == 0) {
+                throw new RuntimeException("Range stepsize cannot be zero");
+            }
+            for (long i = ls; lStep > 0 ? i < le : i > le; i += lStep) {
+                members.add(new DumbExpression(new Token(TokenType.EXPRESSION, String.valueOf(i), 0, 0)));
+            }
+        } else {
+            double start = startN.doubleValue(), end = endN.doubleValue(), step = stepN.doubleValue();
+            if (step == 0) {
+                throw new RuntimeException("Range stepsize cannot be zero");
+            }
+            for (double i = start; step > 0 ? i < end : i > end; i += step) {
+                members.add(new DumbExpression(new Token(TokenType.EXPRESSION, String.valueOf(i), 0, 0)));
+            }
         }
 
         return (T) new ListExpression(members);

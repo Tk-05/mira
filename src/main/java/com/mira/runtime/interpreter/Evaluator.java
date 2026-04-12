@@ -150,18 +150,9 @@ public class Evaluator {
         Object left = factor();
 
         while (match("+", "-")) {
-
             String op = previous().getLexeme();
             Object right = factor();
-
-            double l = toNumber(left);
-            double r = toNumber(right);
-
-            if (op.equals("+")) {
-                left = l + r;
-            } else {
-                left = l - r;
-            }
+            left = op.equals("+") ? numericAdd(left, right) : numericSub(left, right);
         }
 
         return left;
@@ -175,16 +166,17 @@ public class Evaluator {
             String op = previous().getLexeme();
             Object right = unary();
 
-            double l = toNumber(left);
-            double r = toNumber(right);
-
             left = switch (op) {
                 case "*" ->
-                    l * r;
+                    numericMul(left, right);
                 case "/" ->
-                    l / r;
-                case "%" ->
-                    l % r;
+                    toNumber(left) / toNumber(right);
+                case "%" -> {
+                    if (left instanceof Long la && right instanceof Long lb) {
+                        yield la % lb;
+                    }
+                    yield toNumber(left) % toNumber(right);
+                }
                 default ->
                     throw new AssertionError();
             };
@@ -199,7 +191,7 @@ public class Evaluator {
         }
 
         if (match("-")) {
-            return -toNumber(unary());
+            return numericNeg(unary());
         }
 
         if (match("~")) {
@@ -226,7 +218,7 @@ public class Evaluator {
             String value = token.getLexeme();
 
             if (isNumber(value)) {
-                return Double.valueOf(value);
+                return parseNumber(value);
             }
 
             return value;
@@ -292,5 +284,60 @@ public class Evaluator {
 
     private static boolean isNumber(String s) {
         return NUMBER_PATTERN.matcher(s).matches();
+    }
+
+    private static Object parseNumber(String s) {
+        if (s.contains(".")) {
+            return Double.valueOf(s);
+        }
+        try {
+            return Long.valueOf(s);
+        } catch (NumberFormatException e) {
+            return Double.valueOf(s);
+        }
+    }
+
+    private static Object numericAdd(Object a, Object b) {
+        if (a instanceof Long la && b instanceof Long lb) {
+            try {
+                return Math.addExact(la, lb);
+            } catch (ArithmeticException e) {
+                return (double) la + (double) lb;
+            }
+        }
+        return toNumber(a) + toNumber(b);
+    }
+
+    private static Object numericSub(Object a, Object b) {
+        if (a instanceof Long la && b instanceof Long lb) {
+            try {
+                return Math.subtractExact(la, lb);
+            } catch (ArithmeticException e) {
+                return (double) la - (double) lb;
+            }
+        }
+        return toNumber(a) - toNumber(b);
+    }
+
+    private static Object numericMul(Object a, Object b) {
+        if (a instanceof Long la && b instanceof Long lb) {
+            try {
+                return Math.multiplyExact(la, lb);
+            } catch (ArithmeticException e) {
+                return (double) la * (double) lb;
+            }
+        }
+        return toNumber(a) * toNumber(b);
+    }
+
+    private static Object numericNeg(Object a) {
+        if (a instanceof Long l) {
+            try {
+                return Math.negateExact(l);
+            } catch (ArithmeticException e) {
+                return -(double) l;
+            }
+        }
+        return -toNumber(a);
     }
 }

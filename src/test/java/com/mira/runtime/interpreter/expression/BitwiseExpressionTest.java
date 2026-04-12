@@ -8,14 +8,18 @@ import com.mira.runtime.interpreter.InterpreterTestBase;
 
 public class BitwiseExpressionTest extends InterpreterTestBase {
 
+    private static double eval(String expr, boolean ignoreSequences) {
+        return ((Number) Evaluator.evaluate(expr, ignoreSequences)).doubleValue();
+    }
+
     @Test
     void bitwiseAnd() {
-        assertEquals(4.0, (double) Evaluator.evaluate("12 & 6", false), 0.0001);
+        assertEquals(4.0, eval("12 & 6", false), 0.0001);
     }
 
     @Test
     void bitwiseAndZero() {
-        assertEquals(0.0, (double) Evaluator.evaluate("5 & 0", false), 0.0001);
+        assertEquals(0.0, eval("5 & 0", false), 0.0001);
     }
 
     @Test
@@ -25,12 +29,12 @@ public class BitwiseExpressionTest extends InterpreterTestBase {
 
     @Test
     void bitwiseOr() {
-        assertEquals(14.0, (double) Evaluator.evaluate("12 | 6", false), 0.0001);
+        assertEquals(14.0, eval("12 | 6", false), 0.0001);
     }
 
     @Test
     void bitwiseOrIdentity() {
-        assertEquals(7.0, (double) Evaluator.evaluate("5 | 3", false), 0.0001);
+        assertEquals(7.0, eval("5 | 3", false), 0.0001);
     }
 
     @Test
@@ -40,12 +44,12 @@ public class BitwiseExpressionTest extends InterpreterTestBase {
 
     @Test
     void bitwiseXor() {
-        assertEquals(10.0, (double) Evaluator.evaluate("12 ^ 6", false), 0.0001);
+        assertEquals(10.0, eval("12 ^ 6", false), 0.0001);
     }
 
     @Test
     void bitwiseXorSelf() {
-        assertEquals(0.0, (double) Evaluator.evaluate("7 ^ 7", false), 0.0001);
+        assertEquals(0.0, eval("7 ^ 7", false), 0.0001);
     }
 
     @Test
@@ -55,22 +59,22 @@ public class BitwiseExpressionTest extends InterpreterTestBase {
 
     @Test
     void bitwiseNot() {
-        assertEquals((double) ~5L, (double) Evaluator.evaluate("~5", false), 0.0001);
+        assertEquals((double) ~5L, eval("~5", false), 0.0001);
     }
 
     @Test
     void bitwiseNotZero() {
-        assertEquals((double) ~0L, (double) Evaluator.evaluate("~0", false), 0.0001);
+        assertEquals((double) ~0L, eval("~0", false), 0.0001);
     }
 
     @Test
     void shiftLeft() {
-        assertEquals(8.0, (double) Evaluator.evaluate("1 << 3", false), 0.0001);
+        assertEquals(8.0, eval("1 << 3", false), 0.0001);
     }
 
     @Test
     void shiftRight() {
-        assertEquals(2.0, (double) Evaluator.evaluate("16 >> 3", false), 0.0001);
+        assertEquals(2.0, eval("16 >> 3", false), 0.0001);
     }
 
     @Test
@@ -86,12 +90,12 @@ public class BitwiseExpressionTest extends InterpreterTestBase {
     @Test
     void andBeforeOr() {
         // 1 | (2 & 3)  =>  1 | 2  =>  3
-        assertEquals(3.0, (double) Evaluator.evaluate("1 | 2 & 3", false), 0.0001);
+        assertEquals(3.0, eval("1 | 2 & 3", false), 0.0001);
     }
 
     @Test
     void addBindsTighterThanShift() {
         // 1 << (2 + 1)  =>  1 << 3  =>  8
-        assertEquals(8.0, (double) Evaluator.evaluate("1 << 2 + 1", false), 0.0001);
+        assertEquals(8.0, eval("1 << 2 + 1", false), 0.0001);
     }
 }

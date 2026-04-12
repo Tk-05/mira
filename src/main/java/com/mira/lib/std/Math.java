@@ -8,10 +8,10 @@ import com.mira.runtime.interpreter.Evaluator;
 public class Math implements Lib {
 
     private static double toDouble(Object arg) {
-        if (arg instanceof Double d) {
-            return d;
+        if (arg instanceof Number n) {
+            return n.doubleValue();
         }
-        return (double) Evaluator.evaluate(String.valueOf(arg), false);
+        return ((Number) Evaluator.evaluate(String.valueOf(arg), false)).doubleValue();
     }
 
     @Override

@@ -39,7 +39,7 @@ public class CallExpressionTest extends InterpreterTestBase {
         try {
             run("var x : \"return eval(0);\"; exec($x);");
         } catch (ReturnSignal r) {
-            assertEquals(0.0, r.getValue());
+            assertEquals(0.0, normNum(r.getValue()));
         }
     }
 
@@ -48,7 +48,7 @@ public class CallExpressionTest extends InterpreterTestBase {
         try {
             run("var x : \"return eval(2+2);\"; exec($x);");
         } catch (ReturnSignal r) {
-            assertEquals(4.0, r.getValue());
+            assertEquals(4.0, normNum(r.getValue()));
         }
     }
 
@@ -57,7 +57,7 @@ public class CallExpressionTest extends InterpreterTestBase {
         try {
             run("var x : 7; var y : \"return eval($x * 3);\"; exec($y);");
         } catch (ReturnSignal r) {
-            assertEquals(21.0, r.getValue());
+            assertEquals(21.0, normNum(r.getValue()));
         }
     }
 

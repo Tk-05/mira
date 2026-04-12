@@ -78,7 +78,7 @@ public class ListExpressionTest extends InterpreterTestBase {
 
     @Test
     void listForeach() {
-        assertEquals("3", run("""
+        assertEquals(3.0, run("""
                 var list : {1,2,3};
                 var last;
                 foreach(var element in $list) {

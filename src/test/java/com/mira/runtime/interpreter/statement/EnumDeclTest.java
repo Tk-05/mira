@@ -103,6 +103,6 @@ public class EnumDeclTest extends InterpreterTestBase {
                     case (500) { $result : 2; }
                 }
                 """);
-        assertEquals("1", interpreter.getGlobalEnvironment().get("result"));
+        assertEquals(1.0, normNum(interpreter.getGlobalEnvironment().get("result")));
     }
 }

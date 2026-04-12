@@ -49,7 +49,7 @@ public class TernaryExpressionTest extends InterpreterTestBase {
         try {
             run("var x : 1; return $x == 1 ? 100 : 200;");
         } catch (ReturnSignal r) {
-            assertEquals("100", r.getValue());
+            assertEquals(100.0, normNum(r.getValue()));
         }
     }
 
@@ -85,7 +85,7 @@ public class TernaryExpressionTest extends InterpreterTestBase {
         try {
             run("var x : 4; return $x > 3 ? eval($x * 2) : eval($x + 1);");
         } catch (ReturnSignal r) {
-            assertEquals(8.0, r.getValue());
+            assertEquals(8.0, normNum(r.getValue()));
         }
     }
 
@@ -125,7 +125,7 @@ public class TernaryExpressionTest extends InterpreterTestBase {
         try {
             run("var flag : true; return $flag ? 1 : 0;");
         } catch (ReturnSignal r) {
-            assertEquals("1", r.getValue());
+            assertEquals(1.0, normNum(r.getValue()));
         }
     }
 

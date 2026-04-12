@@ -70,7 +70,7 @@ public class AssertTest extends InterpreterTestBase {
                 assert(true);
                 $x : 1;
                 """);
-        assertEquals("1", interpreter.getGlobalEnvironment().get("x"));
+        assertEquals(1.0, normNum(interpreter.getGlobalEnvironment().get("x")));
     }
 
     @Test

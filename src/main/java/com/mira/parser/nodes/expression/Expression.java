@@ -33,6 +33,10 @@ public abstract class Expression implements Node {
             return token.getLexeme();
         }
 
+        public com.mira.lexer.token.TokenType getTokenType() {
+            return token.getTokenType();
+        }
+
         @Override
         public <T> T accept(ExprVisitor<T> visitor) {
             return visitor.visitDumbExpr(this);

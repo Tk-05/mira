@@ -94,6 +94,8 @@ public class Internal implements Lib {
                     b;
                 case NullValue n ->
                     false;
+                case Number n ->
+                    n.doubleValue() != 0;
                 case String s -> {
                     if (s.equalsIgnoreCase("true")) {
                         yield true;

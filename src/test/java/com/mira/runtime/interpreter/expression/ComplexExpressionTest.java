@@ -10,6 +10,10 @@ import com.mira.runtime.interpreter.InterpreterTestBase;
 
 public class ComplexExpressionTest extends InterpreterTestBase {
 
+    private static double eval(String expr, boolean ignoreSequences) {
+        return ((Number) Evaluator.evaluate(expr, ignoreSequences)).doubleValue();
+    }
+
     @Test
     void addition() {
         assertEquals(3.0, run("eval(1+2);"));
@@ -32,22 +36,22 @@ public class ComplexExpressionTest extends InterpreterTestBase {
 
     @Test
     void parentheses() {
-        assertEquals(9.0, (double) Evaluator.evaluate("(1+2)*3", false), 0.0001);
-        assertEquals(-20.0, (double) Evaluator.evaluate("-(2+3)*4", false), 0.0001);
-        assertEquals(20.0, (double) Evaluator.evaluate("((1+2)+(3+4))*2", false), 0.0001);
+        assertEquals(9.0, eval("(1+2)*3", false), 0.0001);
+        assertEquals(-20.0, eval("-(2+3)*4", false), 0.0001);
+        assertEquals(20.0, eval("((1+2)+(3+4))*2", false), 0.0001);
     }
 
     @Test
     void nestedParentheses() {
-        assertEquals(20.0, (double) Evaluator.evaluate("((1+2)+(3+4))*2", false), 0.0001);
-        assertEquals(10.0, (double) Evaluator.evaluate("(1+(2+(3+4)))", false), 0.0001);
+        assertEquals(20.0, eval("((1+2)+(3+4))*2", false), 0.0001);
+        assertEquals(10.0, eval("(1+(2+(3+4)))", false), 0.0001);
     }
 
     @Test
     void decimalNumbers() {
-        assertEquals(3.8, (double) Evaluator.evaluate("1.5 + 2.3", false), 0.0001);
-        assertEquals(2.5, (double) Evaluator.evaluate("10.0 / 4.0", false), 0.0001);
-        assertEquals(-4.0, (double) Evaluator.evaluate("-0.5 * 8", false), 0.0001);
+        assertEquals(3.8, eval("1.5 + 2.3", false), 0.0001);
+        assertEquals(2.5, eval("10.0 / 4.0", false), 0.0001);
+        assertEquals(-4.0, eval("-0.5 * 8", false), 0.0001);
     }
 
     @Test

@@ -166,7 +166,7 @@ public class IfTest extends InterpreterTestBase {
                     }
                     """);
         } catch (ReturnSignal r) {
-            assertEquals("5", r.getValue());
+            assertEquals(5.0, normNum(r.getValue()));
         }
     }
 

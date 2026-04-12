@@ -59,11 +59,22 @@ fn main() {
         }
         ray.CloseWindow();
     } else {
+        {
+            var a : 0;
+            var b : 1;
+
+            for(var i in <0..200>) {
+                print($a "\n");
+                var c : $a + $b;
+                $a : $b;
+                $b : $c;
+            }
+        }
         print($vals["69"]"\n");
         var objs : {};
         for(var i in <0..5>) {
             var obj : {
-                var index : "test"$i;
+                var index : "test" $i;
             };
             col.push($objs, $obj);
         }

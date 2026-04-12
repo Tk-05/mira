@@ -77,7 +77,7 @@ public class SwitchTest extends InterpreterTestBase {
                     case (1) { $count : eval($count + 1); }
                 }
                 """);
-        assertEquals(1.0, interpreter.getGlobalEnvironment().get("count"));
+        assertEquals(1.0, normNum(interpreter.getGlobalEnvironment().get("count")));
     }
 
     @Test
@@ -106,8 +106,8 @@ public class SwitchTest extends InterpreterTestBase {
                     case (2) { $a : 10; $b : 20; }
                 }
                 """);
-        assertEquals("10", interpreter.getGlobalEnvironment().get("a"));
-        assertEquals("20", interpreter.getGlobalEnvironment().get("b"));
+        assertEquals(10.0, normNum(interpreter.getGlobalEnvironment().get("a")));
+        assertEquals(20.0, normNum(interpreter.getGlobalEnvironment().get("b")));
     }
 
     @Test
@@ -150,6 +150,6 @@ public class SwitchTest extends InterpreterTestBase {
                     default  { $result : 99; }
                 }
                 """);
-        assertEquals("99", interpreter.getGlobalEnvironment().get("result"));
+        assertEquals(99.0, normNum(interpreter.getGlobalEnvironment().get("result")));
     }
 }

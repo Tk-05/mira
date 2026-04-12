@@ -52,7 +52,7 @@ public class RangeExpressionTest extends InterpreterTestBase {
                     break;
                 }
                 """);
-        assertEquals(3.0, interpreter.getGlobalEnvironment().get("first"));
+        assertEquals(3.0, normNum(interpreter.getGlobalEnvironment().get("first")));
     }
 
     @Test
@@ -74,6 +74,6 @@ public class RangeExpressionTest extends InterpreterTestBase {
                     $last : $i;
                 }
                 """);
-        assertEquals(4.0, interpreter.getGlobalEnvironment().get("last"));
+        assertEquals(4.0, normNum(interpreter.getGlobalEnvironment().get("last")));
     }
 }

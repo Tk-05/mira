@@ -28,7 +28,7 @@ public class ContinueTest extends InterpreterTestBase {
                     $count : eval($count + 1);
                 }
                 """);
-        assertEquals(4.0, interpreter.getGlobalEnvironment().get("count"));
+        assertEquals(4.0, normNum(interpreter.getGlobalEnvironment().get("count")));
     }
 
     @Test
@@ -42,7 +42,7 @@ public class ContinueTest extends InterpreterTestBase {
                     $sum : eval($sum + $i);
                 }
                 """);
-        assertEquals(8.0, interpreter.getGlobalEnvironment().get("sum"));
+        assertEquals(8.0, normNum(interpreter.getGlobalEnvironment().get("sum")));
     }
 
     @Test
@@ -58,8 +58,8 @@ public class ContinueTest extends InterpreterTestBase {
                 }
                 $i : $j;
                 """);
-        assertEquals(10.0, interpreter.getGlobalEnvironment().get("j"));
-        assertEquals(9.0, interpreter.getGlobalEnvironment().get("count"));
+        assertEquals(10.0, normNum(interpreter.getGlobalEnvironment().get("j")));
+        assertEquals(9.0, normNum(interpreter.getGlobalEnvironment().get("count")));
     }
 
     @Test
@@ -74,7 +74,7 @@ public class ContinueTest extends InterpreterTestBase {
                     $sum : eval($sum + $e);
                 }
                 """);
-        assertEquals(12.0, interpreter.getGlobalEnvironment().get("sum"));
+        assertEquals(12.0, normNum(interpreter.getGlobalEnvironment().get("sum")));
     }
 
     @Test
@@ -88,7 +88,7 @@ public class ContinueTest extends InterpreterTestBase {
                     $sum : eval($sum + $i);
                 }
                 """);
-        assertEquals(11.0, interpreter.getGlobalEnvironment().get("sum"));
+        assertEquals(11.0, normNum(interpreter.getGlobalEnvironment().get("sum")));
     }
 
     @Test
@@ -109,8 +109,8 @@ public class ContinueTest extends InterpreterTestBase {
                     }
                 }
                 """);
-        assertEquals(3.0, interpreter.getGlobalEnvironment().get("outer"));
-        assertEquals(9.0, interpreter.getGlobalEnvironment().get("inner"));
+        assertEquals(3.0, normNum(interpreter.getGlobalEnvironment().get("outer")));
+        assertEquals(9.0, normNum(interpreter.getGlobalEnvironment().get("inner")));
     }
 
     @Test
@@ -123,6 +123,6 @@ public class ContinueTest extends InterpreterTestBase {
                 }
                 $x : eval($x + 10);
                 """);
-        assertEquals(13.0, interpreter.getGlobalEnvironment().get("x"));
+        assertEquals(13.0, normNum(interpreter.getGlobalEnvironment().get("x")));
     }
 }
