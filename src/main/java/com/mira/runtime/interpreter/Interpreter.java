@@ -1272,16 +1272,20 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
     public Object visitSwitch(Switch stmt) {
         Object subject = stmt.getSubject().accept(this);
 
+        Map<Object, List<Node>> caseMap = new HashMap<>();
         for (SwitchCase switchCase : stmt.getCases()) {
             Object caseValue = switchCase.getValue().accept(this);
-            if (valuesEqual(subject, caseValue)) {
-                runBody(switchCase.getBody());
-                return null;
-            }
+            caseMap.putIfAbsent(caseValue, switchCase.getBody());
         }
 
-        if (stmt.getDefaultBody() != null) {
-            runBody(stmt.getDefaultBody());
+        try {
+            List<Node> body = caseMap.get(subject);
+            if (body != null) {
+                runBodyInFreshScope(body);
+            } else if (stmt.getDefaultBody() != null) {
+                runBodyInFreshScope(stmt.getDefaultBody());
+            }
+        } catch (BreakSignal ignored) {
         }
 
         return null;
@@ -1308,28 +1312,6 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             }
         }
         return null;
-    }
-
-    private boolean valuesEqual(Object a, Object b) {
-        if (a == null || b == null) {
-            return a == b;
-        }
-        if (a instanceof Number na && b instanceof Number nb) {
-            return Double.compare(na.doubleValue(), nb.doubleValue()) == 0;
-        }
-        if (a instanceof String sa && b instanceof Number nb) {
-            try {
-                return Double.parseDouble(sa) == nb.doubleValue();
-            } catch (NumberFormatException ignored) {
-            }
-        }
-        if (a instanceof Number na && b instanceof String sb) {
-            try {
-                return na.doubleValue() == Double.parseDouble(sb);
-            } catch (NumberFormatException ignored) {
-            }
-        }
-        return a.equals(b);
     }
 
     private void runBody(List<Node> body) {
