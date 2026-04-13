@@ -33,7 +33,8 @@ public class Vocabulary {
             "try",
             "catch",
             "throw",
-            "native"
+            "native",
+            "do"
     );
 
     public static final Set<String> operations = Set.of(

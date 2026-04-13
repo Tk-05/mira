@@ -64,6 +64,11 @@ fn main() {
         }
         ray.CloseWindow();
     } else {
+        var i : 0;
+        do {
+            $i++;
+        } while($i < 5);
+
         if(short("left") && short("right")) {}
         
         {

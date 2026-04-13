@@ -1078,20 +1078,38 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
     @Override
     public Object visitWhile(While stmt) {
-        try {
-            while (true) {
-                Object condition = stmt.getCondition().accept(this);
-                if (!resolveLoopCondition(condition)) {
-                    return null;
-                }
+        if (!stmt.getDoModifier()) {
+            try {
+                while (true) {
+                    Object condition = stmt.getCondition().accept(this);
+                    if (!resolveLoopCondition(condition)) {
+                        return null;
+                    }
 
-                try {
-                    runBodyInFreshScope(stmt.getBody());
-                } catch (ContinueSignal continueSignal) {
+                    try {
+                        runBodyInFreshScope(stmt.getBody());
+                    } catch (ContinueSignal continueSignal) {
+                    }
                 }
+            } catch (BreakSignal breakSignal) {
+                return null;
             }
-        } catch (BreakSignal breakSignal) {
-            return null;
+        } else {
+            try {
+                while (true) {
+                    try {
+                        runBodyInFreshScope(stmt.getBody());
+                    } catch (ContinueSignal continueSignal) {
+                    }
+                    
+                    Object condition = stmt.getCondition().accept(this);
+                    if (!resolveLoopCondition(condition)) {
+                        return null;
+                    }
+                }
+            } catch (BreakSignal breakSignal) {
+                return null;
+            }
         }
     }
 
@@ -1272,16 +1290,17 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
     public Object visitSwitch(Switch stmt) {
         Object subject = stmt.getSubject().accept(this);
 
-        Map<Object, List<Node>> caseMap = new HashMap<>();
-        for (SwitchCase switchCase : stmt.getCases()) {
-            Object caseValue = switchCase.getValue().accept(this);
-            caseMap.putIfAbsent(caseValue, switchCase.getBody());
-        }
-
         try {
-            List<Node> body = caseMap.get(subject);
-            if (body != null) {
-                runBodyInFreshScope(body);
+            List<Node> matched = null;
+            for (SwitchCase switchCase : stmt.getCases()) {
+                Object caseValue = switchCase.getValue().accept(this);
+                if (evaluateComparison(subject, "==", caseValue)) {
+                    matched = switchCase.getBody();
+                    break;
+                }
+            }
+            if (matched != null) {
+                runBodyInFreshScope(matched);
             } else if (stmt.getDefaultBody() != null) {
                 runBodyInFreshScope(stmt.getDefaultBody());
             }

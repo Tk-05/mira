@@ -33,6 +33,7 @@ import com.mira.parser.nodes.statement.Statement.Switch;
 import com.mira.parser.nodes.statement.Statement.Throw;
 import com.mira.parser.nodes.statement.Statement.TryCatch;
 import com.mira.parser.nodes.statement.Statement.VarDecl;
+import com.mira.parser.nodes.statement.Statement.While;
 
 public class ParserTest {
 
@@ -199,6 +200,17 @@ public class ParserTest {
                 """;
         List<Node> ast = parser.parseTokens(tokenizer.tokenize(ifStmt, false));
         assertInstanceOf(Statement.If.class, ast.getFirst());
+    }
+
+    @Test
+    void parseDoWhile() {
+        String doWhileStmt = """
+                do {
+                } while(1);
+                """;
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize(doWhileStmt, false));
+        assertEquals(1, ast.size());
+        assertInstanceOf(While.class, ast.getFirst());
     }
 
     @Test

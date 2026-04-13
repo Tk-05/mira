@@ -211,6 +211,16 @@ while (<condition>) {
 }
 ```
 
+### Do-While
+
+Executes the body at least once before checking the condition:
+
+```
+do {
+    <body>
+} while (<condition>);
+```
+
 ### For
 
 Classic C-style for loop:

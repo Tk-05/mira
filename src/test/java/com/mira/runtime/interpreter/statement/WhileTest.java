@@ -80,4 +80,48 @@ public class WhileTest extends InterpreterTestBase {
                 """);
         assertEquals(9.0, normNum(interpreter.getGlobalEnvironment().get("total")));
     }
+
+    @Test
+    void simpleDoWhile() {
+        assertNull(run("""
+                var i : 0;
+                do {
+                    $i : eval($i + 1);
+                } while($i < 5);
+                """));
+    }
+
+    @Test
+    void doWhileCountsCorrectly() {
+        run("""
+                var i : 0;
+                do {
+                    $i : eval($i + 1);
+                } while($i < 5);
+                """);
+        assertEquals(5.0, normNum(interpreter.getGlobalEnvironment().get("i")));
+    }
+
+    @Test
+    void doWhileExecutesAtLeastOnce() {
+        run("""
+                var executed : false;
+                do {
+                    $executed : true;
+                } while(0);
+                """);
+        assertEquals(Boolean.TRUE, interpreter.getGlobalEnvironment().get("executed"));
+    }
+
+    @Test
+    void doWhileWithBreak() {
+        run("""
+                var x : 0;
+                do {
+                    $x : eval($x + 1);
+                    if($x == 3) { break; }
+                } while($x < 100);
+                """);
+        assertEquals(3.0, normNum(interpreter.getGlobalEnvironment().get("x")));
+    }
 }

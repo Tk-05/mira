@@ -211,6 +211,10 @@ public class Parser {
             case "foreach" -> {
                 node = parseForeach();
             }
+            case "do" -> {
+                node = parseDoWhile();
+                matchLexeme(";");
+            }
             case "while" -> {
                 node = parseWhile();
             }
@@ -941,6 +945,23 @@ public class Parser {
         }
     }
 
+    private Node parseDoWhile() {
+        matchLexeme("do");
+        matchLexeme("{");
+        List<Node> body = new ArrayList<>();
+        while (!peek().getLexeme().equals("}")) {
+            body.add(parseStatement(true));
+        }
+        matchLexeme("}");
+
+        matchLexeme("while");
+        matchLexeme("(");
+        Expression condition = parseExpression();
+        matchLexeme(")");
+
+        return new While(condition, body, true);
+    }
+
     private Node parseWhile() {
         matchLexeme("while");
         matchLexeme("(");
@@ -954,7 +975,7 @@ public class Parser {
         }
         matchLexeme("}");
 
-        return new While(condition, body);
+        return new While(condition, body, false);
     }
 
     private Node parseBreak() {

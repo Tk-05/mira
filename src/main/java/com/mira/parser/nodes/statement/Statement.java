@@ -195,10 +195,12 @@ public abstract class Statement implements Node {
 
         private final Expression condition;
         private final List<Node> body;
+        private final boolean doModifier;
 
-        public While(Expression condition, List<Node> body) {
+        public While(Expression condition, List<Node> body, boolean doModifier) {
             this.condition = condition;
             this.body = body;
+            this.doModifier = doModifier;
         }
 
         @Override
@@ -212,6 +214,10 @@ public abstract class Statement implements Node {
 
         public List<Node> getBody() {
             return body;
+        }
+
+        public boolean getDoModifier() {
+            return doModifier;
         }
     }
 
