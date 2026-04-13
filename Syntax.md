@@ -1,8 +1,102 @@
 # Mira Language Syntax Reference
 
-## Variables
+## Table of Contents
 
-### Declaration
+1. [Program Structure](#program-structure)
+2. [Values](#values)
+3. [Expressions](#expressions)
+4. [Data Structures](#data-structures)
+5. [Control Flow](#control-flow)
+6. [Functions](#functions)
+7. [Enums](#enums)
+8. [Built-in Functions](#built-in-functions)
+9. [Standard Libraries](#standard-libraries)
+10. [Example Program](#example-program)
+
+---
+
+## Program Structure
+
+### Module Declaration
+
+Every file declares its module name at the top:
+
+```
+module <name>;
+```
+
+### Comments
+
+```
+// Single-line comment
+var x : 10; // Inline comment
+
+/* Multi-line
+   comment */
+
+var x : /* inline block */ 10;
+```
+
+### Imports
+
+```
+import <lib>;                                   // Standard library (global scope)
+import <lib> as <alias>;                        // Standard library under alias
+import <lib>: <fn1>, <fn2>;                     // Selective import (global scope)
+import <lib>: <fn1>, <fn2> as <alias>;          // Selective import under alias
+import module "./path/to/file.mira";            // File import (global scope)
+import module "./path/to/file.mira" as <alias>; // File import under alias
+import native "./path/to/lib.jar" as <alias>;   // Native JAR extension (alias required)
+```
+
+When a lib is imported without an alias, all its functions are available globally. When imported with an alias, functions are accessed via `<alias>.<function>(...)`.
+
+If two libs imported without an alias define a function with the same name, a conflict error is thrown. Use aliases to resolve it:
+
+```
+import string;            // ok
+import collection as col; // avoids conflict with 'indexOf'
+
+trim($text);
+col.findIndex($list, "x");
+```
+
+### Native JAR Extensions
+
+`import native` loads an external Java JAR at runtime. The JAR must implement the `com.mira.lib.Lib` interface and register itself via the Java `ServiceLoader` mechanism (`META-INF/services/com.mira.lib.Lib`).
+
+An alias is always required — native imports never pollute the global scope.
+
+```
+import native "./extensions/mylib.jar" as ext;
+
+ext.greet("world");
+ext.compute(42);
+```
+
+The path is resolved relative to the importing file. Absolute paths are also accepted.
+
+**JAR structure required:**
+
+```
+mylib.jar
+├── META-INF/services/com.mira.lib.Lib   ← fully-qualified class name
+└── com/example/MyLib.class              ← implements Lib
+```
+
+**Errors:**
+
+| Error | Cause |
+| ----- | ----- |
+| `E222 NativeLibNotFoundError` | JAR file does not exist at the given path |
+| `E223 NativeLibNoImplementationError` | JAR has no `META-INF/services/com.mira.lib.Lib` entry |
+| `E224 NativeLibLoadError` | JAR is invalid or incompatible with the interpreter |
+
+---
+
+## Values
+
+### Variable Declaration
 
 ```
 var <name>;                  // Uninitialized (implicitly null)
@@ -10,7 +104,7 @@ var <name> : <expression>;   // With initial value
 const <name> : <expression>; // Immutable
 ```
 
-### Access
+### Variable Access & Assignment
 
 Variables are accessed with a `$` prefix:
 
@@ -20,7 +114,7 @@ $<obj>.<field>
 $<obj>.<nested>.<field>
 ```
 
-### Assignment
+Assignment:
 
 ```
 $<name> : <expression>;
@@ -40,9 +134,7 @@ $<name> |= <expression>;
 $<name> ^= <expression>;
 ```
 
----
-
-## Literals
+### Literals
 
 | Type    | Example         |
 | ------- | --------------- |
@@ -97,21 +189,6 @@ $i < 5
 $x > 3 && $y == 0
 ```
 
-### Pipe Operator
-
-Passes the left-hand value as the first argument to the right-hand call:
-
-```
-$x |> trim()             // equivalent to trim($x)
-$x |> add(1)             // equivalent to add($x, 1)
-```
-
-Pipes can be chained left-to-right:
-
-```
-$input |> trim() |> upper()
-```
-
 ### Ternary Operator
 
 Evaluates a condition and returns one of two values:
@@ -131,6 +208,21 @@ Ternaries can be nested:
 
 ```
 $x > 10 ? "high" : ($x > 5 ? "mid" : "low")
+```
+
+### Pipe Operator
+
+Passes the left-hand value as the first argument to the right-hand call:
+
+```
+$x |> trim()             // equivalent to trim($x)
+$x |> add(1)             // equivalent to add($x, 1)
+```
+
+Pipes can be chained left-to-right:
+
+```
+$input |> trim() |> upper()
 ```
 
 ### Grouping
@@ -324,7 +416,7 @@ break;
 continue;
 ```
 
-### Try / Catch
+### Try / Catch / Throw
 
 Executes the `try` block and, if an exception is thrown, binds the value to the catch parameter and runs the `catch` block.
 
@@ -336,9 +428,7 @@ try {
 }
 ```
 
-### Throw
-
-Throws a value as an exception. Can be caught by an enclosing `try / catch`.
+`throw` raises a value as an exception:
 
 ```
 throw <expression>;
@@ -356,80 +446,6 @@ try {
 
 ---
 
-## Enums
-
-Enums declare a named set of constant variants. Each variant is immutable and accessed via dot notation.
-
-### Declaration
-
-```
-enum <Name> {
-    <VARIANT>,
-    <VARIANT>
-};
-```
-
-Variants are automatically assigned integer values starting at `0`:
-
-```
-enum Direction {
-    NORTH,
-    SOUTH,
-    EAST,
-    WEST
-};
-```
-
-### Explicit Values
-
-Variants can be assigned explicit integer or string values using `:`:
-
-```
-enum Status {
-    OK       : 200,
-    NOT_FOUND : 404,
-    ERROR    : 500
-};
-
-enum Color {
-    RED   : "red",
-    GREEN : "green",
-    BLUE  : "blue"
-};
-```
-
-Mixed enums (some explicit, some auto-indexed) are allowed. Auto-indexed variants count from their position regardless of any explicit values.
-
-### Access
-
-```
-Direction.NORTH   // => 0
-Status.OK         // => 200
-Color.RED         // => "red"
-```
-
-Enum values can be stored and compared like any other value:
-
-```
-var dir : Direction.SOUTH;
-if ($dir == Direction.SOUTH) {
-    print("heading south\n");
-}
-```
-
-### Usage with Switch
-
-```
-var code : Status.NOT_FOUND;
-switch ($code) {
-    case (200) { print("ok\n"); }
-    case (404) { print("not found\n"); }
-    default    { print("error\n"); }
-}
-```
-
----
-
 ## Functions
 
 ### Declaration
@@ -438,6 +454,25 @@ switch ($code) {
 fn <name>(<param1>, <param2>) {
     <body>
 }
+```
+
+### Return
+
+```
+return;                // Return nothing
+return <expression>;   // Return a value
+```
+
+### Call
+
+```
+<name>(<arg1>, <arg2>)
+```
+
+Functions from aliased imports are called via dot notation:
+
+```
+<alias>.<name>(<arg>)
 ```
 
 ### Variadic Parameters
@@ -474,123 +509,9 @@ fn log(prefix, ...args) {
 }
 ```
 
-Lambdas support variadic parameters too:
+### Lambdas
 
-```
-var join : fn(sep, ...parts) { return join($parts, $sep); };
-```
-
-### Return
-
-```
-return;                // Return nothing
-return <expression>;   // Return a value
-```
-
-### Call
-
-```
-<name>(<arg1>, <arg2>)
-```
-
-### Namespace-qualified call
-
-Functions from aliased imports are called via dot notation:
-
-```
-<alias>.<name>(<arg>)
-```
-
----
-
-## Comments
-
-### Single-line
-
-```
-// This is a line comment
-var x : 10; // inline comment
-```
-
-### Multi-line
-
-```
-/* This is a
-   multi-line comment */
-
-var x : /* inline block */ 10;
-```
-
----
-
-## Module System
-
-Every file declares its module name at the top:
-
-```
-module <name>;
-```
-
-### Imports
-
-```
-import <lib>;                                   // Standard library (global scope)
-import <lib> as <alias>;                        // Standard library under alias
-import <lib>: <fn1>, <fn2>;                     // Selective import (global scope)
-import <lib>: <fn1>, <fn2> as <alias>;          // Selective import under alias
-import module "./path/to/file.mira";            // File import (global scope)
-import module "./path/to/file.mira" as <alias>; // File import under alias
-import native "./path/to/lib.jar" as <alias>;   // Native JAR extension (alias required)
-```
-
-When a lib is imported without an alias, all its functions are available globally. When imported with an alias, functions are accessed via `<alias>.<function>(...)`.
-
-If two libs imported without an alias define a function with the same name, a conflict error is thrown. Use aliases to resolve it:
-
-```
-import string;            // ok
-import collection as col; // avoids conflict with 'indexOf'
-
-trim($text);
-col.findIndex($list, "x");
-```
-
-### Native JAR Extensions
-
-`import native` loads an external Java JAR at runtime. The JAR must implement the `com.mira.lib.Lib` interface and register itself via the Java `ServiceLoader` mechanism (`META-INF/services/com.mira.lib.Lib`).
-
-An alias is always required — native imports never pollute the global scope.
-
-```
-import native "./extensions/mylib.jar" as ext;
-
-ext.greet("world");
-ext.compute(42);
-```
-
-The path is resolved relative to the importing file. Absolute paths are also accepted.
-
-**JAR structure required:**
-
-```
-mylib.jar
-├── META-INF/services/com.mira.lib.Lib   ← fully-qualified class name
-└── com/example/MyLib.class              ← implements Lib
-```
-
-**Errors:**
-
-| Error | Cause |
-| ----- | ----- |
-| `E222 NativeLibNotFoundError` | JAR file does not exist at the given path |
-| `E223 NativeLibNoImplementationError` | JAR has no `META-INF/services/com.mira.lib.Lib` entry |
-| `E224 NativeLibLoadError` | JAR is invalid or incompatible with the interpreter |
-
----
-
-## Lambdas
-
-Lambdas are nameless functions that can be stored and passed around.
+Lambdas are nameless functions that can be stored and passed around:
 
 ```
 fn(<param1>, <param2>) {
@@ -598,14 +519,14 @@ fn(<param1>, <param2>) {
 }
 ```
 
-### As a variable
+As a variable:
 
 ```
 var double : fn(x) { return eval($x * 2); };
 eval(double(5));    // => 10
 ```
 
-### As an argument
+As an argument:
 
 ```
 fn apply(f, x) {
@@ -615,9 +536,7 @@ fn apply(f, x) {
 eval(apply(fn(n) { return eval($n * $n); }, 3));   // => 9
 ```
 
-### Closures
-
-Lambdas capture variables from their outer scope:
+Closures — lambdas capture variables from their outer scope:
 
 ```
 var factor : 3;
@@ -625,35 +544,89 @@ var scale : fn(x) { return eval($x * $factor); };
 eval(scale(5));    // => 15
 ```
 
----
+Lambdas support variadic parameters too:
 
-## Example Program
 ```
-module main;
-
-fn fibonacci(n) {
-    if ($n <= 1) {
-        return $n;
-    } else {
-        return fibonacci(eval($n - 2)) + fibonacci(eval($n - 1));
-    }
-    return 0;
-}
-
-fn main() {
-    var result : 0;
-
-    for (var i : 0; $i < 10; $i : eval($i + 1)) {
-        $result : eval($result + fibonacci($i));
-    }
-
-    print("Sum: " $result "\n");
-}
+var join : fn(sep, ...parts) { return join($parts, $sep); };
 ```
 
 ---
 
-## Internal Functions
+## Enums
+
+Enums declare a named set of constant variants. Each variant is immutable and accessed via dot notation.
+
+### Declaration
+
+```
+enum <Name> {
+    <VARIANT>,
+    <VARIANT>
+};
+```
+
+Variants are automatically assigned integer values starting at `0`:
+
+```
+enum Direction {
+    NORTH,
+    SOUTH,
+    EAST,
+    WEST
+};
+```
+
+### Explicit Values
+
+Variants can be assigned explicit integer or string values using `:`:
+
+```
+enum Status {
+    OK        : 200,
+    NOT_FOUND : 404,
+    ERROR     : 500
+};
+
+enum Color {
+    RED   : "red",
+    GREEN : "green",
+    BLUE  : "blue"
+};
+```
+
+Mixed enums (some explicit, some auto-indexed) are allowed. Auto-indexed variants count from their position regardless of any explicit values.
+
+### Access & Usage
+
+```
+Direction.NORTH   // => 0
+Status.OK         // => 200
+Color.RED         // => "red"
+```
+
+Enum values can be stored and compared like any other value:
+
+```
+var dir : Direction.SOUTH;
+if ($dir == Direction.SOUTH) {
+    print("heading south\n");
+}
+```
+
+Usage with `switch`:
+
+```
+var code : Status.NOT_FOUND;
+switch ($code) {
+    case (200) { print("ok\n"); }
+    case (404) { print("not found\n"); }
+    default    { print("error\n"); }
+}
+```
+
+---
+
+## Built-in Functions
 
 Always available without any import.
 
@@ -674,15 +647,15 @@ Always available without any import.
 
 ### `string`
 
-| Function                        | Description                              |
-| ------------------------------- | ---------------------------------------- |
-| `charAt(str, index)`            | Returns the character at the given index |
-| `indexOf(str, char)`            | Returns the first index of a character   |
-| `trim(str)`                     | Removes leading and trailing whitespace  |
-| `split(str, delimiter)`         | Splits string into an array              |
-| `substr(str, start, end)`       | Returns a substring                      |
-| `strEqual(str1, str2)`          | Returns true if both strings are equal   |
-| `replace(str, from, to)`        | Replaces all occurrences of a character  |
+| Function                    | Description                              |
+| --------------------------- | ---------------------------------------- |
+| `charAt(str, index)`        | Returns the character at the given index |
+| `indexOf(str, char)`        | Returns the first index of a character   |
+| `trim(str)`                 | Removes leading and trailing whitespace  |
+| `split(str, delimiter)`     | Splits string into an array              |
+| `substr(str, start, end)`   | Returns a substring                      |
+| `strEqual(str1, str2)`      | Returns true if both strings are equal   |
+| `replace(str, from, to)`    | Replaces all occurrences of a character  |
 
 ### `collection`
 
@@ -702,6 +675,17 @@ Always available without any import.
 | `join(list, separator)`     | Joins elements into a string                         |
 | `newList()`                 | Creates an empty mutable list                        |
 | `newTuple()`                | Creates an empty tuple                               |
+
+### `map`
+
+| Function                  | Description                                      |
+| ------------------------- | ------------------------------------------------ |
+| `newMap()`                | Creates an empty mutable map                     |
+| `mapSize(map)`            | Returns the number of entries                    |
+| `mapHas(map, key)`        | Returns true if the key exists                   |
+| `mapRemove(map, key)`     | Removes the entry and returns the map            |
+| `mapKeys(map)`            | Returns a list of all keys                       |
+| `mapValues(map)`          | Returns a list of all values                     |
 
 ### `math`
 
@@ -737,6 +721,13 @@ Constants: `pi`, `e`, `inf`, `nan`
 | `isNaN(x)`            | True if value is NaN               |
 | `isInf(x)`            | True if value is infinite          |
 
+### `io`
+
+| Function                    | Description                                               |
+| --------------------------- | --------------------------------------------------------- |
+| `readFile(path)`            | Reads a file and returns its content as a string          |
+| `writeFile(path, content)`  | Writes a string to a file, creating directories if needed |
+
 ### `net`
 
 | Function                           | Description                              |
@@ -749,96 +740,103 @@ Constants: `pi`, `e`, `inf`, `nan`
 
 ### `dateTime`
 
-| Function               | Description                                       |
-| ---------------------- | ------------------------------------------------- |
-| `now()`                | Current date-time as ISO string                   |
-| `timestamp()`          | Current Unix timestamp in seconds                 |
-| `timestampMs()`        | Current Unix timestamp in milliseconds            |
-| `dateFormat(date, fmt)`| Formats a date string with a pattern              |
-| `year()`               | Current year                                      |
-| `month()`              | Current month (1–12)                              |
-| `day()`                | Current day of month                              |
-| `hour()`               | Current hour (0–23)                               |
-| `minute()`             | Current minute                                    |
-| `second()`             | Current second                                    |
-| `dayOfWeek()`          | Day name e.g. `"MONDAY"`                          |
-| `dayOfYear()`          | Day of year (1–366)                               |
-| `secondsSince(date)`   | Seconds elapsed since the given date string       |
-| `fromEpoch(seconds)`   | Converts a Unix timestamp (seconds) to date string|
+| Function                | Description                                        |
+| ----------------------- | -------------------------------------------------- |
+| `now()`                 | Current date-time as ISO string                    |
+| `timestamp()`           | Current Unix timestamp in seconds                  |
+| `timestampMs()`         | Current Unix timestamp in milliseconds             |
+| `dateFormat(date, fmt)` | Formats a date string with a pattern               |
+| `year()`                | Current year                                       |
+| `month()`               | Current month (1–12)                               |
+| `day()`                 | Current day of month                               |
+| `hour()`                | Current hour (0–23)                                |
+| `minute()`              | Current minute                                     |
+| `second()`              | Current second                                     |
+| `dayOfWeek()`           | Day name e.g. `"MONDAY"`                           |
+| `dayOfYear()`           | Day of year (1–366)                                |
+| `secondsSince(date)`    | Seconds elapsed since the given date string        |
+| `fromEpoch(seconds)`    | Converts a Unix timestamp (seconds) to date string |
 
 ### `json`
 
-| Function                          | Description                                           |
-| --------------------------------- | ----------------------------------------------------- |
-| `jsonGet(json, key)`              | Gets a scalar value by key                            |
-| `jsonHas(json, key)`              | Returns true if the key exists                        |
-| `jsonArray(json, key)`            | Returns a top-level array as a list                   |
-| `jsonNested(json, parent, key)`   | Returns a nested array by parent key and array key    |
-| `jsonBuild(keys, values)`         | Builds a JSON string from two lists                   |
-| `jsonFormat(json)`                | Pretty-prints a JSON string                           |
-| `jsonIndexOf(list, value)`        | Returns the index of a value in a JSON list, or `-1`  |
-
-### `io`
-
-| Function                    | Description                                              |
-| --------------------------- | -------------------------------------------------------- |
-| `readFile(path)`            | Reads a file and returns its content as a string         |
-| `writeFile(path, content)`  | Writes a string to a file, creating directories if needed |
-
-### `map`
-
-| Function                  | Description                                      |
-| ------------------------- | ------------------------------------------------ |
-| `newMap()`                | Creates an empty mutable map                     |
-| `mapSize(map)`            | Returns the number of entries                    |
-| `mapHas(map, key)`        | Returns true if the key exists                   |
-| `mapRemove(map, key)`     | Removes the entry and returns the map            |
-| `mapKeys(map)`            | Returns a list of all keys                       |
-| `mapValues(map)`          | Returns a list of all values                     |
+| Function                        | Description                                          |
+| ------------------------------- | ---------------------------------------------------- |
+| `jsonGet(json, key)`            | Gets a scalar value by key                           |
+| `jsonHas(json, key)`            | Returns true if the key exists                       |
+| `jsonArray(json, key)`          | Returns a top-level array as a list                  |
+| `jsonNested(json, parent, key)` | Returns a nested array by parent key and array key   |
+| `jsonBuild(keys, values)`       | Builds a JSON string from two lists                  |
+| `jsonFormat(json)`              | Pretty-prints a JSON string                          |
+| `jsonIndexOf(list, value)`      | Returns the index of a value in a JSON list, or `-1` |
 
 ### `regex`
 
-| Function                           | Description                                      |
-| ---------------------------------- | ------------------------------------------------ |
-| `matches(input, pattern)`          | True if the whole string matches the pattern     |
-| `contains(input, pattern)`         | True if the pattern is found anywhere            |
-| `findFirst(input, pattern)`        | Returns the first match, or `""`                 |
-| `findAll(input, pattern)`          | Returns all matches as a list                    |
-| `replaceAll(input, pattern, repl)` | Replaces all matches                             |
-| `replaceFirst(input, pattern, repl)`| Replaces the first match                        |
-| `split(input, pattern)`            | Splits by regex pattern into a list              |
-| `capture(input, pattern)`          | Returns capture groups of the first match        |
-| `countMatches(input, pattern)`     | Returns the number of matches                    |
+| Function                             | Description                                   |
+| ------------------------------------ | --------------------------------------------- |
+| `matches(input, pattern)`            | True if the whole string matches the pattern  |
+| `contains(input, pattern)`           | True if the pattern is found anywhere         |
+| `findFirst(input, pattern)`          | Returns the first match, or `""`              |
+| `findAll(input, pattern)`            | Returns all matches as a list                 |
+| `replaceAll(input, pattern, repl)`   | Replaces all matches                          |
+| `replaceFirst(input, pattern, repl)` | Replaces the first match                      |
+| `split(input, pattern)`              | Splits by regex pattern into a list           |
+| `capture(input, pattern)`            | Returns capture groups of the first match     |
+| `countMatches(input, pattern)`       | Returns the number of matches                 |
 
 ### `shell`
 
-| Function            | Description                                       |
-| ------------------- | ------------------------------------------------- |
-| `execute(cmd)`      | Runs a shell command and returns stdout           |
-| `executeCode(cmd)`  | Runs a shell command and returns the exit code    |
-| `getenv(name)`      | Returns an environment variable value             |
-| `hasenv(name)`      | Returns true if the environment variable exists   |
-| `osName()`          | Returns the OS name                               |
-| `isWindows()`       | True if running on Windows                        |
-| `isLinux()`         | True if running on Linux                          |
-| `isMac()`           | True if running on macOS                          |
-| `cwd()`             | Current working directory                         |
-| `username()`        | Current OS username                               |
-| `homedir()`         | Home directory path                               |
+| Function            | Description                                     |
+| ------------------- | ----------------------------------------------- |
+| `execute(cmd)`      | Runs a shell command and returns stdout         |
+| `executeCode(cmd)`  | Runs a shell command and returns the exit code  |
+| `getenv(name)`      | Returns an environment variable value           |
+| `hasenv(name)`      | Returns true if the environment variable exists |
+| `osName()`          | Returns the OS name                             |
+| `isWindows()`       | True if running on Windows                      |
+| `isLinux()`         | True if running on Linux                        |
+| `isMac()`           | True if running on macOS                        |
+| `cwd()`             | Current working directory                       |
+| `username()`        | Current OS username                             |
+| `homedir()`         | Home directory path                             |
 
 ### `process`
 
-| Function                  | Description                                         |
-| ------------------------- | --------------------------------------------------- |
-| `processStart(cmd)`       | Starts a background process, returns an ID          |
-| `processAlive(id)`        | True if the process is still running                |
-| `processWait(id)`         | Waits for the process to finish, returns exit code  |
-| `processKill(id)`         | Terminates the process                              |
-| `processOutput(id)`       | Returns buffered stdout of the process              |
-| `processExitCode(id)`     | Returns the exit code of a finished process         |
-| `pid()`                   | Returns the PID of the current process              |
-| `listProcesses()`         | Returns a list of all running PIDs                  |
-| `processInfo(pid)`        | Returns the command of a process by PID             |
+| Function                  | Description                                          |
+| ------------------------- | ---------------------------------------------------- |
+| `processStart(cmd)`       | Starts a background process, returns an ID           |
+| `processAlive(id)`        | True if the process is still running                 |
+| `processWait(id)`         | Waits for the process to finish, returns exit code   |
+| `processKill(id)`         | Terminates the process                               |
+| `processOutput(id)`       | Returns buffered stdout of the process               |
+| `processExitCode(id)`     | Returns the exit code of a finished process          |
+| `pid()`                   | Returns the PID of the current process               |
+| `listProcesses()`         | Returns a list of all running PIDs                   |
+| `processInfo(pid)`        | Returns the command of a process by PID              |
 | `sleep(ms)`               | Pauses execution for the given number of milliseconds|
 
 ---
+
+## Example Program
+
+```
+module main;
+
+fn fibonacci(n) {
+    if ($n <= 1) {
+        return $n;
+    } else {
+        return fibonacci(eval($n - 2)) + fibonacci(eval($n - 1));
+    }
+    return 0;
+}
+
+fn main() {
+    var result : 0;
+
+    for (var i : 0; $i < 10; $i : eval($i + 1)) {
+        $result : eval($result + fibonacci($i));
+    }
+
+    print("Sum: " $result "\n");
+}
+```
