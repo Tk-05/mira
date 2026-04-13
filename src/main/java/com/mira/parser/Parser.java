@@ -29,6 +29,7 @@ import com.mira.parser.nodes.expression.Expression.RangeExpression;
 import com.mira.parser.nodes.expression.Expression.TernaryExpression;
 import com.mira.parser.nodes.expression.Expression.TupleExpression;
 import com.mira.parser.nodes.expression.Expression.UnaryExpression;
+import com.mira.parser.nodes.statement.Statement;
 import com.mira.parser.nodes.statement.Statement.Assign;
 import com.mira.parser.nodes.statement.Statement.Block;
 import com.mira.parser.nodes.statement.Statement.Break;
@@ -176,6 +177,7 @@ public class Parser {
     }
 
     private Node parseStatement(boolean expectSemicolon) {
+        int line = peek().getLine();
         Node node;
 
         switch (peek().getLexeme()) {
@@ -273,6 +275,9 @@ public class Parser {
             }
         }
 
+        if (node instanceof Statement stmt) {
+            stmt.line = line;
+        }
         return node;
     }
 

@@ -4,12 +4,13 @@ import java.io.IOException;
 import java.nio.file.Paths;
 import java.util.List;
 
-import com.mira.console.Console;
+import com.mira.debugger.Debugger;
 import com.mira.error.DiagnosticFormatter;
 import com.mira.lexer.Tokenizer;
 import com.mira.lexer.token.Token;
 import com.mira.parser.Parser;
 import com.mira.parser.nodes.Node;
+import com.mira.repl.Repl;
 import com.mira.runtime.functions.ReturnSignal;
 import com.mira.runtime.interpreter.Interpreter;
 import com.mira.utils.FileLoader;
@@ -40,7 +41,17 @@ public class Main {
                         Flags.libInfo = true;
                     case "-args" ->
                         Flags.args = args[i + 1].substring(0, args[i + 1].length()).split(",");
+                    case "-debug" ->
+                        Flags.debug = true;
+                    default -> {
+                        throw new RuntimeException(args[i] + " is not a known flag");
+                    }
                 }
+            }
+
+            if (Flags.debug) {
+                Debugger.run();
+                return;
             }
 
             String readFile = "";
@@ -92,7 +103,7 @@ public class Main {
             }
 
         } else {
-            Console.run();
+            Repl.run();
         }
     }
 }

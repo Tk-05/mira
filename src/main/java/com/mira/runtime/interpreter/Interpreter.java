@@ -87,6 +87,23 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
     private final Map<CacheKey, Object> callCache = new HashMap<>();
     private Set<String> pureFunctions = Set.of();
 
+    public interface DebugHook {
+
+        void onStatement(Statement stmt, Environment env);
+    }
+
+    private DebugHook debugHook;
+
+    public void setDebugHook(DebugHook hook) {
+        this.debugHook = hook;
+    }
+
+    private void notifyDebugger(Statement stmt) {
+        if (debugHook != null) {
+            debugHook.onStatement(stmt, localEnvironment != null ? localEnvironment : globalEnvironment);
+        }
+    }
+
     public Interpreter() {
         ImportResolver.loadInternal(globalEnvironment);
     }
@@ -244,6 +261,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
     @Override
     public Void visitVarDecl(VarDecl varDecl) {
+        notifyDebugger(varDecl);
         Object value = NullValue.INSTANCE;
 
         if (varDecl.getInitializer() != null) {
@@ -349,6 +367,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
     @Override
     public Void visitReturn(Return ret) {
+        notifyDebugger(ret);
         Object value = null;
 
         if (ret.getValue() != null) {
@@ -972,6 +991,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
     @Override
     public Void visitAssign(Assign assign) {
+        notifyDebugger(assign);
         switch (assign.getReference()) {
             case AccessExpression accessExpression -> {
                 Object referencedObject = accessExpression.getReference().accept(this);
@@ -1070,6 +1090,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
     @Override
     public Object visitIf(If stmt) {
+        notifyDebugger(stmt);
         Object condition = stmt.getCondition().accept(this);
         boolean value = resolveLoopCondition(condition);
         List<Node> body = value ? stmt.getThenBody() : stmt.getElseBody();
@@ -1085,6 +1106,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
     @Override
     public Object visitFor(For stmt) {
+        notifyDebugger(stmt);
         runBody(stmt.getVarDecls());
 
         try {
@@ -1110,6 +1132,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
     @Override
     public Object visitWhile(While stmt) {
+        notifyDebugger(stmt);
         if (!stmt.getDoModifier()) {
             try {
                 while (true) {
@@ -1217,6 +1240,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
     @Override
     public Object visitForeach(Foreach stmt) {
+        notifyDebugger(stmt);
         if (localEnvironment != null && !localEnvironment.exists(stmt.getIterator().getName())) {
             localEnvironment.define(stmt.getIterator().getName(), null);
         } else if (localEnvironment == null && !globalEnvironment.exists(stmt.getIterator().getName())) {
@@ -1344,12 +1368,14 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
     @Override
     public Object visitThrow(Throw stmt) {
+        notifyDebugger(stmt);
         Object value = stmt.getValue().accept(this);
         throw new ThrowSignal(value);
     }
 
     @Override
     public Object visitTryCatch(TryCatch stmt) {
+        notifyDebugger(stmt);
         try {
             runBodyInFreshScope(stmt.getTryBody());
         } catch (ThrowSignal signal) {
