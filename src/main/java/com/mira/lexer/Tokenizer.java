@@ -191,6 +191,13 @@ public class Tokenizer {
     }
 
     private void scanString() {
+        if (!isAtEnd() && peek() == '"' && peekAt(1) == '"') {
+            advance();
+            advance();
+            scanTextBlock();
+            return;
+        }
+
         StringBuilder valueBuilder = new StringBuilder();
 
         while (!isAtEnd() && peek() != '"') {
@@ -243,6 +250,35 @@ public class Tokenizer {
         ));
     }
 
+    private void scanTextBlock() {
+        StringBuilder valueBuilder = new StringBuilder();
+
+        if (!isAtEnd() && peek() == '\n') {
+            line++;
+            column = 0;
+            advance();
+        }
+
+        while (!isAtEnd()) {
+            if (peek() == '"' && peekAt(1) == '"' && peekAt(2) == '"') {
+                advance();
+                advance();
+                advance();
+                tokens.add(new Token(TokenType.STRING_LITERAL, valueBuilder.toString(), line, column));
+                return;
+            }
+
+            if (peek() == '\n') {
+                line++;
+                column = 0;
+            }
+
+            valueBuilder.append(advance());
+        }
+
+        throw new UnterminatedStringError(line, column);
+    }
+
     private void scanIdentifier() {
         while (!isAtEnd() && isIdentifierPart(peek())) {
             advance();
@@ -287,6 +323,13 @@ public class Tokenizer {
             return '\0';
         }
         return source.charAt(current + 1);
+    }
+
+    private char peekAt(int offset) {
+        if (current + offset >= source.length()) {
+            return '\0';
+        }
+        return source.charAt(current + offset);
     }
 
     private boolean isAtEnd() {

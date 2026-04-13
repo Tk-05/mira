@@ -232,4 +232,29 @@ public class LexerTest {
         escapedString = "\"\\\"Hello World\\\"\"";
         assertEquals("\"Hello World\"", tokenizer.tokenize(escapedString, false).getFirst().getLexeme());
     }
+
+    @Test
+    void testTextBlock() {
+        List<Token> tokens = tokenizer.tokenize("\"\"\"Hello World\"\"\"", false);
+        assertEquals(TokenType.STRING_LITERAL, tokens.getFirst().getTokenType());
+        assertEquals("Hello World", tokens.getFirst().getLexeme());
+    }
+
+    @Test
+    void testTextBlockStripsLeadingNewline() {
+        List<Token> tokens = tokenizer.tokenize("\"\"\"\nHello World\"\"\"", false);
+        assertEquals("Hello World", tokens.getFirst().getLexeme());
+    }
+
+    @Test
+    void testTextBlockMultiLine() {
+        List<Token> tokens = tokenizer.tokenize("\"\"\"\nline1\nline2\n\"\"\"", false);
+        assertEquals("line1\nline2\n", tokens.getFirst().getLexeme());
+    }
+
+    @Test
+    void testTextBlockEmpty() {
+        List<Token> tokens = tokenizer.tokenize("\"\"\"\"\"\"", false);
+        assertEquals("", tokens.getFirst().getLexeme());
+    }
 }

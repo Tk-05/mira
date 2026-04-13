@@ -20,6 +20,11 @@ enum test {
 
 var vals : {"69" : 420};
 
+var multiComment : """
+Hello World1
+Hello World2
+""";
+
 fn short(arg) {
     print($arg "\n");
     return false;
@@ -64,6 +69,8 @@ fn main() {
         }
         ray.CloseWindow();
     } else {
+        print($multiComment);
+
         var i : 0;
         do {
             $i++;

@@ -57,6 +57,17 @@ String concatenation is done by placing values side by side:
 "hello " $name "\n"
 ```
 
+### Text Blocks
+
+Multi-line strings using triple quotes. The first newline after `"""` is automatically stripped:
+
+```
+var text : """
+Hello World
+Line 2
+""";
+```
+
 ---
 
 ## Expressions
