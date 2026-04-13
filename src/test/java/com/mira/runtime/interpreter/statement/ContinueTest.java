@@ -5,14 +5,13 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import org.junit.jupiter.api.Test;
 
 import com.mira.runtime.functions.ContinueSignal;
-import com.mira.runtime.interpreter.Interpreter;
 import com.mira.runtime.interpreter.InterpreterTestBase;
 
 public class ContinueTest extends InterpreterTestBase {
 
     @Test
     void continueAtTopLevelThrows() {
-        assertThrows(ContinueSignal.class, () -> run("continue();"));
+        assertThrows(ContinueSignal.class, () -> run("continue;"));
     }
 
     @Test
@@ -23,12 +22,12 @@ public class ContinueTest extends InterpreterTestBase {
                 while ($i < 5) {
                     $i : eval($i + 1);
                     if ($i == 3) {
-                        continue();
+                        continue;
                     }
                     $count : eval($count + 1);
                 }
                 """);
-        assertEquals(4.0, Interpreter.getGlobalEnvironment().get("count"));
+        assertEquals(4.0, normNum(interpreter.getGlobalEnvironment().get("count")));
     }
 
     @Test
@@ -37,12 +36,12 @@ public class ContinueTest extends InterpreterTestBase {
                 var sum : 0;
                 for (var i : 0; $i < 5; $i : eval($i + 1)) {
                     if ($i == 2) {
-                        continue();
+                        continue;
                     }
                     $sum : eval($sum + $i);
                 }
                 """);
-        assertEquals(8.0, Interpreter.getGlobalEnvironment().get("sum"));
+        assertEquals(8.0, normNum(interpreter.getGlobalEnvironment().get("sum")));
     }
 
     @Test
@@ -52,14 +51,14 @@ public class ContinueTest extends InterpreterTestBase {
                 var count : 0;
                 for (var j : 0; $j < 10; $j : eval($j + 1)) {
                     if ($j == 5) {
-                        continue();
+                        continue;
                     }
                     $count : eval($count + 1);
                 }
                 $i : $j;
                 """);
-        assertEquals(10.0, Interpreter.getGlobalEnvironment().get("j"));
-        assertEquals(9.0, Interpreter.getGlobalEnvironment().get("count"));
+        assertEquals(10.0, normNum(interpreter.getGlobalEnvironment().get("j")));
+        assertEquals(9.0, normNum(interpreter.getGlobalEnvironment().get("count")));
     }
 
     @Test
@@ -69,12 +68,12 @@ public class ContinueTest extends InterpreterTestBase {
                 var list : {1, 2, 3, 4, 5};
                 foreach (var e in $list) {
                     if ($e == 3) {
-                        continue();
+                        continue;
                     }
                     $sum : eval($sum + $e);
                 }
                 """);
-        assertEquals(12.0, Interpreter.getGlobalEnvironment().get("sum"));
+        assertEquals(12.0, normNum(interpreter.getGlobalEnvironment().get("sum")));
     }
 
     @Test
@@ -83,12 +82,12 @@ public class ContinueTest extends InterpreterTestBase {
                 var sum : 0;
                 foreach (var i in <0..6>) {
                     if ($i == 4) {
-                        continue();
+                        continue;
                     }
                     $sum : eval($sum + $i);
                 }
                 """);
-        assertEquals(11.0, Interpreter.getGlobalEnvironment().get("sum"));
+        assertEquals(11.0, normNum(interpreter.getGlobalEnvironment().get("sum")));
     }
 
     @Test
@@ -103,14 +102,14 @@ public class ContinueTest extends InterpreterTestBase {
                     while ($j < 4) {
                         $j : eval($j + 1);
                         if ($j == 2) {
-                            continue();
+                            continue;
                         }
                         $inner : eval($inner + 1);
                     }
                 }
                 """);
-        assertEquals(3.0, Interpreter.getGlobalEnvironment().get("outer"));
-        assertEquals(9.0, Interpreter.getGlobalEnvironment().get("inner"));
+        assertEquals(3.0, normNum(interpreter.getGlobalEnvironment().get("outer")));
+        assertEquals(9.0, normNum(interpreter.getGlobalEnvironment().get("inner")));
     }
 
     @Test
@@ -119,10 +118,10 @@ public class ContinueTest extends InterpreterTestBase {
                 var x : 0;
                 while ($x < 3) {
                     $x : eval($x + 1);
-                    continue();
+                    continue;
                 }
                 $x : eval($x + 10);
                 """);
-        assertEquals(13.0, Interpreter.getGlobalEnvironment().get("x"));
+        assertEquals(13.0, normNum(interpreter.getGlobalEnvironment().get("x")));
     }
 }

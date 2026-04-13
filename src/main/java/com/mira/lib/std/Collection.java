@@ -16,8 +16,25 @@ import com.mira.runtime.interpreter.Environment;
 
 public class Collection implements Lib {
 
-    private static DumbExpression wrap(Object val) {
-        return new DumbExpression(new Token(TokenType.EXPRESSION, String.valueOf(val), 0, 0));
+    private static Expression wrap(Object val) {
+        if (val instanceof Expression expr) {
+            return expr;
+        }
+        if (val instanceof String || val instanceof Double || val instanceof Boolean) {
+            return new DumbExpression(new Token(TokenType.EXPRESSION, String.valueOf(val), 0, 0));
+        }
+        final Object captured = val;
+        return new Expression() {
+            @Override
+            public <T> T accept(com.mira.runtime.visitors.ExprVisitor<T> visitor) {
+                return (T) captured;
+            }
+
+            @Override
+            public String toString() {
+                return String.valueOf(captured);
+            }
+        };
     }
 
     private static List<Expression> toMembers(Object arg) {
@@ -117,12 +134,10 @@ public class Collection implements Lib {
         environment.define("flatten", new NativeFunction(1, args -> {
             List<Expression> result = new ArrayList<>();
             for (Expression e : toMembers(args.get(0))) {
-                if (e instanceof ListExpression inner) {
-                    result.addAll(inner.getMembers());
-                } else if (e instanceof TupleExpression inner) {
-                    result.addAll(inner.getMembers());
-                } else {
-                    result.add(e);
+                switch (e) {
+                    case ListExpression inner -> result.addAll(inner.getMembers());
+                    case TupleExpression inner -> result.addAll(inner.getMembers());
+                    default -> result.add(e);
                 }
             }
             return new ListExpression(result);
@@ -142,11 +157,11 @@ public class Collection implements Lib {
             return sb.toString();
         }));
 
-        environment.define("emptyList", new NativeFunction(0, args -> {
+        environment.define("newList", new NativeFunction(0, args -> {
             return new ListExpression(new ArrayList<>());
         }));
 
-        environment.define("emptyTuple", new NativeFunction(0, args -> {
+        environment.define("newTuple", new NativeFunction(0, args -> {
             return new TupleExpression(new ArrayList<>());
         }));
     }

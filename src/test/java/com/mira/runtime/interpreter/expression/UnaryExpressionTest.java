@@ -20,7 +20,7 @@ public class UnaryExpressionTest extends InterpreterTestBase {
     @Test
     void referenceAccess() {
         try {
-            run("var x : \"hello\"; ret($x);");
+            run("var x : \"hello\"; return $x;");
         } catch (ReturnSignal r) {
             assertEquals("hello", r.getValue());
         }
@@ -96,7 +96,7 @@ public class UnaryExpressionTest extends InterpreterTestBase {
     @Test
     void booleanNegationTrue() {
         try {
-            run("ret(!true);");
+            run("return !true;");
         } catch (ReturnSignal r) {
             assertEquals(Boolean.FALSE, r.getValue());
         }
@@ -105,7 +105,7 @@ public class UnaryExpressionTest extends InterpreterTestBase {
     @Test
     void booleanNegationFalse() {
         try {
-            run("ret(!false);");
+            run("return !false;");
         } catch (ReturnSignal r) {
             assertEquals(Boolean.TRUE, r.getValue());
         }
@@ -114,7 +114,7 @@ public class UnaryExpressionTest extends InterpreterTestBase {
     @Test
     void booleanNegationVariable() {
         try {
-            run("var x : true; ret(!$x);");
+            run("var x : true; return !$x;");
         } catch (ReturnSignal r) {
             assertEquals(Boolean.FALSE, r.getValue());
         }

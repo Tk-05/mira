@@ -1,12 +1,13 @@
 package com.mira.parser.nodes.expression;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 
 import com.mira.lexer.token.Token;
 import com.mira.parser.nodes.Node;
 import com.mira.parser.nodes.statement.Statement.VarDecl;
 import com.mira.runtime.visitors.ExprVisitor;
-import com.mira.utils.Formatter;
+import com.mira.utils.StringFormatter;
 
 public abstract class Expression implements Node {
 
@@ -30,6 +31,10 @@ public abstract class Expression implements Node {
 
         public String getValue() {
             return token.getLexeme();
+        }
+
+        public com.mira.lexer.token.TokenType getTokenType() {
+            return token.getTokenType();
         }
 
         @Override
@@ -155,7 +160,7 @@ public abstract class Expression implements Node {
 
         @Override
         public String toString() {
-            return Formatter.formatToString(this);
+            return StringFormatter.formatToString(this);
         }
 
         @Override
@@ -208,7 +213,7 @@ public abstract class Expression implements Node {
 
         @Override
         public String toString() {
-            return Formatter.formatToString(this);
+            return StringFormatter.formatToString(this);
         }
 
         @Override
@@ -225,16 +230,54 @@ public abstract class Expression implements Node {
         }
     }
 
+    public static class MapExpression extends Expression implements Mutability {
+
+        private final LinkedHashMap<String, Expression> entries;
+
+        public MapExpression(LinkedHashMap<String, Expression> entries) {
+            this.entries = entries;
+        }
+
+        public LinkedHashMap<String, Expression> getEntries() {
+            return entries;
+        }
+
+        @Override
+        public <T> T accept(ExprVisitor<T> visitor) {
+            return visitor.visitMapExpr(this);
+        }
+
+        @Override
+        public String toString() {
+            return StringFormatter.formatToString(this);
+        }
+
+        @Override
+        public boolean isMutable() {
+            return true;
+        }
+    }
+
     public static class ImportExpression extends Expression {
+
+        public enum ImportKind {
+            STDLIB, MODULE, NATIVE
+        }
 
         private final Expression module;
         private final String namespace;
-        private final boolean isModule;
+        private final ImportKind kind;
+        private final List<String> selectedFunctions;
 
-        public ImportExpression(Expression module, String namespace, boolean isModule) {
+        public ImportExpression(Expression module, String namespace, ImportKind kind) {
+            this(module, namespace, kind, null);
+        }
+
+        public ImportExpression(Expression module, String namespace, ImportKind kind, List<String> selectedFunctions) {
             this.module = module;
             this.namespace = namespace;
-            this.isModule = isModule;
+            this.kind = kind;
+            this.selectedFunctions = selectedFunctions;
         }
 
         @Override
@@ -255,8 +298,24 @@ public abstract class Expression implements Node {
             return namespace;
         }
 
+        public ImportKind getKind() {
+            return kind;
+        }
+
+        public List<String> getSelectedFunctions() {
+            return selectedFunctions;
+        }
+
+        public boolean isSelective() {
+            return selectedFunctions != null && !selectedFunctions.isEmpty();
+        }
+
         public boolean isExternalModule() {
-            return isModule;
+            return kind == ImportKind.MODULE;
+        }
+
+        public boolean isNativeJar() {
+            return kind == ImportKind.NATIVE;
         }
     }
 
@@ -417,14 +476,51 @@ public abstract class Expression implements Node {
         }
     }
 
+    public static class TernaryExpression extends Expression {
+
+        private final Expression condition;
+        private final Expression thenExpr;
+        private final Expression elseExpr;
+
+        public TernaryExpression(Expression condition, Expression thenExpr, Expression elseExpr) {
+            this.condition = condition;
+            this.thenExpr = thenExpr;
+            this.elseExpr = elseExpr;
+        }
+
+        public Expression getCondition() {
+            return condition;
+        }
+
+        public Expression getThenExpr() {
+            return thenExpr;
+        }
+
+        public Expression getElseExpr() {
+            return elseExpr;
+        }
+
+        @Override
+        public <T> T accept(ExprVisitor<T> visitor) {
+            return visitor.visitTernaryExpr(this);
+        }
+
+        @Override
+        public String toString() {
+            return condition + " ? " + thenExpr + " : " + elseExpr;
+        }
+    }
+
     public static class LambdaExpression extends Expression {
 
         private final List<DumbExpression> parameters;
         private final List<Node> body;
+        private final String variadicParam;
 
-        public LambdaExpression(List<DumbExpression> parameters, List<Node> body) {
+        public LambdaExpression(List<DumbExpression> parameters, List<Node> body, String variadicParam) {
             this.parameters = parameters;
             this.body = body;
+            this.variadicParam = variadicParam;
         }
 
         public List<DumbExpression> getParameters() {
@@ -435,8 +531,12 @@ public abstract class Expression implements Node {
             return body;
         }
 
+        public String getVariadicParam() {
+            return variadicParam;
+        }
+
         public int getArity() {
-            return parameters.size();
+            return variadicParam != null ? -1 : parameters.size();
         }
 
         @Override

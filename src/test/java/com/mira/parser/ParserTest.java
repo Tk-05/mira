@@ -14,20 +14,26 @@ import com.mira.parser.nodes.Node;
 import com.mira.parser.nodes.expression.Expression.AccessExpression;
 import com.mira.parser.nodes.expression.Expression.BinaryExpression;
 import com.mira.parser.nodes.expression.Expression.CallExpression;
-import com.mira.parser.nodes.expression.Expression.ComplexExpression;
 import com.mira.parser.nodes.expression.Expression.DumbExpression;
 import com.mira.parser.nodes.expression.Expression.ImportExpression;
+import com.mira.parser.nodes.expression.Expression.LambdaExpression;
 import com.mira.parser.nodes.expression.Expression.NamespaceCallExpression;
 import com.mira.parser.nodes.expression.Expression.ObjectExpression;
 import com.mira.parser.nodes.expression.Expression.UnaryExpression;
 import com.mira.parser.nodes.statement.Statement;
 import com.mira.parser.nodes.statement.Statement.Block;
 import com.mira.parser.nodes.statement.Statement.Break;
+import com.mira.parser.nodes.statement.Statement.Continue;
+import com.mira.parser.nodes.statement.Statement.EnumDecl;
 import com.mira.parser.nodes.statement.Statement.For;
 import com.mira.parser.nodes.statement.Statement.Foreach;
 import com.mira.parser.nodes.statement.Statement.ModuleDecl;
 import com.mira.parser.nodes.statement.Statement.Overwrite;
+import com.mira.parser.nodes.statement.Statement.Switch;
+import com.mira.parser.nodes.statement.Statement.Throw;
+import com.mira.parser.nodes.statement.Statement.TryCatch;
 import com.mira.parser.nodes.statement.Statement.VarDecl;
+import com.mira.parser.nodes.statement.Statement.While;
 
 public class ParserTest {
 
@@ -180,8 +186,8 @@ public class ParserTest {
     @Test
     void parseReturn() {
         String retStmt = """
-                ret();
-                """;
+                return;
+""";
         List<Node> ast = parser.parseTokens(tokenizer.tokenize(retStmt, false));
         assertEquals(1, ast.size());
         assertInstanceOf(Statement.Return.class, ast.getFirst());
@@ -194,6 +200,17 @@ public class ParserTest {
                 """;
         List<Node> ast = parser.parseTokens(tokenizer.tokenize(ifStmt, false));
         assertInstanceOf(Statement.If.class, ast.getFirst());
+    }
+
+    @Test
+    void parseDoWhile() {
+        String doWhileStmt = """
+                do {
+                } while(1);
+                """;
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize(doWhileStmt, false));
+        assertEquals(1, ast.size());
+        assertInstanceOf(While.class, ast.getFirst());
     }
 
     @Test
@@ -249,8 +266,8 @@ public class ParserTest {
     @Test
     void parseBreak() {
         String breakStmt = """
-                break();
-                """;
+                break;
+""";
         List<Node> ast = parser.parseTokens(tokenizer.tokenize(breakStmt, false));
         assertEquals(1, ast.size());
         assertInstanceOf(Break.class, ast.getFirst());
@@ -384,5 +401,158 @@ public class ParserTest {
         if (ast.getFirst() instanceof VarDecl varDecl) {
             assertTrue(varDecl.getInitializer() instanceof ObjectExpression);
         }
+    }
+
+    @Test
+    void parseContinue() {
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize("continue;", false));
+        assertEquals(1, ast.size());
+        assertInstanceOf(Continue.class, ast.getFirst());
+    }
+
+    @Test
+    void parseEnumDecl() {
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize("enum Color { RED, GREEN, BLUE }", false));
+        assertEquals(1, ast.size());
+        EnumDecl decl = assertInstanceOf(EnumDecl.class, ast.getFirst());
+        assertEquals("Color", decl.getIdentifier());
+        assertEquals(3, decl.getValues().size());
+    }
+
+    @Test
+    void parseEnumDeclWithExplicitValues() {
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize("enum Status { OK : 200, ERR : 500 }", false));
+        assertEquals(1, ast.size());
+        assertInstanceOf(EnumDecl.class, ast.getFirst());
+    }
+
+    @Test
+    void parseSwitch() {
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize("""
+                switch ($x) {
+                    case (1) { return true; }
+                    case (2) { return false; }
+                }
+                """, false));
+        assertEquals(1, ast.size());
+        Switch sw = assertInstanceOf(Switch.class, ast.getFirst());
+        assertEquals(2, sw.getCases().size());
+    }
+
+    @Test
+    void parseSwitchWithDefault() {
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize("""
+                switch ($x) {
+                    case (1) { return true; }
+                    default { return false; }
+                }
+                """, false));
+        assertEquals(1, ast.size());
+        Switch sw = assertInstanceOf(Switch.class, ast.getFirst());
+        assertNotNull(sw.getDefaultBody());
+    }
+
+    @Test
+    void parseThrow() {
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize("throw \"error\";", false));
+        assertEquals(1, ast.size());
+        assertInstanceOf(Throw.class, ast.getFirst());
+    }
+
+    @Test
+    void parseTryCatch() {
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize("""
+                try {
+                    throw "err";
+                } catch(e) {
+                    print($e);
+                }
+                """, false));
+        assertEquals(1, ast.size());
+        TryCatch tc = assertInstanceOf(TryCatch.class, ast.getFirst());
+        assertNotNull(tc.getTryBody());
+        assertNotNull(tc.getCatchBody());
+        assertEquals("e", tc.getCatchParam());
+    }
+
+    @Test
+    void parseLambdaExpression() {
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize("var f : fn(x) { return $x; };", false));
+        assertEquals(1, ast.size());
+        VarDecl decl = assertInstanceOf(VarDecl.class, ast.getFirst());
+        LambdaExpression lambda = assertInstanceOf(LambdaExpression.class, decl.getInitializer());
+        assertEquals(1, lambda.getArity());
+    }
+
+    @Test
+    void parseLambdaExpressionNoParams() {
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize("var f : fn() { return 42; };", false));
+        assertEquals(1, ast.size());
+        VarDecl decl = assertInstanceOf(VarDecl.class, ast.getFirst());
+        LambdaExpression lambda = assertInstanceOf(LambdaExpression.class, decl.getInitializer());
+        assertEquals(0, lambda.getArity());
+    }
+
+    @Test
+    void parseLambdaExpressionMultipleParams() {
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize("var f : fn(a, b, c) { return $a; };", false));
+        assertEquals(1, ast.size());
+        VarDecl decl = assertInstanceOf(VarDecl.class, ast.getFirst());
+        LambdaExpression lambda = assertInstanceOf(LambdaExpression.class, decl.getInitializer());
+        assertEquals(3, lambda.getArity());
+    }
+
+    @Test
+    void parseLibImportWithAlias() {
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize("import string as str;", false));
+        assertEquals(1, ast.size());
+        ImportExpression expr = assertInstanceOf(ImportExpression.class, ast.getFirst());
+        assertEquals("string", expr.getModule());
+        assertEquals("str", expr.getNamespace());
+        assertTrue(!expr.isExternalModule());
+    }
+
+    @Test
+    void parseLibImportWithoutAlias() {
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize("import string;", false));
+        assertEquals(1, ast.size());
+        ImportExpression expr = assertInstanceOf(ImportExpression.class, ast.getFirst());
+        assertEquals("string", expr.getModule());
+        assertNull(expr.getNamespace());
+        assertTrue(!expr.isExternalModule());
+    }
+
+    @Test
+    void parseModuleImportWithAlias() {
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize("import module \"./test.mira\" as myMod;", false));
+        assertEquals(1, ast.size());
+        ImportExpression expr = assertInstanceOf(ImportExpression.class, ast.getFirst());
+        assertEquals("myMod", expr.getNamespace());
+        assertTrue(expr.isExternalModule());
+    }
+
+    @Test
+    void parseModuleImportWithoutAlias() {
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize("import module \"./test.mira\";", false));
+        assertEquals(1, ast.size());
+        ImportExpression expr = assertInstanceOf(ImportExpression.class, ast.getFirst());
+        assertNull(expr.getNamespace());
+        assertTrue(expr.isExternalModule());
+    }
+
+    @Test
+    void parseNamespaceCallExpressionAlias() {
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize("str.trim();", false));
+        assertEquals(1, ast.size());
+        NamespaceCallExpression expr = assertInstanceOf(NamespaceCallExpression.class, ast.getFirst());
+        assertEquals("str", expr.getAlias());
+        assertEquals("trim", expr.getFunctionName());
+    }
+
+    @Test
+    void parseMap() {
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize("var vals : {\"69\" : 420};", false));
+        assertEquals(1, ast.size());
+        assertInstanceOf(VarDecl.class, ast.get(0));
     }
 }

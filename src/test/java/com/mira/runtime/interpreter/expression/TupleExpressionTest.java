@@ -4,7 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import org.junit.jupiter.api.Test;
 
-import com.mira.error.runtime.RuntimeError.ReferenceIsImmutableError;
+import com.mira.error.runtime.RuntimeError.ImmutableCollectionError;
 import com.mira.runtime.interpreter.InterpreterTestBase;
 
 public class TupleExpressionTest extends InterpreterTestBase {
@@ -41,7 +41,7 @@ public class TupleExpressionTest extends InterpreterTestBase {
 
     @Test
     void tupleIsImmutable() {
-        assertThrows(ReferenceIsImmutableError.class, () -> run("""
+        assertThrows(ImmutableCollectionError.class, () -> run("""
                 var tuple : [1,2,3];
                 $tuple[0] : 99;
                 """));
@@ -49,7 +49,7 @@ public class TupleExpressionTest extends InterpreterTestBase {
 
     @Test
     void tupleInForeach() {
-        assertEquals("3", run("""
+        assertEquals(3.0, run("""
                 var list : [1,2,3];
                 var last;
                 foreach(var element in $list) {

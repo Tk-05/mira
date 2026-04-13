@@ -2,13 +2,15 @@ package com.mira.console;
 
 import java.util.Scanner;
 
+import com.mira.Flags;
+import com.mira.error.DiagnosticFormatter;
 import com.mira.lexer.Tokenizer;
 import com.mira.parser.Parser;
 import com.mira.runtime.interpreter.Interpreter;
+import com.mira.warning.WarningCollector;
 
 public class Console {
 
-    private static final String VERSION = "0.1.0";
     private static final String PROMPT = ">>> ";
     private static final String PROMPT_CONTINUE = "... ";
 
@@ -43,15 +45,20 @@ public class Console {
                     normalized += ';';
                 }
 
+                Flags.fileName = "<console>";
+                Flags.sourceLines = normalized.split("\n", -1);
+
                 Object result = interpreter.runWithoutLoadingNewContext(
                         parser.parseTokens(tokenizer.tokenize(normalized, true)));
+
+                WarningCollector.flush();
 
                 if (result != null) {
                     System.out.println(result);
                 }
             } catch (Exception e) {
-                String msg = e.getMessage();
-                System.err.println(msg != null ? msg : e.getClass().getSimpleName());
+                WarningCollector.flush();
+                System.err.println(DiagnosticFormatter.format(e));
             }
         }
     }
@@ -105,10 +112,14 @@ public class Console {
                     inString = true;
                     stringChar = c;
                 }
-                case '{' -> braces++;
-                case '}' -> braces--;
-                case '(' -> parens++;
-                case ')' -> parens--;
+                case '{' ->
+                    braces++;
+                case '}' ->
+                    braces--;
+                case '(' ->
+                    parens++;
+                case ')' ->
+                    parens--;
             }
         }
 
@@ -116,7 +127,7 @@ public class Console {
     }
 
     private static void printBanner() {
-        System.out.println("Mira " + VERSION + " interactive console");
+        System.out.println("REPL");
         System.out.println("Type 'exit' to quit.");
         System.out.println();
     }

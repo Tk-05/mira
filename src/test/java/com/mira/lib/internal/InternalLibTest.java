@@ -33,7 +33,7 @@ public class InternalLibTest {
     @Test
     void testEval() {
         if (environment.get("eval") instanceof NativeFunction nativeFunction) {
-            Double eval = (Double) nativeFunction.call(interpreter, List.of("1+1"));
+            double eval = ((Number) nativeFunction.call(interpreter, List.of("1+1"))).doubleValue();
             assertEquals(2.0, eval);
         }
     }
@@ -42,9 +42,9 @@ public class InternalLibTest {
     void testExec() {
         if (environment.get("exec") instanceof NativeFunction nativeFunction) {
             try {
-                nativeFunction.call(interpreter, List.of("ret(2.0);"));
+                nativeFunction.call(interpreter, List.of("return 2.0;"));
             } catch (ReturnSignal returnSignal) {
-                assertEquals("2.0", returnSignal.getValue());
+                assertEquals(2.0, ((Number) returnSignal.getValue()).doubleValue());
             }
         }
     }

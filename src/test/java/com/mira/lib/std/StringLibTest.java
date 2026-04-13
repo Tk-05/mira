@@ -24,7 +24,7 @@ public class StringLibTest {
     @Test
     void testCharAt() {
         if (environment.get("charAt") instanceof NativeFunction nativeFunction) {
-            char ch = (char) nativeFunction.call(interpreter, List.of(0, "ABC"));
+            char ch = (char) nativeFunction.call(interpreter, List.of("ABC", 0));
             assertEquals('A', ch);
         }
     }
@@ -32,7 +32,7 @@ public class StringLibTest {
     @Test
     void testIndexOf() {
         if (environment.get("indexOf") instanceof NativeFunction nativeFunction) {
-            int index = (int) nativeFunction.call(interpreter, List.of('A', "ABC"));
+            int index = (int) nativeFunction.call(interpreter, List.of("ABC", 'A'));
             assertEquals(0, index);
         }
     }
@@ -48,25 +48,33 @@ public class StringLibTest {
     @Test
     void testSplit() {
         if (environment.get("split") instanceof NativeFunction nativeFunction) {
-            String[] split = (String[]) nativeFunction.call(interpreter, List.of(" ", "ABC ABC"));
+            String[] split = (String[]) nativeFunction.call(interpreter, List.of("ABC ABC", " "));
             assertEquals("ABC", split[0]);
             assertEquals("ABC", split[1]);
         }
     }
 
     @Test
-    void testSubstring() {
-        if (environment.get("substring") instanceof NativeFunction nativeFunction) {
-            String substring = (String) nativeFunction.call(interpreter, List.of(0, 1, "ABC"));
-            assertEquals("A", substring);
+    void testSubstr() {
+        if (environment.get("substr") instanceof NativeFunction nativeFunction) {
+            String result = (String) nativeFunction.call(interpreter, List.of("ABC", 0, 1));
+            assertEquals("A", result);
         }
     }
 
     @Test
-    void testStrcomp() {
-        if (environment.get("strcompare") instanceof NativeFunction nativeFunction) {
-            boolean strcompare = (boolean) nativeFunction.call(interpreter, List.of("ABC", "ABC"));
-            assertEquals(true, strcompare);
+    void testStrEqual() {
+        if (environment.get("strEqual") instanceof NativeFunction nativeFunction) {
+            boolean result = (boolean) nativeFunction.call(interpreter, List.of("ABC", "ABC"));
+            assertEquals(true, result);
+        }
+    }
+
+    @Test
+    void testReplace() {
+        if (environment.get("replace") instanceof NativeFunction nativeFunction) {
+            String result = (String) nativeFunction.call(interpreter, List.of("hello", 'l', 'r'));
+            assertEquals("herro", result);
         }
     }
 }

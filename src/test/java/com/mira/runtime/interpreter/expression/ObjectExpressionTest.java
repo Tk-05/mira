@@ -10,7 +10,7 @@ public class ObjectExpressionTest extends InterpreterTestBase {
 
     @Test
     void objectWithSingleField() {
-        assertEquals("0", run("""
+        assertEquals(0.0, run("""
                 var obj : {
                     var test : 0;
                 };

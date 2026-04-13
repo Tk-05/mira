@@ -8,7 +8,7 @@ public class Vocabulary {
 
     private static final Set<String> keywords = Set.of(
             "var",
-            "ret",
+            "return",
             "fn",
             "if",
             "else",
@@ -29,16 +29,25 @@ public class Vocabulary {
             "switch",
             "case",
             "default",
-            "enum"
+            "enum",
+            "try",
+            "catch",
+            "throw",
+            "native",
+            "do"
     );
 
     public static final Set<String> operations = Set.of(
-            "+", "-", "*", "/",
+            "+", "-", "*", "/", "%",
             "++", "--",
-            "+=", "-=", "*=", "/=",
+            "+=", "-=", "*=", "/=", "%=",
+            "&=", "|=", "^=",
             "==", "!=", "<", ">", "<=", ">=",
             "&&", "||",
-            "$", ":", "!"
+            "&", "|", "^", "~",
+            "<<", ">>",
+            "|>",
+            "$", ":", "!", "?"
     );
 
     public static final Set<String> delimiters = Set.of(
@@ -51,7 +60,8 @@ public class Vocabulary {
             "[",
             "]",
             ".",
-            ".."
+            "..",
+            "..."
     );
 
     public static boolean stringIsKeyword(String s) {

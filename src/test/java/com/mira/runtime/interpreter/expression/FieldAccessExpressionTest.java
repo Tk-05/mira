@@ -10,7 +10,7 @@ public class FieldAccessExpressionTest extends InterpreterTestBase {
 
     @Test
     void accessInitializedField() {
-        assertEquals("0", run("""
+        assertEquals(0.0, run("""
                 var obj : { var x : 0; };
                 $obj.x;
                 """));
@@ -42,7 +42,7 @@ public class FieldAccessExpressionTest extends InterpreterTestBase {
 
     @Test
     void multipleFieldsOnSameObject() {
-        assertEquals("0", run("""
+        assertEquals(0.0, run("""
                 var obj : {
                     var a : 0;
                     var b : 1;

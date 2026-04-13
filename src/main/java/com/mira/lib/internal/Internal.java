@@ -1,8 +1,11 @@
 package com.mira.lib.internal;
 
 import java.util.List;
+import java.util.Scanner;
 
+import com.mira.error.runtime.RuntimeError.ArgMismatchError;
 import com.mira.error.runtime.RuntimeError.AssertionFailedError;
+import com.mira.error.runtime.RuntimeError.InvalidArgumentError;
 import com.mira.lexer.Tokenizer;
 import com.mira.lib.Lib;
 import com.mira.parser.Parser;
@@ -17,6 +20,8 @@ import com.mira.runtime.interpreter.NullValue;
 
 public class Internal implements Lib {
 
+    private static final Scanner stdin = new Scanner(System.in);
+
     @Override
     public void loadLib(Environment environment) {
         environment.define("print",
@@ -24,6 +29,12 @@ public class Internal implements Lib {
                     Object value = args.get(0);
                     System.out.print(value);
                     return null;
+                })
+        );
+
+        environment.define("scan",
+                new NativeFunction(0, args -> {
+                    return stdin.nextLine();
                 })
         );
 
@@ -56,8 +67,12 @@ public class Internal implements Lib {
                         case ListExpression list -> {
                             return list.getLength();
                         }
+                        case NullValue value -> {
+                            throw new InvalidArgumentError("length", "argument must not be null");
+                        }
                         default -> {
-                            throw new RuntimeException("Option has not been implemented yet in length function!");
+                            throw new InvalidArgumentError("length",
+                                    "unsupported type '" + arg.getClass().getSimpleName() + "' — expected a string, list, or tuple");
                         }
                     }
                 })
@@ -71,7 +86,7 @@ public class Internal implements Lib {
 
         environment.define("assert", new NativeFunction(-1, args -> {
             if (args.isEmpty() || args.size() > 2) {
-                throw new AssertionFailedError("assert requires 1 or 2 arguments");
+                throw new ArgMismatchError("assert", 1, args.size());
             }
             Object condition = args.get(0);
             boolean result = switch (condition) {
@@ -79,6 +94,8 @@ public class Internal implements Lib {
                     b;
                 case NullValue n ->
                     false;
+                case Number n ->
+                    n.doubleValue() != 0;
                 case String s -> {
                     if (s.equalsIgnoreCase("true")) {
                         yield true;

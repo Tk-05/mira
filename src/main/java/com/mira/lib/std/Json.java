@@ -140,5 +140,59 @@ public class Json implements Lib {
             }
             return sb.toString();
         }));
+
+        environment.define("jsonNested", new NativeFunction(3, args -> {
+            String json = String.valueOf(args.get(0));
+            String parentKey = String.valueOf(args.get(1));
+            String arrayKey = String.valueOf(args.get(2));
+            try {
+                Matcher objectMatcher = Pattern
+                        .compile("\"" + Pattern.quote(parentKey) + "\"\\s*:\\s*\\{([^}]*)\\}")
+                        .matcher(json);
+                if (!objectMatcher.find()) {
+                    throw new RuntimeException("jsonGetArray: parent key '" + parentKey + "' not found");
+                }
+                String nested = "{" + objectMatcher.group(1) + "}";
+
+                Matcher arrayMatcher = Pattern
+                        .compile("\"" + Pattern.quote(arrayKey) + "\"\\s*:\\s*\\[([^\\]]*)]")
+                        .matcher(nested);
+                List<Expression> results = new ArrayList<>();
+                if (arrayMatcher.find()) {
+                    String arrayContent = arrayMatcher.group(1);
+                    Matcher itemMatcher = Pattern
+                            .compile("\"([^\"]*)\"|([\\d.eE+\\-]+)|(true|false|null)")
+                            .matcher(arrayContent);
+                    while (itemMatcher.find()) {
+                        for (int i = 1; i <= itemMatcher.groupCount(); i++) {
+                            if (itemMatcher.group(i) != null) {
+                                results.add(wrap(itemMatcher.group(i)));
+                                break;
+                            }
+                        }
+                    }
+                }
+                return new ListExpression(results);
+            } catch (RuntimeException e) {
+                throw new RuntimeException("jsonGetArray failed: " + e.getMessage());
+            }
+        }));
+
+        environment.define("jsonIndexOf", new NativeFunction(2, args -> {
+            if (!(args.get(0) instanceof ListExpression list)) {
+                throw new RuntimeException("jsonIndexOf: first argument must be a list");
+            }
+            String target = String.valueOf(args.get(1));
+            List<Expression> members = list.getMembers();
+            for (int i = 0; i < members.size(); i++) {
+                String val = members.get(i) instanceof DumbExpression d
+                        ? String.valueOf(d.getValue())
+                        : String.valueOf(members.get(i));
+                if (val.equals(target)) {
+                    return (double) i;
+                }
+            }
+            return (double) -1;
+        }));
     }
 }

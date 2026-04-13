@@ -11,7 +11,7 @@ public class ForeachTest extends InterpreterTestBase {
 
     @Test
     void foreachOnList() {
-        assertEquals("3", run("""
+        assertEquals(3.0, run("""
                 var list : {1,2,3};
                 var lastResult;
                 foreach(var element in $list) {
@@ -23,7 +23,7 @@ public class ForeachTest extends InterpreterTestBase {
 
     @Test
     void foreachOnTuple() {
-        assertEquals("3", run("""
+        assertEquals(3.0, run("""
                 var list : [1,2,3];
                 var lastResult;
                 foreach(var element in $list) {
@@ -51,7 +51,7 @@ public class ForeachTest extends InterpreterTestBase {
             run("""
                     var list : {1,2,3};
                     foreach(var element in $list) {
-                        if($element == 1) { break(); }
+                        if($element == 1) { break; }
                     }
                     """);
         } catch (BreakSignal ignored) {
@@ -64,7 +64,7 @@ public class ForeachTest extends InterpreterTestBase {
             run("""
                     var list : {1,2,3};
                     foreach(var element in $list) {
-                        if($element == 1) { ret(); }
+                        if($element == 1) { return; }
                     }
                     """);
         } catch (ReturnSignal ignored) {
@@ -79,7 +79,7 @@ public class ForeachTest extends InterpreterTestBase {
                     var list2 : {4,5,6};
                     foreach(var e1 in $list1) {
                         foreach(var e2 in $list2) {
-                            if($e1 == 3 && $e2 == 6) { break(); }
+                            if($e1 == 3 && $e2 == 6) { break; }
                         }
                     }
                     """);
@@ -93,7 +93,7 @@ public class ForeachTest extends InterpreterTestBase {
             run("""
                     var list1 : {{1,2,3}};
                     foreach(var element in $list1[0]) {
-                        if($element == 3) { break(); }
+                        if($element == 3) { break; }
                     }
                     """);
         } catch (ReturnSignal ignored) {
@@ -105,7 +105,7 @@ public class ForeachTest extends InterpreterTestBase {
         try {
             run("""
                     foreach(var element in <0..4>) {
-                        if($element == 3) { break(); }
+                        if($element == 3) { break; }
                     }
                     """);
         } catch (ReturnSignal ignored) {

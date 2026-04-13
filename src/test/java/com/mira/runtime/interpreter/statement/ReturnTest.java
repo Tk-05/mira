@@ -15,9 +15,9 @@ public class ReturnTest extends InterpreterTestBase {
     @Test
     void returnWithNumericValue() {
         try {
-            run("ret(eval(42));");
+            run("return eval(42);");
         } catch (ReturnSignal r) {
-            assertEquals(42.0, r.getValue());
+            assertEquals(42.0, normNum(r.getValue()));
         }
     }
 
@@ -26,16 +26,16 @@ public class ReturnTest extends InterpreterTestBase {
         try {
             Tokenizer tokenizer = new Tokenizer();
             Parser parser = new Parser();
-            interpreter.run(parser.parseTokens(tokenizer.tokenize("ret(eval(0));", true)), false);
+            interpreter.run(parser.parseTokens(tokenizer.tokenize("return eval(0);", true)), false);
         } catch (ReturnSignal r) {
-            assertEquals(0.0, r.getValue());
+            assertEquals(0.0, normNum(r.getValue()));
         }
     }
 
     @Test
     void returnWithNullValue() {
         try {
-            run("ret();");
+            run("return;");
         } catch (ReturnSignal r) {
             assertEquals("0.0", r.getValue());
         }
@@ -44,21 +44,21 @@ public class ReturnTest extends InterpreterTestBase {
     @Test
     void returnFromVariable() {
         try {
-            run("var x : 24; var y : 18; var z : eval($x + $y); ret($z);");
+            run("var x : 24; var y : 18; var z : eval($x + $y); return $z;");
         } catch (ReturnSignal r) {
-            assertEquals(42.0, r.getValue());
+            assertEquals(42.0, normNum(r.getValue()));
         }
     }
 
     @Test
     void returnInsideFunctionDoesNotPropagate() {
-        assertEquals(42.0, run("fn answer() { ret(42); } eval(answer());"));
+        assertEquals(42.0, run("fn answer() { return 42; } eval(answer());"));
     }
 
     @Test
     void returnInsideFunctionWithString() {
         try {
-            run("fn msg() { ret(\"done\"); } var r : \"ret(msg());\"; exec($r);");
+            run("fn msg() { return \"done\"; } var r : \"return msg();\"; exec($r);");
         } catch (ReturnSignal r) {
             assertEquals("done", r.getValue());
         }
@@ -67,7 +67,7 @@ public class ReturnTest extends InterpreterTestBase {
     @Test
     void returnUninitializedVariable() {
         try {
-            run("var x; ret($x);");
+            run("var x; return $x;");
         } catch (ReturnSignal r) {
             assertInstanceOf(NullValue.class, r.getValue());
         }

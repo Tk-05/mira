@@ -3,14 +3,13 @@ package com.mira.runtime.interpreter.statement;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import org.junit.jupiter.api.Test;
 
-import com.mira.runtime.interpreter.Interpreter;
 import com.mira.runtime.interpreter.InterpreterTestBase;
 
 public class OverwriteTest extends InterpreterTestBase {
 
     @Test
     void overwriteExistingVariable() {
-        Interpreter.getGlobalEnvironment().define("test", "Test");
+        interpreter.getGlobalEnvironment().define("test", "Test");
         assertEquals("HelloWorld", runContinued("""
                 overwrite(
                 "
@@ -43,7 +42,7 @@ public class OverwriteTest extends InterpreterTestBase {
         assertEquals(42.0, runContinued("""
                 overwrite(
                 "
-                    fn answer() { ret(42); }
+                    fn answer() { return 42; }
                 "
                 );
 

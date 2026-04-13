@@ -23,12 +23,21 @@ public abstract class InterpreterTestBase {
     protected Object run(String source) {
         Tokenizer tokenizer = new Tokenizer();
         Parser parser = new Parser();
-        return interpreter.run(parser.parseTokens(tokenizer.tokenize(source, false)), false);
+        return normalize(interpreter.run(parser.parseTokens(tokenizer.tokenize(source, false)), false));
     }
 
     protected Object runContinued(String source) {
         Tokenizer tokenizer = new Tokenizer();
         Parser parser = new Parser();
-        return interpreter.runWithoutLoadingNewContext(parser.parseTokens(tokenizer.tokenize(source, false)));
+        return normalize(interpreter.runWithoutLoadingNewContext(parser.parseTokens(tokenizer.tokenize(source, false))));
+    }
+
+    private static Object normalize(Object value) {
+        if (value instanceof Long l) return l.doubleValue();
+        return value;
+    }
+
+    protected static double normNum(Object value) {
+        return ((Number) value).doubleValue();
     }
 }

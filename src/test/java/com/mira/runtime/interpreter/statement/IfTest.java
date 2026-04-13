@@ -15,7 +15,7 @@ public class IfTest extends InterpreterTestBase {
     @Test
     void trueBranchExecutes() {
         try {
-            run("var x : 5; if ($x > 3) { ret(true); } else { ret(false); }");
+            run("var x : 5; if ($x > 3) { return true; } else { return false; }");
         } catch (ReturnSignal r) {
             assertEquals(Boolean.TRUE, r.getValue());
         }
@@ -24,7 +24,7 @@ public class IfTest extends InterpreterTestBase {
     @Test
     void falseBranchExecutes() {
         try {
-            run("var x : 1; if ($x > 3) { ret(true); } else { ret(false); }");
+            run("var x : 1; if ($x > 3) { return true; } else { return false; }");
         } catch (ReturnSignal r) {
             assertEquals(Boolean.FALSE, r.getValue());
         }
@@ -32,7 +32,7 @@ public class IfTest extends InterpreterTestBase {
 
     @Test
     void ifWithoutElse() {
-        assertNull(run("var x : 1; if ($x > 3) { ret(true); }"));
+        assertNull(run("var x : 1; if ($x > 3) { return true; }"));
     }
 
     @Test
@@ -43,9 +43,9 @@ public class IfTest extends InterpreterTestBase {
                     var y : 10;
                     if ($x > 3) {
                         if ($y > 5) {
-                            ret(true);
+                            return true;
                         } else {
-                            ret(false);
+                            return false;
                         }
                     }
                     """);
@@ -61,9 +61,9 @@ public class IfTest extends InterpreterTestBase {
                     var x : 5;
                     var y : 10;
                     if ($x > 3 && $y > 5) {
-                        ret(true);
+                        return true;
                     } else {
-                        ret(false);
+                        return false;
                     }
                     """);
         } catch (ReturnSignal r) {
@@ -78,9 +78,9 @@ public class IfTest extends InterpreterTestBase {
                     var x : 1;
                     var y : 10;
                     if ($x > 3 || $y > 5) {
-                        ret(true);
+                        return true;
                     } else {
-                        ret(false);
+                        return false;
                     }
                     """);
         } catch (ReturnSignal r) {
@@ -91,7 +91,7 @@ public class IfTest extends InterpreterTestBase {
     @Test
     void ifWithTrueLiteral() {
         try {
-            run("if(true) { ret(true); } else { ret(false); }");
+            run("if(true) { return true; } else { return false; }");
         } catch (ReturnSignal r) {
             assertEquals(Boolean.TRUE, r.getValue());
         }
@@ -100,7 +100,7 @@ public class IfTest extends InterpreterTestBase {
     @Test
     void ifWithFalseLiteral() {
         try {
-            run("if(false) { ret(true); } else { ret(false); }");
+            run("if(false) { return true; } else { return false; }");
         } catch (ReturnSignal r) {
             assertEquals(Boolean.FALSE, r.getValue());
         }
@@ -109,7 +109,7 @@ public class IfTest extends InterpreterTestBase {
     @Test
     void ifWithBooleanVariable() {
         try {
-            run("var x : true; if($x) { ret(true); } else { ret(false); }");
+            run("var x : true; if($x) { return true; } else { return false; }");
         } catch (ReturnSignal r) {
             assertEquals(Boolean.TRUE, r.getValue());
         }
@@ -124,8 +124,8 @@ public class IfTest extends InterpreterTestBase {
             interpreter.run(parser.parseTokens(tokenizer.tokenize("""
                     import string;
                     var test : "\n";
-                    if(charAt(0, $test) == "\n") {
-                        ret();
+                    if(charAt($test, 0) == "\n") {
+                        return;
                     }
                     """, false)), false);
         } catch (ReturnSignal r) {
@@ -135,7 +135,7 @@ public class IfTest extends InterpreterTestBase {
     @Test
     void elseIfTaken() {
         try {
-            run("var x : 2; if ($x > 3) { ret(false); } else if ($x > 1) { ret(true); } else { ret(false); }");
+            run("var x : 2; if ($x > 3) { return false; } else if ($x > 1) { return true; } else { return false; }");
         } catch (ReturnSignal r) {
             assertEquals(Boolean.TRUE, r.getValue());
         }
@@ -144,7 +144,7 @@ public class IfTest extends InterpreterTestBase {
     @Test
     void elseIfSkipped() {
         try {
-            run("var x : 0; if ($x > 3) { ret(false); } else if ($x > 1) { ret(false); } else { ret(true); }");
+            run("var x : 0; if ($x > 3) { return false; } else if ($x > 1) { return false; } else { return true; }");
         } catch (ReturnSignal r) {
             assertEquals(Boolean.TRUE, r.getValue());
         }
@@ -156,17 +156,17 @@ public class IfTest extends InterpreterTestBase {
             run("""
                     var x : 5;
                     if ($x == 1) {
-                        ret(1);
+                        return 1;
                     } else if ($x == 2) {
-                        ret(2);
+                        return 2;
                     } else if ($x == 5) {
-                        ret(5);
+                        return 5;
                     } else {
-                        ret(0);
+                        return 0;
                     }
                     """);
         } catch (ReturnSignal r) {
-            assertEquals("5", r.getValue());
+            assertEquals(5.0, normNum(r.getValue()));
         }
     }
 
@@ -176,10 +176,10 @@ public class IfTest extends InterpreterTestBase {
             Tokenizer tokenizer = new Tokenizer();
             Parser parser = new Parser();
             interpreter.run(parser.parseTokens(tokenizer.tokenize("""
-                    import string;
+                    import string as s;
                     var test : "}";
-                    if(charAt(0, $test) == "}") {
-                        ret();
+                    if(s.charAt($test, 0) == "}") {
+                        return;
                     }
                     """, false)), false);
         } catch (ReturnSignal r) {

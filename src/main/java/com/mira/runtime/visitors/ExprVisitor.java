@@ -10,8 +10,10 @@ import com.mira.parser.nodes.expression.Expression.ListExpression;
 import com.mira.parser.nodes.expression.Expression.NamespaceCallExpression;
 import com.mira.parser.nodes.expression.Expression.ObjectExpression;
 import com.mira.parser.nodes.expression.Expression.RangeExpression;
+import com.mira.parser.nodes.expression.Expression.TernaryExpression;
 import com.mira.parser.nodes.expression.Expression.TupleExpression;
 import com.mira.parser.nodes.expression.Expression.BinaryExpression;
+import com.mira.parser.nodes.expression.Expression.MapExpression;
 import com.mira.parser.nodes.expression.Expression.UnaryExpression;
 
 public interface ExprVisitor<T> {
@@ -41,4 +43,8 @@ public interface ExprVisitor<T> {
     public <T> T visitFieldAccessExpression(FieldAccessExpression expression);
 
     public <T> T visitLambdaExpr(LambdaExpression expression);
+
+    public <T> T visitMapExpr(MapExpression expression);
+
+    public <T> T visitTernaryExpr(TernaryExpression expression);
 }

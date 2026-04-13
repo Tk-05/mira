@@ -1,6 +1,7 @@
 package com.mira.runtime.interpreter;
 
 import java.util.List;
+import java.util.regex.Pattern;
 
 import com.mira.error.parser.ParserError.LexemeMismatchError;
 import com.mira.error.parser.ParserError.UnexpectedToken;
@@ -10,24 +11,28 @@ import com.mira.lexer.token.TokenType;
 
 public class Evaluator {
 
-    private static List<Token> tokens;
-    private static int current;
+    private static final Pattern NUMBER_PATTERN = Pattern.compile("-?\\d+(\\.\\d+)?");
+
+    private List<Token> tokens;
+    private int current;
 
     public static Object evaluate(String expression, boolean ignoreSequences) {
         Tokenizer tokenizer = new Tokenizer();
-        tokens = tokenizer.tokenize(expression, ignoreSequences);
-        current = 0;
+        Evaluator evaluator = new Evaluator();
+        evaluator.tokens = tokenizer.tokenize(expression, ignoreSequences);
+        evaluator.current = 0;
 
-        Object result = or();
+        Object result = evaluator.or();
 
-        if (!isAtEnd()) {
-            throw new UnexpectedToken(peek(), peek().getLexeme());
+        if (!evaluator.isAtEnd()) {
+            Token unexpected = evaluator.peek();
+            throw new UnexpectedToken(unexpected, unexpected.getLexeme());
         }
 
         return result;
     }
 
-    private static Object or() {
+    private Object or() {
         Object left = and();
 
         while (match("||")) {
@@ -38,18 +43,51 @@ public class Evaluator {
         return left;
     }
 
-    private static Object and() {
-        Object left = equality();
+    private Object and() {
+        Object left = bitwiseOr();
 
         while (match("&&")) {
-            Object right = equality();
+            Object right = bitwiseOr();
             left = toBoolean(left) && toBoolean(right);
         }
 
         return left;
     }
 
-    private static Object equality() {
+    private Object bitwiseOr() {
+        Object left = bitwiseXor();
+
+        while (match("|")) {
+            Object right = bitwiseXor();
+            left = (double) ((long) toNumber(left) | (long) toNumber(right));
+        }
+
+        return left;
+    }
+
+    private Object bitwiseXor() {
+        Object left = bitwiseAnd();
+
+        while (match("^")) {
+            Object right = bitwiseAnd();
+            left = (double) ((long) toNumber(left) ^ (long) toNumber(right));
+        }
+
+        return left;
+    }
+
+    private Object bitwiseAnd() {
+        Object left = equality();
+
+        while (match("&")) {
+            Object right = equality();
+            left = (double) ((long) toNumber(left) & (long) toNumber(right));
+        }
+
+        return left;
+    }
+
+    private Object equality() {
         Object left = comparison();
 
         while (match("==", "!=")) {
@@ -66,13 +104,13 @@ public class Evaluator {
         return left;
     }
 
-    private static Object comparison() {
-        Object left = term();
+    private Object comparison() {
+        Object left = shift();
 
         while (match(">", "<", ">=", "<=")) {
 
             String op = previous().getLexeme();
-            Object right = term();
+            Object right = shift();
 
             double l = toNumber(left);
             double r = toNumber(right);
@@ -94,61 +132,78 @@ public class Evaluator {
         return left;
     }
 
-    private static Object term() {
-        Object left = factor();
+    private Object shift() {
+        Object left = term();
 
-        while (match("+", "-")) {
-
+        while (match("<<", ">>")) {
             String op = previous().getLexeme();
-            Object right = factor();
+            Object right = term();
 
-            double l = toNumber(left);
-            double r = toNumber(right);
+            long l = (long) toNumber(left);
+            long r = (long) toNumber(right);
 
-            if (op.equals("+")) {
-                left = l + r;
-            } else {
-                left = l - r;
-            }
+            left = (double) (op.equals("<<") ? l << r : l >> r);
         }
 
         return left;
     }
 
-    private static Object factor() {
+    private Object term() {
+        Object left = factor();
+
+        while (match("+", "-")) {
+            String op = previous().getLexeme();
+            Object right = factor();
+            left = op.equals("+") ? numericAdd(left, right) : numericSub(left, right);
+        }
+
+        return left;
+    }
+
+    private Object factor() {
         Object left = unary();
 
-        while (match("*", "/")) {
+        while (match("*", "/", "%")) {
 
             String op = previous().getLexeme();
             Object right = unary();
 
-            double l = toNumber(left);
-            double r = toNumber(right);
-
-            if (op.equals("*")) {
-                left = l * r;
-            } else {
-                left = l / r;
-            }
+            left = switch (op) {
+                case "*" ->
+                    numericMul(left, right);
+                case "/" ->
+                    toNumber(left) / toNumber(right);
+                case "%" -> {
+                    if (left instanceof Long la && right instanceof Long lb) {
+                        yield la % lb;
+                    }
+                    yield toNumber(left) % toNumber(right);
+                }
+                default ->
+                    throw new AssertionError();
+            };
         }
 
         return left;
     }
 
-    private static Object unary() {
+    private Object unary() {
         if (match("!")) {
             return !toBoolean(unary());
         }
 
         if (match("-")) {
-            return -toNumber(unary());
+            return numericNeg(unary());
+        }
+
+        if (match("~")) {
+            return (double) (~(long) toNumber(unary()));
         }
 
         return primary();
     }
 
-    private static Object primary() {
+    private Object primary() {
         if (match("(")) {
             Object value = or();
 
@@ -165,7 +220,7 @@ public class Evaluator {
             String value = token.getLexeme();
 
             if (isNumber(value)) {
-                return Double.valueOf(value);
+                return parseNumber(value);
             }
 
             return value;
@@ -174,7 +229,7 @@ public class Evaluator {
         throw new UnexpectedToken(token, token.getLexeme());
     }
 
-    private static boolean match(String... ops) {
+    private boolean match(String... ops) {
         if (isAtEnd()) {
             return false;
         }
@@ -189,19 +244,19 @@ public class Evaluator {
         return false;
     }
 
-    private static Token advance() {
+    private Token advance() {
         return tokens.get(current++);
     }
 
-    private static Token peek() {
+    private Token peek() {
         return tokens.get(current);
     }
 
-    private static Token previous() {
+    private Token previous() {
         return tokens.get(current - 1);
     }
 
-    private static boolean isAtEnd() {
+    private boolean isAtEnd() {
         return peek().getTokenType() == TokenType.EOF;
     }
 
@@ -230,6 +285,61 @@ public class Evaluator {
     }
 
     private static boolean isNumber(String s) {
-        return s.matches("-?\\d+(\\.\\d+)?");
+        return NUMBER_PATTERN.matcher(s).matches();
+    }
+
+    private static Object parseNumber(String s) {
+        if (s.contains(".")) {
+            return Double.valueOf(s);
+        }
+        try {
+            return Long.valueOf(s);
+        } catch (NumberFormatException e) {
+            return Double.valueOf(s);
+        }
+    }
+
+    private static Object numericAdd(Object a, Object b) {
+        if (a instanceof Long la && b instanceof Long lb) {
+            try {
+                return Math.addExact(la, lb);
+            } catch (ArithmeticException e) {
+                return (double) la + (double) lb;
+            }
+        }
+        return toNumber(a) + toNumber(b);
+    }
+
+    private static Object numericSub(Object a, Object b) {
+        if (a instanceof Long la && b instanceof Long lb) {
+            try {
+                return Math.subtractExact(la, lb);
+            } catch (ArithmeticException e) {
+                return (double) la - (double) lb;
+            }
+        }
+        return toNumber(a) - toNumber(b);
+    }
+
+    private static Object numericMul(Object a, Object b) {
+        if (a instanceof Long la && b instanceof Long lb) {
+            try {
+                return Math.multiplyExact(la, lb);
+            } catch (ArithmeticException e) {
+                return (double) la * (double) lb;
+            }
+        }
+        return toNumber(a) * toNumber(b);
+    }
+
+    private static Object numericNeg(Object a) {
+        if (a instanceof Long l) {
+            try {
+                return Math.negateExact(l);
+            } catch (ArithmeticException e) {
+                return -(double) l;
+            }
+        }
+        return -toNumber(a);
     }
 }

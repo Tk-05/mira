@@ -47,12 +47,14 @@ public abstract class Statement implements Node {
         private final String name;
         private final List<DumbExpression> parameters;
         private final List<Node> body;
+        private final String variadicParam;
 
         public FuncDecl(String name, List<DumbExpression> parameters,
-                List<Node> body) {
+                List<Node> body, String variadicParam) {
             this.name = name;
             this.parameters = parameters;
             this.body = body;
+            this.variadicParam = variadicParam;
         }
 
         public String getName() {
@@ -67,8 +69,12 @@ public abstract class Statement implements Node {
             return body;
         }
 
+        public String getVariadicParam() {
+            return variadicParam;
+        }
+
         public int getArity() {
-            return parameters.size();
+            return variadicParam != null ? -1 : parameters.size();
         }
 
         @Override
@@ -189,10 +195,12 @@ public abstract class Statement implements Node {
 
         private final Expression condition;
         private final List<Node> body;
+        private final boolean doModifier;
 
-        public While(Expression condition, List<Node> body) {
+        public While(Expression condition, List<Node> body, boolean doModifier) {
             this.condition = condition;
             this.body = body;
+            this.doModifier = doModifier;
         }
 
         @Override
@@ -206,6 +214,10 @@ public abstract class Statement implements Node {
 
         public List<Node> getBody() {
             return body;
+        }
+
+        public boolean getDoModifier() {
+            return doModifier;
         }
     }
 
@@ -355,6 +367,54 @@ public abstract class Statement implements Node {
 
         public String getModuleName() {
             return moduleName;
+        }
+    }
+
+    public static class Throw extends Statement {
+
+        private final Expression value;
+
+        public Throw(Expression value) {
+            this.value = value;
+        }
+
+        public Expression getValue() {
+            return value;
+        }
+
+        @Override
+        public <T> T accept(StmtVisitor<T> visitor) {
+            return visitor.visitThrow(this);
+        }
+    }
+
+    public static class TryCatch extends Statement {
+
+        private final List<Node> tryBody;
+        private final String catchParam;
+        private final List<Node> catchBody;
+
+        public TryCatch(List<Node> tryBody, String catchParam, List<Node> catchBody) {
+            this.tryBody = tryBody;
+            this.catchParam = catchParam;
+            this.catchBody = catchBody;
+        }
+
+        public List<Node> getTryBody() {
+            return tryBody;
+        }
+
+        public String getCatchParam() {
+            return catchParam;
+        }
+
+        public List<Node> getCatchBody() {
+            return catchBody;
+        }
+
+        @Override
+        public <T> T accept(StmtVisitor<T> visitor) {
+            return visitor.visitTryCatch(this);
         }
     }
 

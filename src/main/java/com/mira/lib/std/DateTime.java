@@ -19,14 +19,14 @@ public class DateTime implements Lib {
         }));
 
         environment.define("timestamp", new NativeFunction(0, args -> {
-            return (double) System.currentTimeMillis();
-        }));
-
-        environment.define("timestampSec", new NativeFunction(0, args -> {
             return (double) (System.currentTimeMillis() / 1000L);
         }));
 
-        environment.define("formatDate", new NativeFunction(2, args -> {
+        environment.define("timestampMs", new NativeFunction(0, args -> {
+            return (double) System.currentTimeMillis();
+        }));
+
+        environment.define("dateFormat", new NativeFunction(2, args -> {
             String dateStr = String.valueOf(args.get(0));
             String pattern = String.valueOf(args.get(1));
             LocalDateTime dt = LocalDateTime.parse(dateStr);
@@ -65,25 +65,15 @@ public class DateTime implements Lib {
             return (double) LocalDateTime.now().getDayOfYear();
         }));
 
-        environment.define("timeSince", new NativeFunction(1, args -> {
+        environment.define("secondsSince", new NativeFunction(1, args -> {
             String dateStr = String.valueOf(args.get(0));
             LocalDateTime then = LocalDateTime.parse(dateStr);
             return (double) ChronoUnit.SECONDS.between(then, LocalDateTime.now());
         }));
 
-        environment.define("epochToDate", new NativeFunction(1, args -> {
+        environment.define("fromEpoch", new NativeFunction(1, args -> {
             long epoch = (long) Double.parseDouble(String.valueOf(args.get(0)));
             return LocalDateTime.ofEpochSecond(epoch, 0, ZoneOffset.UTC).toString();
-        }));
-
-        environment.define("sleep", new NativeFunction(1, args -> {
-            long ms = (long) Double.parseDouble(String.valueOf(args.get(0)));
-            try {
-                Thread.sleep(ms);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
-            return null;
         }));
     }
 }

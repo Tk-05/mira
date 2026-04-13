@@ -5,6 +5,7 @@ import java.nio.file.Paths;
 import java.util.List;
 
 import com.mira.console.Console;
+import com.mira.error.DiagnosticFormatter;
 import com.mira.lexer.Tokenizer;
 import com.mira.lexer.token.Token;
 import com.mira.parser.Parser;
@@ -12,6 +13,7 @@ import com.mira.parser.nodes.Node;
 import com.mira.runtime.functions.ReturnSignal;
 import com.mira.runtime.interpreter.Interpreter;
 import com.mira.utils.FileLoader;
+import com.mira.warning.WarningCollector;
 
 public class Main {
 
@@ -23,7 +25,7 @@ public class Main {
                 System.out.println(Help.getHelp());
                 System.exit(1);
             } else {
-                Flags.inputPath = Paths.get((args[0])).toAbsolutePath().normalize();
+                Flags.inputPath.set(Paths.get((args[0])).toAbsolutePath().normalize());
             }
 
             for (int i = 1; i < args.length; i++) {
@@ -34,9 +36,8 @@ public class Main {
                         Flags.exitBeforeInterpreter = true;
                     case "-m" ->
                         Flags.mainFunction = true;
-                    case "-li" -> {
+                    case "-li" ->
                         Flags.libInfo = true;
-                    }
                     case "-args" ->
                         Flags.args = args[i + 1].substring(0, args[i + 1].length()).split(",");
                 }
@@ -44,37 +45,52 @@ public class Main {
 
             String readFile = "";
             try {
-                readFile = FileLoader.readFileFromPath(Flags.inputPath.toString());
+                readFile = FileLoader.readFileFromPath(Flags.inputPath.get().toString());
             } catch (IOException e) {
-                e.printStackTrace();
-            }
-
-            Tokenizer tokenizer = new Tokenizer();
-            List<Token> tokens = tokenizer.tokenize(readFile, false);
-
-            if (Flags.dumpTokens) {
-                tokens.forEach(token -> System.out.println(token.getLexeme() + "-" + token.getTokenType() + "-" + token.getLine() + ";" + token.getColumn()));
-            }
-
-            Parser parser = new Parser();
-            List<Node> asts = parser.parseTokens(tokens);
-
-            if (Flags.exitBeforeInterpreter) {
+                System.err.println(DiagnosticFormatter.format(e));
                 System.exit(1);
             }
 
-            Interpreter interpreter = new Interpreter();
+            Flags.fileName = Flags.inputPath.get().getFileName().toString();
+            Flags.sourceLines = readFile.split("\n", -1);
 
-            if (Flags.mainFunction) {
-                Object exitValue = interpreter.run(asts, Flags.args, true);
-                System.out.println("Program exited with value: " + exitValue + " in " + (System.currentTimeMillis() - start) + " ms");
-            } else {
-                try {
-                    interpreter.run(asts, Flags.args, true);
-                } catch (ReturnSignal returnSignal) {
-                    System.out.println("Program exited with value: " + returnSignal.getValue() + " in " + (System.currentTimeMillis() - start) + " ms");
+            try {
+                Tokenizer tokenizer = new Tokenizer();
+                List<Token> tokens = tokenizer.tokenize(readFile, false);
+
+                if (Flags.dumpTokens) {
+                    tokens.forEach(token -> System.out.println(token.getLexeme() + "-" + token.getTokenType() + "-" + token.getLine() + ";" + token.getColumn()));
                 }
+
+                Parser parser = new Parser();
+                List<Node> asts = parser.parseTokens(tokens);
+
+                if (Flags.exitBeforeInterpreter) {
+                    System.exit(0);
+                }
+
+                Interpreter interpreter = new Interpreter();
+
+                if (Flags.mainFunction) {
+                    Object exitValue = interpreter.run(asts, Flags.args, true);
+                    WarningCollector.flush();
+                    System.out.println("Program exited with value: " + exitValue + " in " + (System.currentTimeMillis() - start) + " ms");
+                } else {
+                    try {
+                        interpreter.run(asts, Flags.args, true);
+                    } catch (ReturnSignal returnSignal) {
+                        System.out.println("Program exited with value: " + returnSignal.getValue() + " in " + (System.currentTimeMillis() - start) + " ms");
+                    } finally {
+                        WarningCollector.flush();
+                    }
+                }
+
+            } catch (Exception e) {
+                WarningCollector.flush();
+                System.err.println(DiagnosticFormatter.format(e));
+                System.exit(1);
             }
+
         } else {
             Console.run();
         }

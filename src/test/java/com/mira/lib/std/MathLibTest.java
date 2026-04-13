@@ -114,4 +114,76 @@ public class MathLibTest {
             assertEquals(false, nativeFunction.call(interpreter, List.of(5.0)));
         }
     }
+
+    @Test
+    void testRand() {
+        if (environment.get("rand") instanceof NativeFunction nativeFunction) {
+            double result = (double) nativeFunction.call(interpreter, List.of());
+            assertEquals(true, result >= 0.0 && result < 1.0);
+        }
+    }
+
+    @Test
+    void testRandInt() {
+        if (environment.get("randInt") instanceof NativeFunction nativeFunction) {
+            double result = (double) nativeFunction.call(interpreter, List.of(1, 10));
+            assertEquals(true, result >= 1.0 && result <= 10.0);
+        }
+    }
+
+    @Test
+    void testLog() {
+        if (environment.get("log") instanceof NativeFunction nativeFunction) {
+            assertEquals(0.0, nativeFunction.call(interpreter, List.of(1)));
+        }
+    }
+
+    @Test
+    void testLog10() {
+        if (environment.get("log10") instanceof NativeFunction nativeFunction) {
+            assertEquals(2.0, nativeFunction.call(interpreter, List.of(100)));
+        }
+    }
+
+    @Test
+    void testLog2() {
+        if (environment.get("log2") instanceof NativeFunction nativeFunction) {
+            assertEquals(3.0, nativeFunction.call(interpreter, List.of(8)));
+        }
+    }
+
+    @Test
+    void testTan() {
+        if (environment.get("tan") instanceof NativeFunction nativeFunction) {
+            assertEquals(0.0, nativeFunction.call(interpreter, List.of(0)));
+        }
+    }
+
+    @Test
+    void testAsin() {
+        if (environment.get("asin") instanceof NativeFunction nativeFunction) {
+            assertEquals(0.0, nativeFunction.call(interpreter, List.of(0)));
+        }
+    }
+
+    @Test
+    void testAcos() {
+        if (environment.get("acos") instanceof NativeFunction nativeFunction) {
+            assertEquals(java.lang.Math.PI / 2, nativeFunction.call(interpreter, List.of(0)));
+        }
+    }
+
+    @Test
+    void testAtan() {
+        if (environment.get("atan") instanceof NativeFunction nativeFunction) {
+            assertEquals(0.0, nativeFunction.call(interpreter, List.of(0)));
+        }
+    }
+
+    @Test
+    void testAtan2() {
+        if (environment.get("atan2") instanceof NativeFunction nativeFunction) {
+            assertEquals(java.lang.Math.PI / 4, nativeFunction.call(interpreter, List.of(1, 1)));
+        }
+    }
 }

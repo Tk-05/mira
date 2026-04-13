@@ -1,6 +1,13 @@
 module main;
 
 import module "./Debug2.mira" as test;
+import native "../../../../extern/raylib/target/raylib-RELEASE.jar" as ray;
+import string;
+import collection as col;
+import net;
+import json;
+import dateTime;
+import map;
 
 var list : {1,2,4};
 var boolean : true;
@@ -9,49 +16,159 @@ enum test {
     TEST1,
     TEST2,
     TEST3
-};
+}
+
+var vals : {"69" : 420};
+
+var multiComment : """
+Hello World1
+Hello World2
+""";
+
+fn short(arg) {
+    print($arg "\n");
+    return false;
+}
 
 fn main() {
-    assert(0==0);
-    var wrapper : {
-        var a : {
-            var a : 0;
-            var b : 0;
-        };
-        var b: 0;
-    };
+    if(scan() == ray) {
+        ray.InitWindow(1920, 1080, "Mira Raylib Demo");
+        ray.SetTargetFPS(60);
+        ray.ToggleFullscreen();
 
-    if($boolean) {
-        print("test:" $wrapper.a.a "\n");
-    }
-    
-    for(var i in <0..length($list)>) {
-        print($i "\n");
-    }
+        var bg    : ray.Color(30, 30, 30, 255);
+        var white : ray.WHITE;
+        var red   : ray.RED;
+        var blue  : ray.SKYBLUE;
+        var green : ray.GREEN;
 
-    foreach(var i in <0..5>) {
-        print($i "\n");
-    }
+        var cam : ray.Camera3D(18, 16, 18, 0, 0, 0, 45);
 
-    print(test.hello("test"));
+        while(!ray.WindowShouldClose()) {
+            ray.UpdateCamera($cam, ray.CAMERA_ORBITAL);
+            ray.BeginDrawing();
+            ray.ClearBackground($bg);
 
-    var list : [
-                [0,0,0],
-                [0,0,0],
-                [0,0,69]
-               ];
+            ray.BeginMode3D($cam);
+            ray.DrawGrid(20, 1);
+            ray.DrawCube(0, 0.5, 0, 1, 1, 1, $red);
+            ray.DrawCubeWires(0, 0.5, 0, 1, 1, 1, $white);
+            ray.DrawSphere(3, 1, 0, 0.75, $blue);
+            ray.EndMode3D();
 
-    var return : 0;
+            ray.DrawText("Mira + Raylib", 10, 10, 24, $green);
+            ray.DrawText("ESC to quit", 10, 40, 16, $white);
+            ray.DrawFPS(10, 70);
 
-    while(true) {
-        break();
-    }
+            if(ray.IsKeyDown(ray.KEY_ESCAPE)) {
+                ray.CloseWindow();
+                return;
+            }
 
-    foreach(var element in $list) {
-        foreach(var inner in $element) {
-            $return : $return + $inner;
+            ray.EndDrawing();
         }
-    }
+        ray.CloseWindow();
+    } else {
+        $multiComment|>print();
 
-    ret(eval($return));
+        var i : 0;
+        do {
+            $i++;
+        } while($i < 5);
+
+        if(short("left") && short("right")) {}
+        
+        {
+            var a : 0;
+            var b : 1;
+
+            for(var i in <0..200>) {
+                print($a "\n");
+                var c : $a + $b;
+                $a : $b;
+                $b : $c;
+            }
+        }
+        print($vals["69"]"\n");
+        var objs : {};
+        for(var i in <0..5>) {
+            var obj : {
+                var index : "test" $i;
+            };
+            col.push($objs, $obj);
+        }
+
+        print(1 == 1 ? true : false "\n");
+
+        foreach(var element in $objs) {
+            print($element.index "\n");
+        }
+
+        assert(0==0);
+        var wrapper : {
+            var a : {
+                var a : 0;
+                var b : 0;
+            };
+            var b: 0;
+        };
+
+        if($boolean) {
+            print("test:" $wrapper.a.a "\n");
+        }
+        
+        for(var i in <0..length($list)>) {
+            print($i "\n");
+        }
+
+        foreach(var i in <0..5>) {
+            print($i "\n");
+        }
+
+        print(test.hello("test"));
+
+        var list : [
+                    [0,0,0],
+                    [0,0,0],
+                    [0,0,69]
+                ];
+
+        var ret : 0;
+
+        while(true) {
+            break;
+        }
+
+        foreach(var element in $list) {
+            foreach(var inner in $element) {
+                $ret : $ret + $inner;
+            }
+        }
+
+        try {
+            throw "Error";
+        } catch(e) {
+            print($e "\n");
+        }
+
+        //53.5507 
+        print("Enter the latitude: \n");
+        var latitude : scan();
+        //9.993
+        print("Enter the longitude: \n");
+        var longitude : scan();
+
+        var url : "https://api.open-meteo.com/v1/forecast?latitude=" $latitude "&longitude=" $longitude "&hourly=temperature_2m";
+        var response : httpGet($url);
+        var timestamp : replace(dateFormat(now(), "yyyy.MM.dd"), ".", "-") "T" dateFormat(now(), "HH") ":00";
+
+        var times : jsonNested($response, "hourly", "time");
+        var temps : jsonNested($response, "hourly", "temperature_2m");
+
+        var idx : jsonIndexOf($times, $timestamp);
+
+        print("It's " $temps[$idx] " on " $timestamp "\n");
+
+        return eval($ret);
+    }
 }

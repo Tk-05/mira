@@ -6,7 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import org.junit.jupiter.api.Test;
 
-import com.mira.error.lexer.LexerError.UnexpectedSymbolError;
+import com.mira.error.lexer.LexerError.UnexpectedCharacterError;
 import com.mira.error.lexer.LexerError.UnterminatedStringError;
 import com.mira.lexer.token.Token;
 import com.mira.lexer.token.TokenType;
@@ -18,7 +18,7 @@ public class LexerTest {
     @Test
     void testKeywords() {
         assertEquals(TokenType.KEYWORD, tokenizer.tokenize("var", false).getFirst().getTokenType());
-        assertEquals(TokenType.KEYWORD, tokenizer.tokenize("ret", false).getFirst().getTokenType());
+        assertEquals(TokenType.KEYWORD, tokenizer.tokenize("return", false).getFirst().getTokenType());
         assertEquals(TokenType.KEYWORD, tokenizer.tokenize("fn", false).getFirst().getTokenType());
         assertEquals(TokenType.KEYWORD, tokenizer.tokenize("if", false).getFirst().getTokenType());
         assertEquals(TokenType.KEYWORD, tokenizer.tokenize("else", false).getFirst().getTokenType());
@@ -37,6 +37,10 @@ public class LexerTest {
         assertEquals(TokenType.KEYWORD, tokenizer.tokenize("switch", false).getFirst().getTokenType());
         assertEquals(TokenType.KEYWORD, tokenizer.tokenize("default", false).getFirst().getTokenType());
         assertEquals(TokenType.KEYWORD, tokenizer.tokenize("enum", false).getFirst().getTokenType());
+        assertEquals(TokenType.KEYWORD, tokenizer.tokenize("try", false).getFirst().getTokenType());
+        assertEquals(TokenType.KEYWORD, tokenizer.tokenize("throw", false).getFirst().getTokenType());
+        assertEquals(TokenType.KEYWORD, tokenizer.tokenize("native", false).getFirst().getTokenType());
+        assertEquals(TokenType.KEYWORD, tokenizer.tokenize("do", false).getFirst().getTokenType());
     }
 
     @Test
@@ -171,7 +175,7 @@ public class LexerTest {
     @Test
     void testUnexpectedSymbol() {
         String unexpectedSymbol = "@";
-        assertThrows(UnexpectedSymbolError.class, () -> tokenizer.tokenize(unexpectedSymbol, false));
+        assertThrows(UnexpectedCharacterError.class, () -> tokenizer.tokenize(unexpectedSymbol, false));
     }
 
     @Test
@@ -227,5 +231,30 @@ public class LexerTest {
         assertEquals("Hello World\n", tokenizer.tokenize(escapedString, false).getFirst().getLexeme());
         escapedString = "\"\\\"Hello World\\\"\"";
         assertEquals("\"Hello World\"", tokenizer.tokenize(escapedString, false).getFirst().getLexeme());
+    }
+
+    @Test
+    void testTextBlock() {
+        List<Token> tokens = tokenizer.tokenize("\"\"\"Hello World\"\"\"", false);
+        assertEquals(TokenType.STRING_LITERAL, tokens.getFirst().getTokenType());
+        assertEquals("Hello World", tokens.getFirst().getLexeme());
+    }
+
+    @Test
+    void testTextBlockStripsLeadingNewline() {
+        List<Token> tokens = tokenizer.tokenize("\"\"\"\nHello World\"\"\"", false);
+        assertEquals("Hello World", tokens.getFirst().getLexeme());
+    }
+
+    @Test
+    void testTextBlockMultiLine() {
+        List<Token> tokens = tokenizer.tokenize("\"\"\"\nline1\nline2\n\"\"\"", false);
+        assertEquals("line1\nline2\n", tokens.getFirst().getLexeme());
+    }
+
+    @Test
+    void testTextBlockEmpty() {
+        List<Token> tokens = tokenizer.tokenize("\"\"\"\"\"\"", false);
+        assertEquals("", tokens.getFirst().getLexeme());
     }
 }

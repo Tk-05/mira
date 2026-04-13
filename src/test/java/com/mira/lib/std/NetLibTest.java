@@ -232,98 +232,98 @@ public class NetLibTest {
     @Test
     void testGetReturnsBody() {
         Environment env = setup(mockClient("hello world", 200));
-        assertEquals("hello world", call(env, "get", "http://example.com"));
+        assertEquals("hello world", call(env, "httpGet", "http://example.com"));
     }
 
     @Test
     void testGetReturnsEmptyBody() {
         Environment env = setup(mockClient("", 200));
-        assertEquals("", call(env, "get", "http://example.com"));
+        assertEquals("", call(env, "httpGet", "http://example.com"));
     }
 
     @Test
     void testGetReturnsJsonBody() {
         String json = "{\"key\":\"value\"}";
         Environment env = setup(mockClient(json, 200));
-        assertEquals(json, call(env, "get", "http://example.com/api"));
+        assertEquals(json, call(env, "httpGet", "http://example.com/api"));
     }
 
     @Test
     void testGetThrowsOnIOException() {
         Environment env = setup(failingClient());
-        assertThrows(RuntimeException.class, () -> call(env, "get", "http://example.com"));
+        assertThrows(RuntimeException.class, () -> call(env, "httpGet", "http://example.com"));
     }
 
     @Test
     void testGetReturnsString() {
         Environment env = setup(mockClient("response", 200));
-        assertInstanceOf(String.class, call(env, "get", "http://example.com"));
+        assertInstanceOf(String.class, call(env, "httpGet", "http://example.com"));
     }
 
     @Test
     void testPostReturnsBody() {
         Environment env = setup(mockClient("{\"ok\":true}", 201));
-        assertEquals("{\"ok\":true}", call(env, "post", "http://example.com", "{\"x\":1}", "application/json"));
+        assertEquals("{\"ok\":true}", call(env, "httpPost", "http://example.com", "{\"x\":1}", "application/json"));
     }
 
     @Test
     void testPostWithEmptyBody() {
         Environment env = setup(mockClient("", 204));
-        assertEquals("", call(env, "post", "http://example.com", "", "application/json"));
+        assertEquals("", call(env, "httpPost", "http://example.com", "", "application/json"));
     }
 
     @Test
     void testPostWithFormContentType() {
         Environment env = setup(mockClient("accepted", 200));
-        assertEquals("accepted", call(env, "post", "http://example.com", "a=1&b=2", "application/x-www-form-urlencoded"));
+        assertEquals("accepted", call(env, "httpPost", "http://example.com", "a=1&b=2", "application/x-www-form-urlencoded"));
     }
 
     @Test
     void testPostThrowsOnIOException() {
         Environment env = setup(failingClient());
-        assertThrows(RuntimeException.class, () -> call(env, "post", "http://example.com", "{}", "application/json"));
+        assertThrows(RuntimeException.class, () -> call(env, "httpPost", "http://example.com", "{}", "application/json"));
     }
 
     @Test
     void testGetStatus200() {
         Environment env = setup(mockClient("ok", 200));
-        assertEquals(200.0, call(env, "getStatus", "http://example.com"));
+        assertEquals(200.0, call(env, "httpStatus", "http://example.com"));
     }
 
     @Test
     void testGetStatus404() {
         Environment env = setup(mockClient("not found", 404));
-        assertEquals(404.0, call(env, "getStatus", "http://example.com"));
+        assertEquals(404.0, call(env, "httpStatus", "http://example.com"));
     }
 
     @Test
     void testGetStatus500() {
         Environment env = setup(mockClient("error", 500));
-        assertEquals(500.0, call(env, "getStatus", "http://example.com"));
+        assertEquals(500.0, call(env, "httpStatus", "http://example.com"));
     }
 
     @Test
     void testGetStatusReturnsDouble() {
         Environment env = setup(mockClient("ok", 200));
-        assertInstanceOf(Double.class, call(env, "getStatus", "http://example.com"));
+        assertInstanceOf(Double.class, call(env, "httpStatus", "http://example.com"));
     }
 
     @Test
     void testGetStatusThrowsOnIOException() {
         Environment env = setup(failingClient());
-        assertThrows(RuntimeException.class, () -> call(env, "getStatus", "http://example.com"));
+        assertThrows(RuntimeException.class, () -> call(env, "httpStatus", "http://example.com"));
     }
 
     @Test
     void testGetHeaderReturnsValue() {
         Environment env = setup(mockClient("ok", 200, Map.of("content-type", List.of("application/json"))));
-        assertEquals("application/json", call(env, "getHeader", "http://example.com", "content-type"));
+        assertEquals("application/json", call(env, "httpHeader", "http://example.com", "content-type"));
     }
 
     @Test
     void testGetHeaderMissingReturnsEmpty() {
         Environment env = setup(mockClient("ok", 200, Map.of()));
-        assertEquals("", call(env, "getHeader", "http://example.com", "x-custom"));
+        assertEquals("", call(env, "httpHeader", "http://example.com", "x-custom"));
     }
 
     @Test
@@ -332,14 +332,14 @@ public class NetLibTest {
                 "content-type", List.of("text/html"),
                 "x-powered-by", List.of("mira")
         )));
-        assertEquals("text/html", call(env, "getHeader", "http://example.com", "content-type"));
-        assertEquals("mira", call(env, "getHeader", "http://example.com", "x-powered-by"));
+        assertEquals("text/html", call(env, "httpHeader", "http://example.com", "content-type"));
+        assertEquals("mira", call(env, "httpHeader", "http://example.com", "x-powered-by"));
     }
 
     @Test
     void testGetHeaderThrowsOnIOException() {
         Environment env = setup(failingClient());
-        assertThrows(RuntimeException.class, () -> call(env, "getHeader", "http://example.com", "content-type"));
+        assertThrows(RuntimeException.class, () -> call(env, "httpHeader", "http://example.com", "content-type"));
     }
 
     @Test
@@ -347,13 +347,13 @@ public class NetLibTest {
         Path tmp = Files.createTempFile("mira-download-test", ".txt");
         tmp.toFile().deleteOnExit();
         Environment env = setup(mockClient("file content", 200));
-        assertNull(call(env, "download", "http://example.com/file.txt", tmp.toString()));
+        assertNull(call(env, "httpDownload", "http://example.com/file.txt", tmp.toString()));
         Files.deleteIfExists(tmp);
     }
 
     @Test
     void testDownloadThrowsOnIOException() {
         Environment env = setup(failingClient());
-        assertThrows(RuntimeException.class, () -> call(env, "download", "http://example.com/file.txt", "/tmp/mira-test.txt"));
+        assertThrows(RuntimeException.class, () -> call(env, "httpDownload", "http://example.com/file.txt", "/tmp/mira-test.txt"));
     }
 }

@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import org.junit.jupiter.api.Test;
 
 import com.mira.runtime.functions.BreakSignal;
-import com.mira.runtime.interpreter.Interpreter;
 import com.mira.runtime.interpreter.InterpreterTestBase;
 
 public class RangeExpressionTest extends InterpreterTestBase {
@@ -25,7 +24,7 @@ public class RangeExpressionTest extends InterpreterTestBase {
         try {
             run("""
                     foreach(var element in <0..4>) {
-                        if($element == 3) { break(); }
+                        if($element == 3) { break; }
                     }
                     """);
         } catch (BreakSignal ignored) {
@@ -49,10 +48,10 @@ public class RangeExpressionTest extends InterpreterTestBase {
                 var first : 0;
                 foreach(var element in <3..6>) {
                     $first : $element;
-                    break();
+                    break;
                 }
                 """);
-        assertEquals(3.0, Interpreter.getGlobalEnvironment().get("first"));
+        assertEquals(3.0, normNum(interpreter.getGlobalEnvironment().get("first")));
     }
 
     @Test
@@ -74,6 +73,6 @@ public class RangeExpressionTest extends InterpreterTestBase {
                     $last : $i;
                 }
                 """);
-        assertEquals(4.0, Interpreter.getGlobalEnvironment().get("last"));
+        assertEquals(4.0, normNum(interpreter.getGlobalEnvironment().get("last")));
     }
 }

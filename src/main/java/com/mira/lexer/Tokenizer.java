@@ -1,15 +1,31 @@
 package com.mira.lexer;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
-import com.mira.error.lexer.LexerError.UnexpectedSymbolError;
+import com.mira.error.lexer.LexerError.UnexpectedCharacterError;
 import com.mira.error.lexer.LexerError.UnterminatedStringError;
 import com.mira.lexer.token.Token;
 import com.mira.lexer.token.TokenType;
 import com.mira.vocabulary.Vocabulary;
 
 public class Tokenizer {
+
+    private static final Set<Character> OPERATOR_START_CHARS;
+    private static final Set<Character> DELIMITER_START_CHARS;
+
+    static {
+        OPERATOR_START_CHARS = new HashSet<>();
+        for (String op : Vocabulary.operations) {
+            OPERATOR_START_CHARS.add(op.charAt(0));
+        }
+        DELIMITER_START_CHARS = new HashSet<>();
+        for (String d : Vocabulary.delimiters) {
+            DELIMITER_START_CHARS.add(d.charAt(0));
+        }
+    }
 
     private String source;
     private final List<Token> tokens = new ArrayList<>();
@@ -109,7 +125,7 @@ public class Tokenizer {
                     return;
                 }
 
-                throw new UnexpectedSymbolError(line, column, c);
+                throw new UnexpectedCharacterError(line, column, c);
             }
         }
     }
@@ -131,7 +147,7 @@ public class Tokenizer {
         }
 
         if (bestMatch == null) {
-            throw new UnexpectedSymbolError(line, column);
+            throw new UnexpectedCharacterError(line, column);
         }
 
         current = start + bestMatch.length();
@@ -161,7 +177,7 @@ public class Tokenizer {
         }
 
         if (bestMatch == null) {
-            throw new UnexpectedSymbolError(line, column);
+            throw new UnexpectedCharacterError(line, column);
         }
 
         current = start + bestMatch.length();
@@ -175,6 +191,13 @@ public class Tokenizer {
     }
 
     private void scanString() {
+        if (!isAtEnd() && peek() == '"' && peekAt(1) == '"') {
+            advance();
+            advance();
+            scanTextBlock();
+            return;
+        }
+
         StringBuilder valueBuilder = new StringBuilder();
 
         while (!isAtEnd() && peek() != '"') {
@@ -183,7 +206,7 @@ public class Tokenizer {
                 advance();
 
                 if (isAtEnd()) {
-                    throw new UnterminatedStringError(line);
+                    throw new UnterminatedStringError(line, column);
                 }
 
                 char escaped = peek();
@@ -214,7 +237,7 @@ public class Tokenizer {
         }
 
         if (isAtEnd()) {
-            throw new UnterminatedStringError(line);
+            throw new UnterminatedStringError(line, column);
         }
 
         advance();
@@ -225,6 +248,35 @@ public class Tokenizer {
                 line,
                 column
         ));
+    }
+
+    private void scanTextBlock() {
+        StringBuilder valueBuilder = new StringBuilder();
+
+        if (!isAtEnd() && peek() == '\n') {
+            line++;
+            column = 0;
+            advance();
+        }
+
+        while (!isAtEnd()) {
+            if (peek() == '"' && peekAt(1) == '"' && peekAt(2) == '"') {
+                advance();
+                advance();
+                advance();
+                tokens.add(new Token(TokenType.STRING_LITERAL, valueBuilder.toString(), line, column));
+                return;
+            }
+
+            if (peek() == '\n') {
+                line++;
+                column = 0;
+            }
+
+            valueBuilder.append(advance());
+        }
+
+        throw new UnterminatedStringError(line, column);
     }
 
     private void scanIdentifier() {
@@ -273,6 +325,13 @@ public class Tokenizer {
         return source.charAt(current + 1);
     }
 
+    private char peekAt(int offset) {
+        if (current + offset >= source.length()) {
+            return '\0';
+        }
+        return source.charAt(current + offset);
+    }
+
     private boolean isAtEnd() {
         return current >= source.length();
     }
@@ -282,21 +341,11 @@ public class Tokenizer {
     }
 
     private boolean startsOperator(char c) {
-        for (String op : Vocabulary.operations) {
-            if (op.charAt(0) == c) {
-                return true;
-            }
-        }
-        return false;
+        return OPERATOR_START_CHARS.contains(c);
     }
 
     private boolean startsDelimiter(char c) {
-        for (String d : Vocabulary.delimiters) {
-            if (d.charAt(0) == c) {
-                return true;
-            }
-        }
-        return false;
+        return DELIMITER_START_CHARS.contains(c);
     }
 
     private boolean isIdentifierPart(char c) {

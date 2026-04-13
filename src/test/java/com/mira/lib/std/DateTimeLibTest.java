@@ -7,7 +7,6 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.BeforeAll;
@@ -60,7 +59,7 @@ public class DateTimeLibTest {
     @Test
     void testTimestampIsReasonable() {
         double ts = (double) call("timestamp");
-        assertTrue(ts > 1_700_000_000_000.0);
+        assertTrue(ts > 1_700_000_000.0);
     }
 
     @Test
@@ -68,39 +67,39 @@ public class DateTimeLibTest {
         double first = (double) call("timestamp");
         Thread.sleep(10);
         double second = (double) call("timestamp");
-        assertTrue(second > first);
+        assertTrue(second >= first);
     }
 
     @Test
-    void testTimestampSecIsLessThanTimestamp() {
-        double ms = (double) call("timestamp");
-        double sec = (double) call("timestampSec");
-        assertTrue(sec < ms);
+    void testTimestampMsIsGreaterThanTimestamp() {
+        double sec = (double) call("timestamp");
+        double ms = (double) call("timestampMs");
+        assertTrue(ms > sec);
     }
 
     @Test
-    void testTimestampSecIsReasonable() {
-        double sec = (double) call("timestampSec");
-        assertTrue(sec > 1_700_000_000.0);
+    void testTimestampMsIsReasonable() {
+        double ms = (double) call("timestampMs");
+        assertTrue(ms > 1_700_000_000_000.0);
     }
 
     @Test
-    void testFormatDateWithPattern() {
+    void testDateFormatWithPattern() {
         String now = (String) call("now");
-        String result = (String) call("formatDate", now, "yyyy-MM-dd");
+        String result = (String) call("dateFormat", now, "yyyy-MM-dd");
         assertTrue(result.matches("\\d{4}-\\d{2}-\\d{2}"));
     }
 
     @Test
-    void testFormatDateWithTimePattern() {
+    void testDateFormatWithTimePattern() {
         String now = (String) call("now");
-        String result = (String) call("formatDate", now, "HH:mm");
+        String result = (String) call("dateFormat", now, "HH:mm");
         assertTrue(result.matches("\\d{2}:\\d{2}"));
     }
 
     @Test
-    void testFormatDateInvalidPatternThrows() {
-        assertThrows(Exception.class, () -> call("formatDate", "not-a-date", "yyyy-MM-dd"));
+    void testDateFormatInvalidPatternThrows() {
+        assertThrows(Exception.class, () -> call("dateFormat", "not-a-date", "yyyy-MM-dd"));
     }
 
     @Test
@@ -187,51 +186,38 @@ public class DateTimeLibTest {
     }
 
     @Test
-    void testTimeSinceReturnsPositive() {
+    void testSecondsSinceReturnsPositive() {
         String past = LocalDateTime.now().minusSeconds(5).toString();
-        double result = (double) call("timeSince", past);
+        double result = (double) call("secondsSince", past);
         assertTrue(result >= 4);
     }
 
     @Test
-    void testTimeSinceIsZeroForNow() {
+    void testSecondsSinceIsZeroForNow() {
         String now = LocalDateTime.now().toString();
-        double result = (double) call("timeSince", now);
+        double result = (double) call("secondsSince", now);
         assertTrue(result >= 0 && result < 2);
     }
 
     @Test
-    void testTimeSinceInvalidDateThrows() {
-        assertThrows(Exception.class, () -> call("timeSince", "not-a-date"));
+    void testSecondsSinceInvalidDateThrows() {
+        assertThrows(Exception.class, () -> call("secondsSince", "not-a-date"));
     }
 
     @Test
-    void testEpochToDateReturnsString() {
-        assertInstanceOf(String.class, call("epochToDate", 0.0));
+    void testFromEpochReturnsString() {
+        assertInstanceOf(String.class, call("fromEpoch", 0.0));
     }
 
     @Test
-    void testEpochToDateEpochZero() {
-        String result = (String) call("epochToDate", 0.0);
+    void testFromEpochEpochZero() {
+        String result = (String) call("fromEpoch", 0.0);
         assertEquals("1970-01-01T00:00", result);
     }
 
     @Test
-    void testEpochToDateKnownValue() {
-        String result = (String) call("epochToDate", 1_000_000_000.0);
+    void testFromEpochKnownValue() {
+        String result = (String) call("fromEpoch", 1_000_000_000.0);
         assertTrue(result.startsWith("2001-09-09"));
-    }
-
-    @Test
-    void testSleepReturnsNull() {
-        assertNull(call("sleep", 1.0));
-    }
-
-    @Test
-    void testSleepActuallyWaits() {
-        long before = System.currentTimeMillis();
-        call("sleep", 100.0);
-        long after = System.currentTimeMillis();
-        assertTrue(after - before >= 90);
     }
 }

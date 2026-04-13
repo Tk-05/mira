@@ -13,9 +13,9 @@ public class AssignTest extends InterpreterTestBase {
     @Test
     void simpleAssignment() {
         try {
-            run("var x : 24; var y : 18; var z; $z : $x + $y; ret(eval($z));");
+            run("var x : 24; var y : 18; var z; $z : $x + $y; return eval($z);");
         } catch (ReturnSignal r) {
-            assertEquals(42.0, r.getValue());
+            assertEquals(42.0, normNum(r.getValue()));
         }
     }
 

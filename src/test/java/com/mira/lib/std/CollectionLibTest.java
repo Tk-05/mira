@@ -266,15 +266,15 @@ public class CollectionLibTest {
     }
 
     @Test
-    void testEmptyList() {
-        Object result = call("emptyList");
+    void testNewList() {
+        Object result = call("newList");
         assertInstanceOf(ListExpression.class, result);
         assertEquals(0, ((ListExpression) result).getMembers().size());
     }
 
     @Test
-    void testEmptyTuple() {
-        Object result = call("emptyTuple");
+    void testNewTuple() {
+        Object result = call("newTuple");
         assertInstanceOf(TupleExpression.class, result);
         assertEquals(0, ((TupleExpression) result).getMembers().size());
     }
