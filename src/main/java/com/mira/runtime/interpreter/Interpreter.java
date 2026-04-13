@@ -318,14 +318,11 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
         if (pureFunctions.contains(calleeName)) {
             CacheKey cacheKey = new CacheKey(calleeName, arguments);
-            Object cached = callCache.get(cacheKey);
-            if (cached != null) {
-                return (T) cached;
+            if (callCache.containsKey(cacheKey)) {
+                return (T) callCache.get(cacheKey);
             }
             Object result = callable.call(this, arguments);
-            if (result != null) {
-                callCache.put(cacheKey, result);
-            }
+            callCache.put(cacheKey, result);
             return (T) result;
         }
 
@@ -465,15 +462,15 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                 yield toNumber(left) % toNumber(right);
             }
             case "&" ->
-                (double) ((long) toNumber(left) & (long) toNumber(right));
+                (long) toNumber(left) & (long) toNumber(right);
             case "|" ->
-                (double) ((long) toNumber(left) | (long) toNumber(right));
+                (long) toNumber(left) | (long) toNumber(right);
             case "^" ->
-                (double) ((long) toNumber(left) ^ (long) toNumber(right));
+                (long) toNumber(left) ^ (long) toNumber(right);
             case "<<" ->
-                (double) ((long) toNumber(left) << (long) toNumber(right));
+                (long) toNumber(left) << (long) toNumber(right);
             case ">>" ->
-                (double) ((long) toNumber(left) >> (long) toNumber(right));
+                (long) toNumber(left) >> (long) toNumber(right);
             case "==" ->
                 evaluateComparison(left, "==", right);
             case "!=" ->
@@ -655,17 +652,15 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         return builder.toString();
     }
 
+    private static final Set<String> COMPARISON_OPERATORS = Set.of("==", "!=", "<", ">", "<=", ">=");
+    private static final Set<String> LOGICAL_OPERATORS = Set.of("&&", "||");
+
     private boolean isComparisonOperator(String op) {
-        return switch (op) {
-            case "==", "!=", "<", ">", "<=", ">=" ->
-                true;
-            default ->
-                false;
-        };
+        return COMPARISON_OPERATORS.contains(op);
     }
 
     private boolean isLogicalOperator(String op) {
-        return op.equals("&&") || op.equals("||");
+        return LOGICAL_OPERATORS.contains(op);
     }
 
     private Boolean evaluateComparison(Object leftObj, String op, Object rightObj) {
@@ -684,6 +679,16 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                     l <= r;
                 case ">=" ->
                     l >= r;
+                default ->
+                    throw new UnknownOperatorError(op);
+            };
+        }
+        if (leftObj instanceof Boolean lb && rightObj instanceof Boolean rb) {
+            return switch (op) {
+                case "==" ->
+                    lb.equals(rb);
+                case "!=" ->
+                    !lb.equals(rb);
                 default ->
                     throw new UnknownOperatorError(op);
             };
@@ -859,7 +864,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
             case "~" -> {
                 Object right = expression.getRight().accept(this);
-                return (T) Double.valueOf(~(long) toNumber(right));
+                return (T) Long.valueOf(~(long) toNumber(right));
             }
 
             default ->
@@ -1213,7 +1218,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                         Object value = expr.accept(this);
                         assignIterator(iteratorName, value);
                         try {
-                            runBody(stmt.getBody());
+                            runBodyInFreshScope(stmt.getBody());
                         } catch (ContinueSignal continueSignal) {
                         }
                     }
@@ -1223,16 +1228,16 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                         Object value = expr.accept(this);
                         assignIterator(iteratorName, value);
                         try {
-                            runBody(stmt.getBody());
+                            runBodyInFreshScope(stmt.getBody());
                         } catch (ContinueSignal continueSignal) {
                         }
                     }
                 }
                 case String string -> {
-                    for (char ch : string.toCharArray()) {
-                        assignIterator(iteratorName, String.valueOf(ch));
+                    for (int i = 0; i < string.length(); i++) {
+                        assignIterator(iteratorName, String.valueOf(string.charAt(i)));
                         try {
-                            runBody(stmt.getBody());
+                            runBodyInFreshScope(stmt.getBody());
                         } catch (ContinueSignal continueSignal) {
                         }
                     }
