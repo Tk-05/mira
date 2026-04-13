@@ -52,6 +52,7 @@ public class NativeImportTest extends InterpreterTestBase {
 
     @AfterAll
     static void cleanupFixtureJars() throws Exception {
+        ImportResolver.reset();
         if (greetJar != null) {
             Files.deleteIfExists(greetJar);
         }

@@ -3,7 +3,6 @@ package com.mira.runtime.interpreter.statement;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import org.junit.jupiter.api.Test;
 
-import com.mira.runtime.interpreter.Interpreter;
 import com.mira.runtime.interpreter.InterpreterTestBase;
 
 public class OverwriteTest extends InterpreterTestBase {

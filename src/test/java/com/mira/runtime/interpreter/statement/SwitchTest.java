@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import org.junit.jupiter.api.Test;
 
 import com.mira.runtime.functions.ReturnSignal;
-import com.mira.runtime.interpreter.Interpreter;
 import com.mira.runtime.interpreter.InterpreterTestBase;
 
 public class SwitchTest extends InterpreterTestBase {

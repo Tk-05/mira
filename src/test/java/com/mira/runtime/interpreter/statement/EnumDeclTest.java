@@ -8,7 +8,6 @@ import com.mira.error.runtime.RuntimeError.ObjectAlreadyDefinedInScope;
 import com.mira.error.runtime.RuntimeError.ReferenceIsImmutableError;
 import com.mira.error.runtime.RuntimeError.UndefinedReferenceError;
 import com.mira.runtime.interpreter.Environment;
-import com.mira.runtime.interpreter.Interpreter;
 import com.mira.runtime.interpreter.InterpreterTestBase;
 
 public class EnumDeclTest extends InterpreterTestBase {

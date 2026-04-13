@@ -7,7 +7,6 @@ import org.junit.jupiter.api.Test;
 
 import com.mira.runtime.functions.ReturnSignal;
 import com.mira.runtime.functions.ThrowSignal;
-import com.mira.runtime.interpreter.Interpreter;
 import com.mira.runtime.interpreter.InterpreterTestBase;
 
 public class TryCatchTest extends InterpreterTestBase {

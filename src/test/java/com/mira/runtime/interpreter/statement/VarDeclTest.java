@@ -8,7 +8,6 @@ import org.junit.jupiter.api.Test;
 
 import com.mira.error.runtime.RuntimeError.ReferenceIsImmutableError;
 import com.mira.runtime.functions.ReturnSignal;
-import com.mira.runtime.interpreter.Interpreter;
 import com.mira.runtime.interpreter.InterpreterTestBase;
 import com.mira.runtime.interpreter.NullValue;
 
