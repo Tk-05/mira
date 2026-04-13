@@ -260,16 +260,24 @@ public abstract class Expression implements Node {
 
     public static class ImportExpression extends Expression {
 
-        public enum ImportKind { STDLIB, MODULE, NATIVE }
+        public enum ImportKind {
+            STDLIB, MODULE, NATIVE
+        }
 
         private final Expression module;
         private final String namespace;
         private final ImportKind kind;
+        private final List<String> selectedFunctions;
 
         public ImportExpression(Expression module, String namespace, ImportKind kind) {
+            this(module, namespace, kind, null);
+        }
+
+        public ImportExpression(Expression module, String namespace, ImportKind kind, List<String> selectedFunctions) {
             this.module = module;
             this.namespace = namespace;
             this.kind = kind;
+            this.selectedFunctions = selectedFunctions;
         }
 
         @Override
@@ -292,6 +300,14 @@ public abstract class Expression implements Node {
 
         public ImportKind getKind() {
             return kind;
+        }
+
+        public List<String> getSelectedFunctions() {
+            return selectedFunctions;
+        }
+
+        public boolean isSelective() {
+            return selectedFunctions != null && !selectedFunctions.isEmpty();
         }
 
         public boolean isExternalModule() {

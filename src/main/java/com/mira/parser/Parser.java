@@ -589,12 +589,22 @@ public class Parser {
         }
 
         Expression libExpr = new DumbExpression(matchExpression());
+        List<String> selected = null;
+        if (peek().getLexeme().equals(":")) {
+            consume();
+            selected = new ArrayList<>();
+            selected.add(matchExpression().getLexeme());
+            while (peek().getLexeme().equals(",")) {
+                consume();
+                selected.add(matchExpression().getLexeme());
+            }
+        }
         String libAlias = null;
         if (peek().getLexeme().equals("as")) {
             consume();
             libAlias = matchExpression().getLexeme();
         }
-        return new ImportExpression(libExpr, libAlias, ImportKind.STDLIB);
+        return new ImportExpression(libExpr, libAlias, ImportKind.STDLIB, selected);
     }
 
     private Expression parseMap() {

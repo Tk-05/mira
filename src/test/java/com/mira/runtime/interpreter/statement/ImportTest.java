@@ -92,4 +92,35 @@ public class ImportTest extends InterpreterTestBase {
                 str.trim(" hello ");
                 """));
     }
+
+    @Test
+    void selectiveImportMakesOnlySelectedFunctionsAvailable() {
+        assertEquals("hello", run("import string: trim; trim(\" hello \");"));
+    }
+
+    @Test
+    void selectiveImportDoesNotLoadOtherFunctions() {
+        assertThrows(RuntimeException.class, () ->
+            run("import string: trim; split(\"a,b\", \",\");"));
+    }
+
+    @Test
+    void selectiveImportWithAlias() {
+        assertEquals("hello", run("import string: trim as str; str.trim(\" hello \");"));
+    }
+
+    @Test
+    void selectiveImportUnknownFunctionThrows() {
+        assertThrows(RuntimeException.class, () ->
+            run("import string: nonexistent;"));
+    }
+
+    @Test
+    void selectiveImportReducesConflicts() {
+        assertEquals("hello", run("""
+                import string: trim;
+                import collection;
+                trim(" hello ");
+                """));
+    }
 }

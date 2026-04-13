@@ -536,6 +536,8 @@ module <name>;
 ```
 import <lib>;                                   // Standard library (global scope)
 import <lib> as <alias>;                        // Standard library under alias
+import <lib>: <fn1>, <fn2>;                     // Selective import (global scope)
+import <lib>: <fn1>, <fn2> as <alias>;          // Selective import under alias
 import module "./path/to/file.mira";            // File import (global scope)
 import module "./path/to/file.mira" as <alias>; // File import under alias
 import native "./path/to/lib.jar" as <alias>;   // Native JAR extension (alias required)

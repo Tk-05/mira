@@ -10,6 +10,7 @@ import java.nio.file.attribute.FileTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
@@ -249,17 +250,36 @@ public class ImportResolver {
         if (hasAlias) {
             Namespace ns = new Namespace(alias);
             lib.loadLib(ns);
-            environment.define(alias, ns);
+            if (expr.isSelective()) {
+                Namespace filtered = new Namespace(alias);
+                for (String fn : expr.getSelectedFunctions()) {
+                    if (!ns.exists(fn)) {
+                        throw new RuntimeException("Function '" + fn + "' not found in lib '" + libName + "'");
+                    }
+                    filtered.define(fn, ns.get(fn));
+                }
+                environment.define(alias, filtered);
+            } else {
+                environment.define(alias, ns);
+            }
         } else {
             Environment temp = new Environment();
             lib.loadLib(temp);
-            Set<String> conflicts = new HashSet<>(temp.keySet());
+            Set<String> toLoad = expr.isSelective()
+                    ? new LinkedHashSet<>(expr.getSelectedFunctions())
+                    : temp.keySet();
+            for (String name : toLoad) {
+                if (!temp.exists(name)) {
+                    throw new RuntimeException("Function '" + name + "' not found in lib '" + libName + "'");
+                }
+            }
+            Set<String> conflicts = new HashSet<>(toLoad);
             conflicts.retainAll(globalLibNames.keySet());
             if (!conflicts.isEmpty()) {
                 String conflictingLib = globalLibNames.get(conflicts.iterator().next());
                 throw new LibImportConflictError(conflictingLib, libName, conflicts);
             }
-            for (String name : temp.keySet()) {
+            for (String name : toLoad) {
                 environment.define(name, temp.get(name));
                 globalLibNames.put(name, libName);
             }
