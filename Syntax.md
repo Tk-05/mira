@@ -97,6 +97,21 @@ $i < 5
 $x > 3 && $y == 0
 ```
 
+### Pipe Operator
+
+Passes the left-hand value as the first argument to the right-hand call:
+
+```
+$x |> trim()             // equivalent to trim($x)
+$x |> add(1)             // equivalent to add($x, 1)
+```
+
+Pipes can be chained left-to-right:
+
+```
+$input |> trim() |> upper()
+```
+
 ### Ternary Operator
 
 Evaluates a condition and returns one of two values:

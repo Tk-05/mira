@@ -406,6 +406,10 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
     public <T> T visitBinaryExpr(BinaryExpression expression) {
         String op = expression.getOperator().getLexeme();
 
+        if (op.equals("|>")) {
+            return visitPipeExpr(expression);
+        }
+
         if (op.equals("&&")) {
             if (!resolveBoolean(expression.getLeft().accept(this))) {
                 return (T) Boolean.FALSE;
@@ -486,6 +490,34 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             default ->
                 throw new UnknownOperatorError(op);
         };
+    }
+
+    private <T> T visitPipeExpr(BinaryExpression expr) {
+        Object piped = expr.getLeft().accept(this);
+
+        if (!(expr.getRight() instanceof CallExpression call)) {
+            throw new NotCallableError("right-hand side of |> must be a call expression");
+        }
+
+        String calleeName = (String) call.getCallee().accept(this);
+        Object fn;
+        if (localEnvironment != null) {
+            Object local = localEnvironment.getOrNull(calleeName);
+            fn = local != null ? local : globalEnvironment.get(calleeName);
+        } else {
+            fn = globalEnvironment.get(calleeName);
+        }
+        if (!(fn instanceof Callable callable)) {
+            throw new NotCallableError(calleeName);
+        }
+
+        List<Object> arguments = new ArrayList<>();
+        arguments.add(piped);
+        for (Expression arg : call.getArguments()) {
+            arguments.add(arg.accept(this));
+        }
+
+        return (T) callable.call(this, arguments);
     }
 
     private double toNumber(Object value) {
@@ -1101,7 +1133,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                         runBodyInFreshScope(stmt.getBody());
                     } catch (ContinueSignal continueSignal) {
                     }
-                    
+
                     Object condition = stmt.getCondition().accept(this);
                     if (!resolveLoopCondition(condition)) {
                         return null;

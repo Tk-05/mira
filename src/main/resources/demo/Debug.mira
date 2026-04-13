@@ -69,7 +69,7 @@ fn main() {
         }
         ray.CloseWindow();
     } else {
-        print($multiComment);
+        $multiComment|>print();
 
         var i : 0;
         do {

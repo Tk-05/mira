@@ -288,7 +288,7 @@ public class Parser {
 
     private int binaryOperatorBP(String op) {
         return switch (op) {
-            case "||" ->
+            case "|>", "||" ->
                 1;
             case "&&" ->
                 2;
