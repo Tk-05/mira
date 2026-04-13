@@ -3,8 +3,6 @@ package com.mira.runtime.functions;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.mira.lexer.token.Token;
-import com.mira.lexer.token.TokenType;
 import com.mira.parser.nodes.Node;
 import com.mira.parser.nodes.expression.Expression;
 import com.mira.parser.nodes.expression.Expression.DumbExpression;
@@ -12,8 +10,25 @@ import com.mira.parser.nodes.expression.Expression.ListExpression;
 import com.mira.parser.nodes.statement.Statement;
 import com.mira.runtime.interpreter.Environment;
 import com.mira.runtime.interpreter.Interpreter;
-
 public class Function implements Callable {
+
+    private static final class WrappedValue extends Expression {
+        private final Object value;
+
+        WrappedValue(Object value) {
+            this.value = value;
+        }
+
+        @Override
+        public <T> T accept(com.mira.runtime.visitors.ExprVisitor<T> visitor) {
+            return (T) value;
+        }
+
+        @Override
+        public String toString() {
+            return String.valueOf(value);
+        }
+    }
 
     private final Environment environment;
     private final List<DumbExpression> parameters;
@@ -33,7 +48,7 @@ public class Function implements Callable {
         if (val instanceof Expression e) {
             return e;
         }
-        return new DumbExpression(new Token(TokenType.EXPRESSION, String.valueOf(val), 0, 0));
+        return new WrappedValue(val);
     }
 
     @Override

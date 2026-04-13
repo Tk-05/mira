@@ -79,7 +79,12 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
     private static final ThreadLocal<Interpreter> activeInterpreter = new ThreadLocal<>();
     private Environment globalEnvironment = new Environment();
     private Environment localEnvironment;
-    private final Map<String, Object> callCache = new HashMap<>();
+
+    private record CacheKey(String name, List<Object> args) {
+
+    }
+
+    private final Map<CacheKey, Object> callCache = new HashMap<>();
     private Set<String> pureFunctions = Set.of();
 
     public Interpreter() {
@@ -278,11 +283,9 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         if (value.equals("null")) {
             return (T) NullValue.INSTANCE;
         }
-        if (expression.getTokenType() == TokenType.EXPRESSION) {
-            try {
-                return (T) parseNumber(value);
-            } catch (NumberFormatException e) {
-            }
+        if (expression.getTokenType() == TokenType.EXPRESSION
+                && !value.isEmpty() && Character.isDigit(value.charAt(0))) {
+            return (T) parseNumber(value);
         }
         return (T) value;
     }
@@ -314,7 +317,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         }
 
         if (pureFunctions.contains(calleeName)) {
-            String cacheKey = calleeName + arguments;
+            CacheKey cacheKey = new CacheKey(calleeName, arguments);
             Object cached = callCache.get(cacheKey);
             if (cached != null) {
                 return (T) cached;
@@ -377,21 +380,21 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                 && expressions.get(1) instanceof UnaryExpression unary
                 && isLogicalOperator(unary.getOperation().getLexeme())) {
 
-            Object leftRaw = expressions.get(0).accept(this);
             String op = unary.getOperation().getLexeme();
-            Object rightRaw = expressions.get(2).accept(this);
+            boolean left = resolveBoolean(expressions.get(0).accept(this));
 
-            boolean left = resolveBoolean(leftRaw);
-            boolean right = resolveBoolean(rightRaw);
+            if (op.equals("&&") && !left) {
+                return (T) Boolean.FALSE;
+            }
+            if (op.equals("||") && left) {
+                return (T) Boolean.TRUE;
+            }
 
-            return (T) Boolean.valueOf(switch (op) {
-                case "&&" ->
-                    left && right;
-                case "||" ->
-                    left || right;
-                default ->
-                    throw new UnknownOperatorError(op);
-            });
+            boolean right = resolveBoolean(expressions.get(2).accept(this));
+            if (right) {
+                return (T) Boolean.TRUE;
+            }
+            return (T) Boolean.FALSE;
         }
 
         Object arithmetic = tryEvaluateArithmetic(expressions);
@@ -404,9 +407,29 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
     @Override
     public <T> T visitBinaryExpr(BinaryExpression expression) {
+        String op = expression.getOperator().getLexeme();
+
+        if (op.equals("&&")) {
+            if (!resolveBoolean(expression.getLeft().accept(this))) {
+                return (T) Boolean.FALSE;
+            }
+            if (!resolveBoolean(expression.getRight().accept(this))) {
+                return (T) Boolean.FALSE;
+            }
+            return (T) Boolean.TRUE;
+        }
+        if (op.equals("||")) {
+            if (resolveBoolean(expression.getLeft().accept(this))) {
+                return (T) Boolean.TRUE;
+            }
+            if (resolveBoolean(expression.getRight().accept(this))) {
+                return (T) Boolean.TRUE;
+            }
+            return (T) Boolean.FALSE;
+        }
+
         Object left = expression.getLeft().accept(this);
         Object right = expression.getRight().accept(this);
-        String op = expression.getOperator().getLexeme();
 
         return (T) switch (op) {
             case "+" -> {
@@ -463,10 +486,6 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                 evaluateComparison(left, "<=", right);
             case ">=" ->
                 evaluateComparison(left, ">=", right);
-            case "&&" ->
-                resolveBoolean(left) && resolveBoolean(right);
-            case "||" ->
-                resolveBoolean(left) || resolveBoolean(right);
             default ->
                 throw new UnknownOperatorError(op);
         };

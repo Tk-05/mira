@@ -13,24 +13,26 @@ public class Evaluator {
 
     private static final Pattern NUMBER_PATTERN = Pattern.compile("-?\\d+(\\.\\d+)?");
 
-    private static List<Token> tokens;
-    private static int current;
+    private List<Token> tokens;
+    private int current;
 
     public static Object evaluate(String expression, boolean ignoreSequences) {
         Tokenizer tokenizer = new Tokenizer();
-        tokens = tokenizer.tokenize(expression, ignoreSequences);
-        current = 0;
+        Evaluator evaluator = new Evaluator();
+        evaluator.tokens = tokenizer.tokenize(expression, ignoreSequences);
+        evaluator.current = 0;
 
-        Object result = or();
+        Object result = evaluator.or();
 
-        if (!isAtEnd()) {
-            throw new UnexpectedToken(peek(), peek().getLexeme());
+        if (!evaluator.isAtEnd()) {
+            Token unexpected = evaluator.peek();
+            throw new UnexpectedToken(unexpected, unexpected.getLexeme());
         }
 
         return result;
     }
 
-    private static Object or() {
+    private Object or() {
         Object left = and();
 
         while (match("||")) {
@@ -41,7 +43,7 @@ public class Evaluator {
         return left;
     }
 
-    private static Object and() {
+    private Object and() {
         Object left = bitwiseOr();
 
         while (match("&&")) {
@@ -52,7 +54,7 @@ public class Evaluator {
         return left;
     }
 
-    private static Object bitwiseOr() {
+    private Object bitwiseOr() {
         Object left = bitwiseXor();
 
         while (match("|")) {
@@ -63,7 +65,7 @@ public class Evaluator {
         return left;
     }
 
-    private static Object bitwiseXor() {
+    private Object bitwiseXor() {
         Object left = bitwiseAnd();
 
         while (match("^")) {
@@ -74,7 +76,7 @@ public class Evaluator {
         return left;
     }
 
-    private static Object bitwiseAnd() {
+    private Object bitwiseAnd() {
         Object left = equality();
 
         while (match("&")) {
@@ -85,7 +87,7 @@ public class Evaluator {
         return left;
     }
 
-    private static Object equality() {
+    private Object equality() {
         Object left = comparison();
 
         while (match("==", "!=")) {
@@ -102,7 +104,7 @@ public class Evaluator {
         return left;
     }
 
-    private static Object comparison() {
+    private Object comparison() {
         Object left = shift();
 
         while (match(">", "<", ">=", "<=")) {
@@ -130,7 +132,7 @@ public class Evaluator {
         return left;
     }
 
-    private static Object shift() {
+    private Object shift() {
         Object left = term();
 
         while (match("<<", ">>")) {
@@ -146,7 +148,7 @@ public class Evaluator {
         return left;
     }
 
-    private static Object term() {
+    private Object term() {
         Object left = factor();
 
         while (match("+", "-")) {
@@ -158,7 +160,7 @@ public class Evaluator {
         return left;
     }
 
-    private static Object factor() {
+    private Object factor() {
         Object left = unary();
 
         while (match("*", "/", "%")) {
@@ -185,7 +187,7 @@ public class Evaluator {
         return left;
     }
 
-    private static Object unary() {
+    private Object unary() {
         if (match("!")) {
             return !toBoolean(unary());
         }
@@ -201,7 +203,7 @@ public class Evaluator {
         return primary();
     }
 
-    private static Object primary() {
+    private Object primary() {
         if (match("(")) {
             Object value = or();
 
@@ -227,7 +229,7 @@ public class Evaluator {
         throw new UnexpectedToken(token, token.getLexeme());
     }
 
-    private static boolean match(String... ops) {
+    private boolean match(String... ops) {
         if (isAtEnd()) {
             return false;
         }
@@ -242,19 +244,19 @@ public class Evaluator {
         return false;
     }
 
-    private static Token advance() {
+    private Token advance() {
         return tokens.get(current++);
     }
 
-    private static Token peek() {
+    private Token peek() {
         return tokens.get(current);
     }
 
-    private static Token previous() {
+    private Token previous() {
         return tokens.get(current - 1);
     }
 
-    private static boolean isAtEnd() {
+    private boolean isAtEnd() {
         return peek().getTokenType() == TokenType.EOF;
     }
 

@@ -80,22 +80,26 @@ public class ImportResolver {
         Path parentInputPath = Flags.inputPath.get();
         List<ImportExpression> aliasedModules = imports.stream()
                 .filter(e -> e.getKind() == ImportExpression.ImportKind.MODULE
-                        && e.getNamespace() != null && !e.getNamespace().isBlank())
+                && e.getNamespace() != null && !e.getNamespace().isBlank())
                 .toList();
 
         if (!aliasedModules.isEmpty()) {
             List<CompletableFuture<Void>> futures = aliasedModules.stream()
                     .map(e -> CompletableFuture.runAsync(() -> {
-                        Flags.inputPath.set(parentInputPath);
-                        resolveModuleImport(new Interpreter(), e, environment);
-                    }))
+                Flags.inputPath.set(parentInputPath);
+                resolveModuleImport(new Interpreter(), e, environment);
+            }))
                     .toList();
             try {
                 CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new)).join();
             } catch (CompletionException e) {
                 Throwable cause = e.getCause();
-                if (cause instanceof com.mira.error.MiraError me) throw me;
-                if (cause instanceof RuntimeException re) throw re;
+                if (cause instanceof com.mira.error.MiraError me) {
+                    throw me;
+                }
+                if (cause instanceof RuntimeException re) {
+                    throw re;
+                }
                 throw new RuntimeException(cause);
             }
         }
@@ -146,7 +150,9 @@ public class ImportResolver {
                 existing.join();
             } catch (CompletionException ce) {
                 Throwable cause = ce.getCause();
-                if (cause instanceof RuntimeException re) throw re;
+                if (cause instanceof RuntimeException re) {
+                    throw re;
+                }
                 throw new RuntimeException(cause);
             }
             return;
@@ -207,9 +213,11 @@ public class ImportResolver {
             Flags.inputPath.set(previousFile);
             loadFuture.complete(null);
 
-        } catch (Exception e) {
+        } catch (IOException | RuntimeException e) {
             loadFuture.completeExceptionally(e);
-            if (e instanceof RuntimeException re) throw re;
+            if (e instanceof RuntimeException re) {
+                throw re;
+            }
             throw new RuntimeException("Module '" + importExpression.getModule() + "' could not be loaded", e);
         }
     }
