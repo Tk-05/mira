@@ -6,15 +6,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import com.mira.lib.LibIndex;
 import com.mira.parser.nodes.Node;
 import com.mira.parser.nodes.expression.Expression.AccessExpression;
+import com.mira.parser.nodes.expression.Expression.ArrayExpression;
 import com.mira.parser.nodes.expression.Expression.BinaryExpression;
 import com.mira.parser.nodes.expression.Expression.CallExpression;
 import com.mira.parser.nodes.expression.Expression.ComplexExpression;
 import com.mira.parser.nodes.expression.Expression.DumbExpression;
 import com.mira.parser.nodes.expression.Expression.FieldAccessExpression;
 import com.mira.parser.nodes.expression.Expression.LambdaExpression;
-import com.mira.parser.nodes.expression.Expression.ArrayExpression;
 import com.mira.parser.nodes.expression.Expression.ListExpression;
 import com.mira.parser.nodes.expression.Expression.NamespaceCallExpression;
 import com.mira.parser.nodes.expression.Expression.ObjectExpression;
@@ -37,17 +38,9 @@ import com.mira.parser.nodes.statement.Statement.While;
 
 public class PurityAnalyzer {
 
-    private static final Set<String> IMPURE_GLOBALS = Set.of(
-            "print", "exec", "exit", "readFile", "writeFile"
-    );
-
-    private static final Set<String> IMPURE_NAMESPACES = Set.of(
-            "io", "shell", "net", "process", "dateTime", "collection"
-    );
-
-    private static final Set<String> PURE_GLOBALS = Set.of(
-            "eval", "length", "assert"
-    );
+    private static final Set<String> IMPURE_GLOBALS = LibIndex.IMPURE_GLOBAL_NAMES;
+    private static final Set<String> IMPURE_NAMESPACES = LibIndex.IMPURE_NAMESPACES;
+    private static final Set<String> PURE_GLOBALS = LibIndex.PURE_GLOBAL_NAMES;
 
     public static Set<String> analyze(List<Node> asts) {
         Map<String, FuncDecl> functions = new HashMap<>();

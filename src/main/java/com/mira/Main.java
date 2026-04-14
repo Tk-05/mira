@@ -8,6 +8,7 @@ import com.mira.debugger.Debugger;
 import com.mira.error.DiagnosticFormatter;
 import com.mira.lexer.Tokenizer;
 import com.mira.lexer.token.Token;
+import com.mira.linter.Linter;
 import com.mira.parser.Parser;
 import com.mira.parser.nodes.Node;
 import com.mira.repl.Repl;
@@ -43,9 +44,10 @@ public class Main {
                         Flags.args = args[i + 1].substring(0, args[i + 1].length()).split(",");
                     case "-debug" ->
                         Flags.debug = true;
-                    default -> {
+                    case "-lint" ->
+                        Flags.lint = true;
+                    default ->
                         throw new RuntimeException(args[i] + " is not a known flag");
-                    }
                 }
             }
 
@@ -75,6 +77,11 @@ public class Main {
 
                 Parser parser = new Parser();
                 List<Node> asts = parser.parseTokens(tokens);
+
+                if (Flags.lint) {
+                    new Linter().lint(asts);
+                    WarningCollector.flush();
+                }
 
                 if (Flags.exitBeforeInterpreter) {
                     System.exit(0);

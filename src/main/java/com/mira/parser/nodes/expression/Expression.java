@@ -4,6 +4,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 
 import com.mira.lexer.token.Token;
+import com.mira.lexer.token.TokenType;
 import com.mira.parser.nodes.Node;
 import com.mira.parser.nodes.statement.Statement.VarDecl;
 import com.mira.runtime.visitors.ExprVisitor;
@@ -33,8 +34,16 @@ public abstract class Expression implements Node {
             return token.getLexeme();
         }
 
-        public com.mira.lexer.token.TokenType getTokenType() {
+        public TokenType getTokenType() {
             return token.getTokenType();
+        }
+
+        public int getLine() {
+            return token.getLine();
+        }
+
+        public int getColumn() {
+            return token.getColumn();
         }
 
         @Override

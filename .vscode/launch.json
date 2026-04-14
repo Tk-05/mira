@@ -16,6 +16,18 @@
         },
         {
             "type": "java",
+            "name": "Lint main",
+            "request": "launch",
+            "mainClass": "com.mira.Main",
+            "projectName": "mira",
+            "args": [
+                    "src/main/resources/demo/Debug.mira",
+                    "-m",
+                    "-lint"
+                ]
+        },
+        {
+            "type": "java",
             "name": "Run with main",
             "request": "launch",
             "mainClass": "com.mira.Main",

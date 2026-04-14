@@ -170,5 +170,6 @@ fn main() {
         print("It's " $temps[$idx] " on " $timestamp "\n");
 
         return eval($ret);
+        print("Dead code");
     }
 }
