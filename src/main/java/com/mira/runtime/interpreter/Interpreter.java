@@ -551,6 +551,9 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
     }
 
     private Number parseNumber(String s) {
+        if (s.startsWith("0x") || s.startsWith("0X")) {
+            return Long.parseLong(s.substring(2), 16);
+        }
         if (s.contains(".")) {
             return Double.parseDouble(s);
         }

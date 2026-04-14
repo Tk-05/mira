@@ -257,4 +257,10 @@ public class LexerTest {
         List<Token> tokens = tokenizer.tokenize("\"\"\"\"\"\"", false);
         assertEquals("", tokens.getFirst().getLexeme());
     }
+
+    @Test
+    void testHexNumber() {
+        List<Token> tokens = tokenizer.tokenize("0xFF", false);
+        assertEquals("0xFF", tokens.getFirst().getLexeme());
+    }
 }

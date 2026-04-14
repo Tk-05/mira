@@ -25,6 +25,8 @@ Hello World1
 Hello World2
 """;
 
+var hex : 0xFF;
+
 fn short(arg) {
     print($arg "\n");
     return false;
@@ -150,6 +152,8 @@ fn main() {
         } catch(e) {
             print($e "\n");
         }
+
+        (eval($hex + 1)"\n")|>print();
 
         //53.5507 
         print("Enter the latitude: \n");

@@ -60,12 +60,15 @@ public class Linter {
             switch (node) {
                 case FuncDecl f -> {
                     scope.declare(f.getName(), f.line, 0, false);
+                    scope.markUsed(f.getName());
                     knownFunctions.put(f.getName(), f.getArity());
                 }
                 case VarDecl v ->
                     scope.declare(v.getName(), v.line, 0, v.isConst());
-                case EnumDecl e ->
+                case EnumDecl e -> {
                     scope.declare(e.getIdentifier(), e.line, 0, true);
+                    scope.markUsed(e.getIdentifier());
+                }
                 case ImportExpression imp ->
                     preDeclareImport(imp);
                 default -> {
@@ -75,7 +78,7 @@ public class Linter {
 
         lintNodes(ast);
 
-        scope.pop();
+        checkUnused(scope.pop());
     }
 
     private void lintNodes(List<Node> nodes) {
