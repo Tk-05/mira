@@ -14,6 +14,7 @@ import com.mira.parser.nodes.expression.Expression.ComplexExpression;
 import com.mira.parser.nodes.expression.Expression.DumbExpression;
 import com.mira.parser.nodes.expression.Expression.FieldAccessExpression;
 import com.mira.parser.nodes.expression.Expression.LambdaExpression;
+import com.mira.parser.nodes.expression.Expression.ArrayExpression;
 import com.mira.parser.nodes.expression.Expression.ListExpression;
 import com.mira.parser.nodes.expression.Expression.NamespaceCallExpression;
 import com.mira.parser.nodes.expression.Expression.ObjectExpression;
@@ -95,6 +96,8 @@ public class PurityAnalyzer {
                 u.getRight() == null || isNodePure(u.getRight(), pure);
             case ComplexExpression c ->
                 c.getExpressions().stream().allMatch(e -> isNodePure(e, pure));
+            case ArrayExpression a ->
+                a.getMembers().stream().allMatch(e -> isNodePure(e, pure));
             case TupleExpression t ->
                 t.getMembers().stream().allMatch(e -> isNodePure(e, pure));
             case ListExpression l ->

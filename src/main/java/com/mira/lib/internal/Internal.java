@@ -10,6 +10,7 @@ import com.mira.lexer.Tokenizer;
 import com.mira.lib.Lib;
 import com.mira.parser.Parser;
 import com.mira.parser.nodes.Node;
+import com.mira.parser.nodes.expression.Expression.ArrayExpression;
 import com.mira.parser.nodes.expression.Expression.ListExpression;
 import com.mira.parser.nodes.expression.Expression.TupleExpression;
 import com.mira.runtime.functions.NativeFunction;
@@ -58,6 +59,9 @@ public class Internal implements Lib {
                     Object arg = args.get(0);
 
                     switch (arg) {
+                        case ArrayExpression array -> {
+                            return array.getLength();
+                        }
                         case TupleExpression tuple -> {
                             return String.valueOf(tuple.getMembers().size());
                         }

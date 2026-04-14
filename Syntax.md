@@ -5,7 +5,7 @@
 1. [Program Structure](#program-structure)
 2. [Values](#values)
 3. [Expressions](#expressions)
-4. [Data Structures](#data-structures)
+4. [Data Structures](#data-structures) — List, Array, Tuple, Object, Map, Range
 5. [Control Flow](#control-flow)
 6. [Functions](#functions)
 7. [Enums](#enums)
@@ -227,9 +227,14 @@ $input |> trim() |> upper()
 
 ### Grouping
 
+Parentheses with a single expression (no comma) group for precedence:
+
 ```
 (($val1 + $val2) + 1)
+eval(($a + $b) * $c)
 ```
+
+A comma turns parentheses into a tuple — see [Tuple](#tuple) above.
 
 ---
 
@@ -237,19 +242,47 @@ $input |> trim() |> upper()
 
 ### List
 
-Ordered collection using curly braces:
+Ordered, mutable, dynamic-size collection using curly braces:
 
 ```
 var x : {10, 20, 30};
+$x[0];                   // Index access
+$x[1] : 99;              // Mutate element
 ```
 
-### Tuple
+### Array
 
-Fixed-size sequence using square brackets:
+Ordered, mutable, fixed-size collection using square brackets:
 
 ```
 var x : [10, 20, 30];
 $x[0];                   // Index access
+$x[1] : 99;              // Mutate element (allowed)
+```
+
+Arrays cannot grow or shrink — `push` and `pop` only work on lists.
+
+### Tuple
+
+Fixed-size, immutable sequence using parentheses with at least one comma:
+
+```
+var x : (10, 20, 30);
+$x[0];                   // Index access
+$x[1] : 99;              // ERROR — tuples are immutable
+```
+
+Single-element tuple requires a trailing comma to distinguish from grouping:
+
+```
+var single : (42,);      // Tuple with one element
+var grouped : (42);      // Grouping expression — just the number 42
+```
+
+Empty tuple:
+
+```
+var empty : ();
 ```
 
 ### Object
@@ -372,7 +405,7 @@ for (var <name> in <range>) {
 
 ### Foreach
 
-Iterates over a collection, tuple, string, or range:
+Iterates over a list, array, tuple, string, or range:
 
 ```
 foreach (var <name> in <collection>) {
@@ -636,7 +669,7 @@ Always available without any import.
 | `scan()`                    | —                      | Reads a line from stdin and returns it as a string        |
 | `eval(<expr>)`              | Arithmetic expression  | Evaluates an arithmetic expression and returns the result |
 | `exec(<code>)`              | String                 | Parses and executes a string of Mira code at runtime      |
-| `length(<value>)`           | String, List, or Tuple | Returns the number of characters / elements               |
+| `length(<value>)`           | String, List, Array, or Tuple | Returns the number of characters / elements          |
 | `exit(<code>)`              | Number                 | Exits the program with the given exit code                |
 | `assert(<cond>)`            | Boolean expression     | Throws a runtime error if the condition is false          |
 | `assert(<cond>, <message>)` | Boolean, String        | Throws with a custom message if condition is false        |
@@ -659,22 +692,24 @@ Always available without any import.
 
 ### `collection`
 
-| Function                    | Description                                          |
-| --------------------------- | ---------------------------------------------------- |
-| `size(list)`                | Returns the number of elements                       |
-| `push(list, value)`         | Appends a value to the list (mutates)                |
-| `pop(list)`                 | Removes the last element (mutates)                   |
-| `first(list)`               | Returns the first element                            |
-| `last(list)`                | Returns the last element                             |
-| `contains(list, value)`     | Returns true if the value is in the collection       |
-| `findIndex(list, value)`    | Returns the index of a value, or `-1`                |
-| `slice(list, from, to)`     | Returns a sub-list                                   |
-| `reverse(list)`             | Returns a reversed copy                              |
-| `concat(list1, list2)`      | Concatenates two collections into a new list         |
-| `flatten(list)`             | Flattens one level of nested lists                   |
-| `join(list, separator)`     | Joins elements into a string                         |
-| `newList()`                 | Creates an empty mutable list                        |
-| `newTuple()`                | Creates an empty tuple                               |
+Works with lists, arrays, and tuples unless noted otherwise.
+
+| Function                    | Description                                               |
+| --------------------------- | --------------------------------------------------------- |
+| `size(col)`                 | Returns the number of elements                            |
+| `push(list, value)`         | Appends a value to the list (mutates) — lists only        |
+| `pop(list)`                 | Removes the last element (mutates) — lists only           |
+| `first(col)`                | Returns the first element                                 |
+| `last(col)`                 | Returns the last element                                  |
+| `contains(col, value)`      | Returns true if the value is in the collection            |
+| `findIndex(col, value)`     | Returns the index of a value, or `-1`                     |
+| `slice(col, from, to)`      | Returns a sub-list                                        |
+| `reverse(col)`              | Returns a reversed copy as a list                         |
+| `concat(col1, col2)`        | Concatenates two collections into a new list              |
+| `flatten(col)`              | Flattens one level of nested lists/arrays/tuples          |
+| `join(col, separator)`      | Joins elements into a string                              |
+| `newList()`                 | Creates an empty mutable list                             |
+| `newTuple()`                | Creates an empty tuple                                    |
 
 ### `map`
 

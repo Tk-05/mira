@@ -27,6 +27,7 @@ import com.mira.parser.Parser;
 import com.mira.parser.nodes.Node;
 import com.mira.parser.nodes.expression.Expression;
 import com.mira.parser.nodes.expression.Expression.AccessExpression;
+import com.mira.parser.nodes.expression.Expression.ArrayExpression;
 import com.mira.parser.nodes.expression.Expression.BinaryExpression;
 import com.mira.parser.nodes.expression.Expression.CallExpression;
 import com.mira.parser.nodes.expression.Expression.ComplexExpression;
@@ -924,6 +925,11 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
     }
 
     @Override
+    public <T> T visitArrayExpr(ArrayExpression expression) {
+        return (T) expression;
+    }
+
+    @Override
     public <T> T visitTupleExpr(TupleExpression expression) {
         return (T) expression;
     }
@@ -965,6 +971,13 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                             throw new AssertionError();
                     }
                     switch (accessedObject) {
+                        case ArrayExpression array -> {
+                            if (array.getMembers().get(i) instanceof ArrayExpression innerArray) {
+                                accessedObject = innerArray.accept(this);
+                            } else {
+                                accessedObject = array.getMembers().get(i);
+                            }
+                        }
                         case TupleExpression tuple -> {
                             if (tuple.getMembers().get(i) instanceof TupleExpression innerTuple) {
                                 accessedObject = innerTuple.accept(this);
@@ -1011,6 +1024,16 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                     }
 
                     switch (referencedObject) {
+                        case ArrayExpression array -> {
+                            referencedObject = array.getMembers().get(i);
+                            if (referencedObject instanceof ArrayExpression innerArray) {
+                                referencedObject = innerArray.accept(this);
+                            } else if (referencedObject instanceof ListExpression innerList) {
+                                referencedObject = innerList.accept(this);
+                            } else {
+                                throw new ImmutableCollectionError();
+                            }
+                        }
                         case TupleExpression tuple -> {
                             referencedObject = tuple.getMembers().get(i);
                             if (referencedObject instanceof ListExpression innerList) {
@@ -1042,6 +1065,11 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                         }
 
                         switch (referencedObject) {
+                            case ArrayExpression array -> {
+                                Object lastIdx = accessExpression.getIndecies().getLast().accept(this);
+                                int arrayIdx = lastIdx instanceof Number n ? (int) n.longValue() : Integer.parseInt((String) lastIdx);
+                                array.getMembers().set(arrayIdx, assignment);
+                            }
                             case ListExpression list -> {
                                 Object lastIdx = accessExpression.getIndecies().getLast().accept(this);
                                 int listIdx = lastIdx instanceof Number n ? (int) n.longValue() : Integer.parseInt((String) lastIdx);
@@ -1287,6 +1315,16 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             Object iterable = stmt.getCollection().accept(this);
 
             switch (iterable) {
+                case ArrayExpression array -> {
+                    for (Expression expr : array.getMembers()) {
+                        Object value = expr.accept(this);
+                        assignIterator(iteratorName, value);
+                        try {
+                            runBodyInFreshScope(stmt.getBody());
+                        } catch (ContinueSignal continueSignal) {
+                        }
+                    }
+                }
                 case TupleExpression tuple -> {
                     for (Expression expr : tuple.getMembers()) {
                         Object value = expr.accept(this);

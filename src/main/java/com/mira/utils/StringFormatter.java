@@ -1,6 +1,7 @@
 package com.mira.utils;
 
 import com.mira.parser.nodes.expression.Expression;
+import com.mira.parser.nodes.expression.Expression.ArrayExpression;
 import com.mira.parser.nodes.expression.Expression.ListExpression;
 import com.mira.parser.nodes.expression.Expression.MapExpression;
 import com.mira.parser.nodes.expression.Expression.TupleExpression;
@@ -9,9 +10,26 @@ public class StringFormatter {
 
     public static String formatToString(Expression expression) {
         switch (expression) {
-            case TupleExpression tuple -> {
+            case ArrayExpression array -> {
                 StringBuilder sb = new StringBuilder();
                 sb.append("[");
+
+                for (int i = 0; i < array.getMembers().size(); i++) {
+                    Expression elem = array.getMembers().get(i);
+
+                    sb.append(formatToString(elem));
+
+                    if (i < array.getMembers().size() - 1) {
+                        sb.append(", ");
+                    }
+                }
+
+                sb.append("]");
+                return sb.toString();
+            }
+            case TupleExpression tuple -> {
+                StringBuilder sb = new StringBuilder();
+                sb.append("(");
 
                 for (int i = 0; i < tuple.getMembers().size(); i++) {
                     Expression elem = tuple.getMembers().get(i);
@@ -23,7 +41,7 @@ public class StringFormatter {
                     }
                 }
 
-                sb.append("]");
+                sb.append(")");
                 return sb.toString();
             }
             case ListExpression list -> {

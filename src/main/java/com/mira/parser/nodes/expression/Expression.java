@@ -137,6 +137,38 @@ public abstract class Expression implements Node {
         }
     }
 
+    public static class ArrayExpression extends Expression implements Mutability {
+
+        private final List<Expression> members;
+
+        public ArrayExpression(List<Expression> members) {
+            this.members = members;
+        }
+
+        @Override
+        public <T> T accept(ExprVisitor<T> visitor) {
+            return visitor.visitArrayExpr(this);
+        }
+
+        public int getLength() {
+            return members.size();
+        }
+
+        public List<Expression> getMembers() {
+            return members;
+        }
+
+        @Override
+        public String toString() {
+            return StringFormatter.formatToString(this);
+        }
+
+        @Override
+        public boolean isMutable() {
+            return true;
+        }
+    }
+
     public static class TupleExpression extends Expression implements Mutability {
 
         private final List<Expression> members;
