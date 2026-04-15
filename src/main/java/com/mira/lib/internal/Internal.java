@@ -2,6 +2,9 @@ package com.mira.lib.internal;
 
 import java.util.List;
 import java.util.Scanner;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 import com.mira.error.runtime.RuntimeError.ArgMismatchError;
 import com.mira.error.runtime.RuntimeError.AssertionFailedError;
@@ -21,7 +24,20 @@ import com.mira.runtime.interpreter.NullValue;
 
 public class Internal implements Lib {
 
-    private static final Scanner stdin = new Scanner(System.in);
+    private static final BlockingQueue<String> stdinQueue = new LinkedBlockingQueue<>();
+
+    static {
+        Thread reader = new Thread(() -> {
+            try (Scanner scanner = new Scanner(System.in)) {
+                while (scanner.hasNextLine()) {
+                    stdinQueue.add(scanner.nextLine());
+                }
+            }
+        });
+        reader.setDaemon(true);
+        reader.setName("stdin-reader");
+        reader.start();
+    }
 
     @Override
     public void loadLib(Environment environment) {
@@ -35,7 +51,16 @@ public class Internal implements Lib {
 
         environment.define("scan",
                 new NativeFunction(0, args -> {
-                    return stdin.nextLine();
+                    try {
+                        String line;
+                        do {
+                            line = stdinQueue.poll(100, TimeUnit.MILLISECONDS);
+                        } while (line == null && !Thread.currentThread().isInterrupted());
+                        return line != null ? line : "";
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        return "";
+                    }
                 })
         );
 
