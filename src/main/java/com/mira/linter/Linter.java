@@ -38,6 +38,7 @@ import com.mira.parser.nodes.statement.Statement.Switch;
 import com.mira.parser.nodes.statement.Statement.Throw;
 import com.mira.parser.nodes.statement.Statement.TryCatch;
 import com.mira.parser.nodes.statement.Statement.VarDecl;
+import com.mira.parser.nodes.statement.Statement.VarDestructure;
 import com.mira.parser.nodes.statement.Statement.While;
 import com.mira.warning.WarningCollector;
 import com.mira.warning.WarningLevel;
@@ -117,6 +118,8 @@ public class Linter {
                 lintThrow(stmt);
             case EnumDecl stmt ->
                 lintEnum(stmt);
+            case VarDestructure stmt ->
+                lintVarDestructure(stmt);
             case CallExpression e ->
                 lintCallExpression(e);
             default ->
@@ -227,13 +230,20 @@ public class Linter {
 
         scope.push();
         for (var p : stmt.getParameters()) {
-            scope.declare(p.getValue(), stmt.line, 0, false);
+            scope.declare(p.name(), stmt.line, 0, false);
         }
         if (stmt.getVariadicParam() != null) {
             scope.declare(stmt.getVariadicParam(), stmt.line, 0, false);
         }
         lintBodyWithDeadCodeCheck(stmt.getBody());
         checkUnused(scope.pop());
+    }
+
+    private void lintVarDestructure(VarDestructure stmt) {
+        lintExpr(stmt.getInitializer());
+        for (String name : stmt.getNames()) {
+            scope.declare(name, stmt.line, 0, false);
+        }
     }
 
     private void lintAssign(Assign stmt) {
@@ -420,7 +430,7 @@ public class Linter {
 
     private void lintLambda(LambdaExpression expr) {
         scope.push();
-        expr.getParameters().forEach(p -> scope.declare(p.getValue(), 0, 0, false));
+        expr.getParameters().forEach(p -> scope.declare(p.name(), 0, 0, false));
         lintBodyWithDeadCodeCheck(expr.getBody());
         checkUnused(scope.pop());
     }

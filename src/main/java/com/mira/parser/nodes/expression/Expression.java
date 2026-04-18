@@ -6,6 +6,7 @@ import java.util.List;
 import com.mira.lexer.token.Token;
 import com.mira.lexer.token.TokenType;
 import com.mira.parser.nodes.Node;
+import com.mira.parser.nodes.Parameter;
 import com.mira.parser.nodes.statement.Statement.VarDecl;
 import com.mira.runtime.visitors.ExprVisitor;
 import com.mira.utils.StringFormatter;
@@ -457,10 +458,16 @@ public abstract class Expression implements Node {
 
         private final Expression object;
         private final String field;
+        private final boolean optional;
 
         public FieldAccessExpression(Expression object, String field) {
+            this(object, field, false);
+        }
+
+        public FieldAccessExpression(Expression object, String field, boolean optional) {
             this.object = object;
             this.field = field;
+            this.optional = optional;
         }
 
         @Override
@@ -470,7 +477,7 @@ public abstract class Expression implements Node {
 
         @Override
         public String toString() {
-            return object.toString() + "." + field;
+            return object.toString() + (optional ? "?." : ".") + field;
         }
 
         public Expression getObject() {
@@ -479,6 +486,10 @@ public abstract class Expression implements Node {
 
         public String getField() {
             return field;
+        }
+
+        public boolean isOptional() {
+            return optional;
         }
     }
 
@@ -554,17 +565,17 @@ public abstract class Expression implements Node {
 
     public static class LambdaExpression extends Expression {
 
-        private final List<DumbExpression> parameters;
+        private final List<Parameter> parameters;
         private final List<Node> body;
         private final String variadicParam;
 
-        public LambdaExpression(List<DumbExpression> parameters, List<Node> body, String variadicParam) {
+        public LambdaExpression(List<Parameter> parameters, List<Node> body, String variadicParam) {
             this.parameters = parameters;
             this.body = body;
             this.variadicParam = variadicParam;
         }
 
-        public List<DumbExpression> getParameters() {
+        public List<Parameter> getParameters() {
             return parameters;
         }
 
@@ -577,6 +588,13 @@ public abstract class Expression implements Node {
         }
 
         public int getArity() {
+            if (variadicParam != null) {
+                return -1;
+            }
+            return (int) parameters.stream().filter(p -> !p.hasDefault()).count();
+        }
+
+        public int getMaxArity() {
             return variadicParam != null ? -1 : parameters.size();
         }
 

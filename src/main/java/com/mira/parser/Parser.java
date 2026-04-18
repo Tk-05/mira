@@ -11,8 +11,10 @@ import com.mira.error.parser.ParserError.UnexpectedToken;
 import com.mira.lexer.token.Token;
 import com.mira.lexer.token.TokenType;
 import com.mira.parser.nodes.Node;
+import com.mira.parser.nodes.Parameter;
 import com.mira.parser.nodes.expression.Expression;
 import com.mira.parser.nodes.expression.Expression.AccessExpression;
+import com.mira.parser.nodes.expression.Expression.ArrayExpression;
 import com.mira.parser.nodes.expression.Expression.BinaryExpression;
 import com.mira.parser.nodes.expression.Expression.CallExpression;
 import com.mira.parser.nodes.expression.Expression.ComplexExpression;
@@ -27,7 +29,6 @@ import com.mira.parser.nodes.expression.Expression.NamespaceCallExpression;
 import com.mira.parser.nodes.expression.Expression.ObjectExpression;
 import com.mira.parser.nodes.expression.Expression.RangeExpression;
 import com.mira.parser.nodes.expression.Expression.TernaryExpression;
-import com.mira.parser.nodes.expression.Expression.ArrayExpression;
 import com.mira.parser.nodes.expression.Expression.TupleExpression;
 import com.mira.parser.nodes.expression.Expression.UnaryExpression;
 import com.mira.parser.nodes.statement.Statement;
@@ -48,6 +49,7 @@ import com.mira.parser.nodes.statement.Statement.SwitchCase;
 import com.mira.parser.nodes.statement.Statement.Throw;
 import com.mira.parser.nodes.statement.Statement.TryCatch;
 import com.mira.parser.nodes.statement.Statement.VarDecl;
+import com.mira.parser.nodes.statement.Statement.VarDestructure;
 import com.mira.parser.nodes.statement.Statement.While;
 import com.mira.vocabulary.Vocabulary;
 
@@ -294,7 +296,7 @@ public class Parser {
 
     private int binaryOperatorBP(String op) {
         return switch (op) {
-            case "|>", "||" ->
+            case "|>", "||", "??" ->
                 1;
             case "&&" ->
                 2;
@@ -455,13 +457,21 @@ public class Parser {
     }
 
     private Expression maybeParseFieldAccess(Expression base) {
-        while (peek().getLexeme().equals(".")
-                && peek().getTokenType() != TokenType.STRING_LITERAL
-                && isExpressionToken(peekOffset(1))
-                && !peekOffset(2).getLexeme().equals("(")) {
+        while (true) {
+            boolean optional = peek().getLexeme().equals("?.")
+                    && peek().getTokenType() != TokenType.STRING_LITERAL
+                    && isExpressionToken(peekOffset(1))
+                    && !peekOffset(2).getLexeme().equals("(");
+            boolean normal = peek().getLexeme().equals(".")
+                    && peek().getTokenType() != TokenType.STRING_LITERAL
+                    && isExpressionToken(peekOffset(1))
+                    && !peekOffset(2).getLexeme().equals("(");
+            if (!optional && !normal) {
+                break;
+            }
             consume();
             String fieldName = matchExpression().getLexeme();
-            base = new FieldAccessExpression(base, fieldName);
+            base = new FieldAccessExpression(base, fieldName, optional);
         }
         return base;
     }
@@ -681,6 +691,20 @@ public class Parser {
 
     private Node parseVarDecl(boolean isConst) {
         consume();
+        if (peek().getLexeme().equals("(")) {
+            consume();
+            List<String> names = new ArrayList<>();
+            while (!peek().getLexeme().equals(")")) {
+                names.add(matchExpression().getLexeme());
+                if (!peek().getLexeme().equals(")")) {
+                    matchLexeme(",");
+                }
+            }
+            matchLexeme(")");
+            matchLexeme(":");
+            Expression initializer = parseExpression();
+            return new VarDestructure(names, initializer);
+        }
         String identifier = consume().getLexeme();
         switch (peek().getLexeme()) {
             case ":" -> {
@@ -703,72 +727,53 @@ public class Parser {
         }
     }
 
+    private List<Parameter> parseParameterList(String variadicParamHolder[]) {
+        List<Parameter> parameters = new ArrayList<>();
+        while (!peek().getLexeme().equals(")")) {
+            if (peek().getLexeme().equals("...")) {
+                consume();
+                variadicParamHolder[0] = matchExpression().getLexeme();
+                break;
+            }
+            String paramName = matchExpression().getLexeme();
+            Expression defaultValue = null;
+            if (peek().getLexeme().equals(":")) {
+                consume();
+                defaultValue = parseExpression();
+            }
+            parameters.add(new Parameter(paramName, defaultValue));
+            if (!peek().getLexeme().equals(")")) {
+                matchLexeme(",");
+            }
+        }
+        return parameters;
+    }
+
     private Node parseFuncDecl() {
         matchLexeme("fn");
         String name = matchExpression().getLexeme();
         matchLexeme("(");
 
-        List<DumbExpression> parameters = new ArrayList<>();
-        String variadicParam = null;
-        while (!peek().getLexeme().equals(")")) {
-            if (peek().getLexeme().equals(",")) {
-                throw new UnexpectedToken(peek(), "Unexpected token");
-            }
-
-            if (peek().getLexeme().equals("...")) {
-                consume();
-                variadicParam = matchExpression().getLexeme();
-                break;
-            }
-
-            if (peekNext().getLexeme().equals(")")) {
-                parameters.add(new DumbExpression(matchExpression()));
-                break;
-            } else {
-                parameters.add(new DumbExpression(matchExpression()));
-                matchLexeme(",");
-            }
-        }
+        String[] variadicHolder = {null};
+        List<Parameter> parameters = parseParameterList(variadicHolder);
         matchLexeme(")");
 
         matchLexeme("{");
         List<Node> body = new ArrayList<>();
         while (!peek().getLexeme().equals("}")) {
-            if (peek().getLexeme().equals("}")) {
-                throw new UnexpectedToken(peek(), "Unexpected Token in function body");
-            }
             body.add(parseStatement(true));
         }
         matchLexeme("}");
 
-        return new FuncDecl(name, parameters, body, variadicParam);
+        return new FuncDecl(name, parameters, body, variadicHolder[0]);
     }
 
     private Expression parseLambdaExpression() {
         matchLexeme("fn");
         matchLexeme("(");
 
-        List<DumbExpression> parameters = new ArrayList<>();
-        String variadicParam = null;
-        while (!peek().getLexeme().equals(")")) {
-            if (peek().getLexeme().equals(",")) {
-                throw new UnexpectedToken(peek(), "Unexpected token");
-            }
-
-            if (peek().getLexeme().equals("...")) {
-                consume();
-                variadicParam = matchExpression().getLexeme();
-                break;
-            }
-
-            if (peekNext().getLexeme().equals(")")) {
-                parameters.add(new DumbExpression(matchExpression()));
-                break;
-            } else {
-                parameters.add(new DumbExpression(matchExpression()));
-                matchLexeme(",");
-            }
-        }
+        String[] variadicHolder = {null};
+        List<Parameter> parameters = parseParameterList(variadicHolder);
         matchLexeme(")");
 
         matchLexeme("{");
@@ -778,7 +783,7 @@ public class Parser {
         }
         matchLexeme("}");
 
-        return new LambdaExpression(parameters, body, variadicParam);
+        return new LambdaExpression(parameters, body, variadicHolder[0]);
     }
 
     private Node parseReturn() {

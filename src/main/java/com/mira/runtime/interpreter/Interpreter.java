@@ -62,6 +62,7 @@ import com.mira.parser.nodes.statement.Statement.SwitchCase;
 import com.mira.parser.nodes.statement.Statement.Throw;
 import com.mira.parser.nodes.statement.Statement.TryCatch;
 import com.mira.parser.nodes.statement.Statement.VarDecl;
+import com.mira.parser.nodes.statement.Statement.VarDestructure;
 import com.mira.parser.nodes.statement.Statement.While;
 import com.mira.runtime.functions.BreakSignal;
 import com.mira.runtime.functions.Callable;
@@ -331,7 +332,13 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             arguments.add(arg.accept(this));
         }
 
-        if (callable.getArity() != -1 && arguments.size() != callable.getArity()) {
+        if (callable instanceof Function f) {
+            int min = f.getArity();
+            int max = f.getMaxArity();
+            if (arguments.size() < min || (max != -1 && arguments.size() > max)) {
+                throw new ArgMismatchError(calleeName, min, arguments.size());
+            }
+        } else if (callable.getArity() != -1 && arguments.size() != callable.getArity()) {
             throw new ArgMismatchError(calleeName, callable.getArity(), arguments.size());
         }
 
@@ -355,6 +362,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                         funcDecl.getBody(),
                         funcDecl.getParameters(),
                         funcDecl.getArity(),
+                        funcDecl.getMaxArity(),
                         funcDecl.getVariadicParam()));
 
         return null;
@@ -363,7 +371,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
     @Override
     public <T> T visitLambdaExpr(LambdaExpression lambda) {
         Environment capturedEnv = localEnvironment != null ? localEnvironment : globalEnvironment;
-        return (T) new Function(capturedEnv, lambda.getBody(), lambda.getParameters(), lambda.getArity(), lambda.getVariadicParam());
+        return (T) new Function(capturedEnv, lambda.getBody(), lambda.getParameters(), lambda.getArity(), lambda.getMaxArity(), lambda.getVariadicParam());
     }
 
     @Override
@@ -428,6 +436,14 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
         if (op.equals("|>")) {
             return visitPipeExpr(expression);
+        }
+
+        if (op.equals("??")) {
+            Object left = expression.getLeft().accept(this);
+            if (left != null && !(left instanceof NullValue)) {
+                return (T) left;
+            }
+            return (T) expression.getRight().accept(this);
         }
 
         if (op.equals("&&")) {
@@ -1571,6 +1587,9 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         }
 
         if (!(object instanceof Environment objectEnv)) {
+            if (expression.isOptional()) {
+                return (T) NullValue.INSTANCE;
+            }
             throw new FieldAccessError(expression.getField());
         }
 
@@ -1584,6 +1603,29 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             enumEnv.defineConst(entry.getKey(), entry.getValue());
         }
         globalEnvironment.defineConst(stmt.getIdentifier(), enumEnv);
+        return null;
+    }
+
+    @Override
+    public Void visitVarDestructure(VarDestructure stmt) {
+        notifyDebugger(stmt);
+        Object value = stmt.getInitializer().accept(this);
+        List<Expression> members = switch (value) {
+            case TupleExpression t ->
+                t.getMembers();
+            case ListExpression l ->
+                l.getMembers();
+            case ArrayExpression a ->
+                a.getMembers();
+            default ->
+                throw new RuntimeException("Cannot destructure value of type: " + value.getClass().getSimpleName());
+        };
+        Environment env = localEnvironment == null ? globalEnvironment : localEnvironment;
+        List<String> names = stmt.getNames();
+        for (int i = 0; i < names.size(); i++) {
+            Object element = i < members.size() ? members.get(i).accept(this) : NullValue.INSTANCE;
+            env.define(names.get(i), element);
+        }
         return null;
     }
 

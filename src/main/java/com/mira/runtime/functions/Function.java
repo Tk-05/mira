@@ -4,15 +4,18 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.mira.parser.nodes.Node;
+import com.mira.parser.nodes.Parameter;
 import com.mira.parser.nodes.expression.Expression;
-import com.mira.parser.nodes.expression.Expression.DumbExpression;
 import com.mira.parser.nodes.expression.Expression.ListExpression;
 import com.mira.parser.nodes.statement.Statement;
 import com.mira.runtime.interpreter.Environment;
 import com.mira.runtime.interpreter.Interpreter;
+import com.mira.runtime.interpreter.NullValue;
+
 public class Function implements Callable {
 
     private static final class WrappedValue extends Expression {
+
         private final Object value;
 
         WrappedValue(Object value) {
@@ -31,16 +34,18 @@ public class Function implements Callable {
     }
 
     private final Environment environment;
-    private final List<DumbExpression> parameters;
+    private final List<Parameter> parameters;
     private final List<Node> body;
     private final int arity;
+    private final int maxArity;
     private final String variadicParam;
 
-    public Function(Environment environment, List<Node> body, List<DumbExpression> parameters, int arity, String variadicParam) {
+    public Function(Environment environment, List<Node> body, List<Parameter> parameters, int arity, int maxArity, String variadicParam) {
         this.environment = environment;
         this.body = body;
         this.parameters = parameters;
         this.arity = arity;
+        this.maxArity = maxArity;
         this.variadicParam = variadicParam;
     }
 
@@ -56,7 +61,15 @@ public class Function implements Callable {
         Environment localEnv = new Environment(environment);
 
         for (int i = 0; i < parameters.size(); i++) {
-            localEnv.define(parameters.get(i).getValue(), arguments.get(i));
+            Object value;
+            if (i < arguments.size()) {
+                value = arguments.get(i);
+            } else if (parameters.get(i).hasDefault()) {
+                value = parameters.get(i).defaultValue().accept(interpreter);
+            } else {
+                value = NullValue.INSTANCE;
+            }
+            localEnv.define(parameters.get(i).name(), value);
         }
 
         if (variadicParam != null) {
@@ -93,5 +106,9 @@ public class Function implements Callable {
     @Override
     public int getArity() {
         return arity;
+    }
+
+    public int getMaxArity() {
+        return maxArity;
     }
 }

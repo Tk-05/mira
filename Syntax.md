@@ -3,11 +3,11 @@
 ## Table of Contents
 
 1. [Program Structure](#program-structure)
-2. [Values](#values)
-3. [Expressions](#expressions)
+2. [Values](#values) — Variables, Destructuring, Literals
+3. [Expressions](#expressions) — Operators, `??`, `?.`, Ternary, Pipe
 4. [Data Structures](#data-structures) — List, Array, Tuple, Object, Map, Range
 5. [Control Flow](#control-flow)
-6. [Functions](#functions)
+6. [Functions](#functions) — Default Parameters, Variadic, Lambdas
 7. [Enums](#enums)
 8. [Built-in Functions](#built-in-functions)
 9. [Standard Libraries](#standard-libraries)
@@ -104,6 +104,33 @@ var <name> : <expression>;   // With initial value
 const <name> : <expression>; // Immutable
 ```
 
+### Destructuring
+
+Unpacks a tuple, list, or array into multiple variables in one statement:
+
+```
+var (<name1>, <name2>, ...) : <expression>;
+```
+
+Example:
+
+```
+var t : (10, 20, 30);
+var (a, b, c) : $t;
+print($a "\n");   // => 10
+print($b "\n");   // => 20
+print($c "\n");   // => 30
+```
+
+Works with lists and arrays too:
+
+```
+var (x, y) : {1, 2};
+var (p, q) : [3, 4];
+```
+
+If there are fewer names than elements, the extra elements are ignored. If there are more names than elements, the extra variables are set to `null`.
+
 ### Variable Access & Assignment
 
 Variables are accessed with a `$` prefix:
@@ -166,14 +193,16 @@ Line 2
 
 ### Operators
 
-| Category   | Operators                        |
-| ---------- | -------------------------------- |
-| Arithmetic | `+`, `-`, `*`, `/`, `%`          |
-| Comparison | `<`, `>`, `<=`, `>=`, `==`, `!=` |
-| Logical    | `&&`, `\|\|`, `!`                |
-| Bitwise    | `&`, `\|`, `^`, `~`, `<<`, `>>`  |
-| Postfix    | `++`, `--`                       |
-| Ternary    | `? :`                            |
+| Category         | Operators                        |
+| ---------------- | -------------------------------- |
+| Arithmetic       | `+`, `-`, `*`, `/`, `%`          |
+| Comparison       | `<`, `>`, `<=`, `>=`, `==`, `!=` |
+| Logical          | `&&`, `\|\|`, `!`                |
+| Bitwise          | `&`, `\|`, `^`, `~`, `<<`, `>>`  |
+| Postfix          | `++`, `--`                       |
+| Ternary          | `? :`                            |
+| Null-Coalescing  | `??`                             |
+| Optional Chaining | `?.`                            |
 
 Arithmetic must be wrapped in `eval()`:
 
@@ -223,6 +252,41 @@ Pipes can be chained left-to-right:
 
 ```
 $input |> trim() |> upper()
+```
+
+### Null-Coalescing Operator
+
+Returns the left-hand value if it is not `null`, otherwise evaluates and returns the right-hand value:
+
+```
+$x ?? "default"
+$config ?? newMap()
+```
+
+Chains left-to-right:
+
+```
+$a ?? $b ?? "fallback"
+```
+
+### Optional Chaining
+
+Accesses a field on an object, but returns `null` instead of throwing when the object is `null`:
+
+```
+$obj?.field
+```
+
+Works in chains — if any step is `null`, the whole expression short-circuits to `null`:
+
+```
+$user?.address?.city
+```
+
+Combine with `??` to provide a fallback:
+
+```
+$user?.name ?? "anonymous"
 ```
 
 ### Grouping
@@ -520,6 +584,35 @@ Functions from aliased imports are called via dot notation:
 
 ```
 <alias>.<name>(<arg>)
+```
+
+### Default Parameters
+
+Parameters can have a default value using `:`. If the caller omits the argument, the default is evaluated:
+
+```
+fn <name>(<param1>, <param2> : <default>) {
+    <body>
+}
+```
+
+Example:
+
+```
+fn greet(name, greeting : "Hello") {
+    print($greeting " " $name "\n");
+}
+
+greet("World");           // => Hello World
+greet("World", "Hi");     // => Hi World
+```
+
+Default parameters must come after required parameters. Works in lambdas too:
+
+```
+var add : fn(x, step : 1) { return eval($x + $step); };
+add(5);     // => 6
+add(5, 10); // => 15
 ```
 
 ### Variadic Parameters
