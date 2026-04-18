@@ -449,9 +449,21 @@ break;
 continue;
 ```
 
-### Try / Catch / Throw
+### Try / Catch / Finally / Throw
 
-Executes the `try` block and, if an exception is thrown, binds the value to the catch parameter and runs the `catch` block.
+Executes the `try` block and, if an exception is thrown, binds the value to the catch parameter and runs the `catch` block. The optional `finally` block always runs — whether or not an exception was thrown.
+
+```
+try {
+    <body>
+} catch(<param>) {
+    <body>
+} finally {
+    <body>
+}
+```
+
+`finally` is optional:
 
 ```
 try {
@@ -474,6 +486,8 @@ try {
     throw "something went wrong";
 } catch(e) {
     print($e "\n");
+} finally {
+    print("always runs\n");
 }
 ```
 

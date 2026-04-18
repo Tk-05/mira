@@ -1428,6 +1428,10 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             } finally {
                 localEnvironment = previous;
             }
+        } finally {
+            if (!stmt.getFinallyBody().isEmpty()) {
+                runBodyInFreshScope(stmt.getFinallyBody());
+            }
         }
         return null;
     }

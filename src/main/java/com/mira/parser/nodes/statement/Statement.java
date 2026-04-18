@@ -395,11 +395,13 @@ public abstract class Statement implements Node {
         private final List<Node> tryBody;
         private final String catchParam;
         private final List<Node> catchBody;
+        private final List<Node> finallyBody;
 
-        public TryCatch(List<Node> tryBody, String catchParam, List<Node> catchBody) {
+        public TryCatch(List<Node> tryBody, String catchParam, List<Node> catchBody, List<Node> finallyBody) {
             this.tryBody = tryBody;
             this.catchParam = catchParam;
             this.catchBody = catchBody;
+            this.finallyBody = finallyBody;
         }
 
         public List<Node> getTryBody() {
@@ -412,6 +414,10 @@ public abstract class Statement implements Node {
 
         public List<Node> getCatchBody() {
             return catchBody;
+        }
+
+        public List<Node> getFinallyBody() {
+            return finallyBody;
         }
 
         @Override

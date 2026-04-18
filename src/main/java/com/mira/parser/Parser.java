@@ -1050,7 +1050,17 @@ public class Parser {
         }
         matchLexeme("}");
 
-        return new TryCatch(tryBody, catchParam, catchBody);
+        List<Node> finallyBody = new ArrayList<>();
+        if (peek().getLexeme().equals("finally")) {
+            matchLexeme("finally");
+            matchLexeme("{");
+            while (!peek().getLexeme().equals("}")) {
+                finallyBody.add(parseStatement(true));
+            }
+            matchLexeme("}");
+        }
+
+        return new TryCatch(tryBody, catchParam, catchBody, finallyBody);
     }
 
     private Node parseBlock() {
