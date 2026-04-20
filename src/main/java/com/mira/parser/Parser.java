@@ -26,6 +26,7 @@ import com.mira.parser.nodes.expression.Expression.LambdaExpression;
 import com.mira.parser.nodes.expression.Expression.ListExpression;
 import com.mira.parser.nodes.expression.Expression.MapExpression;
 import com.mira.parser.nodes.expression.Expression.NamespaceCallExpression;
+import com.mira.parser.nodes.expression.Expression.MethodCallExpression;
 import com.mira.parser.nodes.expression.Expression.ObjectExpression;
 import com.mira.parser.nodes.expression.Expression.RangeExpression;
 import com.mira.parser.nodes.expression.Expression.TernaryExpression;
@@ -340,7 +341,7 @@ public class Parser {
 
         } else if (current.getLexeme().equals("{")
                 && current.getTokenType() != TokenType.STRING_LITERAL) {
-            if (peekOffset(1).getLexeme().equals("var") || peekOffset(1).getLexeme().equals("const")) {
+            if (peekOffset(1).getLexeme().equals("var") || peekOffset(1).getLexeme().equals("const") || peekOffset(1).getLexeme().equals("fn")) {
                 expr = parseObjectExpression();
             } else if (peekOffset(1).getTokenType() == TokenType.STRING_LITERAL && peekOffset(2).getLexeme().equals(":")) {
                 expr = parseMap();
@@ -458,20 +459,34 @@ public class Parser {
 
     private Expression maybeParseFieldAccess(Expression base) {
         while (true) {
-            boolean optional = peek().getLexeme().equals("?.")
+            boolean isOptionalDot = peek().getLexeme().equals("?.")
                     && peek().getTokenType() != TokenType.STRING_LITERAL
-                    && isExpressionToken(peekOffset(1))
-                    && !peekOffset(2).getLexeme().equals("(");
-            boolean normal = peek().getLexeme().equals(".")
+                    && isExpressionToken(peekOffset(1));
+            boolean isNormalDot = peek().getLexeme().equals(".")
                     && peek().getTokenType() != TokenType.STRING_LITERAL
-                    && isExpressionToken(peekOffset(1))
-                    && !peekOffset(2).getLexeme().equals("(");
-            if (!optional && !normal) {
+                    && isExpressionToken(peekOffset(1));
+            if (!isOptionalDot && !isNormalDot) {
                 break;
             }
+            boolean optional = isOptionalDot;
             consume();
-            String fieldName = matchExpression().getLexeme();
-            base = new FieldAccessExpression(base, fieldName, optional);
+            String memberName = matchExpression().getLexeme();
+            if (peek().getLexeme().equals("(") && peek().getTokenType() != TokenType.STRING_LITERAL) {
+                matchLexeme("(");
+                List<Expression> args = new ArrayList<>();
+                while (!peek().getLexeme().equals(")")) {
+                    args.add(parseExpression());
+                    if (peek().getLexeme().equals(",")) {
+                        matchLexeme(",");
+                    } else if (!peek().getLexeme().equals(")")) {
+                        throw new UnexpectedToken(peek(), "Expected ',' or ')'");
+                    }
+                }
+                matchLexeme(")");
+                base = new MethodCallExpression(base, memberName, args, optional);
+            } else {
+                base = new FieldAccessExpression(base, memberName, optional);
+            }
         }
         return base;
     }
@@ -515,16 +530,22 @@ public class Parser {
     private Expression parseObjectExpression() {
         matchLexeme("{");
         List<VarDecl> fields = new ArrayList<>();
+        List<FuncDecl> methods = new ArrayList<>();
 
         while (!peek().getLexeme().equals("}")) {
-            boolean isConst = peek().getLexeme().equals("const");
-            VarDecl field = (VarDecl) parseVarDecl(isConst);
-            matchLexeme(";");
-            fields.add(field);
+            if (peek().getLexeme().equals("fn")) {
+                FuncDecl method = (FuncDecl) parseFuncDecl();
+                methods.add(method);
+            } else {
+                boolean isConst = peek().getLexeme().equals("const");
+                VarDecl field = (VarDecl) parseVarDecl(isConst);
+                matchLexeme(";");
+                fields.add(field);
+            }
         }
 
         matchLexeme("}");
-        return new ObjectExpression(fields);
+        return new ObjectExpression(fields, methods);
     }
 
     private Expression parseNamespaceCallExpression() {

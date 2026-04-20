@@ -39,6 +39,7 @@ import com.mira.parser.nodes.expression.Expression.ListExpression;
 import com.mira.parser.nodes.expression.Expression.MapExpression;
 import com.mira.parser.nodes.expression.Expression.Mutability;
 import com.mira.parser.nodes.expression.Expression.NamespaceCallExpression;
+import com.mira.parser.nodes.expression.Expression.MethodCallExpression;
 import com.mira.parser.nodes.expression.Expression.ObjectExpression;
 import com.mira.parser.nodes.expression.Expression.RangeExpression;
 import com.mira.parser.nodes.expression.Expression.TernaryExpression;
@@ -1573,7 +1574,57 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             }
         }
 
+        for (FuncDecl method : expression.getMethods()) {
+            Function fn = new Function(objectEnv, method.getBody(), method.getParameters(),
+                    method.getArity(), method.getMaxArity(), method.getVariadicParam());
+            objectEnv.define(method.getName(), fn);
+        }
+
+        if (!objectEnv.exists("this")) {
+            objectEnv.define("this", objectEnv);
+        }
+
         return (T) objectEnv;
+    }
+
+    @Override
+    public <T> T visitMethodCallExpression(MethodCallExpression expression) {
+        Object objectValue = expression.getObject().accept(this);
+
+        if (objectValue instanceof String name) {
+            objectValue = localEnvironment != null && localEnvironment.existsInChain(name)
+                    ? localEnvironment.get(name)
+                    : globalEnvironment.get(name);
+        }
+
+        if (expression.isOptional() && (objectValue == null || objectValue instanceof NullValue)) {
+            return (T) NullValue.INSTANCE;
+        }
+
+        if (!(objectValue instanceof Environment objectEnv)) {
+            throw new FieldAccessError(expression.getMethod());
+        }
+
+        Object methodValue = objectEnv.get(expression.getMethod());
+        if (!(methodValue instanceof Callable callable)) {
+            throw new NotCallableError(expression.getMethod());
+        }
+
+        List<Object> arguments = new ArrayList<>();
+        for (Expression arg : expression.getArguments()) {
+            arguments.add(arg.accept(this));
+        }
+
+        if (callable instanceof Function f) {
+            int min = f.getArity(), max = f.getMaxArity();
+            if (arguments.size() < min || (max != -1 && arguments.size() > max)) {
+                throw new ArgMismatchError(expression.getMethod(), min, arguments.size());
+            }
+        } else if (callable.getArity() != -1 && arguments.size() != callable.getArity()) {
+            throw new ArgMismatchError(expression.getMethod(), callable.getArity(), arguments.size());
+        }
+
+        return (T) callable.call(this, arguments);
     }
 
     @Override

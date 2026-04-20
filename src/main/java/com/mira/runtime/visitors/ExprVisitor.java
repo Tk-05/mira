@@ -5,6 +5,7 @@ import com.mira.parser.nodes.expression.Expression.CallExpression;
 import com.mira.parser.nodes.expression.Expression.ComplexExpression;
 import com.mira.parser.nodes.expression.Expression.DumbExpression;
 import com.mira.parser.nodes.expression.Expression.FieldAccessExpression;
+import com.mira.parser.nodes.expression.Expression.MethodCallExpression;
 import com.mira.parser.nodes.expression.Expression.LambdaExpression;
 import com.mira.parser.nodes.expression.Expression.ArrayExpression;
 import com.mira.parser.nodes.expression.Expression.ListExpression;
@@ -44,6 +45,8 @@ public interface ExprVisitor<T> {
     public <T> T visitObjectExpression(ObjectExpression expression);
 
     public <T> T visitFieldAccessExpression(FieldAccessExpression expression);
+
+    public <T> T visitMethodCallExpression(MethodCallExpression expression);
 
     public <T> T visitLambdaExpr(LambdaExpression expression);
 

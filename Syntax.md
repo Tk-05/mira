@@ -8,10 +8,11 @@
 4. [Data Structures](#data-structures) — List, Array, Tuple, Object, Map, Range
 5. [Control Flow](#control-flow)
 6. [Functions](#functions) — Default Parameters, Variadic, Lambdas
-7. [Enums](#enums)
-8. [Built-in Functions](#built-in-functions)
-9. [Standard Libraries](#standard-libraries)
-10. [Example Program](#example-program)
+7. [Objects with Methods](#objects-with-methods)
+8. [Enums](#enums)
+9. [Built-in Functions](#built-in-functions)
+10. [Standard Libraries](#standard-libraries)
+11. [Example Program](#example-program)
 
 ---
 
@@ -375,6 +376,8 @@ var wrapper : {
 $wrapper.inner.a;
 ```
 
+Objects can also contain methods — see [Objects with Methods](#objects-with-methods).
+
 ### Map
 
 Key-value store using curly braces with `"key": value` pairs:
@@ -688,6 +691,102 @@ Lambdas support variadic parameters too:
 
 ```
 var join : fn(sep, ...parts) { return join($parts, $sep); };
+```
+
+---
+
+## Objects with Methods
+
+Objects can contain `fn` declarations alongside `var` fields. Methods are called via dot notation and have implicit access to all fields of the same object.
+
+### Declaration
+
+```
+var <name> : {
+    var <field> : <value>;
+    fn <method>(<params>) {
+        <body>
+    }
+};
+```
+
+### Method Call
+
+```
+$<name>.<method>(<args>)
+```
+
+### Field Access Inside Methods
+
+Fields are accessible directly by name inside methods:
+
+```
+var counter : {
+    var count : 0;
+    fn increment() {
+        $count += 1;
+    }
+    fn get() {
+        return $count;
+    }
+};
+
+$counter.increment();
+$counter.increment();
+$counter.get();          // => 2
+```
+
+### `this` Reference
+
+`$this` is always available inside methods and refers to the object itself:
+
+```
+var obj : {
+    var value : "hello";
+    fn get() {
+        return $this.value;
+    }
+};
+
+$obj.get();              // => "hello"
+```
+
+### Method-only Objects
+
+Objects can consist of only methods without any fields:
+
+```
+var math : {
+    fn add(a, b) { return eval($a + $b); }
+    fn square(x) { return eval($x * $x); }
+};
+
+$math.add(3, 4);         // => 7
+$math.square(5);         // => 25
+```
+
+### Optional Chaining
+
+Method calls support optional chaining — returns `null` if the object is `null`:
+
+```
+$obj?.method()
+$obj?.method(arg)
+```
+
+### Methods with Default Parameters
+
+Methods support the same default parameter syntax as regular functions:
+
+```
+var greeter : {
+    fn greet(name, greeting : "Hello") {
+        return $greeting " " $name;
+    }
+};
+
+$greeter.greet("World");          // => "Hello World"
+$greeter.greet("World", "Hi");    // => "Hi World"
 ```
 
 ---

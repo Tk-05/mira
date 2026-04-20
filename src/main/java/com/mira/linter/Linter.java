@@ -15,6 +15,7 @@ import com.mira.parser.nodes.expression.Expression.CallExpression;
 import com.mira.parser.nodes.expression.Expression.ComplexExpression;
 import com.mira.parser.nodes.expression.Expression.DumbExpression;
 import com.mira.parser.nodes.expression.Expression.FieldAccessExpression;
+import com.mira.parser.nodes.expression.Expression.MethodCallExpression;
 import com.mira.parser.nodes.expression.Expression.ImportExpression;
 import com.mira.parser.nodes.expression.Expression.LambdaExpression;
 import com.mira.parser.nodes.expression.Expression.ListExpression;
@@ -168,6 +169,10 @@ public class Linter {
             }
             case FieldAccessExpression e ->
                 lintExpr(e.getObject());
+            case MethodCallExpression e -> {
+                lintExpr(e.getObject());
+                e.getArguments().forEach(this::lintExpr);
+            }
             case ArrayExpression e ->
                 e.getMembers().forEach(this::lintExpr);
             case ListExpression e ->
@@ -176,10 +181,22 @@ public class Linter {
                 e.getMembers().forEach(this::lintExpr);
             case MapExpression e ->
                 e.getEntries().values().forEach(this::lintExpr);
-            case ObjectExpression e ->
+            case ObjectExpression e -> {
                 e.getVarDecls().stream()
                         .filter(v -> v.getInitializer() != null)
                         .forEach(v -> lintExpr(v.getInitializer()));
+                for (var method : e.getMethods()) {
+                    scope.push();
+                    method.getParameters().forEach(p -> scope.declare(p.name(), 0, 0, false));
+                    if (method.getVariadicParam() != null) {
+                        scope.declare(method.getVariadicParam(), 0, 0, false);
+                    }
+                    scope.declare("this", 0, 0, false);
+                    scope.markUsed("this");
+                    lintBodyWithDeadCodeCheck(method.getBody());
+                    checkUnused(scope.pop());
+                }
+            }
             case LambdaExpression e ->
                 lintLambda(e);
             case TernaryExpression e -> {

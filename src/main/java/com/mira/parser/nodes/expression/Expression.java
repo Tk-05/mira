@@ -1,5 +1,6 @@
 package com.mira.parser.nodes.expression;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 
@@ -7,6 +8,7 @@ import com.mira.lexer.token.Token;
 import com.mira.lexer.token.TokenType;
 import com.mira.parser.nodes.Node;
 import com.mira.parser.nodes.Parameter;
+import com.mira.parser.nodes.statement.Statement.FuncDecl;
 import com.mira.parser.nodes.statement.Statement.VarDecl;
 import com.mira.runtime.visitors.ExprVisitor;
 import com.mira.utils.StringFormatter;
@@ -434,9 +436,15 @@ public abstract class Expression implements Node {
     public static class ObjectExpression extends Expression {
 
         private final List<VarDecl> varDecls;
+        private final List<FuncDecl> methods;
 
         public ObjectExpression(List<VarDecl> varDecls) {
+            this(varDecls, new ArrayList<>());
+        }
+
+        public ObjectExpression(List<VarDecl> varDecls, List<FuncDecl> methods) {
             this.varDecls = varDecls;
+            this.methods = methods;
         }
 
         @Override
@@ -451,6 +459,10 @@ public abstract class Expression implements Node {
 
         public List<VarDecl> getVarDecls() {
             return varDecls;
+        }
+
+        public List<FuncDecl> getMethods() {
+            return methods;
         }
     }
 
@@ -486,6 +498,47 @@ public abstract class Expression implements Node {
 
         public String getField() {
             return field;
+        }
+
+        public boolean isOptional() {
+            return optional;
+        }
+    }
+
+    public static class MethodCallExpression extends Expression {
+
+        private final Expression object;
+        private final String method;
+        private final List<Expression> arguments;
+        private final boolean optional;
+
+        public MethodCallExpression(Expression object, String method, List<Expression> arguments, boolean optional) {
+            this.object = object;
+            this.method = method;
+            this.arguments = arguments;
+            this.optional = optional;
+        }
+
+        @Override
+        public <T> T accept(ExprVisitor<T> visitor) {
+            return visitor.visitMethodCallExpression(this);
+        }
+
+        @Override
+        public String toString() {
+            return object.toString() + (optional ? "?." : ".") + method + "(...)";
+        }
+
+        public Expression getObject() {
+            return object;
+        }
+
+        public String getMethod() {
+            return method;
+        }
+
+        public List<Expression> getArguments() {
+            return arguments;
         }
 
         public boolean isOptional() {

@@ -27,6 +27,15 @@ Hello World2
 
 var hex : 0xFF;
 
+var square : {
+    var width : 5;
+    var height : 10;
+
+    fn area() {
+        return $width * $height;
+    } 
+};
+
 fn short(arg) {
     print($arg "\n");
     return false;
@@ -71,7 +80,9 @@ fn main() {
         }
         ray.CloseWindow();
     } else {
-        $multiComment|>print();
+        $multiComment"\n"|>print();
+
+        $square.area()"\n"|>print();
 
         var i : 0;
         do {
