@@ -157,6 +157,8 @@ $<name> -= <expression>;
 $<name> *= <expression>;
 $<name> /= <expression>;
 $<name> %= <expression>;
+$<name> **= <expression>;
+$<name> \%= <expression>;
 $<name> &= <expression>;
 $<name> |= <expression>;
 $<name> ^= <expression>;
@@ -196,7 +198,7 @@ Line 2
 
 | Category         | Operators                        |
 | ---------------- | -------------------------------- |
-| Arithmetic       | `+`, `-`, `*`, `/`, `%`          |
+| Arithmetic       | `+`, `-`, `*`, `/`, `%`, `**`, `\%` |
 | Comparison       | `<`, `>`, `<=`, `>=`, `==`, `!=` |
 | Logical          | `&&`, `\|\|`, `!`                |
 | Bitwise          | `&`, `\|`, `^`, `~`, `<<`, `>>`  |
@@ -204,6 +206,23 @@ Line 2
 | Ternary          | `? :`                            |
 | Null-Coalescing  | `??`                             |
 | Optional Chaining | `?.`                            |
+
+`**` is the power/exponentiation operator. It has higher precedence than `*`, `/`, and `%`:
+
+```
+eval(10 ** 2)      // => 100
+eval(2 ** 10)      // => 1024
+eval(9 ** 0.5)     // => 3.0  (square root)
+eval(2 * 3 ** 2)   // => 18   (3**2 first, then * 2)
+```
+
+`\%` is the floor division operator — divides and rounds down to the nearest integer:
+
+```
+eval(7 \% 2)       // => 3
+eval(9 \% 4)       // => 2
+eval(7.5 \% 3.0)   // => 2.0
+```
 
 Arithmetic must be wrapped in `eval()`:
 

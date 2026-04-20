@@ -37,9 +37,9 @@ import com.mira.parser.nodes.expression.Expression.ImportExpression;
 import com.mira.parser.nodes.expression.Expression.LambdaExpression;
 import com.mira.parser.nodes.expression.Expression.ListExpression;
 import com.mira.parser.nodes.expression.Expression.MapExpression;
+import com.mira.parser.nodes.expression.Expression.MethodCallExpression;
 import com.mira.parser.nodes.expression.Expression.Mutability;
 import com.mira.parser.nodes.expression.Expression.NamespaceCallExpression;
-import com.mira.parser.nodes.expression.Expression.MethodCallExpression;
 import com.mira.parser.nodes.expression.Expression.ObjectExpression;
 import com.mira.parser.nodes.expression.Expression.RangeExpression;
 import com.mira.parser.nodes.expression.Expression.TernaryExpression;
@@ -488,6 +488,8 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                 numericSub(left, right);
             case "*" ->
                 numericMul(left, right);
+            case "**" ->
+                Math.pow(toNumber(left), toNumber(right));
             case "/" -> {
                 double divisor = toNumber(right);
                 if (divisor == 0) {
@@ -501,6 +503,12 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                     yield la % lb;
                 }
                 yield toNumber(left) % toNumber(right);
+            }
+            case "\\%" -> {
+                if (left instanceof Long la && right instanceof Long lb) {
+                    yield la / lb;
+                }
+                yield Math.floor(toNumber(left) / toNumber(right));
             }
             case "&" ->
                 (long) toNumber(left) & (long) toNumber(right);

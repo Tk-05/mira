@@ -161,12 +161,12 @@ public class Evaluator {
     }
 
     private Object factor() {
-        Object left = unary();
+        Object left = power();
 
-        while (match("*", "/", "%")) {
+        while (match("*", "/", "%", "\\%")) {
 
             String op = previous().getLexeme();
-            Object right = unary();
+            Object right = power();
 
             left = switch (op) {
                 case "*" ->
@@ -179,11 +179,26 @@ public class Evaluator {
                     }
                     yield toNumber(left) % toNumber(right);
                 }
+                case "\\%" -> {
+                    if (left instanceof Long la && right instanceof Long lb) {
+                        yield la / lb;
+                    }
+                    yield Math.floor(toNumber(left) / toNumber(right));
+                }
                 default ->
                     throw new AssertionError();
             };
         }
 
+        return left;
+    }
+
+    private Object power() {
+        Object left = unary();
+        if (match("**")) {
+            Object right = power();
+            return Math.pow(toNumber(left), toNumber(right));
+        }
         return left;
     }
 

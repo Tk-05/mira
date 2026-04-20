@@ -315,8 +315,10 @@ public class Parser {
                 8;
             case "+", "-" ->
                 9;
-            case "*", "/", "%" ->
+            case "*", "/", "%", "\\%" ->
                 10;
+            case "**" ->
+                11;
             default ->
                 0;
         };
@@ -835,10 +837,11 @@ public class Parser {
 
         String op = peek().getLexeme();
         if (op.equals("+=") || op.equals("-=") || op.equals("*=") || op.equals("/=")
-                || op.equals("%=") || op.equals("&=") || op.equals("|=") || op.equals("^=")) {
+                || op.equals("%=") || op.equals("&=") || op.equals("|=") || op.equals("^=")
+                || op.equals("**=") || op.equals("\\%=")) {
             consume();
             Expression rhs = parseExpression();
-            Token arithOp = new Token(TokenType.OPERATION, op.substring(0, 1), 0, 0);
+            Token arithOp = new Token(TokenType.OPERATION, op.substring(0, op.length() - 1), 0, 0);
             return new Assign(reference, new BinaryExpression(reference, arithOp, rhs));
         }
 
@@ -886,7 +889,8 @@ public class Parser {
 
         String lex = peekOffset(offset).getLexeme();
         return lex.equals(":") || lex.equals("+=") || lex.equals("-=") || lex.equals("*=") || lex.equals("/=")
-                || lex.equals("%=") || lex.equals("&=") || lex.equals("|=") || lex.equals("^=");
+                || lex.equals("%=") || lex.equals("&=") || lex.equals("|=") || lex.equals("^=")
+                || lex.equals("**=") || lex.equals("\\%=");
     }
 
     private Node parseIf() {
