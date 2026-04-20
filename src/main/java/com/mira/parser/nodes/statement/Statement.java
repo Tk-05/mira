@@ -4,11 +4,13 @@ import java.util.List;
 import java.util.Map;
 
 import com.mira.parser.nodes.Node;
+import com.mira.parser.nodes.Parameter;
 import com.mira.parser.nodes.expression.Expression;
-import com.mira.parser.nodes.expression.Expression.DumbExpression;
 import com.mira.runtime.visitors.StmtVisitor;
 
 public abstract class Statement implements Node {
+
+    public int line = 0;
 
     public abstract <T> T accept(StmtVisitor<T> visitor);
 
@@ -45,11 +47,11 @@ public abstract class Statement implements Node {
     public static class FuncDecl extends Statement {
 
         private final String name;
-        private final List<DumbExpression> parameters;
+        private final List<Parameter> parameters;
         private final List<Node> body;
         private final String variadicParam;
 
-        public FuncDecl(String name, List<DumbExpression> parameters,
+        public FuncDecl(String name, List<Parameter> parameters,
                 List<Node> body, String variadicParam) {
             this.name = name;
             this.parameters = parameters;
@@ -61,11 +63,11 @@ public abstract class Statement implements Node {
             return name;
         }
 
-        public List<DumbExpression> getParameters() {
+        public List<Parameter> getParameters() {
             return parameters;
         }
 
-        public java.util.List<Node> getBody() {
+        public List<Node> getBody() {
             return body;
         }
 
@@ -74,6 +76,13 @@ public abstract class Statement implements Node {
         }
 
         public int getArity() {
+            if (variadicParam != null) {
+                return -1;
+            }
+            return (int) parameters.stream().filter(p -> !p.hasDefault()).count();
+        }
+
+        public int getMaxArity() {
             return variadicParam != null ? -1 : parameters.size();
         }
 
@@ -393,11 +402,13 @@ public abstract class Statement implements Node {
         private final List<Node> tryBody;
         private final String catchParam;
         private final List<Node> catchBody;
+        private final List<Node> finallyBody;
 
-        public TryCatch(List<Node> tryBody, String catchParam, List<Node> catchBody) {
+        public TryCatch(List<Node> tryBody, String catchParam, List<Node> catchBody, List<Node> finallyBody) {
             this.tryBody = tryBody;
             this.catchParam = catchParam;
             this.catchBody = catchBody;
+            this.finallyBody = finallyBody;
         }
 
         public List<Node> getTryBody() {
@@ -410,6 +421,10 @@ public abstract class Statement implements Node {
 
         public List<Node> getCatchBody() {
             return catchBody;
+        }
+
+        public List<Node> getFinallyBody() {
+            return finallyBody;
         }
 
         @Override
@@ -439,6 +454,30 @@ public abstract class Statement implements Node {
 
         public String getIdentifier() {
             return identifier;
+        }
+    }
+
+    public static class VarDestructure extends Statement {
+
+        private final List<String> names;
+        private final Expression initializer;
+
+        public VarDestructure(List<String> names, Expression initializer) {
+            this.names = names;
+            this.initializer = initializer;
+        }
+
+        public List<String> getNames() {
+            return names;
+        }
+
+        public Expression getInitializer() {
+            return initializer;
+        }
+
+        @Override
+        public <T> T accept(StmtVisitor<T> visitor) {
+            return visitor.visitVarDestructure(this);
         }
     }
 }

@@ -9,6 +9,7 @@ import com.mira.lexer.token.TokenType;
 import com.mira.lib.Lib;
 import com.mira.parser.nodes.expression.Expression;
 import com.mira.parser.nodes.expression.Expression.DumbExpression;
+import com.mira.parser.nodes.expression.Expression.ArrayExpression;
 import com.mira.parser.nodes.expression.Expression.ListExpression;
 import com.mira.parser.nodes.expression.Expression.TupleExpression;
 import com.mira.runtime.functions.NativeFunction;
@@ -39,12 +40,14 @@ public class Collection implements Lib {
 
     private static List<Expression> toMembers(Object arg) {
         return switch (arg) {
+            case ArrayExpression a ->
+                new ArrayList<>(a.getMembers());
             case ListExpression l ->
                 new ArrayList<>(l.getMembers());
             case TupleExpression t ->
                 new ArrayList<>(t.getMembers());
             default ->
-                throw new RuntimeException("Expected list or tuple, got: " + arg.getClass().getSimpleName());
+                throw new RuntimeException("Expected array, list, or tuple, got: " + arg.getClass().getSimpleName());
         };
     }
 
@@ -135,6 +138,7 @@ public class Collection implements Lib {
             List<Expression> result = new ArrayList<>();
             for (Expression e : toMembers(args.get(0))) {
                 switch (e) {
+                    case ArrayExpression inner -> result.addAll(inner.getMembers());
                     case ListExpression inner -> result.addAll(inner.getMembers());
                     case TupleExpression inner -> result.addAll(inner.getMembers());
                     default -> result.add(e);

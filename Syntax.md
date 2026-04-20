@@ -3,15 +3,16 @@
 ## Table of Contents
 
 1. [Program Structure](#program-structure)
-2. [Values](#values)
-3. [Expressions](#expressions)
-4. [Data Structures](#data-structures)
+2. [Values](#values) — Variables, Destructuring, Literals
+3. [Expressions](#expressions) — Operators, `??`, `?.`, Ternary, Pipe
+4. [Data Structures](#data-structures) — List, Array, Tuple, Object, Map, Range
 5. [Control Flow](#control-flow)
-6. [Functions](#functions)
-7. [Enums](#enums)
-8. [Built-in Functions](#built-in-functions)
-9. [Standard Libraries](#standard-libraries)
-10. [Example Program](#example-program)
+6. [Functions](#functions) — Default Parameters, Variadic, Lambdas
+7. [Objects with Methods](#objects-with-methods)
+8. [Enums](#enums)
+9. [Built-in Functions](#built-in-functions)
+10. [Standard Libraries](#standard-libraries)
+11. [Example Program](#example-program)
 
 ---
 
@@ -104,6 +105,33 @@ var <name> : <expression>;   // With initial value
 const <name> : <expression>; // Immutable
 ```
 
+### Destructuring
+
+Unpacks a tuple, list, or array into multiple variables in one statement:
+
+```
+var (<name1>, <name2>, ...) : <expression>;
+```
+
+Example:
+
+```
+var t : (10, 20, 30);
+var (a, b, c) : $t;
+print($a "\n");   // => 10
+print($b "\n");   // => 20
+print($c "\n");   // => 30
+```
+
+Works with lists and arrays too:
+
+```
+var (x, y) : {1, 2};
+var (p, q) : [3, 4];
+```
+
+If there are fewer names than elements, the extra elements are ignored. If there are more names than elements, the extra variables are set to `null`.
+
 ### Variable Access & Assignment
 
 Variables are accessed with a `$` prefix:
@@ -166,14 +194,16 @@ Line 2
 
 ### Operators
 
-| Category   | Operators                        |
-| ---------- | -------------------------------- |
-| Arithmetic | `+`, `-`, `*`, `/`, `%`          |
-| Comparison | `<`, `>`, `<=`, `>=`, `==`, `!=` |
-| Logical    | `&&`, `\|\|`, `!`                |
-| Bitwise    | `&`, `\|`, `^`, `~`, `<<`, `>>`  |
-| Postfix    | `++`, `--`                       |
-| Ternary    | `? :`                            |
+| Category         | Operators                        |
+| ---------------- | -------------------------------- |
+| Arithmetic       | `+`, `-`, `*`, `/`, `%`          |
+| Comparison       | `<`, `>`, `<=`, `>=`, `==`, `!=` |
+| Logical          | `&&`, `\|\|`, `!`                |
+| Bitwise          | `&`, `\|`, `^`, `~`, `<<`, `>>`  |
+| Postfix          | `++`, `--`                       |
+| Ternary          | `? :`                            |
+| Null-Coalescing  | `??`                             |
+| Optional Chaining | `?.`                            |
 
 Arithmetic must be wrapped in `eval()`:
 
@@ -225,11 +255,51 @@ Pipes can be chained left-to-right:
 $input |> trim() |> upper()
 ```
 
+### Null-Coalescing Operator
+
+Returns the left-hand value if it is not `null`, otherwise evaluates and returns the right-hand value:
+
+```
+$x ?? "default"
+$config ?? newMap()
+```
+
+Chains left-to-right:
+
+```
+$a ?? $b ?? "fallback"
+```
+
+### Optional Chaining
+
+Accesses a field on an object, but returns `null` instead of throwing when the object is `null`:
+
+```
+$obj?.field
+```
+
+Works in chains — if any step is `null`, the whole expression short-circuits to `null`:
+
+```
+$user?.address?.city
+```
+
+Combine with `??` to provide a fallback:
+
+```
+$user?.name ?? "anonymous"
+```
+
 ### Grouping
+
+Parentheses with a single expression (no comma) group for precedence:
 
 ```
 (($val1 + $val2) + 1)
+eval(($a + $b) * $c)
 ```
+
+A comma turns parentheses into a tuple — see [Tuple](#tuple) above.
 
 ---
 
@@ -237,19 +307,47 @@ $input |> trim() |> upper()
 
 ### List
 
-Ordered collection using curly braces:
+Ordered, mutable, dynamic-size collection using curly braces:
 
 ```
 var x : {10, 20, 30};
+$x[0];                   // Index access
+$x[1] : 99;              // Mutate element
 ```
 
-### Tuple
+### Array
 
-Fixed-size sequence using square brackets:
+Ordered, mutable, fixed-size collection using square brackets:
 
 ```
 var x : [10, 20, 30];
 $x[0];                   // Index access
+$x[1] : 99;              // Mutate element (allowed)
+```
+
+Arrays cannot grow or shrink — `push` and `pop` only work on lists.
+
+### Tuple
+
+Fixed-size, immutable sequence using parentheses with at least one comma:
+
+```
+var x : (10, 20, 30);
+$x[0];                   // Index access
+$x[1] : 99;              // ERROR — tuples are immutable
+```
+
+Single-element tuple requires a trailing comma to distinguish from grouping:
+
+```
+var single : (42,);      // Tuple with one element
+var grouped : (42);      // Grouping expression — just the number 42
+```
+
+Empty tuple:
+
+```
+var empty : ();
 ```
 
 ### Object
@@ -277,6 +375,8 @@ var wrapper : {
 };
 $wrapper.inner.a;
 ```
+
+Objects can also contain methods — see [Objects with Methods](#objects-with-methods).
 
 ### Map
 
@@ -372,7 +472,7 @@ for (var <name> in <range>) {
 
 ### Foreach
 
-Iterates over a collection, tuple, string, or range:
+Iterates over a list, array, tuple, string, or range:
 
 ```
 foreach (var <name> in <collection>) {
@@ -416,9 +516,21 @@ break;
 continue;
 ```
 
-### Try / Catch / Throw
+### Try / Catch / Finally / Throw
 
-Executes the `try` block and, if an exception is thrown, binds the value to the catch parameter and runs the `catch` block.
+Executes the `try` block and, if an exception is thrown, binds the value to the catch parameter and runs the `catch` block. The optional `finally` block always runs — whether or not an exception was thrown.
+
+```
+try {
+    <body>
+} catch(<param>) {
+    <body>
+} finally {
+    <body>
+}
+```
+
+`finally` is optional:
 
 ```
 try {
@@ -441,6 +553,8 @@ try {
     throw "something went wrong";
 } catch(e) {
     print($e "\n");
+} finally {
+    print("always runs\n");
 }
 ```
 
@@ -473,6 +587,35 @@ Functions from aliased imports are called via dot notation:
 
 ```
 <alias>.<name>(<arg>)
+```
+
+### Default Parameters
+
+Parameters can have a default value using `:`. If the caller omits the argument, the default is evaluated:
+
+```
+fn <name>(<param1>, <param2> : <default>) {
+    <body>
+}
+```
+
+Example:
+
+```
+fn greet(name, greeting : "Hello") {
+    print($greeting " " $name "\n");
+}
+
+greet("World");           // => Hello World
+greet("World", "Hi");     // => Hi World
+```
+
+Default parameters must come after required parameters. Works in lambdas too:
+
+```
+var add : fn(x, step : 1) { return eval($x + $step); };
+add(5);     // => 6
+add(5, 10); // => 15
 ```
 
 ### Variadic Parameters
@@ -548,6 +691,102 @@ Lambdas support variadic parameters too:
 
 ```
 var join : fn(sep, ...parts) { return join($parts, $sep); };
+```
+
+---
+
+## Objects with Methods
+
+Objects can contain `fn` declarations alongside `var` fields. Methods are called via dot notation and have implicit access to all fields of the same object.
+
+### Declaration
+
+```
+var <name> : {
+    var <field> : <value>;
+    fn <method>(<params>) {
+        <body>
+    }
+};
+```
+
+### Method Call
+
+```
+$<name>.<method>(<args>)
+```
+
+### Field Access Inside Methods
+
+Fields are accessible directly by name inside methods:
+
+```
+var counter : {
+    var count : 0;
+    fn increment() {
+        $count += 1;
+    }
+    fn get() {
+        return $count;
+    }
+};
+
+$counter.increment();
+$counter.increment();
+$counter.get();          // => 2
+```
+
+### `this` Reference
+
+`$this` is always available inside methods and refers to the object itself:
+
+```
+var obj : {
+    var value : "hello";
+    fn get() {
+        return $this.value;
+    }
+};
+
+$obj.get();              // => "hello"
+```
+
+### Method-only Objects
+
+Objects can consist of only methods without any fields:
+
+```
+var math : {
+    fn add(a, b) { return eval($a + $b); }
+    fn square(x) { return eval($x * $x); }
+};
+
+$math.add(3, 4);         // => 7
+$math.square(5);         // => 25
+```
+
+### Optional Chaining
+
+Method calls support optional chaining — returns `null` if the object is `null`:
+
+```
+$obj?.method()
+$obj?.method(arg)
+```
+
+### Methods with Default Parameters
+
+Methods support the same default parameter syntax as regular functions:
+
+```
+var greeter : {
+    fn greet(name, greeting : "Hello") {
+        return $greeting " " $name;
+    }
+};
+
+$greeter.greet("World");          // => "Hello World"
+$greeter.greet("World", "Hi");    // => "Hi World"
 ```
 
 ---
@@ -636,7 +875,7 @@ Always available without any import.
 | `scan()`                    | —                      | Reads a line from stdin and returns it as a string        |
 | `eval(<expr>)`              | Arithmetic expression  | Evaluates an arithmetic expression and returns the result |
 | `exec(<code>)`              | String                 | Parses and executes a string of Mira code at runtime      |
-| `length(<value>)`           | String, List, or Tuple | Returns the number of characters / elements               |
+| `length(<value>)`           | String, List, Array, or Tuple | Returns the number of characters / elements          |
 | `exit(<code>)`              | Number                 | Exits the program with the given exit code                |
 | `assert(<cond>)`            | Boolean expression     | Throws a runtime error if the condition is false          |
 | `assert(<cond>, <message>)` | Boolean, String        | Throws with a custom message if condition is false        |
@@ -659,22 +898,24 @@ Always available without any import.
 
 ### `collection`
 
-| Function                    | Description                                          |
-| --------------------------- | ---------------------------------------------------- |
-| `size(list)`                | Returns the number of elements                       |
-| `push(list, value)`         | Appends a value to the list (mutates)                |
-| `pop(list)`                 | Removes the last element (mutates)                   |
-| `first(list)`               | Returns the first element                            |
-| `last(list)`                | Returns the last element                             |
-| `contains(list, value)`     | Returns true if the value is in the collection       |
-| `findIndex(list, value)`    | Returns the index of a value, or `-1`                |
-| `slice(list, from, to)`     | Returns a sub-list                                   |
-| `reverse(list)`             | Returns a reversed copy                              |
-| `concat(list1, list2)`      | Concatenates two collections into a new list         |
-| `flatten(list)`             | Flattens one level of nested lists                   |
-| `join(list, separator)`     | Joins elements into a string                         |
-| `newList()`                 | Creates an empty mutable list                        |
-| `newTuple()`                | Creates an empty tuple                               |
+Works with lists, arrays, and tuples unless noted otherwise.
+
+| Function                    | Description                                               |
+| --------------------------- | --------------------------------------------------------- |
+| `size(col)`                 | Returns the number of elements                            |
+| `push(list, value)`         | Appends a value to the list (mutates) — lists only        |
+| `pop(list)`                 | Removes the last element (mutates) — lists only           |
+| `first(col)`                | Returns the first element                                 |
+| `last(col)`                 | Returns the last element                                  |
+| `contains(col, value)`      | Returns true if the value is in the collection            |
+| `findIndex(col, value)`     | Returns the index of a value, or `-1`                     |
+| `slice(col, from, to)`      | Returns a sub-list                                        |
+| `reverse(col)`              | Returns a reversed copy as a list                         |
+| `concat(col1, col2)`        | Concatenates two collections into a new list              |
+| `flatten(col)`              | Flattens one level of nested lists/arrays/tuples          |
+| `join(col, separator)`      | Joins elements into a string                              |
+| `newList()`                 | Creates an empty mutable list                             |
+| `newTuple()`                | Creates an empty tuple                                    |
 
 ### `map`
 

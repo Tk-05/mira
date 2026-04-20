@@ -1,10 +1,14 @@
 package com.mira.parser.nodes.expression;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 
 import com.mira.lexer.token.Token;
+import com.mira.lexer.token.TokenType;
 import com.mira.parser.nodes.Node;
+import com.mira.parser.nodes.Parameter;
+import com.mira.parser.nodes.statement.Statement.FuncDecl;
 import com.mira.parser.nodes.statement.Statement.VarDecl;
 import com.mira.runtime.visitors.ExprVisitor;
 import com.mira.utils.StringFormatter;
@@ -33,8 +37,16 @@ public abstract class Expression implements Node {
             return token.getLexeme();
         }
 
-        public com.mira.lexer.token.TokenType getTokenType() {
+        public TokenType getTokenType() {
             return token.getTokenType();
+        }
+
+        public int getLine() {
+            return token.getLine();
+        }
+
+        public int getColumn() {
+            return token.getColumn();
         }
 
         @Override
@@ -134,6 +146,38 @@ public abstract class Expression implements Node {
         @Override
         public String toString() {
             return callee.toString();
+        }
+    }
+
+    public static class ArrayExpression extends Expression implements Mutability {
+
+        private final List<Expression> members;
+
+        public ArrayExpression(List<Expression> members) {
+            this.members = members;
+        }
+
+        @Override
+        public <T> T accept(ExprVisitor<T> visitor) {
+            return visitor.visitArrayExpr(this);
+        }
+
+        public int getLength() {
+            return members.size();
+        }
+
+        public List<Expression> getMembers() {
+            return members;
+        }
+
+        @Override
+        public String toString() {
+            return StringFormatter.formatToString(this);
+        }
+
+        @Override
+        public boolean isMutable() {
+            return true;
         }
     }
 
@@ -392,9 +436,15 @@ public abstract class Expression implements Node {
     public static class ObjectExpression extends Expression {
 
         private final List<VarDecl> varDecls;
+        private final List<FuncDecl> methods;
 
         public ObjectExpression(List<VarDecl> varDecls) {
+            this(varDecls, new ArrayList<>());
+        }
+
+        public ObjectExpression(List<VarDecl> varDecls, List<FuncDecl> methods) {
             this.varDecls = varDecls;
+            this.methods = methods;
         }
 
         @Override
@@ -410,16 +460,26 @@ public abstract class Expression implements Node {
         public List<VarDecl> getVarDecls() {
             return varDecls;
         }
+
+        public List<FuncDecl> getMethods() {
+            return methods;
+        }
     }
 
     public static class FieldAccessExpression extends Expression {
 
         private final Expression object;
         private final String field;
+        private final boolean optional;
 
         public FieldAccessExpression(Expression object, String field) {
+            this(object, field, false);
+        }
+
+        public FieldAccessExpression(Expression object, String field, boolean optional) {
             this.object = object;
             this.field = field;
+            this.optional = optional;
         }
 
         @Override
@@ -429,7 +489,7 @@ public abstract class Expression implements Node {
 
         @Override
         public String toString() {
-            return object.toString() + "." + field;
+            return object.toString() + (optional ? "?." : ".") + field;
         }
 
         public Expression getObject() {
@@ -438,6 +498,51 @@ public abstract class Expression implements Node {
 
         public String getField() {
             return field;
+        }
+
+        public boolean isOptional() {
+            return optional;
+        }
+    }
+
+    public static class MethodCallExpression extends Expression {
+
+        private final Expression object;
+        private final String method;
+        private final List<Expression> arguments;
+        private final boolean optional;
+
+        public MethodCallExpression(Expression object, String method, List<Expression> arguments, boolean optional) {
+            this.object = object;
+            this.method = method;
+            this.arguments = arguments;
+            this.optional = optional;
+        }
+
+        @Override
+        public <T> T accept(ExprVisitor<T> visitor) {
+            return visitor.visitMethodCallExpression(this);
+        }
+
+        @Override
+        public String toString() {
+            return object.toString() + (optional ? "?." : ".") + method + "(...)";
+        }
+
+        public Expression getObject() {
+            return object;
+        }
+
+        public String getMethod() {
+            return method;
+        }
+
+        public List<Expression> getArguments() {
+            return arguments;
+        }
+
+        public boolean isOptional() {
+            return optional;
         }
     }
 
@@ -513,17 +618,17 @@ public abstract class Expression implements Node {
 
     public static class LambdaExpression extends Expression {
 
-        private final List<DumbExpression> parameters;
+        private final List<Parameter> parameters;
         private final List<Node> body;
         private final String variadicParam;
 
-        public LambdaExpression(List<DumbExpression> parameters, List<Node> body, String variadicParam) {
+        public LambdaExpression(List<Parameter> parameters, List<Node> body, String variadicParam) {
             this.parameters = parameters;
             this.body = body;
             this.variadicParam = variadicParam;
         }
 
-        public List<DumbExpression> getParameters() {
+        public List<Parameter> getParameters() {
             return parameters;
         }
 
@@ -536,6 +641,13 @@ public abstract class Expression implements Node {
         }
 
         public int getArity() {
+            if (variadicParam != null) {
+                return -1;
+            }
+            return (int) parameters.stream().filter(p -> !p.hasDefault()).count();
+        }
+
+        public int getMaxArity() {
             return variadicParam != null ? -1 : parameters.size();
         }
 

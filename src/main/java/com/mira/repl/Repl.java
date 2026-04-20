@@ -1,4 +1,4 @@
-package com.mira.console;
+package com.mira.repl;
 
 import java.util.Scanner;
 
@@ -9,7 +9,7 @@ import com.mira.parser.Parser;
 import com.mira.runtime.interpreter.Interpreter;
 import com.mira.warning.WarningCollector;
 
-public class Console {
+public class Repl {
 
     private static final String PROMPT = ">>> ";
     private static final String PROMPT_CONTINUE = "... ";

@@ -11,7 +11,7 @@ import com.mira.lexer.token.TokenType;
 
 public class Evaluator {
 
-    private static final Pattern NUMBER_PATTERN = Pattern.compile("-?\\d+(\\.\\d+)?");
+    private static final Pattern NUMBER_PATTERN = Pattern.compile("-?(0[xX][0-9a-fA-F]+|\\d+(\\.\\d+)?)");
 
     private List<Token> tokens;
     private int current;
@@ -289,6 +289,9 @@ public class Evaluator {
     }
 
     private static Object parseNumber(String s) {
+        if (s.startsWith("0x") || s.startsWith("0X")) {
+            return Long.valueOf(s.substring(2), 16);
+        }
         if (s.contains(".")) {
             return Double.valueOf(s);
         }

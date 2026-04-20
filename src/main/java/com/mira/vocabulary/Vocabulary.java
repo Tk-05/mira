@@ -32,6 +32,7 @@ public class Vocabulary {
             "enum",
             "try",
             "catch",
+            "finally",
             "throw",
             "native",
             "do"
@@ -47,6 +48,7 @@ public class Vocabulary {
             "&", "|", "^", "~",
             "<<", ">>",
             "|>",
+            "??", "?.",
             "$", ":", "!", "?"
     );
 

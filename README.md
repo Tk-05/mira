@@ -43,6 +43,8 @@ java -jar target/mira-RELEASE.jar
 | `-m` | Use `main()` as entry point |
 | `-li` | Show loaded library info |
 | `-args <arg0,arg1,...>` | Pass arguments to the script |
+| `-lint` | Run the static linter before execution |
+| `-watch` | Enable hot reload |
 
 **Example:**
 ```bash

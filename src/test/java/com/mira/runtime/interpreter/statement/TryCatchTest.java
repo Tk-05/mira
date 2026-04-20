@@ -174,4 +174,66 @@ public class TryCatchTest extends InterpreterTestBase {
                 var result : $e;
                 """));
     }
+
+    @Test
+    void finallyRunsWhenNoThrow() {
+        run("""
+                var x : 0;
+                try {
+                    $x : 1;
+                } catch (e) {
+                    $x : 99;
+                } finally {
+                    $x : eval($x + 10);
+                }
+                """);
+        assertEquals(11.0, normNum(interpreter.getGlobalEnvironment().get("x")));
+    }
+
+    @Test
+    void finallyRunsAfterCatch() {
+        run("""
+                var x : 0;
+                try {
+                    throw "err";
+                } catch (e) {
+                    $x : 1;
+                } finally {
+                    $x : eval($x + 10);
+                }
+                """);
+        assertEquals(11.0, normNum(interpreter.getGlobalEnvironment().get("x")));
+    }
+
+    @Test
+    void finallyRunsEvenWhenThrowNotCaught() {
+        run("""
+                var x : 0;
+                try {
+                    try {
+                        throw "err";
+                    } catch (e) {
+                    } finally {
+                        $x : 42;
+                    }
+                } catch (e) {
+                }
+                """);
+        assertEquals(42.0, normNum(interpreter.getGlobalEnvironment().get("x")));
+    }
+
+    @Test
+    void finallyWithoutThrowDoesNotRunCatch() {
+        run("""
+                var x : 0;
+                try {
+                    $x : 1;
+                } catch (e) {
+                    $x : 99;
+                } finally {
+                    $x : eval($x + 5);
+                }
+                """);
+        assertEquals(6.0, normNum(interpreter.getGlobalEnvironment().get("x")));
+    }
 }

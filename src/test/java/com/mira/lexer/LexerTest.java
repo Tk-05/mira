@@ -41,6 +41,7 @@ public class LexerTest {
         assertEquals(TokenType.KEYWORD, tokenizer.tokenize("throw", false).getFirst().getTokenType());
         assertEquals(TokenType.KEYWORD, tokenizer.tokenize("native", false).getFirst().getTokenType());
         assertEquals(TokenType.KEYWORD, tokenizer.tokenize("do", false).getFirst().getTokenType());
+         assertEquals(TokenType.KEYWORD, tokenizer.tokenize("finally", false).getFirst().getTokenType());
     }
 
     @Test
@@ -256,5 +257,11 @@ public class LexerTest {
     void testTextBlockEmpty() {
         List<Token> tokens = tokenizer.tokenize("\"\"\"\"\"\"", false);
         assertEquals("", tokens.getFirst().getLexeme());
+    }
+
+    @Test
+    void testHexNumber() {
+        List<Token> tokens = tokenizer.tokenize("0xFF", false);
+        assertEquals("0xFF", tokens.getFirst().getLexeme());
     }
 }

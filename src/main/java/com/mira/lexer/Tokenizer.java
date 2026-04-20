@@ -294,6 +294,15 @@ public class Tokenizer {
     }
 
     private void scanNumber() {
+        if (source.charAt(start) == '0' && !isAtEnd() && (peek() == 'x' || peek() == 'X')) {
+            advance();
+            while (!isAtEnd() && isHexDigit(peek())) {
+                advance();
+            }
+            tokens.add(new Token(TokenType.EXPRESSION, source.substring(start, current), line, column));
+            return;
+        }
+
         while (!isAtEnd() && Character.isDigit(peek())) {
             advance();
         }
@@ -304,9 +313,11 @@ public class Tokenizer {
             } while (!isAtEnd() && Character.isDigit(peek()));
         }
 
-        String value = source.substring(start, current);
+        tokens.add(new Token(TokenType.EXPRESSION, source.substring(start, current), line, column));
+    }
 
-        tokens.add(new Token(TokenType.EXPRESSION, value, line, column));
+    private static boolean isHexDigit(char c) {
+        return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
     }
 
     private char advance() {

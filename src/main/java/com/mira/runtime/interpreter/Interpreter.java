@@ -27,6 +27,7 @@ import com.mira.parser.Parser;
 import com.mira.parser.nodes.Node;
 import com.mira.parser.nodes.expression.Expression;
 import com.mira.parser.nodes.expression.Expression.AccessExpression;
+import com.mira.parser.nodes.expression.Expression.ArrayExpression;
 import com.mira.parser.nodes.expression.Expression.BinaryExpression;
 import com.mira.parser.nodes.expression.Expression.CallExpression;
 import com.mira.parser.nodes.expression.Expression.ComplexExpression;
@@ -38,6 +39,7 @@ import com.mira.parser.nodes.expression.Expression.ListExpression;
 import com.mira.parser.nodes.expression.Expression.MapExpression;
 import com.mira.parser.nodes.expression.Expression.Mutability;
 import com.mira.parser.nodes.expression.Expression.NamespaceCallExpression;
+import com.mira.parser.nodes.expression.Expression.MethodCallExpression;
 import com.mira.parser.nodes.expression.Expression.ObjectExpression;
 import com.mira.parser.nodes.expression.Expression.RangeExpression;
 import com.mira.parser.nodes.expression.Expression.TernaryExpression;
@@ -61,6 +63,7 @@ import com.mira.parser.nodes.statement.Statement.SwitchCase;
 import com.mira.parser.nodes.statement.Statement.Throw;
 import com.mira.parser.nodes.statement.Statement.TryCatch;
 import com.mira.parser.nodes.statement.Statement.VarDecl;
+import com.mira.parser.nodes.statement.Statement.VarDestructure;
 import com.mira.parser.nodes.statement.Statement.While;
 import com.mira.runtime.functions.BreakSignal;
 import com.mira.runtime.functions.Callable;
@@ -86,6 +89,23 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
     private final Map<CacheKey, Object> callCache = new HashMap<>();
     private Set<String> pureFunctions = Set.of();
+
+    public interface DebugHook {
+
+        void onStatement(Statement stmt, Environment env);
+    }
+
+    private DebugHook debugHook;
+
+    public void setDebugHook(DebugHook hook) {
+        this.debugHook = hook;
+    }
+
+    private void notifyDebugger(Statement stmt) {
+        if (debugHook != null) {
+            debugHook.onStatement(stmt, localEnvironment != null ? localEnvironment : globalEnvironment);
+        }
+    }
 
     public Interpreter() {
         ImportResolver.loadInternal(globalEnvironment);
@@ -244,6 +264,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
     @Override
     public Void visitVarDecl(VarDecl varDecl) {
+        notifyDebugger(varDecl);
         Object value = NullValue.INSTANCE;
 
         if (varDecl.getInitializer() != null) {
@@ -312,7 +333,13 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             arguments.add(arg.accept(this));
         }
 
-        if (callable.getArity() != -1 && arguments.size() != callable.getArity()) {
+        if (callable instanceof Function f) {
+            int min = f.getArity();
+            int max = f.getMaxArity();
+            if (arguments.size() < min || (max != -1 && arguments.size() > max)) {
+                throw new ArgMismatchError(calleeName, min, arguments.size());
+            }
+        } else if (callable.getArity() != -1 && arguments.size() != callable.getArity()) {
             throw new ArgMismatchError(calleeName, callable.getArity(), arguments.size());
         }
 
@@ -336,6 +363,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                         funcDecl.getBody(),
                         funcDecl.getParameters(),
                         funcDecl.getArity(),
+                        funcDecl.getMaxArity(),
                         funcDecl.getVariadicParam()));
 
         return null;
@@ -344,11 +372,12 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
     @Override
     public <T> T visitLambdaExpr(LambdaExpression lambda) {
         Environment capturedEnv = localEnvironment != null ? localEnvironment : globalEnvironment;
-        return (T) new Function(capturedEnv, lambda.getBody(), lambda.getParameters(), lambda.getArity(), lambda.getVariadicParam());
+        return (T) new Function(capturedEnv, lambda.getBody(), lambda.getParameters(), lambda.getArity(), lambda.getMaxArity(), lambda.getVariadicParam());
     }
 
     @Override
     public Void visitReturn(Return ret) {
+        notifyDebugger(ret);
         Object value = null;
 
         if (ret.getValue() != null) {
@@ -408,6 +437,14 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
         if (op.equals("|>")) {
             return visitPipeExpr(expression);
+        }
+
+        if (op.equals("??")) {
+            Object left = expression.getLeft().accept(this);
+            if (left != null && !(left instanceof NullValue)) {
+                return (T) left;
+            }
+            return (T) expression.getRight().accept(this);
         }
 
         if (op.equals("&&")) {
@@ -531,6 +568,9 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
     }
 
     private Number parseNumber(String s) {
+        if (s.startsWith("0x") || s.startsWith("0X")) {
+            return Long.parseLong(s.substring(2), 16);
+        }
         if (s.contains(".")) {
             return Double.parseDouble(s);
         }
@@ -905,6 +945,11 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
     }
 
     @Override
+    public <T> T visitArrayExpr(ArrayExpression expression) {
+        return (T) expression;
+    }
+
+    @Override
     public <T> T visitTupleExpr(TupleExpression expression) {
         return (T) expression;
     }
@@ -946,6 +991,13 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                             throw new AssertionError();
                     }
                     switch (accessedObject) {
+                        case ArrayExpression array -> {
+                            if (array.getMembers().get(i) instanceof ArrayExpression innerArray) {
+                                accessedObject = innerArray.accept(this);
+                            } else {
+                                accessedObject = array.getMembers().get(i);
+                            }
+                        }
                         case TupleExpression tuple -> {
                             if (tuple.getMembers().get(i) instanceof TupleExpression innerTuple) {
                                 accessedObject = innerTuple.accept(this);
@@ -972,6 +1024,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
     @Override
     public Void visitAssign(Assign assign) {
+        notifyDebugger(assign);
         switch (assign.getReference()) {
             case AccessExpression accessExpression -> {
                 Object referencedObject = accessExpression.getReference().accept(this);
@@ -991,6 +1044,16 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                     }
 
                     switch (referencedObject) {
+                        case ArrayExpression array -> {
+                            referencedObject = array.getMembers().get(i);
+                            if (referencedObject instanceof ArrayExpression innerArray) {
+                                referencedObject = innerArray.accept(this);
+                            } else if (referencedObject instanceof ListExpression innerList) {
+                                referencedObject = innerList.accept(this);
+                            } else {
+                                throw new ImmutableCollectionError();
+                            }
+                        }
                         case TupleExpression tuple -> {
                             referencedObject = tuple.getMembers().get(i);
                             if (referencedObject instanceof ListExpression innerList) {
@@ -1022,6 +1085,11 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                         }
 
                         switch (referencedObject) {
+                            case ArrayExpression array -> {
+                                Object lastIdx = accessExpression.getIndecies().getLast().accept(this);
+                                int arrayIdx = lastIdx instanceof Number n ? (int) n.longValue() : Integer.parseInt((String) lastIdx);
+                                array.getMembers().set(arrayIdx, assignment);
+                            }
                             case ListExpression list -> {
                                 Object lastIdx = accessExpression.getIndecies().getLast().accept(this);
                                 int listIdx = lastIdx instanceof Number n ? (int) n.longValue() : Integer.parseInt((String) lastIdx);
@@ -1070,6 +1138,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
     @Override
     public Object visitIf(If stmt) {
+        notifyDebugger(stmt);
         Object condition = stmt.getCondition().accept(this);
         boolean value = resolveLoopCondition(condition);
         List<Node> body = value ? stmt.getThenBody() : stmt.getElseBody();
@@ -1085,6 +1154,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
     @Override
     public Object visitFor(For stmt) {
+        notifyDebugger(stmt);
         runBody(stmt.getVarDecls());
 
         try {
@@ -1110,6 +1180,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
     @Override
     public Object visitWhile(While stmt) {
+        notifyDebugger(stmt);
         if (!stmt.getDoModifier()) {
             try {
                 while (true) {
@@ -1217,6 +1288,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
     @Override
     public Object visitForeach(Foreach stmt) {
+        notifyDebugger(stmt);
         if (localEnvironment != null && !localEnvironment.exists(stmt.getIterator().getName())) {
             localEnvironment.define(stmt.getIterator().getName(), null);
         } else if (localEnvironment == null && !globalEnvironment.exists(stmt.getIterator().getName())) {
@@ -1263,6 +1335,16 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             Object iterable = stmt.getCollection().accept(this);
 
             switch (iterable) {
+                case ArrayExpression array -> {
+                    for (Expression expr : array.getMembers()) {
+                        Object value = expr.accept(this);
+                        assignIterator(iteratorName, value);
+                        try {
+                            runBodyInFreshScope(stmt.getBody());
+                        } catch (ContinueSignal continueSignal) {
+                        }
+                    }
+                }
                 case TupleExpression tuple -> {
                     for (Expression expr : tuple.getMembers()) {
                         Object value = expr.accept(this);
@@ -1344,12 +1426,14 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
     @Override
     public Object visitThrow(Throw stmt) {
+        notifyDebugger(stmt);
         Object value = stmt.getValue().accept(this);
         throw new ThrowSignal(value);
     }
 
     @Override
     public Object visitTryCatch(TryCatch stmt) {
+        notifyDebugger(stmt);
         try {
             runBodyInFreshScope(stmt.getTryBody());
         } catch (ThrowSignal signal) {
@@ -1360,6 +1444,10 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                 runBody(stmt.getCatchBody());
             } finally {
                 localEnvironment = previous;
+            }
+        } finally {
+            if (!stmt.getFinallyBody().isEmpty()) {
+                runBodyInFreshScope(stmt.getFinallyBody());
             }
         }
         return null;
@@ -1486,7 +1574,57 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             }
         }
 
+        for (FuncDecl method : expression.getMethods()) {
+            Function fn = new Function(objectEnv, method.getBody(), method.getParameters(),
+                    method.getArity(), method.getMaxArity(), method.getVariadicParam());
+            objectEnv.define(method.getName(), fn);
+        }
+
+        if (!objectEnv.exists("this")) {
+            objectEnv.define("this", objectEnv);
+        }
+
         return (T) objectEnv;
+    }
+
+    @Override
+    public <T> T visitMethodCallExpression(MethodCallExpression expression) {
+        Object objectValue = expression.getObject().accept(this);
+
+        if (objectValue instanceof String name) {
+            objectValue = localEnvironment != null && localEnvironment.existsInChain(name)
+                    ? localEnvironment.get(name)
+                    : globalEnvironment.get(name);
+        }
+
+        if (expression.isOptional() && (objectValue == null || objectValue instanceof NullValue)) {
+            return (T) NullValue.INSTANCE;
+        }
+
+        if (!(objectValue instanceof Environment objectEnv)) {
+            throw new FieldAccessError(expression.getMethod());
+        }
+
+        Object methodValue = objectEnv.get(expression.getMethod());
+        if (!(methodValue instanceof Callable callable)) {
+            throw new NotCallableError(expression.getMethod());
+        }
+
+        List<Object> arguments = new ArrayList<>();
+        for (Expression arg : expression.getArguments()) {
+            arguments.add(arg.accept(this));
+        }
+
+        if (callable instanceof Function f) {
+            int min = f.getArity(), max = f.getMaxArity();
+            if (arguments.size() < min || (max != -1 && arguments.size() > max)) {
+                throw new ArgMismatchError(expression.getMethod(), min, arguments.size());
+            }
+        } else if (callable.getArity() != -1 && arguments.size() != callable.getArity()) {
+            throw new ArgMismatchError(expression.getMethod(), callable.getArity(), arguments.size());
+        }
+
+        return (T) callable.call(this, arguments);
     }
 
     @Override
@@ -1500,6 +1638,9 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         }
 
         if (!(object instanceof Environment objectEnv)) {
+            if (expression.isOptional()) {
+                return (T) NullValue.INSTANCE;
+            }
             throw new FieldAccessError(expression.getField());
         }
 
@@ -1513,6 +1654,29 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             enumEnv.defineConst(entry.getKey(), entry.getValue());
         }
         globalEnvironment.defineConst(stmt.getIdentifier(), enumEnv);
+        return null;
+    }
+
+    @Override
+    public Void visitVarDestructure(VarDestructure stmt) {
+        notifyDebugger(stmt);
+        Object value = stmt.getInitializer().accept(this);
+        List<Expression> members = switch (value) {
+            case TupleExpression t ->
+                t.getMembers();
+            case ListExpression l ->
+                l.getMembers();
+            case ArrayExpression a ->
+                a.getMembers();
+            default ->
+                throw new RuntimeException("Cannot destructure value of type: " + value.getClass().getSimpleName());
+        };
+        Environment env = localEnvironment == null ? globalEnvironment : localEnvironment;
+        List<String> names = stmt.getNames();
+        for (int i = 0; i < names.size(); i++) {
+            Object element = i < members.size() ? members.get(i).accept(this) : NullValue.INSTANCE;
+            env.define(names.get(i), element);
+        }
         return null;
     }
 
