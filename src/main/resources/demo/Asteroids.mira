@@ -1,0 +1,323 @@
+module main;
+
+import native "../../../../extern/raylib/target/raylib-RELEASE.jar" as ray;
+import math as m;
+import collection as c;
+
+const WIDTH       : 800;
+const HEIGHT      : 600;
+const MAX_BULLETS : 8;
+const SHIP_ACC    : 0.15;
+const SHIP_ROT    : 3.5;
+const BULLET_SPD  : 8;
+const BULLET_LIFE : 70;
+const SHIP_RADIUS : 12;
+const BULLET_R    : 3;
+
+fn wrapCoord(val, max) {
+    var r : $val;
+    if ($r < 0)    { $r : $max; }
+    if ($r > $max) { $r : 0; }
+    return $r;
+}
+
+fn main() {
+    ray.InitWindow($WIDTH, $HEIGHT, "Asteroids - Mira Demo");
+    ray.SetTargetFPS(60);
+
+    // ── Ship ─────────────────────────────────────────────────────────────
+    var shipX     : 400;
+    var shipY     : 300;
+    var shipVX    : 0;
+    var shipVY    : 0;
+    var shipAngle : -90;
+
+    // ── Bullets — parallel lists ─────────────────────────────────────────
+    var bX    : c.newList();
+    var bY    : c.newList();
+    var bVX   : c.newList();
+    var bVY   : c.newList();
+    var bLife : c.newList();
+    var bDead : c.newList();
+
+    // ── Rocks — parallel lists ───────────────────────────────────────────
+    var rX     : c.newList();
+    var rY     : c.newList();
+    var rVX    : c.newList();
+    var rVY    : c.newList();
+    var rRad   : c.newList();
+    var rAlive : c.newList();
+
+    // Seed initial 5 rocks in a loop
+    for (var i in <0..5>) {
+        var spawnX : ray.GetRandomValue(50, eval($WIDTH  - 50));
+        var spawnY : ray.GetRandomValue(50, eval($HEIGHT - 50));
+        var ang    : eval(ray.GetRandomValue(0, 628) * 0.01);
+        var spd    : eval(ray.GetRandomValue(8, 22) * 0.1);
+        c.push($rX,     $spawnX);
+        c.push($rY,     $spawnY);
+        c.push($rVX,    eval(m.cos($ang) * $spd));
+        c.push($rVY,    eval(m.sin($ang) * $spd));
+        c.push($rRad,   35);
+        c.push($rAlive, true);
+    }
+
+    var score    : 0;
+    var wave     : 1;
+    var playing  : true;
+    var cooldown : 0;
+
+    while (!ray.WindowShouldClose()) {
+        ray.BeginDrawing();
+        ray.ClearBackground(ray.Color(5, 5, 20, 255));
+
+        if ($playing) {
+
+            // Cooldown
+            if ($cooldown > 0) { $cooldown : eval($cooldown - 1); }
+
+            // ── Input: rotate ─────────────────────────────────────────────
+            if (ray.IsKeyDown(ray.KEY_LEFT)) {
+                $shipAngle : eval($shipAngle - $SHIP_ROT);
+            }
+            if (ray.IsKeyDown(ray.KEY_RIGHT)) {
+                $shipAngle : eval($shipAngle + $SHIP_ROT);
+            }
+
+            // ── Input: thrust ─────────────────────────────────────────────
+            var thrusting : false;
+            if (ray.IsKeyDown(ray.KEY_UP)) {
+                var rad : eval($shipAngle * 0.01745);
+                $shipVX    : eval($shipVX + m.cos($rad) * $SHIP_ACC);
+                $shipVY    : eval($shipVY + m.sin($rad) * $SHIP_ACC);
+                $thrusting : true;
+            }
+
+            // ── Input: shoot ──────────────────────────────────────────────
+            if (ray.IsKeyPressed(ray.KEY_SPACE)) {
+                if ($cooldown == 0 && c.size($bX) < $MAX_BULLETS) {
+                    var brad : eval($shipAngle * 0.01745);
+                    c.push($bX,    $shipX);
+                    c.push($bY,    $shipY);
+                    c.push($bVX,   eval(m.cos($brad) * $BULLET_SPD));
+                    c.push($bVY,   eval(m.sin($brad) * $BULLET_SPD));
+                    c.push($bLife, $BULLET_LIFE);
+                    c.push($bDead, false);
+                    $cooldown : 12;
+                }
+            }
+
+            // ── Move ship ─────────────────────────────────────────────────
+            $shipVX : eval($shipVX * 0.99);
+            $shipVY : eval($shipVY * 0.99);
+            $shipX  : eval($shipX + $shipVX);
+            $shipY  : eval($shipY + $shipVY);
+            $shipX  : wrapCoord($shipX, $WIDTH);
+            $shipY  : wrapCoord($shipY, $HEIGHT);
+
+            // ── Move bullets ──────────────────────────────────────────────
+            var nb : c.size($bX);
+            for (var i in <0..$nb>) {
+                $bX[$i]    : eval($bX[$i] + $bVX[$i]);
+                $bY[$i]    : eval($bY[$i] + $bVY[$i]);
+                $bLife[$i] : eval($bLife[$i] - 1);
+            }
+
+            // ── Move rocks ────────────────────────────────────────────────
+            var nr : c.size($rX);
+            for (var i in <0..$nr>) {
+                $rX[$i] : eval($rX[$i] + $rVX[$i]);
+                $rY[$i] : eval($rY[$i] + $rVY[$i]);
+                $rX[$i] : wrapCoord($rX[$i], $WIDTH);
+                $rY[$i] : wrapCoord($rY[$i], $HEIGHT);
+            }
+
+            // ── Bullet–rock collision ─────────────────────────────────────
+            var nb2 : c.size($bX);
+            var nr2 : c.size($rX);
+            for (var bi in <0..$nb2>) {
+                if (!$bDead[$bi]) {
+                    for (var ri in <0..$nr2>) {
+                        if ($rAlive[$ri]) {
+                            if (ray.CheckCollisionCircles(
+                                    $bX[$bi], $bY[$bi], $BULLET_R,
+                                    $rX[$ri], $rY[$ri], $rRad[$ri])) {
+                                $rAlive[$ri] : false;
+                                $bDead[$bi]  : true;
+                                $score       : eval($score + 100);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // ── Ship–rock collision ───────────────────────────────────────
+            var nr3 : c.size($rX);
+            for (var ri in <0..$nr3>) {
+                if ($rAlive[$ri]) {
+                    if (ray.CheckCollisionCircles(
+                            $shipX, $shipY, $SHIP_RADIUS,
+                            $rX[$ri], $rY[$ri], $rRad[$ri])) {
+                        $playing : false;
+                    }
+                }
+            }
+
+            // ── Rebuild live bullet lists ─────────────────────────────────
+            var nbX    : c.newList();
+            var nbY    : c.newList();
+            var nbVX   : c.newList();
+            var nbVY   : c.newList();
+            var nbLife : c.newList();
+            var nbDead : c.newList();
+            var nb3 : c.size($bX);
+            for (var i in <0..$nb3>) {
+                if (!$bDead[$i] && $bLife[$i] > 0) {
+                    c.push($nbX,    $bX[$i]);
+                    c.push($nbY,    $bY[$i]);
+                    c.push($nbVX,   $bVX[$i]);
+                    c.push($nbVY,   $bVY[$i]);
+                    c.push($nbLife, $bLife[$i]);
+                    c.push($nbDead, $bDead[$i]);
+                }
+            }
+            $bX    : $nbX;   $bY    : $nbY;
+            $bVX   : $nbVX;  $bVY   : $nbVY;
+            $bLife : $nbLife; $bDead : $nbDead;
+
+            // ── Rebuild live rock lists ───────────────────────────────────
+            var nrX     : c.newList();
+            var nrY     : c.newList();
+            var nrVX    : c.newList();
+            var nrVY    : c.newList();
+            var nrRad   : c.newList();
+            var nrAlive : c.newList();
+            var nr4 : c.size($rX);
+            for (var i in <0..$nr4>) {
+                if ($rAlive[$i]) {
+                    c.push($nrX,     $rX[$i]);
+                    c.push($nrY,     $rY[$i]);
+                    c.push($nrVX,    $rVX[$i]);
+                    c.push($nrVY,    $rVY[$i]);
+                    c.push($nrRad,   $rRad[$i]);
+                    c.push($nrAlive, $rAlive[$i]);
+                }
+            }
+            $rX     : $nrX;    $rY     : $nrY;
+            $rVX    : $nrVX;   $rVY    : $nrVY;
+            $rRad   : $nrRad;  $rAlive : $nrAlive;
+
+            // ── Next wave when all rocks cleared ──────────────────────────
+            if (c.size($rX) == 0) {
+                $wave : eval($wave + 1);
+                var spawnN : eval($wave + 3);
+                for (var i in <0..$spawnN>) {
+                    var wx  : ray.GetRandomValue(0, $WIDTH);
+                    var wy  : ray.GetRandomValue(0, $HEIGHT);
+                    var wa  : eval(ray.GetRandomValue(0, 628) * 0.01);
+                    var ws  : eval(ray.GetRandomValue(8, 22) * 0.1);
+                    c.push($rX,     $wx);
+                    c.push($rY,     $wy);
+                    c.push($rVX,    eval(m.cos($wa) * $ws));
+                    c.push($rVY,    eval(m.sin($wa) * $ws));
+                    c.push($rRad,   35);
+                    c.push($rAlive, true);
+                }
+            }
+
+            // ── Draw rocks ────────────────────────────────────────────────
+            var dr : c.size($rX);
+            for (var i in <0..$dr>) {
+                ray.DrawCircleLines($rX[$i], $rY[$i], $rRad[$i], ray.WHITE);
+                ray.DrawCircleLines($rX[$i], $rY[$i], eval($rRad[$i] - 6), ray.GRAY);
+            }
+
+            // ── Draw bullets ──────────────────────────────────────────────
+            var db : c.size($bX);
+            for (var i in <0..$db>) {
+                ray.DrawCircle($bX[$i], $bY[$i], $BULLET_R, ray.YELLOW);
+            }
+
+            // ── Draw ship ─────────────────────────────────────────────────
+            var srad   : eval($shipAngle * 0.01745);
+            var noseX  : eval($shipX + m.cos($srad) * 20);
+            var noseY  : eval($shipY + m.sin($srad) * 20);
+            var leftA  : eval($srad + 2.5);
+            var leftX  : eval($shipX + m.cos($leftA) * 12);
+            var leftY  : eval($shipY + m.sin($leftA) * 12);
+            var rightA : eval($srad - 2.5);
+            var rightX : eval($shipX + m.cos($rightA) * 12);
+            var rightY : eval($shipY + m.sin($rightA) * 12);
+            ray.DrawTriangleLines($noseX, $noseY, $leftX, $leftY, $rightX, $rightY, ray.WHITE);
+
+            // Thruster flame when holding UP
+            if ($thrusting) {
+                var td  : eval($srad + 3.14159);
+                var ftx : eval($shipX + m.cos($td) * 18);
+                var fty : eval($shipY + m.sin($td) * 18);
+                var fla : eval($td + 0.3);
+                var flx : eval($shipX + m.cos($fla) * 7);
+                var fly : eval($shipY + m.sin($fla) * 7);
+                var fra : eval($td - 0.3);
+                var frx : eval($shipX + m.cos($fra) * 7);
+                var fry : eval($shipY + m.sin($fra) * 7);
+                ray.DrawTriangle($ftx, $fty, $flx, $fly, $frx, $fry, ray.ORANGE);
+            }
+
+            // ── HUD ───────────────────────────────────────────────────────
+            ray.DrawText("Score: " $score, 10, 10, 20, ray.WHITE);
+            ray.DrawText("Wave:  " $wave,  10, 35, 20, ray.YELLOW);
+            var rockCount : c.size($rX);
+            ray.DrawText("Rocks: " $rockCount, 10, 60, 20, ray.GRAY);
+            ray.DrawFPS(eval($WIDTH - 80), 10);
+            var helpY : eval($HEIGHT - 25);
+            ray.DrawText("LEFT/RIGHT: rotate   UP: thrust   SPACE: shoot", 175, $helpY, 16, ray.GRAY);
+        }
+
+        // ── Game over ────────────────────────────────────────────────────
+        if (!$playing) {
+            ray.DrawText("GAME OVER",              285, 210, 52, ray.RED);
+            ray.DrawText("Score: " $score,         330, 280, 28, ray.WHITE);
+            ray.DrawText("Wave reached: " $wave,   295, 315, 22, ray.YELLOW);
+            ray.DrawText("Press SPACE to restart", 248, 375, 22, ray.GRAY);
+
+            if (ray.IsKeyPressed(ray.KEY_SPACE)) {
+                $shipX : 400;  $shipY : 300;
+                $shipVX : 0;   $shipVY : 0;
+                $shipAngle : -90;
+                $score : 0;  $wave : 1;  $cooldown : 0;
+
+                $bX : c.newList(); $bY : c.newList();
+                $bVX : c.newList(); $bVY : c.newList();
+                $bLife : c.newList(); $bDead : c.newList();
+
+                $rX : c.newList(); $rY : c.newList();
+                $rVX : c.newList(); $rVY : c.newList();
+                $rRad : c.newList(); $rAlive : c.newList();
+
+                for (var i in <0..5>) {
+                    var rx : ray.GetRandomValue(50, eval($WIDTH  - 50));
+                    var ry : ray.GetRandomValue(50, eval($HEIGHT - 50));
+                    var ra : eval(ray.GetRandomValue(0, 628) * 0.01);
+                    var rs : eval(ray.GetRandomValue(8, 22) * 0.1);
+                    c.push($rX,     $rx);
+                    c.push($rY,     $ry);
+                    c.push($rVX,    eval(m.cos($ra) * $rs));
+                    c.push($rVY,    eval(m.sin($ra) * $rs));
+                    c.push($rRad,   35);
+                    c.push($rAlive, true);
+                }
+                $playing : true;
+            }
+        }
+
+        if (ray.IsKeyPressed(ray.KEY_ESCAPE)) {
+            ray.CloseWindow();
+            return;
+        }
+
+        ray.EndDrawing();
+    }
+
+    ray.CloseWindow();
+}

@@ -1,0 +1,149 @@
+module main;
+
+import native "../../../../extern/raylib/target/raylib-RELEASE.jar" as ray;
+import math as m;
+
+const WIDTH      : 800;
+const HEIGHT     : 600;
+const WIN_SCORE  : 7;
+const PADDLE_W   : 15;
+const PADDLE_H   : 80;
+const BALL_SIZE  : 12;
+const PLAYER_SPD : 6;
+const AI_SPD     : 5;
+
+fn main() {
+    ray.InitWindow($WIDTH, $HEIGHT, "Pong - Mira Demo");
+    ray.SetTargetFPS(60);
+
+    var player : { var x : 30;  var y : 260; var score : 0; };
+    var ai     : { var x : 755; var y : 260; var score : 0; };
+    var ball   : { var x : 400; var y : 300; var vx : 4; var vy : 3; };
+    var playing : true;
+
+    while (!ray.WindowShouldClose()) {
+        ray.BeginDrawing();
+        ray.ClearBackground(ray.BLACK);
+
+        if ($playing) {
+
+            // --- Input ---
+            if (ray.IsKeyDown(ray.KEY_W)) {
+                $player.y : eval($player.y - $PLAYER_SPD);
+            }
+            if (ray.IsKeyDown(ray.KEY_S)) {
+                $player.y : eval($player.y + $PLAYER_SPD);
+            }
+            var maxPy : eval($HEIGHT - $PADDLE_H);
+            $player.y : ray.Clamp($player.y, 0, $maxPy);
+
+            // --- AI follows ball center ---
+            var aiCenter : eval($ai.y + 40);
+            if ($aiCenter < $ball.y) {
+                $ai.y : eval($ai.y + $AI_SPD);
+            } else {
+                $ai.y : eval($ai.y - $AI_SPD);
+            }
+            var maxAy : eval($HEIGHT - $PADDLE_H);
+            $ai.y : ray.Clamp($ai.y, 0, $maxAy);
+
+            // --- Move ball ---
+            $ball.x : eval($ball.x + $ball.vx);
+            $ball.y : eval($ball.y + $ball.vy);
+
+            // Bounce top
+            if ($ball.y <= 0) {
+                $ball.vy : eval($ball.vy * -1);
+            }
+            // Bounce bottom
+            var botBound : eval($HEIGHT - $BALL_SIZE);
+            if ($ball.y >= $botBound) {
+                $ball.vy : eval($ball.vy * -1);
+            }
+
+            // --- Paddle collision ---
+            var playerRect : ray.Rectangle($player.x, $player.y, $PADDLE_W, $PADDLE_H);
+            var aiRect     : ray.Rectangle($ai.x, $ai.y, $PADDLE_W, $PADDLE_H);
+            var ballRect   : ray.Rectangle($ball.x, $ball.y, $BALL_SIZE, $BALL_SIZE);
+
+            if (ray.CheckCollisionRecs($playerRect, $ballRect)) {
+                $ball.vx : eval(m.abs($ball.vx));
+            }
+            if (ray.CheckCollisionRecs($aiRect, $ballRect)) {
+                $ball.vx : eval(m.abs($ball.vx) * -1);
+            }
+
+            // --- Scoring ---
+            if ($ball.x < 0) {
+                $ai.score : eval($ai.score + 1);
+                $ball.x : 400;
+                $ball.y : 300;
+                $ball.vx : 4;
+                $ball.vy : 3;
+            }
+            if ($ball.x > $WIDTH) {
+                $player.score : eval($player.score + 1);
+                $ball.x : 400;
+                $ball.y : 300;
+                $ball.vx : -4;
+                $ball.vy : 3;
+            }
+
+            // --- Win check ---
+            if ($player.score >= $WIN_SCORE) {
+                $playing : false;
+            }
+            if ($ai.score >= $WIN_SCORE) {
+                $playing : false;
+            }
+
+            // --- Draw ---
+            ray.DrawLine(400, 0, 400, $HEIGHT, ray.GRAY);
+
+            ray.DrawRectangle($player.x, $player.y, $PADDLE_W, $PADDLE_H, ray.WHITE);
+            ray.DrawRectangle($ai.x, $ai.y, $PADDLE_W, $PADDLE_H, ray.SKYBLUE);
+            ray.DrawRectangle($ball.x, $ball.y, $BALL_SIZE, $BALL_SIZE, ray.YELLOW);
+
+            ray.DrawText("" $player.score, 310, 20, 48, ray.WHITE);
+            ray.DrawText("" $ai.score,     460, 20, 48, ray.SKYBLUE);
+
+            var labelY : eval($HEIGHT - 25);
+            ray.DrawText("W/S to move", 10, $labelY, 16, ray.GRAY);
+            ray.DrawFPS(10, 10);
+        }
+
+        if (!$playing) {
+
+            // --- Win screen ---
+            var winner : "Player";
+            if ($ai.score >= $WIN_SCORE) {
+                $winner : "AI";
+            }
+
+            ray.DrawText($winner " Wins!", 280, 200, 48, ray.YELLOW);
+            ray.DrawText("Press SPACE to restart", 240, 270, 24, ray.WHITE);
+            ray.DrawText("" $player.score " - " $ai.score, 355, 330, 32, ray.GRAY);
+
+            if (ray.IsKeyPressed(ray.KEY_SPACE)) {
+                $player.score : 0;
+                $player.y    : 260;
+                $ai.score    : 0;
+                $ai.y        : 260;
+                $ball.x      : 400;
+                $ball.y      : 300;
+                $ball.vx     : 4;
+                $ball.vy     : 3;
+                $playing     : true;
+            }
+        }
+
+        if (ray.IsKeyPressed(ray.KEY_ESCAPE)) {
+            ray.CloseWindow();
+            return;
+        }
+
+        ray.EndDrawing();
+    }
+
+    ray.CloseWindow();
+}
