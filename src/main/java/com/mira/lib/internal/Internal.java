@@ -66,7 +66,14 @@ public class Internal implements Lib {
 
         environment.define("eval",
                 new NativeFunction(1, args -> {
-                    String eval = String.valueOf(args.get(0));
+                    Object arg = args.get(0);
+                    if (arg instanceof Number) {
+                        return arg;
+                    }
+                    if (arg instanceof Boolean) {
+                        return arg;
+                    }
+                    String eval = String.valueOf(arg);
                     return Evaluator.evaluate(eval, false);
                 }));
 

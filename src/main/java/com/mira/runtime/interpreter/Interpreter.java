@@ -1000,25 +1000,16 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                     }
                     switch (accessedObject) {
                         case ArrayExpression array -> {
-                            if (array.getMembers().get(i) instanceof ArrayExpression innerArray) {
-                                accessedObject = innerArray.accept(this);
-                            } else {
-                                accessedObject = array.getMembers().get(i);
-                            }
+                            Expression ae = array.getMembers().get(i);
+                            accessedObject = ae instanceof ArrayExpression inner ? inner.accept(this) : ae.accept(this);
                         }
                         case TupleExpression tuple -> {
-                            if (tuple.getMembers().get(i) instanceof TupleExpression innerTuple) {
-                                accessedObject = innerTuple.accept(this);
-                            } else {
-                                accessedObject = tuple.getMembers().get(i);
-                            }
+                            Expression te = tuple.getMembers().get(i);
+                            accessedObject = te instanceof TupleExpression inner ? inner.accept(this) : te.accept(this);
                         }
                         case ListExpression list -> {
-                            if (list.getMembers().get(i) instanceof ListExpression innerList) {
-                                accessedObject = innerList.accept(this);
-                            } else {
-                                accessedObject = list.getMembers().get(i);
-                            }
+                            Expression le = list.getMembers().get(i);
+                            accessedObject = le instanceof ListExpression inner ? inner.accept(this) : le.accept(this);
                         }
                         default ->
                             throw new NotIterableError();
