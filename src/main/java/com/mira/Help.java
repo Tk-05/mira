@@ -10,6 +10,7 @@ public class Help {
         -c Load file from classpath
         -m For main function entry point
         -args {arg0, arg1...}
+        -crash On crash: print Mira call stack, Java stack trace, and interpreter memory dump
             """;
 
     public static String getHelp() {

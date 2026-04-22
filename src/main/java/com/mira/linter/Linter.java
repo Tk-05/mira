@@ -15,11 +15,11 @@ import com.mira.parser.nodes.expression.Expression.CallExpression;
 import com.mira.parser.nodes.expression.Expression.ComplexExpression;
 import com.mira.parser.nodes.expression.Expression.DumbExpression;
 import com.mira.parser.nodes.expression.Expression.FieldAccessExpression;
-import com.mira.parser.nodes.expression.Expression.MethodCallExpression;
 import com.mira.parser.nodes.expression.Expression.ImportExpression;
 import com.mira.parser.nodes.expression.Expression.LambdaExpression;
 import com.mira.parser.nodes.expression.Expression.ListExpression;
 import com.mira.parser.nodes.expression.Expression.MapExpression;
+import com.mira.parser.nodes.expression.Expression.MethodCallExpression;
 import com.mira.parser.nodes.expression.Expression.NamespaceCallExpression;
 import com.mira.parser.nodes.expression.Expression.ObjectExpression;
 import com.mira.parser.nodes.expression.Expression.RangeExpression;
@@ -193,6 +193,10 @@ public class Linter {
                     }
                     scope.declare("this", 0, 0, false);
                     scope.markUsed("this");
+                    e.getVarDecls().forEach(f -> {
+                        scope.declare(f.getName(), 0, 0, false);
+                        scope.markUsed(f.getName());
+                    });
                     lintBodyWithDeadCodeCheck(method.getBody());
                     checkUnused(scope.pop());
                 }
@@ -231,7 +235,8 @@ public class Linter {
             lintExpr(stmt.getInitializer());
         }
 
-        if (scope.isDeclared(stmt.getName()) && !scope.isDeclaredInCurrentScope(stmt.getName())) {
+        if (scope.isDeclared(stmt.getName()) && !scope.isDeclaredInCurrentScope(stmt.getName())
+                && !scope.isDeclaredInOutermostScope(stmt.getName())) {
             warn("Variable '" + stmt.getName() + "' shadows an outer declaration", stmt.line, 0);
         }
 
@@ -288,12 +293,12 @@ public class Linter {
         lintExpr(stmt.getCondition());
 
         scope.push();
-        lintBodyWithDeadCodeCheck(stmt.getThenBody());
+        lintNodes(stmt.getThenBody());
         checkUnused(scope.pop());
 
         if (stmt.getElseBody() != null) {
             scope.push();
-            lintBodyWithDeadCodeCheck(stmt.getElseBody());
+            lintNodes(stmt.getElseBody());
             checkUnused(scope.pop());
         }
     }
@@ -301,6 +306,11 @@ public class Linter {
     private void lintFor(For stmt) {
         scope.push();
         lintNodes(stmt.getVarDecls());
+        for (Node n : stmt.getVarDecls()) {
+            if (n instanceof VarDecl v && v.getInitializer() == null) {
+                scope.markUsed(v.getName());
+            }
+        }
         if (stmt.getCondition() != null) {
             lintExpr(stmt.getCondition());
         }

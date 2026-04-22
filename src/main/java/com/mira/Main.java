@@ -48,6 +48,8 @@ public class Main {
                         Flags.lint = true;
                     case "-watch" ->
                         Flags.hotReload = true;
+                    case "-crash" ->
+                        Flags.crashDump = true;
                     default ->
                         throw new RuntimeException(args[i] + " is not a known flag");
                 }
@@ -90,6 +92,7 @@ public class Main {
         Flags.fileName = Flags.inputPath.get().getFileName().toString();
         Flags.sourceLines = readFile.split("\n", -1);
 
+        Interpreter interpreter = new Interpreter();
         try {
             Tokenizer tokenizer = new Tokenizer();
             List<Token> tokens = tokenizer.tokenize(readFile, false);
@@ -109,8 +112,6 @@ public class Main {
             if (Flags.exitBeforeInterpreter) {
                 return;
             }
-
-            Interpreter interpreter = new Interpreter();
 
             if (Flags.mainFunction) {
                 Object exitValue = interpreter.run(asts, Flags.args, true);
@@ -132,6 +133,9 @@ public class Main {
                 return;
             }
             System.err.println(DiagnosticFormatter.format(e));
+            if (Flags.crashDump) {
+                interpreter.dumpState(e, System.err);
+            }
         }
     }
 }

@@ -1,6 +1,9 @@
 package com.mira.runtime.interpreter;
 
+import java.io.PrintStream;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -69,6 +72,7 @@ import com.mira.runtime.functions.BreakSignal;
 import com.mira.runtime.functions.Callable;
 import com.mira.runtime.functions.ContinueSignal;
 import com.mira.runtime.functions.Function;
+import com.mira.runtime.functions.NativeFunction;
 import com.mira.runtime.functions.ReturnSignal;
 import com.mira.runtime.functions.ThrowSignal;
 import com.mira.runtime.visitors.ExprVisitor;
@@ -89,6 +93,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
     private final Map<CacheKey, Object> callCache = new HashMap<>();
     private Set<String> pureFunctions = Set.of();
+    private final Deque<String> miraCallStack = new ArrayDeque<>();
 
     public interface DebugHook {
 
@@ -343,17 +348,21 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             throw new ArgMismatchError(calleeName, callable.getArity(), arguments.size());
         }
 
-        if (pureFunctions.contains(calleeName)) {
-            CacheKey cacheKey = new CacheKey(calleeName, arguments);
-            if (callCache.containsKey(cacheKey)) {
-                return (T) callCache.get(cacheKey);
+        miraCallStack.push(calleeName);
+        try {
+            if (pureFunctions.contains(calleeName)) {
+                CacheKey cacheKey = new CacheKey(calleeName, arguments);
+                if (callCache.containsKey(cacheKey)) {
+                    return (T) callCache.get(cacheKey);
+                }
+                Object result = callable.call(this, arguments);
+                callCache.put(cacheKey, result);
+                return (T) result;
             }
-            Object result = callable.call(this, arguments);
-            callCache.put(cacheKey, result);
-            return (T) result;
+            return (T) callable.call(this, arguments);
+        } finally {
+            miraCallStack.poll();
         }
-
-        return (T) callable.call(this, arguments);
     }
 
     @Override
@@ -1689,5 +1698,63 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
     public Environment getGlobalEnvironment() {
         return globalEnvironment;
+    }
+
+    public void dumpState(Throwable cause, PrintStream out) {
+        out.println("\n=== MIRA CRASH DUMP ===");
+        out.println("Cause: " + cause);
+        out.println();
+
+        out.println("--- Mira Call Stack ---");
+        if (miraCallStack.isEmpty()) {
+            out.println("  <top level>");
+        } else {
+            for (String frame : miraCallStack) {
+                out.println("  at " + frame + "()");
+            }
+        }
+        out.println();
+
+        out.println("--- Java Stack Trace ---");
+        cause.printStackTrace(out);
+        out.println();
+
+        out.println("--- Memory Dump ---");
+        Environment env = localEnvironment != null ? localEnvironment : globalEnvironment;
+        int depth = 0;
+        while (env != null) {
+            String label = (env.getParent() == null) ? "global" : "scope[" + depth + "]";
+            out.println("  [" + label + "]");
+            for (String key : env.keySet()) {
+                Object val = env.get(key);
+                String repr = formatValue(val);
+                out.println("    " + key + " = " + repr);
+            }
+            env = env.getParent();
+            depth++;
+        }
+        out.println("=== END CRASH DUMP ===");
+    }
+
+    private String formatValue(Object val) {
+        if (val == null) {
+            return "null";
+        }
+        if (val instanceof String s) {
+            return "\"" + s + "\"";
+        }
+        if (val instanceof List<?> list) {
+            return "List[" + list.size() + "]";
+        }
+        if (val instanceof java.util.Map<?, ?> map) {
+            return "Map{" + map.size() + "}";
+        }
+        if (val instanceof Function) {
+            return "<fn>";
+        }
+        if (val instanceof NativeFunction) {
+            return "<native fn>";
+        }
+        return val.toString();
     }
 }
