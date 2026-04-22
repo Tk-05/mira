@@ -45,6 +45,8 @@ java -jar target/mira-RELEASE.jar
 | `-args <arg0,arg1,...>` | Pass arguments to the script |
 | `-lint` | Run the static linter before execution |
 | `-watch` | Enable hot reload |
+| `-crash` | Print stacktrace and dump interpreter memory |
+| `-ast` | Print asts |
 
 **Example:**
 ```bash

@@ -13,6 +13,8 @@ import com.mira.linter.Linter;
 import com.mira.parser.Parser;
 import com.mira.parser.nodes.Node;
 import com.mira.repl.Repl;
+import com.mira.runtime.AstPrinter;
+import com.mira.runtime.HotReloader;
 import com.mira.runtime.functions.ReturnSignal;
 import com.mira.runtime.interpreter.Interpreter;
 import com.mira.utils.FileLoader;
@@ -50,6 +52,8 @@ public class Main {
                         Flags.hotReload = true;
                     case "-crash" ->
                         Flags.crashDump = true;
+                    case "-ast" ->
+                        Flags.printAsts = true;
                     default ->
                         throw new RuntimeException(args[i] + " is not a known flag");
                 }
@@ -72,14 +76,14 @@ public class Main {
         }
     }
 
-    static void runFile() {
+    private static void runFile() {
         runFile(new AtomicBoolean(false));
     }
 
-    static void runFile(AtomicBoolean stopping) {
+    public static void runFile(AtomicBoolean stopping) {
         long start = System.currentTimeMillis();
 
-        String readFile = "";
+        String readFile;
         try {
             readFile = FileLoader.readFileFromPath(Flags.inputPath.get().toString());
         } catch (IOException e) {
@@ -103,6 +107,10 @@ public class Main {
 
             Parser parser = new Parser();
             List<Node> asts = parser.parseTokens(tokens);
+
+            if (Flags.printAsts) {
+                System.out.println(new AstPrinter().print(asts));
+            }
 
             if (Flags.lint) {
                 new Linter().lint(asts);
