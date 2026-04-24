@@ -230,6 +230,44 @@ public class Linter {
         }
     }
 
+    private void lintIdentifier(DumbExpression expr) {
+        if (!isIdentifier(expr)) {
+            return;
+        }
+        scope.markUsed(expr.getValue());
+    }
+
+    private void lintCallExpression(CallExpression expr) {
+        lintCallExpression(expr, 0);
+    }
+
+    private void lintCallExpression(CallExpression expr, int implicitArgs) {
+        lintExpr(expr.getCallee());
+        expr.getArguments().forEach(this::lintExpr);
+
+        if (!(expr.getCallee() instanceof DumbExpression callee) || !isIdentifier(callee)) {
+            return;
+        }
+        String name = callee.getValue();
+        Integer expectedArity = knownFunctions.get(name);
+        if (expectedArity == null || expectedArity == -1) {
+            return;
+        }
+        int actual = expr.getArguments().size() + implicitArgs;
+        if (actual != expectedArity) {
+            warn("'" + name + "' expects " + expectedArity
+                    + " argument(s) but was called with " + actual,
+                    callee.getLine(), callee.getColumn());
+        }
+    }
+
+    private void lintLambda(LambdaExpression expr) {
+        scope.push();
+        expr.getParameters().forEach(p -> scope.declare(p.name(), 0, 0, false));
+        lintBodyWithDeadCodeCheck(expr.getBody());
+        checkUnused(scope.pop());
+    }
+
     private void lintVarDecl(VarDecl stmt) {
         if (stmt.getInitializer() != null) {
             lintExpr(stmt.getInitializer());
@@ -340,6 +378,20 @@ public class Linter {
         checkUnused(scope.pop());
     }
 
+    private void lintBodyWithDeadCodeCheck(List<Node> body) {
+        boolean terminated = false;
+        for (Node node : body) {
+            if (terminated) {
+                warn("Unreachable code", lineOf(node), 0);
+                break;
+            }
+            lintNode(node);
+            if (node instanceof Return || node instanceof Throw) {
+                terminated = true;
+            }
+        }
+    }
+
     private void lintSwitch(Switch stmt) {
         lintExpr(stmt.getSubject());
         for (var c : stmt.getCases()) {
@@ -375,16 +427,24 @@ public class Linter {
 
     }
 
-    private void lintBodyWithDeadCodeCheck(List<Node> body) {
-        boolean terminated = false;
-        for (Node node : body) {
-            if (terminated) {
-                warn("Unreachable code", lineOf(node), 0);
-                break;
+    private void preDeclareImport(ImportExpression expr) {
+        if (expr.isSelective()) {
+            for (String fn : expr.getSelectedFunctions()) {
+                scope.declare(fn, 0, 0, false);
+                scope.markUsed(fn);
             }
-            lintNode(node);
-            if (node instanceof Return || node instanceof Throw) {
-                terminated = true;
+        } else if (expr.getNamespace() != null) {
+            scope.declare(expr.getNamespace(), 0, 0, false);
+            scope.markUsed(expr.getNamespace());
+        }
+    }
+
+    private void checkUnused(Map<String, VarInfo> closedScope) {
+        for (var entry : closedScope.entrySet()) {
+            String name = entry.getKey();
+            VarInfo info = entry.getValue();
+            if (!info.used() && !name.startsWith("_")) {
+                hint("'" + name + "' is declared but never used", info.line(), info.column());
             }
         }
     }
@@ -424,72 +484,12 @@ public class Linter {
         };
     }
 
-    private void lintIdentifier(DumbExpression expr) {
-        if (!isIdentifier(expr)) {
-            return;
-        }
-        scope.markUsed(expr.getValue());
-    }
-
-    private void lintCallExpression(CallExpression expr) {
-        lintCallExpression(expr, 0);
-    }
-
-    private void lintCallExpression(CallExpression expr, int implicitArgs) {
-        lintExpr(expr.getCallee());
-        expr.getArguments().forEach(this::lintExpr);
-
-        if (!(expr.getCallee() instanceof DumbExpression callee) || !isIdentifier(callee)) {
-            return;
-        }
-        String name = callee.getValue();
-        Integer expectedArity = knownFunctions.get(name);
-        if (expectedArity == null || expectedArity == -1) {
-            return;
-        }
-        int actual = expr.getArguments().size() + implicitArgs;
-        if (actual != expectedArity) {
-            warn("'" + name + "' expects " + expectedArity
-                    + " argument(s) but was called with " + actual,
-                    callee.getLine(), callee.getColumn());
-        }
-    }
-
-    private void lintLambda(LambdaExpression expr) {
-        scope.push();
-        expr.getParameters().forEach(p -> scope.declare(p.name(), 0, 0, false));
-        lintBodyWithDeadCodeCheck(expr.getBody());
-        checkUnused(scope.pop());
-    }
-
-    private void preDeclareImport(ImportExpression expr) {
-        if (expr.isSelective()) {
-            for (String fn : expr.getSelectedFunctions()) {
-                scope.declare(fn, 0, 0, false);
-                scope.markUsed(fn);
-            }
-        } else if (expr.getNamespace() != null) {
-            scope.declare(expr.getNamespace(), 0, 0, false);
-            scope.markUsed(expr.getNamespace());
-        }
-    }
-
     private static boolean isIdentifier(DumbExpression expr) {
         if (expr.getTokenType() != TokenType.EXPRESSION) {
             return false;
         }
         char first = expr.getValue().charAt(0);
         return Character.isLetter(first) || first == '_';
-    }
-
-    private void checkUnused(Map<String, VarInfo> closedScope) {
-        for (var entry : closedScope.entrySet()) {
-            String name = entry.getKey();
-            VarInfo info = entry.getValue();
-            if (!info.used() && !name.startsWith("_")) {
-                hint("'" + name + "' is declared but never used", info.line(), info.column());
-            }
-        }
     }
 
     private static void warn(String message, int line, int column) {

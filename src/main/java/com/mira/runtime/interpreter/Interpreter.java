@@ -84,33 +84,24 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
     private static Interpreter instance;
     private static final ThreadLocal<Interpreter> activeInterpreter = new ThreadLocal<>();
-    private Environment globalEnvironment = new Environment();
-    private Environment localEnvironment;
+    private static final Set<String> COMPARISON_OPERATORS = Set.of("==", "!=", "<", ">", "<=", ">=");
+    private static final Set<String> LOGICAL_OPERATORS = Set.of("&&", "||");
 
     private record CacheKey(String name, List<Object> args) {
 
     }
-
-    private final Map<CacheKey, Object> callCache = new HashMap<>();
-    private Set<String> pureFunctions = Set.of();
-    private final Deque<String> miraCallStack = new ArrayDeque<>();
 
     public interface DebugHook {
 
         void onStatement(Statement stmt, Environment env);
     }
 
+    private Environment globalEnvironment = new Environment();
+    private Environment localEnvironment;
+    private final Map<CacheKey, Object> callCache = new HashMap<>();
+    private Set<String> pureFunctions = Set.of();
+    private final Deque<String> miraCallStack = new ArrayDeque<>();
     private DebugHook debugHook;
-
-    public void setDebugHook(DebugHook hook) {
-        this.debugHook = hook;
-    }
-
-    private void notifyDebugger(Statement stmt) {
-        if (debugHook != null) {
-            debugHook.onStatement(stmt, localEnvironment != null ? localEnvironment : globalEnvironment);
-        }
-    }
 
     public Interpreter() {
         ImportResolver.loadInternal(globalEnvironment);
@@ -267,34 +258,76 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         }
     }
 
-    @Override
-    public Void visitVarDecl(VarDecl varDecl) {
-        notifyDebugger(varDecl);
-        Object value = NullValue.INSTANCE;
+    public void loadASTIntoGlobalContext(Node ast) {
+        loadASTIntoContext(ast, globalEnvironment);
+    }
 
-        if (varDecl.getInitializer() != null) {
-            value = varDecl.getInitializer().accept(this);
+    public void loadASTIntoContext(Node ast, Environment targetEnv) {
+        Environment previous = localEnvironment;
+        localEnvironment = null;
+
+        Environment previousGlobal = globalEnvironment;
+        if (targetEnv instanceof Namespace) {
+            globalEnvironment = targetEnv;
         }
 
-        Environment env = localEnvironment == null ? globalEnvironment : localEnvironment;
+        switch (ast) {
+            case Expression expression ->
+                expression.accept(this);
+            case Statement statement ->
+                statement.accept(this);
+            default ->
+                throw new AssertionError();
+        }
 
-        if (localEnvironment != null) {
-            boolean shadowsLocal = localEnvironment.getParent() != null
-                    && localEnvironment.getParent().existsInChain(varDecl.getName());
-            boolean shadowsGlobal = globalEnvironment.existsInChain(varDecl.getName());
-            if (shadowsLocal || shadowsGlobal) {
-                WarningCollector.emit(WarningLevel.WARNING,
-                        "Variable '" + varDecl.getName() + "' shadows an outer variable");
+        globalEnvironment = previousGlobal;
+        localEnvironment = previous;
+    }
+
+    public void setDebugHook(DebugHook hook) {
+        this.debugHook = hook;
+    }
+
+    private void notifyDebugger(Statement stmt) {
+        if (debugHook != null) {
+            debugHook.onStatement(stmt, localEnvironment != null ? localEnvironment : globalEnvironment);
+        }
+    }
+
+    public void dumpState(Throwable cause, PrintStream out) {
+        out.println("\n=== MIRA CRASH DUMP ===");
+        out.println("Cause: " + cause);
+        out.println();
+
+        out.println("--- Mira Call Stack ---");
+        if (miraCallStack.isEmpty()) {
+            out.println("  <top level>");
+        } else {
+            for (String frame : miraCallStack) {
+                out.println("  at " + frame + "()");
             }
         }
+        out.println();
 
-        if (varDecl.isConst()) {
-            env.defineConst(varDecl.getName(), value);
-        } else {
-            env.define(varDecl.getName(), value);
+        out.println("--- Java Stack Trace ---");
+        cause.printStackTrace(out);
+        out.println();
+
+        out.println("--- Memory Dump ---");
+        Environment env = localEnvironment != null ? localEnvironment : globalEnvironment;
+        int depth = 0;
+        while (env != null) {
+            String label = (env.getParent() == null) ? "global" : "scope[" + depth + "]";
+            out.println("  [" + label + "]");
+            for (String key : env.keySet()) {
+                Object val = env.get(key);
+                String repr = formatValue(val);
+                out.println("    " + key + " = " + repr);
+            }
+            env = env.getParent();
+            depth++;
         }
-
-        return null;
+        out.println("=== END CRASH DUMP ===");
     }
 
     @Override
@@ -314,130 +347,6 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             return (T) parseNumber(value);
         }
         return (T) value;
-    }
-
-    @Override
-    public <T> T visitCallExpr(CallExpression expression) {
-        String calleeName = (String) expression.getCallee().accept(this);
-
-        Object callee;
-        if (localEnvironment != null) {
-            Object local = localEnvironment.getOrNull(calleeName);
-            callee = local != null ? local : globalEnvironment.get(calleeName);
-        } else {
-            callee = globalEnvironment.get(calleeName);
-        }
-
-        if (!(callee instanceof Callable callable)) {
-            throw new NotCallableError(calleeName);
-        }
-
-        List<Object> arguments = new ArrayList<>();
-
-        for (Expression arg : expression.getArguments()) {
-            arguments.add(arg.accept(this));
-        }
-
-        if (callable instanceof Function f) {
-            int min = f.getArity();
-            int max = f.getMaxArity();
-            if (arguments.size() < min || (max != -1 && arguments.size() > max)) {
-                throw new ArgMismatchError(calleeName, min, arguments.size());
-            }
-        } else if (callable.getArity() != -1 && arguments.size() != callable.getArity()) {
-            throw new ArgMismatchError(calleeName, callable.getArity(), arguments.size());
-        }
-
-        miraCallStack.push(calleeName);
-        try {
-            if (pureFunctions.contains(calleeName)) {
-                CacheKey cacheKey = new CacheKey(calleeName, arguments);
-                if (callCache.containsKey(cacheKey)) {
-                    return (T) callCache.get(cacheKey);
-                }
-                Object result = callable.call(this, arguments);
-                callCache.put(cacheKey, result);
-                return (T) result;
-            }
-            return (T) callable.call(this, arguments);
-        } finally {
-            miraCallStack.poll();
-        }
-    }
-
-    @Override
-    public Void visitFuncDecl(FuncDecl funcDecl) {
-        globalEnvironment.define(funcDecl.getName(),
-                new Function(localEnvironment,
-                        funcDecl.getBody(),
-                        funcDecl.getParameters(),
-                        funcDecl.getArity(),
-                        funcDecl.getMaxArity(),
-                        funcDecl.getVariadicParam()));
-
-        return null;
-    }
-
-    @Override
-    public <T> T visitLambdaExpr(LambdaExpression lambda) {
-        Environment capturedEnv = localEnvironment != null ? localEnvironment : globalEnvironment;
-        return (T) new Function(capturedEnv, lambda.getBody(), lambda.getParameters(), lambda.getArity(), lambda.getMaxArity(), lambda.getVariadicParam());
-    }
-
-    @Override
-    public Void visitReturn(Return ret) {
-        notifyDebugger(ret);
-        Object value = null;
-
-        if (ret.getValue() != null) {
-            value = ret.getValue().accept(this);
-        }
-
-        throw new ReturnSignal(value);
-    }
-
-    @Override
-    public <T> T visitComplexExpr(ComplexExpression expression) {
-        List<Expression> expressions = expression.getExpressions();
-
-        if (expressions.size() == 3
-                && expressions.get(1) instanceof UnaryExpression unary
-                && isComparisonOperator(unary.getOperation().getLexeme())) {
-
-            Object left = expressions.get(0).accept(this);
-            String op = unary.getOperation().getLexeme();
-            Object right = expressions.get(2).accept(this);
-
-            return (T) evaluateComparison(left, op, right);
-        }
-
-        if (expressions.size() == 3
-                && expressions.get(1) instanceof UnaryExpression unary
-                && isLogicalOperator(unary.getOperation().getLexeme())) {
-
-            String op = unary.getOperation().getLexeme();
-            boolean left = resolveBoolean(expressions.get(0).accept(this));
-
-            if (op.equals("&&") && !left) {
-                return (T) Boolean.FALSE;
-            }
-            if (op.equals("||") && left) {
-                return (T) Boolean.TRUE;
-            }
-
-            boolean right = resolveBoolean(expressions.get(2).accept(this));
-            if (right) {
-                return (T) Boolean.TRUE;
-            }
-            return (T) Boolean.FALSE;
-        }
-
-        Object arithmetic = tryEvaluateArithmetic(expressions);
-        if (arithmetic != null) {
-            return (T) arithmetic;
-        }
-
-        return (T) evaluateAsString(expressions);
     }
 
     @Override
@@ -544,6 +453,443 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             default ->
                 throw new UnknownOperatorError(op);
         };
+    }
+
+    @Override
+    public <T> T visitUnaryExpr(UnaryExpression expression) {
+        String operator = expression.getOperation().getLexeme();
+
+        switch (operator) {
+            case "$" -> {
+                String name = (String) expression.getRight().accept(this);
+
+                if (localEnvironment != null) {
+                    Object val = localEnvironment.getOrNull(name);
+                    if (val != null) {
+                        return (T) val;
+                    }
+                }
+
+                return (T) globalEnvironment.get(name);
+            }
+
+            case "-" -> {
+                Object right = expression.getRight() != null
+                        ? expression.getRight().accept(this)
+                        : null;
+
+                if (right == null) {
+                    return (T) "-";
+                } else {
+                    return (T) ("-" + right);
+                }
+            }
+
+            case "!" -> {
+                Object right = expression.getRight().accept(this);
+                boolean val = resolveBoolean(right);
+                return (T) Boolean.valueOf(!val);
+            }
+
+            case "++" -> {
+                if (!(expression.getRight() instanceof UnaryExpression varExpr)
+                        || !varExpr.getOperation().getLexeme().equals("$")) {
+                    throw new PostUnaryError("++");
+                }
+
+                String name = (String) varExpr.getRight().accept(this);
+
+                Environment env = (localEnvironment != null && localEnvironment.getOrNull(name) != null)
+                        ? localEnvironment
+                        : globalEnvironment;
+
+                Object raw = env.get(name);
+                Number numVal;
+                if (raw instanceof Number n) {
+                    numVal = n;
+                } else {
+                    try {
+                        numVal = parseNumber(String.valueOf(raw));
+                    } catch (NumberFormatException e) {
+                        throw new PostExprNaNError(name);
+                    }
+                }
+                Object newValue = numericAdd(numVal, 1L);
+                env.assign(name, newValue);
+                return (T) newValue;
+            }
+
+            case "--" -> {
+                if (!(expression.getRight() instanceof UnaryExpression varExpr)
+                        || !varExpr.getOperation().getLexeme().equals("$")) {
+                    throw new PostUnaryError("--");
+                }
+
+                String name = (String) varExpr.getRight().accept(this);
+
+                Environment env = (localEnvironment != null && localEnvironment.getOrNull(name) != null)
+                        ? localEnvironment
+                        : globalEnvironment;
+
+                Object raw = env.get(name);
+                Number numVal;
+                if (raw instanceof Number n) {
+                    numVal = n;
+                } else {
+                    try {
+                        numVal = parseNumber(String.valueOf(raw));
+                    } catch (NumberFormatException e) {
+                        throw new PostExprNaNError(name);
+                    }
+                }
+                Object newValue = numericSub(numVal, 1L);
+                env.assign(name, newValue);
+                return (T) newValue;
+            }
+
+            case "~" -> {
+                Object right = expression.getRight().accept(this);
+                return (T) Long.valueOf(~(long) toNumber(right));
+            }
+
+            default ->
+                throw new UnknownOperatorError(operator);
+        }
+    }
+
+    @Override
+    public <T> T visitTernaryExpr(TernaryExpression expression) {
+        Object condition = expression.getCondition().accept(this);
+        if (resolveLoopCondition(condition)) {
+            return (T) expression.getThenExpr().accept(this);
+        } else {
+            return (T) expression.getElseExpr().accept(this);
+        }
+    }
+
+    @Override
+    public <T> T visitCallExpr(CallExpression expression) {
+        String calleeName = (String) expression.getCallee().accept(this);
+
+        Object callee;
+        if (localEnvironment != null) {
+            Object local = localEnvironment.getOrNull(calleeName);
+            callee = local != null ? local : globalEnvironment.get(calleeName);
+        } else {
+            callee = globalEnvironment.get(calleeName);
+        }
+
+        if (!(callee instanceof Callable callable)) {
+            throw new NotCallableError(calleeName);
+        }
+
+        List<Object> arguments = new ArrayList<>();
+
+        for (Expression arg : expression.getArguments()) {
+            arguments.add(arg.accept(this));
+        }
+
+        if (callable instanceof Function f) {
+            int min = f.getArity();
+            int max = f.getMaxArity();
+            if (arguments.size() < min || (max != -1 && arguments.size() > max)) {
+                throw new ArgMismatchError(calleeName, min, arguments.size());
+            }
+        } else if (callable.getArity() != -1 && arguments.size() != callable.getArity()) {
+            throw new ArgMismatchError(calleeName, callable.getArity(), arguments.size());
+        }
+
+        miraCallStack.push(calleeName);
+        try {
+            if (pureFunctions.contains(calleeName)) {
+                CacheKey cacheKey = new CacheKey(calleeName, arguments);
+                if (callCache.containsKey(cacheKey)) {
+                    return (T) callCache.get(cacheKey);
+                }
+                Object result = callable.call(this, arguments);
+                callCache.put(cacheKey, result);
+                return (T) result;
+            }
+            return (T) callable.call(this, arguments);
+        } finally {
+            miraCallStack.poll();
+        }
+    }
+
+    @Override
+    public <T> T visitNamespaceCallExpr(NamespaceCallExpression expression) {
+        Object namespaceObj = globalEnvironment.get(expression.getAlias());
+
+        if (!(namespaceObj instanceof Namespace namespace)) {
+            throw new NotANamespaceError(expression.getAlias());
+        }
+
+        Object callee = namespace.get(expression.getFunctionName());
+
+        if (!(callee instanceof Callable callable)) {
+            throw new NotCallableError(expression.getAlias() + "." + expression.getFunctionName());
+        }
+
+        List<Object> arguments = new ArrayList<>();
+        for (Expression arg : expression.getArguments()) {
+            arguments.add(arg.accept(this));
+        }
+
+        if (callable.getArity() != -1 && arguments.size() != callable.getArity()) {
+            throw new ArgMismatchError(expression.getFunctionName(), callable.getArity(), arguments.size());
+        }
+
+        return (T) callable.call(this, arguments);
+    }
+
+    @Override
+    public Void visitFuncDecl(FuncDecl funcDecl) {
+        globalEnvironment.define(funcDecl.getName(),
+                new Function(localEnvironment,
+                        funcDecl.getBody(),
+                        funcDecl.getParameters(),
+                        funcDecl.getArity(),
+                        funcDecl.getMaxArity(),
+                        funcDecl.getVariadicParam()));
+
+        return null;
+    }
+
+    @Override
+    public <T> T visitLambdaExpr(LambdaExpression lambda) {
+        Environment capturedEnv = localEnvironment != null ? localEnvironment : globalEnvironment;
+        return (T) new Function(capturedEnv, lambda.getBody(), lambda.getParameters(), lambda.getArity(), lambda.getMaxArity(), lambda.getVariadicParam());
+    }
+
+    @Override
+    public <T> T visitArrayExpr(ArrayExpression expression) {
+        return (T) expression;
+    }
+
+    @Override
+    public <T> T visitTupleExpr(TupleExpression expression) {
+        return (T) expression;
+    }
+
+    @Override
+    public <T> T visitListExpr(ListExpression expression) {
+        return (T) expression;
+    }
+
+    @Override
+    public <T> T visitMapExpr(MapExpression expression) {
+        return (T) expression;
+    }
+
+    @Override
+    public <T> T visitAccessExpr(AccessExpression expression) {
+        Object accessedObject = expression.getReference().accept(this);
+
+        for (Expression index : expression.getIndecies()) {
+            Object object = index.accept(this);
+
+            switch (accessedObject) {
+                case MapExpression map -> {
+                    String key = String.valueOf(object);
+                    Expression val = map.getEntries().get(key);
+                    if (val == null) {
+                        throw new RuntimeException("Map key not found: " + key);
+                    }
+                    accessedObject = val.accept(this);
+                }
+                default -> {
+                    int i;
+                    switch (object) {
+                        case String s ->
+                            i = Integer.parseInt(s);
+                        case Number n ->
+                            i = (int) n.longValue();
+                        default ->
+                            throw new AssertionError();
+                    }
+                    switch (accessedObject) {
+                        case ArrayExpression array -> {
+                            Expression ae = array.getMembers().get(i);
+                            accessedObject = ae instanceof ArrayExpression inner ? inner.accept(this) : ae.accept(this);
+                        }
+                        case TupleExpression tuple -> {
+                            Expression te = tuple.getMembers().get(i);
+                            accessedObject = te instanceof TupleExpression inner ? inner.accept(this) : te.accept(this);
+                        }
+                        case ListExpression list -> {
+                            Expression le = list.getMembers().get(i);
+                            accessedObject = le instanceof ListExpression inner ? inner.accept(this) : le.accept(this);
+                        }
+                        default ->
+                            throw new NotIterableError();
+                    }
+                }
+            }
+        }
+
+        return (T) accessedObject;
+    }
+
+    @Override
+    public <T> T visitFieldAccessExpression(FieldAccessExpression expression) {
+        Object object = expression.getObject().accept(this);
+
+        if (object instanceof String name) {
+            object = localEnvironment != null && localEnvironment.exists(name)
+                    ? localEnvironment.get(name)
+                    : globalEnvironment.get(name);
+        }
+
+        if (!(object instanceof Environment objectEnv)) {
+            if (expression.isOptional()) {
+                return (T) NullValue.INSTANCE;
+            }
+            throw new FieldAccessError(expression.getField());
+        }
+
+        return (T) objectEnv.get(expression.getField());
+    }
+
+    @Override
+    public <T> T visitMethodCallExpression(MethodCallExpression expression) {
+        Object objectValue = expression.getObject().accept(this);
+
+        if (objectValue instanceof String name) {
+            objectValue = localEnvironment != null && localEnvironment.existsInChain(name)
+                    ? localEnvironment.get(name)
+                    : globalEnvironment.get(name);
+        }
+
+        if (expression.isOptional() && (objectValue == null || objectValue instanceof NullValue)) {
+            return (T) NullValue.INSTANCE;
+        }
+
+        if (!(objectValue instanceof Environment objectEnv)) {
+            throw new FieldAccessError(expression.getMethod());
+        }
+
+        Object methodValue = objectEnv.get(expression.getMethod());
+        if (!(methodValue instanceof Callable callable)) {
+            throw new NotCallableError(expression.getMethod());
+        }
+
+        List<Object> arguments = new ArrayList<>();
+        for (Expression arg : expression.getArguments()) {
+            arguments.add(arg.accept(this));
+        }
+
+        if (callable instanceof Function f) {
+            int min = f.getArity(), max = f.getMaxArity();
+            if (arguments.size() < min || (max != -1 && arguments.size() > max)) {
+                throw new ArgMismatchError(expression.getMethod(), min, arguments.size());
+            }
+        } else if (callable.getArity() != -1 && arguments.size() != callable.getArity()) {
+            throw new ArgMismatchError(expression.getMethod(), callable.getArity(), arguments.size());
+        }
+
+        return (T) callable.call(this, arguments);
+    }
+
+    @Override
+    public <T> T visitComplexExpr(ComplexExpression expression) {
+        List<Expression> expressions = expression.getExpressions();
+
+        if (expressions.size() == 3
+                && expressions.get(1) instanceof UnaryExpression unary
+                && isComparisonOperator(unary.getOperation().getLexeme())) {
+
+            Object left = expressions.get(0).accept(this);
+            String op = unary.getOperation().getLexeme();
+            Object right = expressions.get(2).accept(this);
+
+            return (T) evaluateComparison(left, op, right);
+        }
+
+        if (expressions.size() == 3
+                && expressions.get(1) instanceof UnaryExpression unary
+                && isLogicalOperator(unary.getOperation().getLexeme())) {
+
+            String op = unary.getOperation().getLexeme();
+            boolean left = resolveBoolean(expressions.get(0).accept(this));
+
+            if (op.equals("&&") && !left) {
+                return (T) Boolean.FALSE;
+            }
+            if (op.equals("||") && left) {
+                return (T) Boolean.TRUE;
+            }
+
+            boolean right = resolveBoolean(expressions.get(2).accept(this));
+            if (right) {
+                return (T) Boolean.TRUE;
+            }
+            return (T) Boolean.FALSE;
+        }
+
+        Object arithmetic = tryEvaluateArithmetic(expressions);
+        if (arithmetic != null) {
+            return (T) arithmetic;
+        }
+
+        return (T) evaluateAsString(expressions);
+    }
+
+    @Override
+    public <T> T visitRangeExpression(RangeExpression expression) {
+        Number startN = parseNumber(String.valueOf(expression.getStart().accept(this)));
+        Number endN = parseNumber(String.valueOf(expression.getEnd().accept(this)));
+        Number stepN = expression.getStepsize() != null
+                ? parseNumber(String.valueOf(expression.getStepsize().accept(this)))
+                : 1L;
+
+        List<Expression> members = new ArrayList<>();
+        if (startN instanceof Long ls && endN instanceof Long le && stepN instanceof Long lStep) {
+            if (lStep == 0) {
+                throw new RuntimeException("Range stepsize cannot be zero");
+            }
+            for (long i = ls; lStep > 0 ? i < le : i > le; i += lStep) {
+                members.add(new DumbExpression(new Token(TokenType.EXPRESSION, String.valueOf(i), 0, 0)));
+            }
+        } else {
+            double start = startN.doubleValue(), end = endN.doubleValue(), step = stepN.doubleValue();
+            if (step == 0) {
+                throw new RuntimeException("Range stepsize cannot be zero");
+            }
+            for (double i = start; step > 0 ? i < end : i > end; i += step) {
+                members.add(new DumbExpression(new Token(TokenType.EXPRESSION, String.valueOf(i), 0, 0)));
+            }
+        }
+
+        return (T) new ListExpression(members);
+    }
+
+    @Override
+    public <T> T visitObjectExpression(ObjectExpression expression) {
+        Environment objectEnv = new Environment();
+
+        for (VarDecl field : expression.getVarDecls()) {
+            Object value = field.getInitializer() != null
+                    ? field.getInitializer().accept(this)
+                    : null;
+
+            if (field.isConst()) {
+                objectEnv.defineConst(field.getName(), value);
+            } else {
+                objectEnv.define(field.getName(), value);
+            }
+        }
+
+        for (FuncDecl method : expression.getMethods()) {
+            Function fn = new Function(objectEnv, method.getBody(), method.getParameters(),
+                    method.getArity(), method.getMaxArity(), method.getVariadicParam());
+            objectEnv.define(method.getName(), fn);
+        }
+
+        if (!objectEnv.exists("this")) {
+            objectEnv.define("this", objectEnv);
+        }
+
+        return (T) objectEnv;
     }
 
     private <T> T visitPipeExpr(BinaryExpression expr) {
@@ -741,9 +1087,6 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         return builder.toString();
     }
 
-    private static final Set<String> COMPARISON_OPERATORS = Set.of("==", "!=", "<", ">", "<=", ">=");
-    private static final Set<String> LOGICAL_OPERATORS = Set.of("&&", "||");
-
     private boolean isComparisonOperator(String op) {
         return COMPARISON_OPERATORS.contains(op);
     }
@@ -850,184 +1193,66 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
     }
 
     @Override
-    public <T> T visitTernaryExpr(TernaryExpression expression) {
-        Object condition = expression.getCondition().accept(this);
-        if (resolveLoopCondition(condition)) {
-            return (T) expression.getThenExpr().accept(this);
+    public Void visitVarDecl(VarDecl varDecl) {
+        notifyDebugger(varDecl);
+        Object value = NullValue.INSTANCE;
+
+        if (varDecl.getInitializer() != null) {
+            value = varDecl.getInitializer().accept(this);
+        }
+
+        Environment env = localEnvironment == null ? globalEnvironment : localEnvironment;
+
+        if (localEnvironment != null) {
+            boolean shadowsLocal = localEnvironment.getParent() != null
+                    && localEnvironment.getParent().existsInChain(varDecl.getName());
+            boolean shadowsGlobal = globalEnvironment.existsInChain(varDecl.getName());
+            if (shadowsLocal || shadowsGlobal) {
+                WarningCollector.emit(WarningLevel.WARNING,
+                        "Variable '" + varDecl.getName() + "' shadows an outer variable");
+            }
+        }
+
+        if (varDecl.isConst()) {
+            env.defineConst(varDecl.getName(), value);
         } else {
-            return (T) expression.getElseExpr().accept(this);
+            env.define(varDecl.getName(), value);
         }
+
+        return null;
     }
 
     @Override
-    public <T> T visitUnaryExpr(UnaryExpression expression) {
-        String operator = expression.getOperation().getLexeme();
+    public Object visitEnum(EnumDecl stmt) {
+        Environment enumEnv = new Environment(null, stmt.getValues().size());
+        for (Map.Entry<String, Object> entry : stmt.getValues().entrySet()) {
+            enumEnv.defineConst(entry.getKey(), entry.getValue());
+        }
+        globalEnvironment.defineConst(stmt.getIdentifier(), enumEnv);
+        return null;
+    }
 
-        switch (operator) {
-            case "$" -> {
-                String name = (String) expression.getRight().accept(this);
-
-                if (localEnvironment != null) {
-                    Object val = localEnvironment.getOrNull(name);
-                    if (val != null) {
-                        return (T) val;
-                    }
-                }
-
-                return (T) globalEnvironment.get(name);
-            }
-
-            case "-" -> {
-                Object right = expression.getRight() != null
-                        ? expression.getRight().accept(this)
-                        : null;
-
-                if (right == null) {
-                    return (T) "-";
-                } else {
-                    return (T) ("-" + right);
-                }
-            }
-
-            case "!" -> {
-                Object right = expression.getRight().accept(this);
-                boolean val = resolveBoolean(right);
-                return (T) Boolean.valueOf(!val);
-            }
-
-            case "++" -> {
-                if (!(expression.getRight() instanceof UnaryExpression varExpr)
-                        || !varExpr.getOperation().getLexeme().equals("$")) {
-                    throw new PostUnaryError("++");
-                }
-
-                String name = (String) varExpr.getRight().accept(this);
-
-                Environment env = (localEnvironment != null && localEnvironment.getOrNull(name) != null)
-                        ? localEnvironment
-                        : globalEnvironment;
-
-                Object raw = env.get(name);
-                Number numVal;
-                if (raw instanceof Number n) {
-                    numVal = n;
-                } else {
-                    try {
-                        numVal = parseNumber(String.valueOf(raw));
-                    } catch (NumberFormatException e) {
-                        throw new PostExprNaNError(name);
-                    }
-                }
-                Object newValue = numericAdd(numVal, 1L);
-                env.assign(name, newValue);
-                return (T) newValue;
-            }
-
-            case "--" -> {
-                if (!(expression.getRight() instanceof UnaryExpression varExpr)
-                        || !varExpr.getOperation().getLexeme().equals("$")) {
-                    throw new PostUnaryError("--");
-                }
-
-                String name = (String) varExpr.getRight().accept(this);
-
-                Environment env = (localEnvironment != null && localEnvironment.getOrNull(name) != null)
-                        ? localEnvironment
-                        : globalEnvironment;
-
-                Object raw = env.get(name);
-                Number numVal;
-                if (raw instanceof Number n) {
-                    numVal = n;
-                } else {
-                    try {
-                        numVal = parseNumber(String.valueOf(raw));
-                    } catch (NumberFormatException e) {
-                        throw new PostExprNaNError(name);
-                    }
-                }
-                Object newValue = numericSub(numVal, 1L);
-                env.assign(name, newValue);
-                return (T) newValue;
-            }
-
-            case "~" -> {
-                Object right = expression.getRight().accept(this);
-                return (T) Long.valueOf(~(long) toNumber(right));
-            }
-
+    @Override
+    public Void visitVarDestructure(VarDestructure stmt) {
+        notifyDebugger(stmt);
+        Object value = stmt.getInitializer().accept(this);
+        List<Expression> members = switch (value) {
+            case TupleExpression t ->
+                t.getMembers();
+            case ListExpression l ->
+                l.getMembers();
+            case ArrayExpression a ->
+                a.getMembers();
             default ->
-                throw new UnknownOperatorError(operator);
+                throw new RuntimeException("Cannot destructure value of type: " + value.getClass().getSimpleName());
+        };
+        Environment env = localEnvironment == null ? globalEnvironment : localEnvironment;
+        List<String> names = stmt.getNames();
+        for (int i = 0; i < names.size(); i++) {
+            Object element = i < members.size() ? members.get(i).accept(this) : NullValue.INSTANCE;
+            env.define(names.get(i), element);
         }
-    }
-
-    @Override
-    public <T> T visitArrayExpr(ArrayExpression expression) {
-        return (T) expression;
-    }
-
-    @Override
-    public <T> T visitTupleExpr(TupleExpression expression) {
-        return (T) expression;
-    }
-
-    @Override
-    public <T> T visitListExpr(ListExpression expression) {
-        return (T) expression;
-    }
-
-    @Override
-    public <T> T visitMapExpr(MapExpression expression) {
-        return (T) expression;
-    }
-
-    @Override
-    public <T> T visitAccessExpr(AccessExpression expression) {
-        Object accessedObject = expression.getReference().accept(this);
-
-        for (Expression index : expression.getIndecies()) {
-            Object object = index.accept(this);
-
-            switch (accessedObject) {
-                case MapExpression map -> {
-                    String key = String.valueOf(object);
-                    Expression val = map.getEntries().get(key);
-                    if (val == null) {
-                        throw new RuntimeException("Map key not found: " + key);
-                    }
-                    accessedObject = val.accept(this);
-                }
-                default -> {
-                    int i;
-                    switch (object) {
-                        case String s ->
-                            i = Integer.parseInt(s);
-                        case Number n ->
-                            i = (int) n.longValue();
-                        default ->
-                            throw new AssertionError();
-                    }
-                    switch (accessedObject) {
-                        case ArrayExpression array -> {
-                            Expression ae = array.getMembers().get(i);
-                            accessedObject = ae instanceof ArrayExpression inner ? inner.accept(this) : ae.accept(this);
-                        }
-                        case TupleExpression tuple -> {
-                            Expression te = tuple.getMembers().get(i);
-                            accessedObject = te instanceof TupleExpression inner ? inner.accept(this) : te.accept(this);
-                        }
-                        case ListExpression list -> {
-                            Expression le = list.getMembers().get(i);
-                            accessedObject = le instanceof ListExpression inner ? inner.accept(this) : le.accept(this);
-                        }
-                        default ->
-                            throw new NotIterableError();
-                    }
-                }
-            }
-        }
-
-        return (T) accessedObject;
+        return null;
     }
 
     @Override
@@ -1145,6 +1370,41 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
     }
 
     @Override
+    public Object visitOverwrite(Overwrite stmt) {
+        Tokenizer tokenizer = new Tokenizer();
+        Parser parser = new Parser();
+
+        List<Node> asts = parser.parseTokens(tokenizer.tokenize(stmt.getStmt(), false));
+        Environment.setOverwriteMode(true);
+        for (Node ast : asts) {
+            switch (ast) {
+                case Expression expression ->
+                    expression.accept(this);
+                case Statement statement ->
+                    statement.accept(this);
+                default -> {
+                    throw new AssertionError();
+                }
+            }
+        }
+        Environment.setOverwriteMode(false);
+
+        return null;
+    }
+
+    @Override
+    public Void visitReturn(Return ret) {
+        notifyDebugger(ret);
+        Object value = null;
+
+        if (ret.getValue() != null) {
+            value = ret.getValue().accept(this);
+        }
+
+        throw new ReturnSignal(value);
+    }
+
+    @Override
     public Object visitIf(If stmt) {
         notifyDebugger(stmt);
         Object condition = stmt.getCondition().accept(this);
@@ -1222,76 +1482,6 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                 return null;
             }
         }
-    }
-
-    private boolean resolveLoopCondition(Object condition) {
-        return switch (condition) {
-            case Boolean b ->
-                b;
-            case NullValue n ->
-                false;
-            case Number n ->
-                n.doubleValue() != 0;
-            case String s -> {
-                if (s.equals("true")) {
-                    yield true;
-                }
-                if (s.equals("false")) {
-                    yield false;
-                }
-                try {
-                    yield Double.parseDouble(s) != 0;
-                } catch (NumberFormatException e) {
-                    throw new AssertionError("Cannot resolve loop condition from string: " + s);
-                }
-            }
-            default ->
-                throw new AssertionError("Unexpected condition type: " + condition.getClass());
-        };
-    }
-
-    @Override
-    public Object visitBreak(Break stmt) {
-        throw new BreakSignal();
-    }
-
-    @Override
-    public Object visitContinue(Continue stmt) {
-        throw new ContinueSignal();
-    }
-
-    @Override
-    public Object visitBlock(Block stmt) {
-        Environment previous = localEnvironment;
-        localEnvironment = new Environment(previous);
-
-        runBody(stmt.getBody());
-
-        localEnvironment = previous;
-        return null;
-    }
-
-    @Override
-    public Object visitOverwrite(Overwrite stmt) {
-        Tokenizer tokenizer = new Tokenizer();
-        Parser parser = new Parser();
-
-        List<Node> asts = parser.parseTokens(tokenizer.tokenize(stmt.getStmt(), false));
-        Environment.setOverwriteMode(true);
-        for (Node ast : asts) {
-            switch (ast) {
-                case Expression expression ->
-                    expression.accept(this);
-                case Statement statement ->
-                    statement.accept(this);
-                default -> {
-                    throw new AssertionError();
-                }
-            }
-        }
-        Environment.setOverwriteMode(false);
-
-        return null;
     }
 
     @Override
@@ -1392,20 +1582,25 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         return null;
     }
 
-    private void assignIterator(String name, Object value) {
-        if (localEnvironment != null) {
-            if (localEnvironment.exists(name)) {
-                localEnvironment.assign(name, value);
-            } else {
-                throw new AssertionError();
-            }
-        } else {
-            if (globalEnvironment.exists(name)) {
-                globalEnvironment.assign(name, value);
-            } else {
-                throw new AssertionError();
-            }
-        }
+    @Override
+    public Object visitBreak(Break stmt) {
+        throw new BreakSignal();
+    }
+
+    @Override
+    public Object visitContinue(Continue stmt) {
+        throw new ContinueSignal();
+    }
+
+    @Override
+    public Object visitBlock(Block stmt) {
+        Environment previous = localEnvironment;
+        localEnvironment = new Environment(previous);
+
+        runBody(stmt.getBody());
+
+        localEnvironment = previous;
+        return null;
     }
 
     @Override
@@ -1485,207 +1680,46 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         }
     }
 
-    @Override
-    public <T> T visitNamespaceCallExpr(NamespaceCallExpression expression) {
-        Object namespaceObj = globalEnvironment.get(expression.getAlias());
-
-        if (!(namespaceObj instanceof Namespace namespace)) {
-            throw new NotANamespaceError(expression.getAlias());
-        }
-
-        Object callee = namespace.get(expression.getFunctionName());
-
-        if (!(callee instanceof Callable callable)) {
-            throw new NotCallableError(expression.getAlias() + "." + expression.getFunctionName());
-        }
-
-        List<Object> arguments = new ArrayList<>();
-        for (Expression arg : expression.getArguments()) {
-            arguments.add(arg.accept(this));
-        }
-
-        if (callable.getArity() != -1 && arguments.size() != callable.getArity()) {
-            throw new ArgMismatchError(expression.getFunctionName(), callable.getArity(), arguments.size());
-        }
-
-        return (T) callable.call(this, arguments);
+    private boolean resolveLoopCondition(Object condition) {
+        return switch (condition) {
+            case Boolean b ->
+                b;
+            case NullValue n ->
+                false;
+            case Number n ->
+                n.doubleValue() != 0;
+            case String s -> {
+                if (s.equals("true")) {
+                    yield true;
+                }
+                if (s.equals("false")) {
+                    yield false;
+                }
+                try {
+                    yield Double.parseDouble(s) != 0;
+                } catch (NumberFormatException e) {
+                    throw new AssertionError("Cannot resolve loop condition from string: " + s);
+                }
+            }
+            default ->
+                throw new AssertionError("Unexpected condition type: " + condition.getClass());
+        };
     }
 
-    @Override
-    public <T> T visitRangeExpression(RangeExpression expression) {
-        Number startN = parseNumber(String.valueOf(expression.getStart().accept(this)));
-        Number endN = parseNumber(String.valueOf(expression.getEnd().accept(this)));
-        Number stepN = expression.getStepsize() != null
-                ? parseNumber(String.valueOf(expression.getStepsize().accept(this)))
-                : 1L;
-
-        List<Expression> members = new ArrayList<>();
-        if (startN instanceof Long ls && endN instanceof Long le && stepN instanceof Long lStep) {
-            if (lStep == 0) {
-                throw new RuntimeException("Range stepsize cannot be zero");
-            }
-            for (long i = ls; lStep > 0 ? i < le : i > le; i += lStep) {
-                members.add(new DumbExpression(new Token(TokenType.EXPRESSION, String.valueOf(i), 0, 0)));
+    private void assignIterator(String name, Object value) {
+        if (localEnvironment != null) {
+            if (localEnvironment.exists(name)) {
+                localEnvironment.assign(name, value);
+            } else {
+                throw new AssertionError();
             }
         } else {
-            double start = startN.doubleValue(), end = endN.doubleValue(), step = stepN.doubleValue();
-            if (step == 0) {
-                throw new RuntimeException("Range stepsize cannot be zero");
-            }
-            for (double i = start; step > 0 ? i < end : i > end; i += step) {
-                members.add(new DumbExpression(new Token(TokenType.EXPRESSION, String.valueOf(i), 0, 0)));
-            }
-        }
-
-        return (T) new ListExpression(members);
-    }
-
-    public void loadASTIntoGlobalContext(Node ast) {
-        loadASTIntoContext(ast, globalEnvironment);
-    }
-
-    public void loadASTIntoContext(Node ast, Environment targetEnv) {
-        Environment previous = localEnvironment;
-        localEnvironment = null;
-
-        Environment previousGlobal = globalEnvironment;
-        if (targetEnv instanceof Namespace) {
-            globalEnvironment = targetEnv;
-        }
-
-        switch (ast) {
-            case Expression expression ->
-                expression.accept(this);
-            case Statement statement ->
-                statement.accept(this);
-            default ->
-                throw new AssertionError();
-        }
-
-        globalEnvironment = previousGlobal;
-        localEnvironment = previous;
-    }
-
-    @Override
-    public <T> T visitObjectExpression(ObjectExpression expression) {
-        Environment objectEnv = new Environment();
-
-        for (VarDecl field : expression.getVarDecls()) {
-            Object value = field.getInitializer() != null
-                    ? field.getInitializer().accept(this)
-                    : null;
-
-            if (field.isConst()) {
-                objectEnv.defineConst(field.getName(), value);
+            if (globalEnvironment.exists(name)) {
+                globalEnvironment.assign(name, value);
             } else {
-                objectEnv.define(field.getName(), value);
+                throw new AssertionError();
             }
         }
-
-        for (FuncDecl method : expression.getMethods()) {
-            Function fn = new Function(objectEnv, method.getBody(), method.getParameters(),
-                    method.getArity(), method.getMaxArity(), method.getVariadicParam());
-            objectEnv.define(method.getName(), fn);
-        }
-
-        if (!objectEnv.exists("this")) {
-            objectEnv.define("this", objectEnv);
-        }
-
-        return (T) objectEnv;
-    }
-
-    @Override
-    public <T> T visitMethodCallExpression(MethodCallExpression expression) {
-        Object objectValue = expression.getObject().accept(this);
-
-        if (objectValue instanceof String name) {
-            objectValue = localEnvironment != null && localEnvironment.existsInChain(name)
-                    ? localEnvironment.get(name)
-                    : globalEnvironment.get(name);
-        }
-
-        if (expression.isOptional() && (objectValue == null || objectValue instanceof NullValue)) {
-            return (T) NullValue.INSTANCE;
-        }
-
-        if (!(objectValue instanceof Environment objectEnv)) {
-            throw new FieldAccessError(expression.getMethod());
-        }
-
-        Object methodValue = objectEnv.get(expression.getMethod());
-        if (!(methodValue instanceof Callable callable)) {
-            throw new NotCallableError(expression.getMethod());
-        }
-
-        List<Object> arguments = new ArrayList<>();
-        for (Expression arg : expression.getArguments()) {
-            arguments.add(arg.accept(this));
-        }
-
-        if (callable instanceof Function f) {
-            int min = f.getArity(), max = f.getMaxArity();
-            if (arguments.size() < min || (max != -1 && arguments.size() > max)) {
-                throw new ArgMismatchError(expression.getMethod(), min, arguments.size());
-            }
-        } else if (callable.getArity() != -1 && arguments.size() != callable.getArity()) {
-            throw new ArgMismatchError(expression.getMethod(), callable.getArity(), arguments.size());
-        }
-
-        return (T) callable.call(this, arguments);
-    }
-
-    @Override
-    public <T> T visitFieldAccessExpression(FieldAccessExpression expression) {
-        Object object = expression.getObject().accept(this);
-
-        if (object instanceof String name) {
-            object = localEnvironment != null && localEnvironment.exists(name)
-                    ? localEnvironment.get(name)
-                    : globalEnvironment.get(name);
-        }
-
-        if (!(object instanceof Environment objectEnv)) {
-            if (expression.isOptional()) {
-                return (T) NullValue.INSTANCE;
-            }
-            throw new FieldAccessError(expression.getField());
-        }
-
-        return (T) objectEnv.get(expression.getField());
-    }
-
-    @Override
-    public Object visitEnum(EnumDecl stmt) {
-        Environment enumEnv = new Environment(null, stmt.getValues().size());
-        for (Map.Entry<String, Object> entry : stmt.getValues().entrySet()) {
-            enumEnv.defineConst(entry.getKey(), entry.getValue());
-        }
-        globalEnvironment.defineConst(stmt.getIdentifier(), enumEnv);
-        return null;
-    }
-
-    @Override
-    public Void visitVarDestructure(VarDestructure stmt) {
-        notifyDebugger(stmt);
-        Object value = stmt.getInitializer().accept(this);
-        List<Expression> members = switch (value) {
-            case TupleExpression t ->
-                t.getMembers();
-            case ListExpression l ->
-                l.getMembers();
-            case ArrayExpression a ->
-                a.getMembers();
-            default ->
-                throw new RuntimeException("Cannot destructure value of type: " + value.getClass().getSimpleName());
-        };
-        Environment env = localEnvironment == null ? globalEnvironment : localEnvironment;
-        List<String> names = stmt.getNames();
-        for (int i = 0; i < names.size(); i++) {
-            Object element = i < members.size() ? members.get(i).accept(this) : NullValue.INSTANCE;
-            env.define(names.get(i), element);
-        }
-        return null;
     }
 
     public Environment getLocalEnvironment() {
@@ -1698,42 +1732,6 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
     public Environment getGlobalEnvironment() {
         return globalEnvironment;
-    }
-
-    public void dumpState(Throwable cause, PrintStream out) {
-        out.println("\n=== MIRA CRASH DUMP ===");
-        out.println("Cause: " + cause);
-        out.println();
-
-        out.println("--- Mira Call Stack ---");
-        if (miraCallStack.isEmpty()) {
-            out.println("  <top level>");
-        } else {
-            for (String frame : miraCallStack) {
-                out.println("  at " + frame + "()");
-            }
-        }
-        out.println();
-
-        out.println("--- Java Stack Trace ---");
-        cause.printStackTrace(out);
-        out.println();
-
-        out.println("--- Memory Dump ---");
-        Environment env = localEnvironment != null ? localEnvironment : globalEnvironment;
-        int depth = 0;
-        while (env != null) {
-            String label = (env.getParent() == null) ? "global" : "scope[" + depth + "]";
-            out.println("  [" + label + "]");
-            for (String key : env.keySet()) {
-                Object val = env.get(key);
-                String repr = formatValue(val);
-                out.println("    " + key + " = " + repr);
-            }
-            env = env.getParent();
-            depth++;
-        }
-        out.println("=== END CRASH DUMP ===");
     }
 
     private String formatValue(Object val) {

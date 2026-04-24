@@ -142,6 +142,34 @@ public class Debugger {
         }
     }
 
+    private static void addBreakpoint(String[] args) {
+        if (args.length < 2 || args[1].isBlank()) {
+            System.err.println("Usage: break <line> [line2 ...]");
+            return;
+        }
+        try {
+            for (int i = 1; i < args.length; i++) {
+                for (String part : args[i].split(",")) {
+                    String trimmed = part.trim();
+                    if (!trimmed.isEmpty()) {
+                        breakpoints.add(Integer.valueOf(trimmed));
+                        System.out.println("Breakpoint set at line " + trimmed);
+                    }
+                }
+            }
+        } catch (NumberFormatException e) {
+            System.err.println("Invalid line number.");
+        }
+    }
+
+    private static void listBreakpoints() {
+        if (breakpoints.isEmpty()) {
+            System.out.println("No breakpoints set.");
+        } else {
+            System.out.println("Breakpoints: " + breakpoints);
+        }
+    }
+
     private static String sourceLine(int line) {
         if (Flags.sourceLines != null && line >= 1 && line <= Flags.sourceLines.length) {
             return Flags.sourceLines[line - 1].stripLeading();
@@ -175,34 +203,6 @@ public class Debugger {
         }
         if (env.keySet().isEmpty()) {
             System.out.println("    (empty)");
-        }
-    }
-
-    private static void listBreakpoints() {
-        if (breakpoints.isEmpty()) {
-            System.out.println("No breakpoints set.");
-        } else {
-            System.out.println("Breakpoints: " + breakpoints);
-        }
-    }
-
-    private static void addBreakpoint(String[] args) {
-        if (args.length < 2 || args[1].isBlank()) {
-            System.err.println("Usage: break <line> [line2 ...]");
-            return;
-        }
-        try {
-            for (int i = 1; i < args.length; i++) {
-                for (String part : args[i].split(",")) {
-                    String trimmed = part.trim();
-                    if (!trimmed.isEmpty()) {
-                        breakpoints.add(Integer.valueOf(trimmed));
-                        System.out.println("Breakpoint set at line " + trimmed);
-                    }
-                }
-            }
-        } catch (NumberFormatException e) {
-            System.err.println("Invalid line number.");
         }
     }
 

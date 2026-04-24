@@ -25,8 +25,8 @@ import com.mira.parser.nodes.expression.Expression.ImportExpression.ImportKind;
 import com.mira.parser.nodes.expression.Expression.LambdaExpression;
 import com.mira.parser.nodes.expression.Expression.ListExpression;
 import com.mira.parser.nodes.expression.Expression.MapExpression;
-import com.mira.parser.nodes.expression.Expression.NamespaceCallExpression;
 import com.mira.parser.nodes.expression.Expression.MethodCallExpression;
+import com.mira.parser.nodes.expression.Expression.NamespaceCallExpression;
 import com.mira.parser.nodes.expression.Expression.ObjectExpression;
 import com.mira.parser.nodes.expression.Expression.RangeExpression;
 import com.mira.parser.nodes.expression.Expression.TernaryExpression;
@@ -60,10 +60,6 @@ public class Parser {
     private int index;
     private int parsingDepth = 0;
 
-    private void reset() {
-        index = 0;
-    }
-
     public List<Node> parseTokens(List<Token> tokens) {
         reset();
         this.tokens = tokens;
@@ -75,16 +71,6 @@ public class Parser {
         }
 
         return asts;
-    }
-
-    private void increaseDepth() {
-        parsingDepth++;
-    }
-
-    private void decreaseDepth() {
-        if (parsingDepth > 0) {
-            parsingDepth--;
-        }
     }
 
     private Token consume() {
@@ -144,6 +130,13 @@ public class Parser {
         throw new TypeMismatchError(peek(), "Expected an expression");
     }
 
+    private Token matchExpression() {
+        if (isExpressionToken(peek())) {
+            return consume();
+        }
+        throw new TypeMismatchError(peek(), "Expected an expression");
+    }
+
     private boolean isExpressionToken(Token token) {
         return token.getTokenType() == TokenType.EXPRESSION
                 || token.getTokenType() == TokenType.STRING_LITERAL
@@ -173,126 +166,120 @@ public class Parser {
         };
     }
 
-    private Token matchExpression() {
-        if (isExpressionToken(peek())) {
-            return consume();
-        }
-        throw new TypeMismatchError(peek(), "Expected an expression");
-    }
-
-    private Node parseStatement(boolean expectSemicolon) {
-        int line = peek().getLine();
-        Node node;
-
-        switch (peek().getLexeme()) {
-            case "var" -> {
-                node = parseVarDecl(false);
-                if (expectSemicolon) {
-                    matchLexeme(";");
-                }
-            }
-            case "const" -> {
-                node = parseVarDecl(true);
-                if (expectSemicolon) {
-                    matchLexeme(";");
-                }
-            }
-            case "fn" -> {
-                increaseDepth();
-                node = parseFuncDecl();
-                decreaseDepth();
-            }
-            case "return" -> {
-                node = parseReturn();
-                if (expectSemicolon) {
-                    matchLexeme(";");
-                }
-            }
-            case "if" -> {
-                node = parseIf();
-            }
-            case "for" -> {
-                node = parseFor();
-            }
-            case "foreach" -> {
-                node = parseForeach();
-            }
-            case "do" -> {
-                node = parseDoWhile();
-                matchLexeme(";");
-            }
-            case "while" -> {
-                node = parseWhile();
-            }
-            case "break" -> {
-                node = parseBreak();
-                if (expectSemicolon) {
-                    matchLexeme(";");
-                }
-            }
-            case "continue" -> {
-                node = parseContinue();
-                if (expectSemicolon) {
-                    matchLexeme(";");
-                }
-            }
-            case "$" -> {
-                node = isAssignment() ? parseAssign() : parseExpression();
-                if (expectSemicolon) {
-                    matchLexeme(";");
-                }
-            }
-            case "{" -> {
-                node = parseBlock();
-            }
-            case "module" -> {
-                node = parseModuleDecl();
-            }
-            case "import" -> {
-                node = parseImportExpression();
-                matchLexeme(";");
-            }
-            case "switch" -> {
-                node = parseSwitch();
-            }
-            case "overwrite" -> {
-                node = parseOverwrite();
-                matchLexeme(";");
-            }
-            case "enum" -> {
-                node = parseEnumDecl();
-            }
-            case "try" -> {
-                node = parseTryCatch();
-            }
-            case "throw" -> {
-                node = parseThrow();
-                if (expectSemicolon) {
-                    matchLexeme(";");
-                }
-            }
-            default -> {
-                node = parseExpression();
-                if (expectSemicolon) {
-                    matchLexeme(";");
-                }
-            }
-        }
-
-        if (node instanceof Statement stmt) {
-            stmt.line = line;
-        }
-        return node;
-    }
-
     private boolean isWhitespaceToken(Token token) {
         return token.getTokenType() == TokenType.EXPRESSION && token.getLexeme().isBlank();
+    }
+
+    private boolean isAssignment() {
+        if (!peek().getLexeme().equals("$")) {
+            return false;
+        }
+
+        int offset = 1;
+
+        if (!isExpressionToken(peekOffset(offset))) {
+            return false;
+        }
+        offset++;
+
+        while (peekOffset(offset).getLexeme().equals(".")) {
+            offset++;
+            if (!isExpressionToken(peekOffset(offset))) {
+                return false;
+            }
+            offset++;
+        }
+
+        while (peekOffset(offset).getLexeme().equals("[")) {
+            offset++;
+
+            int bracketDepth = 1;
+
+            while (bracketDepth > 0) {
+                String lex = peekOffset(offset).getLexeme();
+                if (lex.equals("[")) {
+                    bracketDepth++;
+                }
+                if (lex.equals("]")) {
+                    bracketDepth--;
+                }
+                offset++;
+            }
+        }
+
+        String lex = peekOffset(offset).getLexeme();
+        return lex.equals(":") || lex.equals("+=") || lex.equals("-=") || lex.equals("*=") || lex.equals("/=")
+                || lex.equals("%=") || lex.equals("&=") || lex.equals("|=") || lex.equals("^=")
+                || lex.equals("**=") || lex.equals("\\%=");
+    }
+
+    private void reset() {
+        index = 0;
+    }
+
+    private void increaseDepth() {
+        parsingDepth++;
+    }
+
+    private void decreaseDepth() {
+        if (parsingDepth > 0) {
+            parsingDepth--;
+        }
     }
 
     private void skipWhitespaceTokens() {
         while (peek().getTokenType() != TokenType.EOF && isWhitespaceToken(peek())) {
             consume();
         }
+    }
+
+    private Expression parseExpression() {
+        List<Expression> items = new ArrayList<>();
+
+        while (peek().getTokenType() != TokenType.EOF && !isStructuralDelimiter(peek())) {
+            if (isWhitespaceToken(peek())) {
+                consume();
+                continue;
+            }
+            items.add(parsePratt(0));
+        }
+
+        if (items.isEmpty()) {
+            throw new UnexpectedToken(peek(), "Expected an expression, but the statement is empty");
+        }
+
+        return items.size() == 1 ? items.get(0) : new ComplexExpression(items);
+    }
+
+    private Expression parsePratt(int minBP) {
+        Expression left = parsePrimary();
+
+        while (true) {
+            skipWhitespaceTokens();
+            Token opToken = peek();
+
+            if (opToken.getLexeme().equals("?") && opToken.getTokenType() != TokenType.STRING_LITERAL) {
+                if (minBP > 0) {
+                    break;
+                }
+                consume();
+                Expression thenExpr = parsePratt(0);
+                matchLexeme(":");
+                Expression elseExpr = parsePratt(0);
+                left = new TernaryExpression(left, thenExpr, elseExpr);
+                break;
+            }
+
+            int lbp = binaryOperatorBP(opToken.getLexeme());
+            if (lbp == 0 || lbp <= minBP) {
+                break;
+            }
+            consume();
+            Expression right = parsePratt(lbp);
+            left = new BinaryExpression(left, opToken, right);
+        }
+
+        return left;
     }
 
     private int binaryOperatorBP(String op) {
@@ -410,53 +397,32 @@ public class Parser {
         return expr;
     }
 
-    private Expression parsePratt(int minBP) {
-        Expression left = parsePrimary();
-
-        while (true) {
-            skipWhitespaceTokens();
-            Token opToken = peek();
-
-            if (opToken.getLexeme().equals("?") && opToken.getTokenType() != TokenType.STRING_LITERAL) {
-                if (minBP > 0) {
-                    break;
-                }
-                consume();
-                Expression thenExpr = parsePratt(0);
-                matchLexeme(":");
-                Expression elseExpr = parsePratt(0);
-                left = new TernaryExpression(left, thenExpr, elseExpr);
-                break;
-            }
-
-            int lbp = binaryOperatorBP(opToken.getLexeme());
-            if (lbp == 0 || lbp <= minBP) {
-                break;
-            }
+    private Expression parseDumbExpression() {
+        Token token = peek();
+        if (isExpressionToken(token)) {
             consume();
-            Expression right = parsePratt(lbp);
-            left = new BinaryExpression(left, opToken, right);
+            return new DumbExpression(token);
         }
-
-        return left;
+        throw new TypeMismatchError(token, "Expected EXPRESSION or STRING_LITERAL");
     }
 
-    private Expression parseExpression() {
-        List<Expression> items = new ArrayList<>();
-
-        while (peek().getTokenType() != TokenType.EOF && !isStructuralDelimiter(peek())) {
-            if (isWhitespaceToken(peek())) {
-                consume();
-                continue;
-            }
-            items.add(parsePratt(0));
+    private Expression parseUnaryExpression() {
+        Token operation = matchType(TokenType.OPERATION);
+        Expression rhs;
+        if (peek().getTokenType() != TokenType.OPERATION) {
+            rhs = parseDumbExpression();
+        } else {
+            rhs = parseExpression();
         }
+        return new UnaryExpression(operation, rhs);
+    }
 
-        if (items.isEmpty()) {
-            throw new UnexpectedToken(peek(), "Expected an expression, but the statement is empty");
+    private Expression parsePostfix(Expression expr) {
+        while (peek().getLexeme().equals("++") || peek().getLexeme().equals("--")) {
+            Token op = consume();
+            expr = new UnaryExpression(op, expr);
         }
-
-        return items.size() == 1 ? items.get(0) : new ComplexExpression(items);
+        return expr;
     }
 
     private Expression maybeParseFieldAccess(Expression base) {
@@ -501,32 +467,42 @@ public class Parser {
         return base;
     }
 
-    private Expression parsePostfix(Expression expr) {
-        while (peek().getLexeme().equals("++") || peek().getLexeme().equals("--")) {
-            Token op = consume();
-            expr = new UnaryExpression(op, expr);
+    private Expression parseCallExpression() {
+        Token referencedFunction = matchExpression();
+        matchLexeme("(");
+
+        List<Expression> args = new ArrayList<>();
+        while (!peek().getLexeme().equals(")")) {
+            args.add(parseExpression());
+            if (peek().getLexeme().equals(",")) {
+                matchLexeme(",");
+            } else if (!peek().getLexeme().equals(")")) {
+                throw new UnexpectedToken(peek(), "Expected ',' or ')'");
+            }
         }
-        return expr;
+
+        matchLexeme(")");
+        return new CallExpression(new DumbExpression(referencedFunction), args);
     }
 
-    private Expression parseUnaryExpression() {
-        Token operation = matchType(TokenType.OPERATION);
-        Expression rhs;
-        if (peek().getTokenType() != TokenType.OPERATION) {
-            rhs = parseDumbExpression();
-        } else {
-            rhs = parseExpression();
-        }
-        return new UnaryExpression(operation, rhs);
-    }
+    private Expression parseNamespaceCallExpression() {
+        String alias = matchExpression().getLexeme();
+        matchLexeme(".");
+        String functionName = matchExpression().getLexeme();
+        matchLexeme("(");
 
-    private Expression parseDumbExpression() {
-        Token token = peek();
-        if (isExpressionToken(token)) {
-            consume();
-            return new DumbExpression(token);
+        List<Expression> args = new ArrayList<>();
+        while (!peek().getLexeme().equals(")")) {
+            args.add(parseExpression());
+            if (peek().getLexeme().equals(",")) {
+                matchLexeme(",");
+            } else if (!peek().getLexeme().equals(")")) {
+                throw new UnexpectedToken(peek(), "Expected ',' or ')'");
+            }
         }
-        throw new TypeMismatchError(token, "Expected EXPRESSION or STRING_LITERAL");
+
+        matchLexeme(")");
+        return new NamespaceCallExpression(alias, functionName, args);
     }
 
     private Expression parseObjectExpression() {
@@ -550,44 +526,6 @@ public class Parser {
         return new ObjectExpression(fields, methods);
     }
 
-    private Expression parseNamespaceCallExpression() {
-        String alias = matchExpression().getLexeme();
-        matchLexeme(".");
-        String functionName = matchExpression().getLexeme();
-        matchLexeme("(");
-
-        List<Expression> args = new ArrayList<>();
-        while (!peek().getLexeme().equals(")")) {
-            args.add(parseExpression());
-            if (peek().getLexeme().equals(",")) {
-                matchLexeme(",");
-            } else if (!peek().getLexeme().equals(")")) {
-                throw new UnexpectedToken(peek(), "Expected ',' or ')'");
-            }
-        }
-
-        matchLexeme(")");
-        return new NamespaceCallExpression(alias, functionName, args);
-    }
-
-    private Expression parseCallExpression() {
-        Token referencedFunction = matchExpression();
-        matchLexeme("(");
-
-        List<Expression> args = new ArrayList<>();
-        while (!peek().getLexeme().equals(")")) {
-            args.add(parseExpression());
-            if (peek().getLexeme().equals(",")) {
-                matchLexeme(",");
-            } else if (!peek().getLexeme().equals(")")) {
-                throw new UnexpectedToken(peek(), "Expected ',' or ')'");
-            }
-        }
-
-        matchLexeme(")");
-        return new CallExpression(new DumbExpression(referencedFunction), args);
-    }
-
     private Expression parseAccessExpression(Expression accessedExpression) {
         List<Expression> indices = new ArrayList<>();
 
@@ -608,11 +546,130 @@ public class Parser {
         return new AccessExpression(accessedExpression, indices);
     }
 
-    private Node parseModuleDecl() {
-        matchLexeme("module");
-        String name = matchExpression().getLexeme();
-        matchLexeme(";");
-        return new ModuleDecl(name);
+    private Expression parseArray() {
+        matchLexeme("[");
+
+        List<Expression> members = new ArrayList<>();
+        while (!peek().getLexeme().equals("]")) {
+            members.add(parseExpression());
+            if (!peek().getLexeme().equals("]")) {
+                matchLexeme(",");
+            }
+        }
+        matchLexeme("]");
+
+        return new ArrayExpression(members);
+    }
+
+    private Expression parseList() {
+        matchLexeme("{");
+
+        List<Expression> members = new ArrayList<>();
+        while (!peek().getLexeme().equals("}")) {
+            members.add(parseExpression());
+            if (!peek().getLexeme().equals("}")) {
+                matchLexeme(",");
+            }
+        }
+        matchLexeme("}");
+
+        return new ListExpression(members);
+    }
+
+    private Expression parseMap() {
+        matchLexeme("{");
+        LinkedHashMap<String, Expression> entries = new LinkedHashMap<>();
+        while (!peek().getLexeme().equals("}")) {
+            String key = matchExpression().getLexeme();
+            matchLexeme(":");
+            Expression value = parseExpression();
+            entries.put(key, value);
+            if (!peek().getLexeme().equals("}")) {
+                matchLexeme(",");
+            }
+        }
+        matchLexeme("}");
+        return new MapExpression(entries);
+    }
+
+    private Expression parseRangeExpression() {
+        matchLexeme("<");
+        Expression start = parseRangeOperand();
+        matchLexeme("..");
+        Expression end = parseRangeOperand();
+
+        Expression stepsize = null;
+        if (peek().getLexeme().equals(",")) {
+            consume();
+            stepsize = parseRangeOperand();
+        }
+
+        matchLexeme(">");
+        return new RangeExpression(start, end, stepsize);
+    }
+
+    private Expression parseRangeOperand() {
+        List<Expression> expressions = new ArrayList<>();
+
+        while (peek().getTokenType() != TokenType.EOF
+                && !peek().getLexeme().equals("..")
+                && !peek().getLexeme().equals(">")
+                && !isStructuralDelimiter(peek())) {
+
+            Token current = peek();
+
+            if (current.getLexeme().equals("$")) {
+                Expression unary = parseUnaryExpression();
+                expressions.add(parsePostfix(maybeParseAccess(unary)));
+
+            } else if (isExpressionToken(current)
+                    && peekNextSafe().getLexeme().equals("(")
+                    && peekNextSafe().getTokenType() != TokenType.STRING_LITERAL) {
+
+                expressions.add(parsePostfix(maybeParseAccess(parseCallExpression())));
+
+            } else if (isExpressionToken(current)
+                    && peekNextSafe().getLexeme().equals(".")
+                    && !peekOffset(2).getLexeme().equals(".")
+                    && peekNextSafe().getTokenType() != TokenType.STRING_LITERAL) {
+
+                expressions.add(parsePostfix(parseNamespaceCallExpression()));
+
+            } else if (Vocabulary.stringIsOperation(current.getLexeme())
+                    && !current.getLexeme().equals("$")
+                    && !current.getLexeme().equals("++")
+                    && !current.getLexeme().equals("--")) {
+
+                expressions.add(new UnaryExpression(consume(), null));
+
+            } else {
+                expressions.add(parsePostfix(maybeParseAccess(parseDumbExpression())));
+            }
+        }
+
+        if (expressions.isEmpty()) {
+            throw new UnexpectedToken(peek(), "Expected range operand but got '" + peek().getLexeme() + "'");
+        }
+
+        return expressions.size() > 1 ? new ComplexExpression(expressions) : expressions.get(0);
+    }
+
+    private Expression parseLambdaExpression() {
+        matchLexeme("fn");
+        matchLexeme("(");
+
+        String[] variadicHolder = {null};
+        List<Parameter> parameters = parseParameterList(variadicHolder);
+        matchLexeme(")");
+
+        matchLexeme("{");
+        List<Node> body = new ArrayList<>();
+        while (!peek().getLexeme().equals("}")) {
+            body.add(parseStatement(true));
+        }
+        matchLexeme("}");
+
+        return new LambdaExpression(parameters, body, variadicHolder[0]);
     }
 
     private Node parseImportExpression() {
@@ -666,50 +723,116 @@ public class Parser {
         return new ImportExpression(libExpr, libAlias, ImportKind.STDLIB, selected);
     }
 
-    private Expression parseMap() {
-        matchLexeme("{");
-        LinkedHashMap<String, Expression> entries = new LinkedHashMap<>();
-        while (!peek().getLexeme().equals("}")) {
-            String key = matchExpression().getLexeme();
-            matchLexeme(":");
-            Expression value = parseExpression();
-            entries.put(key, value);
-            if (!peek().getLexeme().equals("}")) {
-                matchLexeme(",");
+    private Node parseStatement(boolean expectSemicolon) {
+        int line = peek().getLine();
+        Node node;
+
+        switch (peek().getLexeme()) {
+            case "var" -> {
+                node = parseVarDecl(false);
+                if (expectSemicolon) {
+                    matchLexeme(";");
+                }
+            }
+            case "const" -> {
+                node = parseVarDecl(true);
+                if (expectSemicolon) {
+                    matchLexeme(";");
+                }
+            }
+            case "fn" -> {
+                increaseDepth();
+                node = parseFuncDecl();
+                decreaseDepth();
+            }
+            case "return" -> {
+                node = parseReturn();
+                if (expectSemicolon) {
+                    matchLexeme(";");
+                }
+            }
+            case "if" -> {
+                node = parseIf();
+            }
+            case "for" -> {
+                node = parseFor();
+            }
+            case "foreach" -> {
+                node = parseForeach();
+            }
+            case "do" -> {
+                node = parseDoWhile();
+                matchLexeme(";");
+            }
+            case "while" -> {
+                node = parseWhile();
+            }
+            case "break" -> {
+                node = parseBreak();
+                if (expectSemicolon) {
+                    matchLexeme(";");
+                }
+            }
+            case "continue" -> {
+                node = parseContinue();
+                if (expectSemicolon) {
+                    matchLexeme(";");
+                }
+            }
+            case "$" -> {
+                node = isAssignment() ? parseAssign() : parseExpression();
+                if (expectSemicolon) {
+                    matchLexeme(";");
+                }
+            }
+            case "{" -> {
+                node = parseBlock();
+            }
+            case "module" -> {
+                node = parseModuleDecl();
+            }
+            case "import" -> {
+                node = parseImportExpression();
+                matchLexeme(";");
+            }
+            case "switch" -> {
+                node = parseSwitch();
+            }
+            case "overwrite" -> {
+                node = parseOverwrite();
+                matchLexeme(";");
+            }
+            case "enum" -> {
+                node = parseEnumDecl();
+            }
+            case "try" -> {
+                node = parseTryCatch();
+            }
+            case "throw" -> {
+                node = parseThrow();
+                if (expectSemicolon) {
+                    matchLexeme(";");
+                }
+            }
+            default -> {
+                node = parseExpression();
+                if (expectSemicolon) {
+                    matchLexeme(";");
+                }
             }
         }
-        matchLexeme("}");
-        return new MapExpression(entries);
+
+        if (node instanceof Statement stmt) {
+            stmt.line = line;
+        }
+        return node;
     }
 
-    private Expression parseList() {
-        matchLexeme("{");
-
-        List<Expression> members = new ArrayList<>();
-        while (!peek().getLexeme().equals("}")) {
-            members.add(parseExpression());
-            if (!peek().getLexeme().equals("}")) {
-                matchLexeme(",");
-            }
-        }
-        matchLexeme("}");
-
-        return new ListExpression(members);
-    }
-
-    private Expression parseArray() {
-        matchLexeme("[");
-
-        List<Expression> members = new ArrayList<>();
-        while (!peek().getLexeme().equals("]")) {
-            members.add(parseExpression());
-            if (!peek().getLexeme().equals("]")) {
-                matchLexeme(",");
-            }
-        }
-        matchLexeme("]");
-
-        return new ArrayExpression(members);
+    private Node parseModuleDecl() {
+        matchLexeme("module");
+        String name = matchExpression().getLexeme();
+        matchLexeme(";");
+        return new ModuleDecl(name);
     }
 
     private Node parseVarDecl(boolean isConst) {
@@ -791,24 +914,6 @@ public class Parser {
         return new FuncDecl(name, parameters, body, variadicHolder[0]);
     }
 
-    private Expression parseLambdaExpression() {
-        matchLexeme("fn");
-        matchLexeme("(");
-
-        String[] variadicHolder = {null};
-        List<Parameter> parameters = parseParameterList(variadicHolder);
-        matchLexeme(")");
-
-        matchLexeme("{");
-        List<Node> body = new ArrayList<>();
-        while (!peek().getLexeme().equals("}")) {
-            body.add(parseStatement(true));
-        }
-        matchLexeme("}");
-
-        return new LambdaExpression(parameters, body, variadicHolder[0]);
-    }
-
     private Node parseReturn() {
         consume();
         Expression value;
@@ -848,49 +953,6 @@ public class Parser {
         matchLexeme(":");
         Expression expression = parseExpression();
         return new Assign(reference, expression);
-    }
-
-    private boolean isAssignment() {
-        if (!peek().getLexeme().equals("$")) {
-            return false;
-        }
-
-        int offset = 1;
-
-        if (!isExpressionToken(peekOffset(offset))) {
-            return false;
-        }
-        offset++;
-
-        while (peekOffset(offset).getLexeme().equals(".")) {
-            offset++;
-            if (!isExpressionToken(peekOffset(offset))) {
-                return false;
-            }
-            offset++;
-        }
-
-        while (peekOffset(offset).getLexeme().equals("[")) {
-            offset++;
-
-            int bracketDepth = 1;
-
-            while (bracketDepth > 0) {
-                String lex = peekOffset(offset).getLexeme();
-                if (lex.equals("[")) {
-                    bracketDepth++;
-                }
-                if (lex.equals("]")) {
-                    bracketDepth--;
-                }
-                offset++;
-            }
-        }
-
-        String lex = peekOffset(offset).getLexeme();
-        return lex.equals(":") || lex.equals("+=") || lex.equals("-=") || lex.equals("*=") || lex.equals("/=")
-                || lex.equals("%=") || lex.equals("&=") || lex.equals("|=") || lex.equals("^=")
-                || lex.equals("**=") || lex.equals("\\%=");
     }
 
     private Node parseIf() {
@@ -1011,6 +1073,22 @@ public class Parser {
         }
     }
 
+    private Node parseWhile() {
+        matchLexeme("while");
+        matchLexeme("(");
+        Expression condition = parseExpression();
+        matchLexeme(")");
+        matchLexeme("{");
+
+        List<Node> body = new ArrayList<>();
+        while (!peek().getLexeme().equals("}")) {
+            body.add(parseStatement(true));
+        }
+        matchLexeme("}");
+
+        return new While(condition, body, false);
+    }
+
     private Node parseDoWhile() {
         matchLexeme("do");
         matchLexeme("{");
@@ -1028,20 +1106,26 @@ public class Parser {
         return new While(condition, body, true);
     }
 
-    private Node parseWhile() {
-        matchLexeme("while");
+    private Node parseForeach() {
+        matchLexeme("foreach");
         matchLexeme("(");
-        Expression condition = parseExpression();
-        matchLexeme(")");
-        matchLexeme("{");
+        VarDecl iterator = (VarDecl) parseVarDecl(false);
+        matchLexeme("in");
 
+        Expression collection = peek().getLexeme().equals("<")
+                ? parseRangeExpression()
+                : parseExpression();
+
+        matchLexeme(")");
+
+        matchLexeme("{");
         List<Node> body = new ArrayList<>();
         while (!peek().getLexeme().equals("}")) {
             body.add(parseStatement(true));
         }
         matchLexeme("}");
 
-        return new While(condition, body, false);
+        return new Foreach(iterator, collection, body);
     }
 
     private Node parseBreak() {
@@ -1148,98 +1232,6 @@ public class Parser {
         return new Switch(subject, cases, defaultBody);
     }
 
-    private Node parseOverwrite() {
-        matchLexeme("overwrite");
-        matchLexeme("(");
-        String stmt = matchExpression().getLexeme();
-        matchLexeme(")");
-        return new Overwrite(stmt);
-    }
-
-    private Node parseForeach() {
-        matchLexeme("foreach");
-        matchLexeme("(");
-        VarDecl iterator = (VarDecl) parseVarDecl(false);
-        matchLexeme("in");
-
-        Expression collection = peek().getLexeme().equals("<")
-                ? parseRangeExpression()
-                : parseExpression();
-
-        matchLexeme(")");
-
-        matchLexeme("{");
-        List<Node> body = new ArrayList<>();
-        while (!peek().getLexeme().equals("}")) {
-            body.add(parseStatement(true));
-        }
-        matchLexeme("}");
-
-        return new Foreach(iterator, collection, body);
-    }
-
-    private Expression parseRangeExpression() {
-        matchLexeme("<");
-        Expression start = parseRangeOperand();
-        matchLexeme("..");
-        Expression end = parseRangeOperand();
-
-        Expression stepsize = null;
-        if (peek().getLexeme().equals(",")) {
-            consume();
-            stepsize = parseRangeOperand();
-        }
-
-        matchLexeme(">");
-        return new RangeExpression(start, end, stepsize);
-    }
-
-    private Expression parseRangeOperand() {
-        List<Expression> expressions = new ArrayList<>();
-
-        while (peek().getTokenType() != TokenType.EOF
-                && !peek().getLexeme().equals("..")
-                && !peek().getLexeme().equals(">")
-                && !isStructuralDelimiter(peek())) {
-
-            Token current = peek();
-
-            if (current.getLexeme().equals("$")) {
-                Expression unary = parseUnaryExpression();
-                expressions.add(parsePostfix(maybeParseAccess(unary)));
-
-            } else if (isExpressionToken(current)
-                    && peekNextSafe().getLexeme().equals("(")
-                    && peekNextSafe().getTokenType() != TokenType.STRING_LITERAL) {
-
-                expressions.add(parsePostfix(maybeParseAccess(parseCallExpression())));
-
-            } else if (isExpressionToken(current)
-                    && peekNextSafe().getLexeme().equals(".")
-                    && !peekOffset(2).getLexeme().equals(".")
-                    && peekNextSafe().getTokenType() != TokenType.STRING_LITERAL) {
-
-                expressions.add(parsePostfix(parseNamespaceCallExpression()));
-
-            } else if (Vocabulary.stringIsOperation(current.getLexeme())
-                    && !current.getLexeme().equals("$")
-                    && !current.getLexeme().equals("++")
-                    && !current.getLexeme().equals("--")) {
-
-                expressions.add(new UnaryExpression(consume(), null));
-
-            } else {
-                expressions.add(parsePostfix(maybeParseAccess(parseDumbExpression())));
-            }
-        }
-
-        if (expressions.isEmpty()) {
-            throw new UnexpectedToken(peek(), "Expected range operand but got '" + peek().getLexeme() + "'");
-        }
-
-        return expressions.size() > 1 ? new ComplexExpression(expressions) : expressions.get(0);
-    }
-
     private Node parseEnumDecl() {
         matchLexeme("enum");
         String identifier = matchType(TokenType.EXPRESSION).getLexeme();
@@ -1270,5 +1262,13 @@ public class Parser {
         matchLexeme("}");
 
         return new EnumDecl(values, identifier);
+    }
+
+    private Node parseOverwrite() {
+        matchLexeme("overwrite");
+        matchLexeme("(");
+        String stmt = matchExpression().getLexeme();
+        matchLexeme(")");
+        return new Overwrite(stmt);
     }
 }

@@ -49,14 +49,19 @@ public class Environment {
         }
     }
 
-    public boolean isConst(String name) {
-        if (constants.contains(name)) {
-            return true;
+    public void assign(String name, Object value) {
+        if (values.containsKey(name)) {
+            if (!overwriteMode.get() && constants.contains(name)) {
+                throw new ReferenceIsImmutableError(name);
+            }
+            values.put(name, value);
+            return;
         }
         if (parent != null) {
-            return parent.isConst(name);
+            parent.assign(name, value);
+            return;
         }
-        return false;
+        throw new UndefinedVariableError(name);
     }
 
     public Object get(String name) {
@@ -81,21 +86,6 @@ public class Environment {
         return null;
     }
 
-    public void assign(String name, Object value) {
-        if (values.containsKey(name)) {
-            if (!overwriteMode.get() && constants.contains(name)) {
-                throw new ReferenceIsImmutableError(name);
-            }
-            values.put(name, value);
-            return;
-        }
-        if (parent != null) {
-            parent.assign(name, value);
-            return;
-        }
-        throw new UndefinedVariableError(name);
-    }
-
     public boolean exists(String name) {
         return values.containsKey(name);
     }
@@ -106,6 +96,16 @@ public class Environment {
         }
         if (parent != null) {
             return parent.existsInChain(name);
+        }
+        return false;
+    }
+
+    public boolean isConst(String name) {
+        if (constants.contains(name)) {
+            return true;
+        }
+        if (parent != null) {
+            return parent.isConst(name);
         }
         return false;
     }

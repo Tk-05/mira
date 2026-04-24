@@ -273,8 +273,20 @@ public class AstPrinter implements ExprVisitor<String>, StmtVisitor<String> {
     }
 
     @Override
-    public String visitReturn(Return stmt) {
-        return pad() + "Return" + child(stmt.getValue());
+    public String visitEnum(EnumDecl stmt) {
+        StringBuilder sb = new StringBuilder(pad() + "Enum [" + stmt.getIdentifier() + "]");
+        depth++;
+        for (Map.Entry<String, Object> entry : stmt.getValues().entrySet()) {
+            sb.append('\n').append(pad()).append(entry.getKey()).append(" = ").append(entry.getValue());
+        }
+        depth--;
+        return sb.toString();
+    }
+
+    @Override
+    public String visitVarDestructure(VarDestructure stmt) {
+        return pad() + "Destructure [" + String.join(", ", stmt.getNames()) + "]"
+                + child(stmt.getInitializer());
     }
 
     @Override
@@ -282,6 +294,16 @@ public class AstPrinter implements ExprVisitor<String>, StmtVisitor<String> {
         return pad() + "Assign"
                 + child(stmt.getReference())
                 + child(stmt.getExpression());
+    }
+
+    @Override
+    public String visitOverwrite(Overwrite stmt) {
+        return pad() + "Overwrite [" + stmt.getStmt() + "]";
+    }
+
+    @Override
+    public String visitReturn(Return stmt) {
+        return pad() + "Return" + child(stmt.getValue());
     }
 
     @Override
@@ -374,6 +396,11 @@ public class AstPrinter implements ExprVisitor<String>, StmtVisitor<String> {
     }
 
     @Override
+    public String visitThrow(Throw stmt) {
+        return pad() + "Throw" + child(stmt.getValue());
+    }
+
+    @Override
     public String visitTryCatch(TryCatch stmt) {
         StringBuilder sb = new StringBuilder(pad() + "TryCatch");
         depth++;
@@ -389,32 +416,5 @@ public class AstPrinter implements ExprVisitor<String>, StmtVisitor<String> {
         }
         depth--;
         return sb.toString();
-    }
-
-    @Override
-    public String visitThrow(Throw stmt) {
-        return pad() + "Throw" + child(stmt.getValue());
-    }
-
-    @Override
-    public String visitVarDestructure(VarDestructure stmt) {
-        return pad() + "Destructure [" + String.join(", ", stmt.getNames()) + "]"
-                + child(stmt.getInitializer());
-    }
-
-    @Override
-    public String visitEnum(EnumDecl stmt) {
-        StringBuilder sb = new StringBuilder(pad() + "Enum [" + stmt.getIdentifier() + "]");
-        depth++;
-        for (Map.Entry<String, Object> entry : stmt.getValues().entrySet()) {
-            sb.append('\n').append(pad()).append(entry.getKey()).append(" = ").append(entry.getValue());
-        }
-        depth--;
-        return sb.toString();
-    }
-
-    @Override
-    public String visitOverwrite(Overwrite stmt) {
-        return pad() + "Overwrite [" + stmt.getStmt() + "]";
     }
 }

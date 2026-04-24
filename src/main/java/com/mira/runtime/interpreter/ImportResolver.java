@@ -71,6 +71,24 @@ public class ImportResolver {
         }
     };
 
+    public static void loadInternal(Environment environment) {
+        internal.loadLib(environment);
+    }
+
+    public static void reset() {
+        moduleLoadFutures.clear();
+        loadedLibs.clear();
+        loadedNativeLibs.clear();
+        globalLibNames.clear();
+        for (URLClassLoader loader : nativeClassLoaders) {
+            try {
+                loader.close();
+            } catch (IOException ignored) {
+            }
+        }
+        nativeClassLoaders.clear();
+    }
+
     public static void resolveImports(List<ImportExpression> imports, Environment environment, Interpreter interpreter, boolean entryPoint) {
         long start = System.currentTimeMillis();
 
@@ -330,21 +348,4 @@ public class ImportResolver {
         environment.define(alias, ns);
     }
 
-    public static void loadInternal(Environment environment) {
-        internal.loadLib(environment);
-    }
-
-    public static void reset() {
-        moduleLoadFutures.clear();
-        loadedLibs.clear();
-        loadedNativeLibs.clear();
-        globalLibNames.clear();
-        for (URLClassLoader loader : nativeClassLoaders) {
-            try {
-                loader.close();
-            } catch (IOException ignored) {
-            }
-        }
-        nativeClassLoaders.clear();
-    }
 }
