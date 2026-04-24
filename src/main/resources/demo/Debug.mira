@@ -159,9 +159,9 @@ fn main() {
         }
 
         try {
-            throw "Error";
-        } catch(e) {
-            print($e "\n");
+            throw oob("Ouf of bounds");
+        } catch(oob) {
+            print($oob "\n");
         }
 
         (eval($hex + 1)"\n")|>print();

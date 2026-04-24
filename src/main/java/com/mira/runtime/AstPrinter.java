@@ -22,11 +22,13 @@ import com.mira.parser.nodes.expression.Expression.NamespaceCallExpression;
 import com.mira.parser.nodes.expression.Expression.ObjectExpression;
 import com.mira.parser.nodes.expression.Expression.RangeExpression;
 import com.mira.parser.nodes.expression.Expression.TernaryExpression;
+import com.mira.parser.nodes.expression.Expression.ThrownException;
 import com.mira.parser.nodes.expression.Expression.TupleExpression;
 import com.mira.parser.nodes.expression.Expression.UnaryExpression;
 import com.mira.parser.nodes.statement.Statement.Assign;
 import com.mira.parser.nodes.statement.Statement.Block;
 import com.mira.parser.nodes.statement.Statement.Break;
+import com.mira.parser.nodes.statement.Statement.CatchClause;
 import com.mira.parser.nodes.statement.Statement.Continue;
 import com.mira.parser.nodes.statement.Statement.EnumDecl;
 import com.mira.parser.nodes.statement.Statement.For;
@@ -110,13 +112,11 @@ public class AstPrinter implements ExprVisitor<String>, StmtVisitor<String> {
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     public <T> T visitDumbExpr(DumbExpression expression) {
         return (T) (pad() + "Literal [" + expression.getValue() + "]");
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     public <T> T visitBinaryExpr(BinaryExpression expression) {
         return (T) (pad() + "Binary [" + expression.getOperator().getLexeme() + "]"
                 + child(expression.getLeft())
@@ -124,14 +124,12 @@ public class AstPrinter implements ExprVisitor<String>, StmtVisitor<String> {
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     public <T> T visitUnaryExpr(UnaryExpression expression) {
         return (T) (pad() + "Unary [" + expression.getOperation().getLexeme() + "]"
                 + child(expression.getRight()));
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     public <T> T visitTernaryExpr(TernaryExpression expression) {
         return (T) (pad() + "Ternary [?:]"
                 + child(expression.getCondition())
@@ -140,7 +138,6 @@ public class AstPrinter implements ExprVisitor<String>, StmtVisitor<String> {
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     public <T> T visitCallExpr(CallExpression expression) {
         return (T) (pad() + "Call [" + expression.getCallee().accept(this).strip() + "]"
                 + body(expression.getArguments().stream()
@@ -148,7 +145,6 @@ public class AstPrinter implements ExprVisitor<String>, StmtVisitor<String> {
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     public <T> T visitNamespaceCallExpr(NamespaceCallExpression expression) {
         return (T) (pad() + "Call [" + expression.getAlias() + "." + expression.getFunctionName() + "]"
                 + body(expression.getArguments().stream()
@@ -156,7 +152,6 @@ public class AstPrinter implements ExprVisitor<String>, StmtVisitor<String> {
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     public <T> T visitMethodCallExpression(MethodCallExpression expression) {
         String op = expression.isOptional() ? "?." : ".";
         return (T) (pad() + "MethodCall [" + op + expression.getMethod() + "]"
@@ -166,7 +161,6 @@ public class AstPrinter implements ExprVisitor<String>, StmtVisitor<String> {
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     public <T> T visitFieldAccessExpression(FieldAccessExpression expression) {
         String op = expression.isOptional() ? "?." : ".";
         return (T) (pad() + "FieldAccess [" + op + expression.getField() + "]"
@@ -174,7 +168,6 @@ public class AstPrinter implements ExprVisitor<String>, StmtVisitor<String> {
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     public <T> T visitAccessExpr(AccessExpression expression) {
         return (T) (pad() + "Index []"
                 + child(expression.getReference())
@@ -183,7 +176,6 @@ public class AstPrinter implements ExprVisitor<String>, StmtVisitor<String> {
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     public <T> T visitArrayExpr(ArrayExpression expression) {
         return (T) (pad() + "Array"
                 + body(expression.getMembers().stream()
@@ -191,7 +183,6 @@ public class AstPrinter implements ExprVisitor<String>, StmtVisitor<String> {
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     public <T> T visitTupleExpr(TupleExpression expression) {
         return (T) (pad() + "Tuple"
                 + body(expression.getMembers().stream()
@@ -199,7 +190,6 @@ public class AstPrinter implements ExprVisitor<String>, StmtVisitor<String> {
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     public <T> T visitListExpr(ListExpression expression) {
         return (T) (pad() + "List"
                 + body(expression.getMembers().stream()
@@ -207,7 +197,6 @@ public class AstPrinter implements ExprVisitor<String>, StmtVisitor<String> {
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     public <T> T visitMapExpr(MapExpression expression) {
         StringBuilder sb = new StringBuilder(pad() + "Map");
         depth++;
@@ -220,7 +209,6 @@ public class AstPrinter implements ExprVisitor<String>, StmtVisitor<String> {
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     public <T> T visitObjectExpression(ObjectExpression expression) {
         StringBuilder sb = new StringBuilder(pad() + "Object");
         depth++;
@@ -235,7 +223,6 @@ public class AstPrinter implements ExprVisitor<String>, StmtVisitor<String> {
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     public <T> T visitRangeExpression(RangeExpression expression) {
         return (T) (pad() + "Range"
                 + child(expression.getStart())
@@ -244,14 +231,12 @@ public class AstPrinter implements ExprVisitor<String>, StmtVisitor<String> {
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     public <T> T visitLambdaExpr(LambdaExpression expression) {
         return (T) (pad() + "Lambda [(" + params(expression.getParameters(), expression.getVariadicParam()) + ")]"
                 + body(expression.getBody()));
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     public <T> T visitComplexExpr(ComplexExpression expression) {
         return (T) (pad() + "Complex"
                 + body(expression.getExpressions().stream()
@@ -406,9 +391,13 @@ public class AstPrinter implements ExprVisitor<String>, StmtVisitor<String> {
         depth++;
         sb.append('\n').append(pad()).append("Try");
         sb.append(body(stmt.getTryBody()));
-        if (stmt.getCatchParam() != null) {
-            sb.append('\n').append(pad()).append("Catch [").append(stmt.getCatchParam()).append("]");
-            sb.append(body(stmt.getCatchBody()));
+        for (CatchClause clause : stmt.getCatchClauses()) {
+            String label = clause.getTypeFilter() != null ? clause.getTypeFilter() : "*";
+            if (clause.getParamName() != null && !clause.getParamName().equals(clause.getTypeFilter())) {
+                label += " " + clause.getParamName();
+            }
+            sb.append('\n').append(pad()).append("Catch [").append(label).append("]");
+            sb.append(body(clause.getBody()));
         }
         if (stmt.getFinallyBody() != null && !stmt.getFinallyBody().isEmpty()) {
             sb.append('\n').append(pad()).append("Finally");
@@ -416,5 +405,10 @@ public class AstPrinter implements ExprVisitor<String>, StmtVisitor<String> {
         }
         depth--;
         return sb.toString();
+    }
+
+    @Override
+    public String visitThrownExpection(ThrownException thrownException) {
+        return "Exception Literal ["+ thrownException.getIdentifier() + "]";
     }
 }

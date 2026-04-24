@@ -661,4 +661,33 @@ public abstract class Expression implements Node {
             return "<lambda/" + parameters.size() + ">";
         }
     }
+
+    public static class ThrownException extends Expression {
+
+        private final String identifier;
+        private final Expression value;
+
+        public ThrownException(String identifier, Expression value) {
+            this.identifier = identifier;
+            this.value = value;
+        }
+
+        public String getIdentifier() {
+            return identifier;
+        }
+
+        public Expression getValue() {
+            return value;
+        }
+
+        @Override
+        public <T> T accept(ExprVisitor<T> visitor) {
+            return visitor.visitThrownExpection(this);
+        }
+
+        @Override
+        public String toString() {
+            return identifier + "(" + value + ")";
+        }
+    }
 }

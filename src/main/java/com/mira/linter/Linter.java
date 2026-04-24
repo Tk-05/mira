@@ -37,6 +37,7 @@ import com.mira.parser.nodes.statement.Statement.Overwrite;
 import com.mira.parser.nodes.statement.Statement.Return;
 import com.mira.parser.nodes.statement.Statement.Switch;
 import com.mira.parser.nodes.statement.Statement.Throw;
+import com.mira.parser.nodes.statement.Statement.CatchClause;
 import com.mira.parser.nodes.statement.Statement.TryCatch;
 import com.mira.parser.nodes.statement.Statement.VarDecl;
 import com.mira.parser.nodes.statement.Statement.VarDestructure;
@@ -411,12 +412,14 @@ public class Linter {
         lintBodyWithDeadCodeCheck(stmt.getTryBody());
         checkUnused(scope.pop());
 
-        scope.push();
-        if (stmt.getCatchParam() != null) {
-            scope.declare(stmt.getCatchParam(), stmt.line, 0, false);
+        for (CatchClause clause : stmt.getCatchClauses()) {
+            scope.push();
+            if (clause.getParamName() != null) {
+                scope.declare(clause.getParamName(), stmt.line, 0, false);
+            }
+            lintBodyWithDeadCodeCheck(clause.getBody());
+            checkUnused(scope.pop());
         }
-        lintBodyWithDeadCodeCheck(stmt.getCatchBody());
-        checkUnused(scope.pop());
     }
 
     private void lintThrow(Throw stmt) {

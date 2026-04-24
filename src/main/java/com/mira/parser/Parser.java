@@ -30,12 +30,14 @@ import com.mira.parser.nodes.expression.Expression.NamespaceCallExpression;
 import com.mira.parser.nodes.expression.Expression.ObjectExpression;
 import com.mira.parser.nodes.expression.Expression.RangeExpression;
 import com.mira.parser.nodes.expression.Expression.TernaryExpression;
+import com.mira.parser.nodes.expression.Expression.ThrownException;
 import com.mira.parser.nodes.expression.Expression.TupleExpression;
 import com.mira.parser.nodes.expression.Expression.UnaryExpression;
 import com.mira.parser.nodes.statement.Statement;
 import com.mira.parser.nodes.statement.Statement.Assign;
 import com.mira.parser.nodes.statement.Statement.Block;
 import com.mira.parser.nodes.statement.Statement.Break;
+import com.mira.parser.nodes.statement.Statement.CatchClause;
 import com.mira.parser.nodes.statement.Statement.Continue;
 import com.mira.parser.nodes.statement.Statement.EnumDecl;
 import com.mira.parser.nodes.statement.Statement.For;
@@ -1140,8 +1142,15 @@ public class Parser {
 
     private Node parseThrow() {
         matchLexeme("throw");
-        Expression value = parseExpression();
-        return new Throw(value);
+        String identifier = matchExpression().getLexeme();
+        matchLexeme("(");
+        Expression value = null;
+        if (peek().getTokenType() != TokenType.DELIMITER) {
+            value  = parseExpression();
+        }
+        matchLexeme(")");
+
+        return new Throw(new ThrownException(identifier, value));
     }
 
     private Node parseTryCatch() {
@@ -1153,16 +1162,36 @@ public class Parser {
         }
         matchLexeme("}");
 
-        matchLexeme("catch");
-        matchLexeme("(");
-        String catchParam = matchExpression().getLexeme();
-        matchLexeme(")");
-        matchLexeme("{");
-        List<Node> catchBody = new ArrayList<>();
-        while (!peek().getLexeme().equals("}")) {
-            catchBody.add(parseStatement(true));
+        List<CatchClause> catchClauses = new ArrayList<>();
+        while (peek().getLexeme().equals("catch")) {
+            matchLexeme("catch");
+
+            String typeFilter = null;
+            String paramName = null;
+
+            if (peek().getLexeme().equals("(")) {
+                matchLexeme("(");
+                skipWhitespaceTokens();
+                typeFilter = matchExpression().getLexeme();
+                skipWhitespaceTokens();
+                if (!peek().getLexeme().equals(")")) {
+                    paramName = matchExpression().getLexeme();
+                    skipWhitespaceTokens();
+                } else {
+                    paramName = typeFilter;
+                }
+                matchLexeme(")");
+            }
+
+            matchLexeme("{");
+            List<Node> catchBody = new ArrayList<>();
+            while (!peek().getLexeme().equals("}")) {
+                catchBody.add(parseStatement(true));
+            }
+            matchLexeme("}");
+
+            catchClauses.add(new CatchClause(typeFilter, paramName, catchBody));
         }
-        matchLexeme("}");
 
         List<Node> finallyBody = new ArrayList<>();
         if (peek().getLexeme().equals("finally")) {
@@ -1174,7 +1203,7 @@ public class Parser {
             matchLexeme("}");
         }
 
-        return new TryCatch(tryBody, catchParam, catchBody, finallyBody);
+        return new TryCatch(tryBody, catchClauses, finallyBody);
     }
 
     private Node parseBlock() {

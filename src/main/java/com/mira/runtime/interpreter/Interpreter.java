@@ -46,12 +46,14 @@ import com.mira.parser.nodes.expression.Expression.NamespaceCallExpression;
 import com.mira.parser.nodes.expression.Expression.ObjectExpression;
 import com.mira.parser.nodes.expression.Expression.RangeExpression;
 import com.mira.parser.nodes.expression.Expression.TernaryExpression;
+import com.mira.parser.nodes.expression.Expression.ThrownException;
 import com.mira.parser.nodes.expression.Expression.TupleExpression;
 import com.mira.parser.nodes.expression.Expression.UnaryExpression;
 import com.mira.parser.nodes.statement.Statement;
 import com.mira.parser.nodes.statement.Statement.Assign;
 import com.mira.parser.nodes.statement.Statement.Block;
 import com.mira.parser.nodes.statement.Statement.Break;
+import com.mira.parser.nodes.statement.Statement.CatchClause;
 import com.mira.parser.nodes.statement.Statement.Continue;
 import com.mira.parser.nodes.statement.Statement.EnumDecl;
 import com.mira.parser.nodes.statement.Statement.For;
@@ -1630,8 +1632,17 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
     @Override
     public Object visitThrow(Throw stmt) {
         notifyDebugger(stmt);
-        Object value = stmt.getValue().accept(this);
-        throw new ThrowSignal(value);
+        Expression value = stmt.getValue();
+        if (value instanceof ThrownException exception) {
+            throw new ThrowSignal(exception.getIdentifier(), exception.accept(this));
+        } else {
+            throw new ThrowSignal(null, value.accept(this));
+        }
+    }
+
+    @Override
+    public Object visitThrownExpection(ThrownException expression) {
+        return expression.getValue().accept(this);
     }
 
     @Override
@@ -1640,13 +1651,26 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         try {
             runBodyInFreshScope(stmt.getTryBody());
         } catch (ThrowSignal signal) {
-            Environment previous = localEnvironment;
-            localEnvironment = new Environment(previous != null ? previous : globalEnvironment);
-            localEnvironment.define(stmt.getCatchParam(), signal.getValue());
-            try {
-                runBody(stmt.getCatchBody());
-            } finally {
-                localEnvironment = previous;
+            boolean caught = false;
+            for (CatchClause clause : stmt.getCatchClauses()) {
+                String filter = clause.getTypeFilter();
+                if (filter == null || filter.equals(signal.getExceptionType())) {
+                    caught = true;
+                    Environment previous = localEnvironment;
+                    localEnvironment = new Environment(previous != null ? previous : globalEnvironment);
+                    if (clause.getParamName() != null) {
+                        localEnvironment.define(clause.getParamName(), signal.getValue());
+                    }
+                    try {
+                        runBody(clause.getBody());
+                    } finally {
+                        localEnvironment = previous;
+                    }
+                    break;
+                }
+            }
+            if (!caught) {
+                throw signal;
             }
         } finally {
             if (!stmt.getFinallyBody().isEmpty()) {

@@ -454,7 +454,7 @@ public class ParserTest {
 
     @Test
     void parseThrow() {
-        List<Node> ast = parser.parseTokens(tokenizer.tokenize("throw \"error\";", false));
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize("throw error(\"error\");", false));
         assertEquals(1, ast.size());
         assertInstanceOf(Throw.class, ast.getFirst());
     }
@@ -463,16 +463,15 @@ public class ParserTest {
     void parseTryCatch() {
         List<Node> ast = parser.parseTokens(tokenizer.tokenize("""
                 try {
-                    throw "err";
-                } catch(e) {
-                    print($e);
+                    throw error("err");
+                } catch(error) {
+                    print($error);
                 }
                 """, false));
         assertEquals(1, ast.size());
         TryCatch tc = assertInstanceOf(TryCatch.class, ast.getFirst());
         assertNotNull(tc.getTryBody());
-        assertNotNull(tc.getCatchBody());
-        assertEquals("e", tc.getCatchParam());
+        assertNotNull(tc.getCatchClauses());
     }
 
     @Test
