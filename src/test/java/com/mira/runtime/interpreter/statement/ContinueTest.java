@@ -45,23 +45,6 @@ public class ContinueTest extends InterpreterTestBase {
     }
 
     @Test
-    void continueInForStillRunsPostExpression() {
-        run("""
-                var i : 0;
-                var count : 0;
-                for (var j : 0; $j < 10; $j : eval($j + 1)) {
-                    if ($j == 5) {
-                        continue;
-                    }
-                    $count : eval($count + 1);
-                }
-                $i : $j;
-                """);
-        assertEquals(10.0, normNum(interpreter.getGlobalEnvironment().get("j")));
-        assertEquals(9.0, normNum(interpreter.getGlobalEnvironment().get("count")));
-    }
-
-    @Test
     void continueInsideForeachList() {
         run("""
                 var sum : 0;

@@ -38,6 +38,20 @@ public class Vocabulary {
             "do"
     );
 
+    public static final Set<String> COMPARISON_OPERATORS = Set.of("==", "!=", "<", ">", "<=", ">=");
+
+    public static final Set<String> LOGICAL_OPERATORS = Set.of("&&", "||");
+
+    public static final Set<String> ARITHMETIC_OPERATORS = Set.of("+", "-", "*", "/", "%", "**", "\\%");
+
+    public static final Set<String> BITWISE_OPERATORS = Set.of("&", "|", "^", "~", "<<", ">>");
+
+    public static final Set<String> COMPOUND_ASSIGNMENT_OPERATORS = Set.of(
+            "+=", "-=", "*=", "/=", "%=", "**=", "\\%=", "&=", "|=", "^="
+    );
+
+    public static final Set<String> UNARY_OPERATORS = Set.of("++", "--", "!", "~");
+
     public static final Set<String> operations = Set.of(
             "+", "-", "*", "/", "%", "**", "\\%",
             "++", "--",

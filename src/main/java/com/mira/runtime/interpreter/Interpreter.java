@@ -79,6 +79,7 @@ import com.mira.runtime.functions.ReturnSignal;
 import com.mira.runtime.functions.ThrowSignal;
 import com.mira.runtime.visitors.ExprVisitor;
 import com.mira.runtime.visitors.StmtVisitor;
+import com.mira.vocabulary.Vocabulary;
 import com.mira.warning.WarningCollector;
 import com.mira.warning.WarningLevel;
 
@@ -86,8 +87,6 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
     private static Interpreter instance;
     private static final ThreadLocal<Interpreter> activeInterpreter = new ThreadLocal<>();
-    private static final Set<String> COMPARISON_OPERATORS = Set.of("==", "!=", "<", ">", "<=", ">=");
-    private static final Set<String> LOGICAL_OPERATORS = Set.of("&&", "||");
 
     private record CacheKey(String name, List<Object> args) {
 
@@ -571,14 +570,23 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
     @Override
     public <T> T visitCallExpr(CallExpression expression) {
-        String calleeName = (String) expression.getCallee().accept(this);
-
+        Object calleeResult = expression.getCallee().accept(this);
+        String calleeName;
         Object callee;
-        if (localEnvironment != null) {
-            Object local = localEnvironment.getOrNull(calleeName);
-            callee = local != null ? local : globalEnvironment.get(calleeName);
+
+        if (calleeResult instanceof String name) {
+            calleeName = name;
+            if (localEnvironment != null) {
+                Object local = localEnvironment.getOrNull(calleeName);
+                callee = local != null ? local : globalEnvironment.get(calleeName);
+            } else {
+                callee = globalEnvironment.get(calleeName);
+            }
+        } else if (calleeResult instanceof Callable) {
+            calleeName = "<lambda>";
+            callee = calleeResult;
         } else {
-            callee = globalEnvironment.get(calleeName);
+            throw new NotCallableError(String.valueOf(calleeResult));
         }
 
         if (!(callee instanceof Callable callable)) {
@@ -659,7 +667,9 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
     @Override
     public <T> T visitLambdaExpr(LambdaExpression lambda) {
-        Environment capturedEnv = localEnvironment != null ? localEnvironment : globalEnvironment;
+        Environment capturedEnv = localEnvironment != null
+                ? localEnvironment.snapshot(globalEnvironment)
+                : globalEnvironment;
         return (T) new Function(capturedEnv, lambda.getBody(), lambda.getParameters(), lambda.getArity(), lambda.getMaxArity(), lambda.getVariadicParam());
     }
 
@@ -1090,11 +1100,11 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
     }
 
     private boolean isComparisonOperator(String op) {
-        return COMPARISON_OPERATORS.contains(op);
+        return Vocabulary.COMPARISON_OPERATORS.contains(op);
     }
 
     private boolean isLogicalOperator(String op) {
-        return LOGICAL_OPERATORS.contains(op);
+        return Vocabulary.LOGICAL_OPERATORS.contains(op);
     }
 
     private Boolean evaluateComparison(Object leftObj, String op, Object rightObj) {
@@ -1425,27 +1435,37 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
     @Override
     public Object visitFor(For stmt) {
         notifyDebugger(stmt);
+
+        Environment outer = localEnvironment;
+        Environment forScope = new Environment(outer != null ? outer : globalEnvironment);
+        localEnvironment = forScope;
         runBody(stmt.getVarDecls());
 
         try {
             while (true) {
                 if (stmt.getCondition() != null) {
+                    localEnvironment = forScope;
                     Object condition = stmt.getCondition().accept(this);
                     if (!resolveLoopCondition(condition)) {
-                        return null;
+                        break;
                     }
                 }
 
+                Environment iterScope = forScope.snapshot(outer != null ? outer : globalEnvironment);
+                localEnvironment = iterScope;
                 try {
                     runBodyInFreshScope(stmt.getBody());
                 } catch (ContinueSignal continueSignal) {
                 }
 
+                localEnvironment = forScope;
                 runBody(stmt.getPostExpressions());
             }
         } catch (BreakSignal breakSignal) {
-            return null;
         }
+
+        localEnvironment = outer;
+        return null;
     }
 
     @Override
@@ -1489,11 +1509,6 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
     @Override
     public Object visitForeach(Foreach stmt) {
         notifyDebugger(stmt);
-        if (localEnvironment != null && !localEnvironment.exists(stmt.getIterator().getName())) {
-            localEnvironment.define(stmt.getIterator().getName(), null);
-        } else if (localEnvironment == null && !globalEnvironment.exists(stmt.getIterator().getName())) {
-            globalEnvironment.define(stmt.getIterator().getName(), null);
-        }
 
         String iteratorName = stmt.getIterator().getName();
 
@@ -1510,9 +1525,8 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                         throw new RangeStepZeroError();
                     }
                     for (long i = ls; lStep > 0 ? i < le : i > le; i += lStep) {
-                        assignIterator(iteratorName, i);
                         try {
-                            runBodyInFreshScope(stmt.getBody());
+                            runBodyWithIterator(iteratorName, i, stmt.getBody());
                         } catch (ContinueSignal continueSignal) {
                         }
                     }
@@ -1522,9 +1536,8 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                         throw new RangeStepZeroError();
                     }
                     for (double i = start; step > 0 ? i < end : i > end; i += step) {
-                        assignIterator(iteratorName, i);
                         try {
-                            runBodyInFreshScope(stmt.getBody());
+                            runBodyWithIterator(iteratorName, i, stmt.getBody());
                         } catch (ContinueSignal continueSignal) {
                         }
                     }
@@ -1538,9 +1551,8 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                 case ArrayExpression array -> {
                     for (Expression expr : array.getMembers()) {
                         Object value = expr.accept(this);
-                        assignIterator(iteratorName, value);
                         try {
-                            runBodyInFreshScope(stmt.getBody());
+                            runBodyWithIterator(iteratorName, value, stmt.getBody());
                         } catch (ContinueSignal continueSignal) {
                         }
                     }
@@ -1548,9 +1560,8 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                 case TupleExpression tuple -> {
                     for (Expression expr : tuple.getMembers()) {
                         Object value = expr.accept(this);
-                        assignIterator(iteratorName, value);
                         try {
-                            runBodyInFreshScope(stmt.getBody());
+                            runBodyWithIterator(iteratorName, value, stmt.getBody());
                         } catch (ContinueSignal continueSignal) {
                         }
                     }
@@ -1558,18 +1569,16 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                 case ListExpression list -> {
                     for (Expression expr : list.getMembers()) {
                         Object value = expr.accept(this);
-                        assignIterator(iteratorName, value);
                         try {
-                            runBodyInFreshScope(stmt.getBody());
+                            runBodyWithIterator(iteratorName, value, stmt.getBody());
                         } catch (ContinueSignal continueSignal) {
                         }
                     }
                 }
                 case String string -> {
                     for (int i = 0; i < string.length(); i++) {
-                        assignIterator(iteratorName, String.valueOf(string.charAt(i)));
                         try {
-                            runBodyInFreshScope(stmt.getBody());
+                            runBodyWithIterator(iteratorName, String.valueOf(string.charAt(i)), stmt.getBody());
                         } catch (ContinueSignal continueSignal) {
                         }
                     }
@@ -1701,6 +1710,18 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             runBody(body);
         } finally {
             localEnvironment = previous;
+        }
+    }
+
+    private void runBodyWithIterator(String iteratorName, Object value, List<Node> body) {
+        Environment outer = localEnvironment;
+        Environment iterEnv = new Environment(outer != null ? outer : globalEnvironment);
+        iterEnv.define(iteratorName, value);
+        localEnvironment = iterEnv;
+        try {
+            runBodyInFreshScope(body);
+        } finally {
+            localEnvironment = outer;
         }
     }
 

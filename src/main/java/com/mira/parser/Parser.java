@@ -395,6 +395,7 @@ public class Parser {
         }
 
         expr = maybeParseAccess(expr);
+        expr = maybeParseCallOnExpr(expr);
         expr = parsePostfix(expr);
         return expr;
     }
@@ -465,6 +466,24 @@ public class Parser {
         if (peek().getLexeme().equals("[") && peek().getTokenType() != TokenType.STRING_LITERAL
                 || peek().getLexeme().equals("{") && peek().getTokenType() != TokenType.STRING_LITERAL) {
             return parseAccessExpression(base);
+        }
+        return base;
+    }
+
+    private Expression maybeParseCallOnExpr(Expression base) {
+        if (peek().getLexeme().equals("(") && peek().getTokenType() != TokenType.STRING_LITERAL) {
+            matchLexeme("(");
+            List<Expression> args = new ArrayList<>();
+            while (!peek().getLexeme().equals(")")) {
+                args.add(parseExpression());
+                if (peek().getLexeme().equals(",")) {
+                    matchLexeme(",");
+                } else if (!peek().getLexeme().equals(")")) {
+                    throw new UnexpectedToken(peek(), "Expected ',' or ')'");
+                }
+            }
+            matchLexeme(")");
+            return new CallExpression(base, args);
         }
         return base;
     }
@@ -1146,7 +1165,7 @@ public class Parser {
         matchLexeme("(");
         Expression value = null;
         if (peek().getTokenType() != TokenType.DELIMITER) {
-            value  = parseExpression();
+            value = parseExpression();
         }
         matchLexeme(")");
 
