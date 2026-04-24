@@ -18,7 +18,7 @@ public class Tokenizer {
 
     static {
         OPERATOR_START_CHARS = new HashSet<>();
-        for (String op : Vocabulary.operations) {
+        for (String op : Vocabulary.OPERATORS) {
             OPERATOR_START_CHARS.add(op.charAt(0));
         }
         DELIMITER_START_CHARS = new HashSet<>();

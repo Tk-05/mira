@@ -52,7 +52,9 @@ public class Vocabulary {
 
     public static final Set<String> UNARY_OPERATORS = Set.of("++", "--", "!", "~");
 
-    public static final Set<String> operations = Set.of(
+    public static final Set<String> SPECIAL_OPERATORS = Set.of("|>", "??", "?.", "$", ":", "?");
+
+    public static final Set<String> OPERATORS = Set.of(
             "+", "-", "*", "/", "%", "**", "\\%",
             "++", "--",
             "+=", "-=", "*=", "/=", "%=", "**=", "\\%=",
@@ -89,6 +91,6 @@ public class Vocabulary {
     }
 
     public static boolean stringIsOperation(String string) {
-        return operations.contains(string);
+        return OPERATORS.contains(string);
     }
 }

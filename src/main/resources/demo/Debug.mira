@@ -42,6 +42,10 @@ fn short(arg) {
 }
 
 fn main() {
+    var i : 10;
+    $i\%= 5;
+    $i**=2;
+    print($i"\n");
     if(scan() == ray) {
         ray.InitWindow(1920, 1080, "Mira Raylib Demo");
         ray.SetTargetFPS(60);

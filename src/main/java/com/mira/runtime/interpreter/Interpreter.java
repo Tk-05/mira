@@ -1010,7 +1010,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                     return null;
                 }
                 String op = unary.getOperation().getLexeme();
-                if (!op.equals("+") && !op.equals("-") && !op.equals("*") && !op.equals("/")) {
+                if (!Vocabulary.ARITHMETIC_OPERATORS.contains(op) && !Vocabulary.BITWISE_OPERATORS.contains(op)) {
                     return null;
                 }
                 operators.add(op);
@@ -1020,13 +1020,11 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         int i = 0;
         while (i < operators.size()) {
             String op = operators.get(i);
-            if (op.equals("*") || op.equals("/")) {
+            if (op.equals("*") || op.equals("/") || op.equals("%") || op.equals("**")
+                    || op.equals("\\%") || Vocabulary.BITWISE_OPERATORS.contains(op)) {
                 Number left = operands.get(i);
                 Number right = operands.get(i + 1);
-                Number result = op.equals("*")
-                        ? (Number) numericMul(left, right)
-                        : left.doubleValue() / right.doubleValue();
-                operands.set(i, result);
+                operands.set(i, evaluateNumericOp(op, left, right));
                 operands.remove(i + 1);
                 operators.remove(i);
             } else {
@@ -1036,18 +1034,49 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
         Object result = operands.get(0);
         for (int j = 0; j < operators.size(); j++) {
-            Number right = operands.get(j + 1);
-            result = switch (operators.get(j)) {
-                case "+" ->
-                    numericAdd(result, right);
-                case "-" ->
-                    numericSub(result, right);
-                default ->
-                    throw new UnknownOperatorError(operators.get(j));
-            };
+            result = evaluateNumericOp(operators.get(j), result, operands.get(j + 1));
         }
 
         return result;
+    }
+
+    private Number evaluateNumericOp(String op, Object left, Object right) {
+        return switch (op) {
+            case "+" ->
+                (Number) numericAdd(left, right);
+            case "-" ->
+                (Number) numericSub(left, right);
+            case "*" ->
+                (Number) numericMul(left, right);
+            case "**" ->
+                Math.pow(toNumber(left), toNumber(right));
+            case "/" ->
+                toNumber(left) / toNumber(right);
+            case "%" -> {
+                if (left instanceof Long la && right instanceof Long lb) {
+                    yield la % lb;
+                }
+                yield toNumber(left) % toNumber(right);
+            }
+            case "\\%" -> {
+                if (left instanceof Long la && right instanceof Long lb) {
+                    yield la / lb;
+                }
+                yield Math.floor(toNumber(left) / toNumber(right));
+            }
+            case "&" ->
+                (long) toNumber(left) & (long) toNumber(right);
+            case "|" ->
+                (long) toNumber(left) | (long) toNumber(right);
+            case "^" ->
+                (long) toNumber(left) ^ (long) toNumber(right);
+            case "<<" ->
+                (long) toNumber(left) << (long) toNumber(right);
+            case ">>" ->
+                (long) toNumber(left) >> (long) toNumber(right);
+            default ->
+                throw new UnknownOperatorError(op);
+        };
     }
 
     private String evaluateAsString(List<Expression> expressions) {
