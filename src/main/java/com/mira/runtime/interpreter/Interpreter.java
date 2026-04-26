@@ -1456,7 +1456,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             return null;
         }
 
-        runBody(body);
+        runBodyInFreshScope(body);
 
         return null;
     }
