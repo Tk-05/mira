@@ -24,7 +24,6 @@ import com.mira.parser.nodes.expression.Expression.NamespaceCallExpression;
 import com.mira.parser.nodes.expression.Expression.ObjectExpression;
 import com.mira.parser.nodes.expression.Expression.RangeExpression;
 import com.mira.parser.nodes.expression.Expression.TernaryExpression;
-import com.mira.parser.nodes.expression.Expression.TupleExpression;
 import com.mira.parser.nodes.expression.Expression.UnaryExpression;
 import com.mira.parser.nodes.statement.Statement.Assign;
 import com.mira.parser.nodes.statement.Statement.Block;
@@ -177,8 +176,6 @@ public class Linter {
             case ArrayExpression e ->
                 e.getMembers().forEach(this::lintExpr);
             case ListExpression e ->
-                e.getMembers().forEach(this::lintExpr);
-            case TupleExpression e ->
                 e.getMembers().forEach(this::lintExpr);
             case MapExpression e ->
                 e.getEntries().values().forEach(this::lintExpr);

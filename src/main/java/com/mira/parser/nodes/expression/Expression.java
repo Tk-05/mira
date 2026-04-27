@@ -181,38 +181,6 @@ public abstract class Expression implements Node {
         }
     }
 
-    public static class TupleExpression extends Expression implements Mutability {
-
-        private final List<Expression> members;
-
-        public TupleExpression(List<Expression> members) {
-            this.members = members;
-        }
-
-        @Override
-        public <T> T accept(ExprVisitor<T> visitor) {
-            return visitor.visitTupleExpr(this);
-        }
-
-        public int getLength() {
-            return members.size();
-        }
-
-        public List<Expression> getMembers() {
-            return members;
-        }
-
-        @Override
-        public String toString() {
-            return StringFormatter.formatToString(this);
-        }
-
-        @Override
-        public boolean isMutable() {
-            return false;
-        }
-    }
-
     public static class AccessExpression extends Expression {
 
         private final Expression reference;

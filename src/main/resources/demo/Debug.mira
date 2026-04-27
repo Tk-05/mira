@@ -150,6 +150,8 @@ fn main() {
                     [0,0,69]
                 ];
 
+        print("Array access : "$list[2] "\n");
+
         var ret : 0;
 
         while(true) {

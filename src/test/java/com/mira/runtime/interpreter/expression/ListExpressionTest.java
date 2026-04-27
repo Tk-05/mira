@@ -40,7 +40,7 @@ public class ListExpressionTest extends InterpreterTestBase {
     }
 
     @Test
-    void nestedListAssignmentWithTuple() {
+    void nestedListAssignmentInArray() {
         assertEquals(99.0, run("var list : [{1, 2}, {3, 4}]; $list[1][1] : 99; eval($list[1][1]);"));
     }
 

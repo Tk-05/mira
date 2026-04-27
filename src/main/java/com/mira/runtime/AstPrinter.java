@@ -23,7 +23,6 @@ import com.mira.parser.nodes.expression.Expression.ObjectExpression;
 import com.mira.parser.nodes.expression.Expression.RangeExpression;
 import com.mira.parser.nodes.expression.Expression.TernaryExpression;
 import com.mira.parser.nodes.expression.Expression.ThrownException;
-import com.mira.parser.nodes.expression.Expression.TupleExpression;
 import com.mira.parser.nodes.expression.Expression.UnaryExpression;
 import com.mira.parser.nodes.statement.Statement.Assign;
 import com.mira.parser.nodes.statement.Statement.Block;
@@ -178,13 +177,6 @@ public class AstPrinter implements ExprVisitor<String>, StmtVisitor<String> {
     @Override
     public <T> T visitArrayExpr(ArrayExpression expression) {
         return (T) (pad() + "Array"
-                + body(expression.getMembers().stream()
-                        .map(e -> (Node) e).toList()));
-    }
-
-    @Override
-    public <T> T visitTupleExpr(TupleExpression expression) {
-        return (T) (pad() + "Tuple"
                 + body(expression.getMembers().stream()
                         .map(e -> (Node) e).toList()));
     }

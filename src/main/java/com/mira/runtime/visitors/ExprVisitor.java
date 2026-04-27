@@ -16,7 +16,6 @@ import com.mira.parser.nodes.expression.Expression.ObjectExpression;
 import com.mira.parser.nodes.expression.Expression.RangeExpression;
 import com.mira.parser.nodes.expression.Expression.TernaryExpression;
 import com.mira.parser.nodes.expression.Expression.ThrownException;
-import com.mira.parser.nodes.expression.Expression.TupleExpression;
 import com.mira.parser.nodes.expression.Expression.UnaryExpression;
 
 public interface ExprVisitor<T> {
@@ -32,8 +31,6 @@ public interface ExprVisitor<T> {
     public <T> T visitUnaryExpr(UnaryExpression expression);
 
     public <T> T visitArrayExpr(ArrayExpression expression);
-
-    public <T> T visitTupleExpr(TupleExpression expression);
 
     public <T> T visitAccessExpr(AccessExpression expression);
 

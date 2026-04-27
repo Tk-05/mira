@@ -10,9 +10,9 @@ import com.mira.runtime.interpreter.NullValue;
 public class DestructuringTest extends InterpreterTestBase {
 
     @Test
-    void destructuresTupleIntoVariables() {
+    void destructuresListIntoVariables() {
         run("""
-                var t : (10, 20, 30);
+                var t : {10, 20, 30};
                 var (a, b, c) : $t;
                 """);
         assertEquals(10.0, normNum(interpreter.getGlobalEnvironment().get("a")));
@@ -41,7 +41,7 @@ public class DestructuringTest extends InterpreterTestBase {
     @Test
     void destructuresSingleElement() {
         run("""
-                var (only,) : (99,);
+                var (only,) : {99};
                 """);
         assertEquals(99.0, normNum(interpreter.getGlobalEnvironment().get("only")));
     }
@@ -49,7 +49,7 @@ public class DestructuringTest extends InterpreterTestBase {
     @Test
     void fewerNamesThanElementsIgnoresRest() {
         run("""
-                var (a, b) : (1, 2, 3, 4);
+                var (a, b) : {1, 2, 3, 4};
                 """);
         assertEquals(1.0, normNum(interpreter.getGlobalEnvironment().get("a")));
         assertEquals(2.0, normNum(interpreter.getGlobalEnvironment().get("b")));
@@ -58,7 +58,7 @@ public class DestructuringTest extends InterpreterTestBase {
     @Test
     void moreNamesThanElementsBindsNullToExtras() {
         run("""
-                var (a, b, c) : (1, 2);
+                var (a, b, c) : {1, 2};
                 """);
         assertEquals(1.0, normNum(interpreter.getGlobalEnvironment().get("a")));
         assertEquals(2.0, normNum(interpreter.getGlobalEnvironment().get("b")));
@@ -68,7 +68,7 @@ public class DestructuringTest extends InterpreterTestBase {
     @Test
     void destructuresStrings() {
         run("""
-                var (first, second) : ("hello", "world");
+                var (first, second) : {"hello", "world"};
                 """);
         assertEquals("hello", interpreter.getGlobalEnvironment().get("first"));
         assertEquals("world", interpreter.getGlobalEnvironment().get("second"));
@@ -79,7 +79,7 @@ public class DestructuringTest extends InterpreterTestBase {
         run("""
                 var result : 0;
                 fn test() {
-                    var (a, b) : (3, 7);
+                    var (a, b) : {3, 7};
                     $result : eval($a + $b);
                 }
                 test();
@@ -91,7 +91,7 @@ public class DestructuringTest extends InterpreterTestBase {
     void destructuresComputedExpression() {
         run("""
                 var x : 5;
-                var (a, b) : (eval($x * 2), eval($x * 3));
+                var (a, b) : {eval($x * 2), eval($x * 3)};
                 """);
         assertEquals(10.0, normNum(interpreter.getGlobalEnvironment().get("a")));
         assertEquals(15.0, normNum(interpreter.getGlobalEnvironment().get("b")));

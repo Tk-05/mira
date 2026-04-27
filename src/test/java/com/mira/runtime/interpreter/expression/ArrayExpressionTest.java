@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import org.junit.jupiter.api.Test;
 
-import com.mira.error.runtime.RuntimeError.ImmutableCollectionError;
 import com.mira.runtime.interpreter.InterpreterTestBase;
 
 public class ArrayExpressionTest extends InterpreterTestBase {
@@ -78,11 +77,4 @@ public class ArrayExpressionTest extends InterpreterTestBase {
                 """));
     }
 
-    @Test
-    void tupleInsideArrayIsImmutable() {
-        assertThrows(ImmutableCollectionError.class, () -> run("""
-                var arr : [(1,2,3)];
-                $arr[0][1] : 99;
-                """));
-    }
 }

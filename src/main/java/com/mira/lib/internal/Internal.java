@@ -15,7 +15,6 @@ import com.mira.parser.Parser;
 import com.mira.parser.nodes.Node;
 import com.mira.parser.nodes.expression.Expression.ArrayExpression;
 import com.mira.parser.nodes.expression.Expression.ListExpression;
-import com.mira.parser.nodes.expression.Expression.TupleExpression;
 import com.mira.runtime.functions.NativeFunction;
 import com.mira.runtime.interpreter.Environment;
 import com.mira.runtime.interpreter.Evaluator;
@@ -94,9 +93,6 @@ public class Internal implements Lib {
                         case ArrayExpression array -> {
                             return array.getLength();
                         }
-                        case TupleExpression tuple -> {
-                            return String.valueOf(tuple.getMembers().size());
-                        }
                         case String string -> {
                             return string.length();
                         }
@@ -108,7 +104,7 @@ public class Internal implements Lib {
                         }
                         default -> {
                             throw new InvalidArgumentError("length",
-                                    "unsupported type '" + arg.getClass().getSimpleName() + "' — expected a string, list, or tuple");
+                                    "unsupported type '" + arg.getClass().getSimpleName() + "' — expected a string, array, or list");
                         }
                     }
                 })

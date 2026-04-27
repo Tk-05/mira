@@ -47,7 +47,6 @@ import com.mira.parser.nodes.expression.Expression.ObjectExpression;
 import com.mira.parser.nodes.expression.Expression.RangeExpression;
 import com.mira.parser.nodes.expression.Expression.TernaryExpression;
 import com.mira.parser.nodes.expression.Expression.ThrownException;
-import com.mira.parser.nodes.expression.Expression.TupleExpression;
 import com.mira.parser.nodes.expression.Expression.UnaryExpression;
 import com.mira.parser.nodes.statement.Statement;
 import com.mira.parser.nodes.statement.Statement.Assign;
@@ -165,7 +164,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             return null;
         }
 
-        return new TupleExpression(argsList);
+        return new ArrayExpression(argsList);
     }
 
     public <T> T run(List<Node> asts, String[] args, boolean enforceModule) {
@@ -679,11 +678,6 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
     }
 
     @Override
-    public <T> T visitTupleExpr(TupleExpression expression) {
-        return (T) expression;
-    }
-
-    @Override
     public <T> T visitListExpr(ListExpression expression) {
         return (T) expression;
     }
@@ -723,10 +717,6 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                         case ArrayExpression array -> {
                             Expression ae = array.getMembers().get(i);
                             accessedObject = ae instanceof ArrayExpression inner ? inner.accept(this) : ae.accept(this);
-                        }
-                        case TupleExpression tuple -> {
-                            Expression te = tuple.getMembers().get(i);
-                            accessedObject = te instanceof TupleExpression inner ? inner.accept(this) : te.accept(this);
                         }
                         case ListExpression list -> {
                             Expression le = list.getMembers().get(i);
@@ -1278,8 +1268,6 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         notifyDebugger(stmt);
         Object value = stmt.getInitializer().accept(this);
         List<Expression> members = switch (value) {
-            case TupleExpression t ->
-                t.getMembers();
             case ListExpression l ->
                 l.getMembers();
             case ArrayExpression a ->
@@ -1323,14 +1311,6 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                             if (referencedObject instanceof ArrayExpression innerArray) {
                                 referencedObject = innerArray.accept(this);
                             } else if (referencedObject instanceof ListExpression innerList) {
-                                referencedObject = innerList.accept(this);
-                            } else {
-                                throw new ImmutableCollectionError();
-                            }
-                        }
-                        case TupleExpression tuple -> {
-                            referencedObject = tuple.getMembers().get(i);
-                            if (referencedObject instanceof ListExpression innerList) {
                                 referencedObject = innerList.accept(this);
                             } else {
                                 throw new ImmutableCollectionError();
@@ -1579,15 +1559,6 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             switch (iterable) {
                 case ArrayExpression array -> {
                     for (Expression expr : array.getMembers()) {
-                        Object value = expr.accept(this);
-                        try {
-                            runBodyWithIterator(iteratorName, value, stmt.getBody());
-                        } catch (ContinueSignal continueSignal) {
-                        }
-                    }
-                }
-                case TupleExpression tuple -> {
-                    for (Expression expr : tuple.getMembers()) {
                         Object value = expr.accept(this);
                         try {
                             runBodyWithIterator(iteratorName, value, stmt.getBody());

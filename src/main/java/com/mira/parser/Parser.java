@@ -31,7 +31,6 @@ import com.mira.parser.nodes.expression.Expression.ObjectExpression;
 import com.mira.parser.nodes.expression.Expression.RangeExpression;
 import com.mira.parser.nodes.expression.Expression.TernaryExpression;
 import com.mira.parser.nodes.expression.Expression.ThrownException;
-import com.mira.parser.nodes.expression.Expression.TupleExpression;
 import com.mira.parser.nodes.expression.Expression.UnaryExpression;
 import com.mira.parser.nodes.statement.Statement;
 import com.mira.parser.nodes.statement.Statement.Assign;
@@ -347,28 +346,9 @@ public class Parser {
         } else if (current.getLexeme().equals("(")
                 && current.getTokenType() != TokenType.STRING_LITERAL) {
             consume();
-            if (peek().getLexeme().equals(")")) {
-                consume();
-                expr = new TupleExpression(new ArrayList<>());
-            } else {
-                Expression first = parseExpression();
-                if (peek().getLexeme().equals(")")) {
-                    consume();
-                    expr = first;
-                } else {
-                    matchLexeme(",");
-                    List<Expression> members = new ArrayList<>();
-                    members.add(first);
-                    while (!peek().getLexeme().equals(")")) {
-                        members.add(parseExpression());
-                        if (!peek().getLexeme().equals(")")) {
-                            matchLexeme(",");
-                        }
-                    }
-                    matchLexeme(")");
-                    expr = new TupleExpression(members);
-                }
-            }
+            Expression first = parseExpression();
+            matchLexeme(")");
+            expr = first;
 
         } else if (current.getLexeme().equals("fn")
                 && current.getTokenType() == TokenType.KEYWORD) {
