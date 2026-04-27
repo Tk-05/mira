@@ -15,6 +15,7 @@ import com.mira.parser.nodes.Parameter;
 import com.mira.parser.nodes.expression.Expression;
 import com.mira.parser.nodes.expression.Expression.AccessExpression;
 import com.mira.parser.nodes.expression.Expression.ArrayExpression;
+import com.mira.parser.nodes.expression.Expression.AwaitExpression;
 import com.mira.parser.nodes.expression.Expression.BinaryExpression;
 import com.mira.parser.nodes.expression.Expression.CallExpression;
 import com.mira.parser.nodes.expression.Expression.ComplexExpression;
@@ -350,9 +351,20 @@ public class Parser {
             matchLexeme(")");
             expr = first;
 
+        } else if (current.getLexeme().equals("await")
+                && current.getTokenType() == TokenType.KEYWORD) {
+            consume();
+            expr = new AwaitExpression(parsePrimary());
+
+        } else if (current.getLexeme().equals("async")
+                && current.getTokenType() == TokenType.KEYWORD
+                && peekNext().getLexeme().equals("fn")) {
+            consume();
+            expr = parseLambdaExpression(true);
+
         } else if (current.getLexeme().equals("fn")
                 && current.getTokenType() == TokenType.KEYWORD) {
-            expr = parseLambdaExpression();
+            expr = parseLambdaExpression(false);
 
         } else if ((current.getLexeme().equals("true") || current.getLexeme().equals("false"))
                 && current.getTokenType() == TokenType.KEYWORD) {
@@ -513,7 +525,7 @@ public class Parser {
 
         while (!peek().getLexeme().equals("}")) {
             if (peek().getLexeme().equals("fn")) {
-                FuncDecl method = (FuncDecl) parseFuncDecl();
+                FuncDecl method = (FuncDecl) parseFuncDecl(false);
                 methods.add(method);
             } else {
                 boolean isConst = peek().getLexeme().equals("const");
@@ -655,7 +667,7 @@ public class Parser {
         return expressions.size() > 1 ? new ComplexExpression(expressions) : expressions.get(0);
     }
 
-    private Expression parseLambdaExpression() {
+    private Expression parseLambdaExpression(boolean isAsync) {
         matchLexeme("fn");
         matchLexeme("(");
 
@@ -670,7 +682,7 @@ public class Parser {
         }
         matchLexeme("}");
 
-        return new LambdaExpression(parameters, body, variadicHolder[0]);
+        return new LambdaExpression(parameters, body, variadicHolder[0], isAsync);
     }
 
     private Node parseImportExpression() {
@@ -743,7 +755,16 @@ public class Parser {
             }
             case "fn" -> {
                 increaseDepth();
-                node = parseFuncDecl();
+                node = parseFuncDecl(false);
+                decreaseDepth();
+            }
+            case "async" -> {
+                consume();
+                if (!peek().getLexeme().equals("fn")) {
+                    throw new UnexpectedToken(peek(), "Expected 'fn' after 'async'");
+                }
+                increaseDepth();
+                node = parseFuncDecl(true);
                 decreaseDepth();
             }
             case "return" -> {
@@ -896,7 +917,7 @@ public class Parser {
         return parameters;
     }
 
-    private Node parseFuncDecl() {
+    private Node parseFuncDecl(boolean isAsync) {
         matchLexeme("fn");
         String name = matchExpression().getLexeme();
         matchLexeme("(");
@@ -912,7 +933,7 @@ public class Parser {
         }
         matchLexeme("}");
 
-        return new FuncDecl(name, parameters, body, variadicHolder[0]);
+        return new FuncDecl(name, parameters, body, variadicHolder[0], isAsync);
     }
 
     private Node parseReturn() {

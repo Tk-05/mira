@@ -9,6 +9,7 @@ import java.util.Set;
 import com.mira.lib.LibIndex;
 import com.mira.parser.nodes.Node;
 import com.mira.parser.nodes.expression.Expression.AccessExpression;
+import com.mira.parser.nodes.expression.Expression.AwaitExpression;
 import com.mira.parser.nodes.expression.Expression.ArrayExpression;
 import com.mira.parser.nodes.expression.Expression.BinaryExpression;
 import com.mira.parser.nodes.expression.Expression.CallExpression;
@@ -99,6 +100,8 @@ public class PurityAnalyzer {
             case FieldAccessExpression f ->
                 isNodePure(f.getObject(), pure);
             case MethodCallExpression m ->
+                false;
+            case AwaitExpression a ->
                 false;
             case ObjectExpression o ->
                 o.getVarDecls().stream()

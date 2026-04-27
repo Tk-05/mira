@@ -35,7 +35,9 @@ public class Vocabulary {
             "finally",
             "throw",
             "native",
-            "do"
+            "do",
+            "await",
+            "async"
     );
 
     public static final Set<String> COMPARISON_OPERATORS = Set.of("==", "!=", "<", ">", "<=", ">=");
@@ -83,7 +85,7 @@ public class Vocabulary {
     );
 
     public static boolean stringIsKeyword(String s) {
-        return keywords.contains(s) || s.startsWith("$");
+        return keywords.contains(s);
     }
 
     public static boolean stringIsDelimiter(String string) {

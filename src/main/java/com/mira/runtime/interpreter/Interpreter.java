@@ -8,6 +8,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
 
 import com.mira.Flags;
 import com.mira.error.runtime.RuntimeError.ArgMismatchError;
@@ -31,6 +32,7 @@ import com.mira.parser.nodes.Node;
 import com.mira.parser.nodes.expression.Expression;
 import com.mira.parser.nodes.expression.Expression.AccessExpression;
 import com.mira.parser.nodes.expression.Expression.ArrayExpression;
+import com.mira.parser.nodes.expression.Expression.AwaitExpression;
 import com.mira.parser.nodes.expression.Expression.BinaryExpression;
 import com.mira.parser.nodes.expression.Expression.CallExpression;
 import com.mira.parser.nodes.expression.Expression.ComplexExpression;
@@ -74,6 +76,7 @@ import com.mira.runtime.functions.Callable;
 import com.mira.runtime.functions.ContinueSignal;
 import com.mira.runtime.functions.Function;
 import com.mira.runtime.functions.NativeFunction;
+import com.mira.runtime.functions.Promise;
 import com.mira.runtime.functions.ReturnSignal;
 import com.mira.runtime.functions.ThrowSignal;
 import com.mira.runtime.visitors.ExprVisitor;
@@ -116,6 +119,13 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             instance = new Interpreter();
         }
         return instance;
+    }
+
+    public Interpreter fork() {
+        Interpreter forked = new Interpreter();
+        forked.globalEnvironment = this.globalEnvironment;
+        forked.pureFunctions = this.pureFunctions;
+        return forked;
     }
 
     private void loadGlobalContext(List<Node> asts, boolean enforceModule) {
@@ -659,7 +669,8 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                         funcDecl.getParameters(),
                         funcDecl.getArity(),
                         funcDecl.getMaxArity(),
-                        funcDecl.getVariadicParam()));
+                        funcDecl.getVariadicParam(),
+                        funcDecl.isAsync()));
 
         return null;
     }
@@ -669,7 +680,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         Environment capturedEnv = localEnvironment != null
                 ? localEnvironment.snapshot(globalEnvironment)
                 : globalEnvironment;
-        return (T) new Function(capturedEnv, lambda.getBody(), lambda.getParameters(), lambda.getArity(), lambda.getMaxArity(), lambda.getVariadicParam());
+        return (T) new Function(capturedEnv, lambda.getBody(), lambda.getParameters(), lambda.getArity(), lambda.getMaxArity(), lambda.getVariadicParam(), lambda.isAsync());
     }
 
     @Override
@@ -1767,6 +1778,26 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         }
     }
 
+    @Override
+    public <T> T visitAwaitExpr(AwaitExpression expression) {
+        Object value = expression.getExpr().accept(this);
+        if (value instanceof Promise promise) {
+            try {
+                return (T) promise.getFuture().get();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new ThrowSignal("InterruptedError", e.getMessage());
+            } catch (ExecutionException e) {
+                Throwable cause = e.getCause();
+                if (cause instanceof ThrowSignal ts) {
+                    throw ts;
+                }
+                throw new ThrowSignal("AsyncError", cause != null ? cause.getMessage() : "async error");
+            }
+        }
+        return (T) value;
+    }
+
     public Environment getLocalEnvironment() {
         return localEnvironment;
     }
@@ -1797,6 +1828,9 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         }
         if (val instanceof NativeFunction) {
             return "<native fn>";
+        }
+        if (val instanceof Promise p) {
+            return p.toString();
         }
         return val.toString();
     }

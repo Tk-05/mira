@@ -9,6 +9,7 @@ import com.mira.parser.nodes.Parameter;
 import com.mira.parser.nodes.expression.Expression;
 import com.mira.parser.nodes.expression.Expression.AccessExpression;
 import com.mira.parser.nodes.expression.Expression.ArrayExpression;
+import com.mira.parser.nodes.expression.Expression.AwaitExpression;
 import com.mira.parser.nodes.expression.Expression.BinaryExpression;
 import com.mira.parser.nodes.expression.Expression.CallExpression;
 import com.mira.parser.nodes.expression.Expression.ComplexExpression;
@@ -401,6 +402,11 @@ public class AstPrinter implements ExprVisitor<String>, StmtVisitor<String> {
 
     @Override
     public String visitThrownExpection(ThrownException thrownException) {
-        return "Exception Literal ["+ thrownException.getIdentifier() + "]";
+        return pad() + "Exception Literal [" + thrownException.getIdentifier() + "]";
+    }
+
+    @Override
+    public String visitAwaitExpr(AwaitExpression awaitExpression) {
+        return pad() + "Await " + node(awaitExpression.getExpr());
     }
 }

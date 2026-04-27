@@ -7,7 +7,7 @@
 3. [Expressions](#expressions) — Operators, `??`, `?.`, Ternary, Pipe
 4. [Data Structures](#data-structures) — List, Array, Object, Map, Range
 5. [Control Flow](#control-flow)
-6. [Functions](#functions) — Default Parameters, Variadic, Lambdas
+6. [Functions](#functions) — Default Parameters, Variadic, Inner Functions, Lambdas, Async/Await
 7. [Objects with Methods](#objects-with-methods)
 8. [Enums](#enums)
 9. [Built-in Functions](#built-in-functions)
@@ -646,6 +646,67 @@ fn log(prefix, ...args) {
 }
 ```
 
+### Inner Functions
+
+A `fn` declaration inside another function body is an inner function. When the outer function executes, the inner function is registered in the **global** scope and captures the outer function's local variables as a closure.
+
+```
+fn <outer>(<params>) {
+    fn <inner>(<params>) {
+        <body>
+    }
+    <inner>(<args>)
+}
+```
+
+Example:
+
+```
+fn makeAdder(base) {
+    fn add(x) {
+        return eval($base + $x);
+    }
+    return add(10);
+}
+
+makeAdder(5);   // => 15
+add(3);         // => 8  (add is now globally visible, base is still 5)
+```
+
+**Scoping rules:**
+
+- The inner function is added to the global environment when the outer function first runs — before that, it does not exist.
+- The inner function closes over the outer function's local variables at the time of definition, exactly like a lambda.
+- Calling the outer function multiple times re-registers the inner function, replacing the previous closure.
+
+Inner functions are useful as named helper routines that share the outer function's parameters without passing them explicitly:
+
+```
+fn process(data, threshold) {
+    fn isValid(x) {
+        return $x > $threshold;
+    }
+    foreach (var item in $data) {
+        if (isValid($item)) {
+            print($item "\n");
+        }
+    }
+}
+```
+
+For a local-only helper that should not leak into global scope, use a lambda stored in a `var` instead:
+
+```
+fn process(data, threshold) {
+    var isValid : fn(x) { return $x > $threshold; };
+    foreach (var item in $data) {
+        if (isValid($item)) {
+            print($item "\n");
+        }
+    }
+}
+```
+
 ### Lambdas
 
 Lambdas are nameless functions that can be stored and passed around:
@@ -685,6 +746,66 @@ Lambdas support variadic parameters too:
 
 ```
 var join : fn(sep, ...parts) { return join($parts, $sep); };
+```
+
+### Async / Await
+
+Mark a function as `async` to make it execute in the background. Calling an async function immediately returns a `Promise` without blocking. Use `await` to block until the promise resolves and get its value.
+
+```
+async fn <name>(<params>) {
+    <body>
+}
+
+var result : await <name>(<args>);
+```
+
+Example:
+
+```
+async fn fetchData(url) {
+    var response : httpGet($url);
+    return $response;
+}
+
+var data : await fetchData("https://example.com/api");
+print($data "\n");
+```
+
+Multiple async calls can be started before awaiting, so they run in parallel:
+
+```
+async fn slow(n) {
+    sleep(eval($n * 100));
+    return $n;
+}
+
+var p1 : slow(3);
+var p2 : slow(1);
+var p3 : slow(2);
+
+print(await $p1 "\n");   // => 3
+print(await $p2 "\n");   // => 1
+print(await $p3 "\n");   // => 2
+```
+
+Async lambdas work the same way:
+
+```
+var fetch : async fn(url) { return httpGet($url); };
+var result : await fetch("https://example.com");
+```
+
+**Scoping:** async functions share the global environment with the caller. Each async call runs on a separate interpreter instance, so local variables are isolated.
+
+**Error handling:** if an async function throws, the exception is re-thrown at the `await` site and can be caught normally:
+
+```
+try {
+    var result : await riskyOp();
+} catch(e) {
+    print("failed: " $e "\n");
+}
 ```
 
 ---

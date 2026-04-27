@@ -584,16 +584,49 @@ public abstract class Expression implements Node {
         }
     }
 
+    public static class AwaitExpression extends Expression {
+
+        private final Expression expr;
+
+        public AwaitExpression(Expression expr) {
+            this.expr = expr;
+        }
+
+        public Expression getExpr() {
+            return expr;
+        }
+
+        @Override
+        public <T> T accept(ExprVisitor<T> visitor) {
+            return visitor.visitAwaitExpr(this);
+        }
+
+        @Override
+        public String toString() {
+            return "await(" + expr + ")";
+        }
+    }
+
     public static class LambdaExpression extends Expression {
 
         private final List<Parameter> parameters;
         private final List<Node> body;
         private final String variadicParam;
+        private final boolean isAsync;
 
         public LambdaExpression(List<Parameter> parameters, List<Node> body, String variadicParam) {
+            this(parameters, body, variadicParam, false);
+        }
+
+        public LambdaExpression(List<Parameter> parameters, List<Node> body, String variadicParam, boolean isAsync) {
             this.parameters = parameters;
             this.body = body;
             this.variadicParam = variadicParam;
+            this.isAsync = isAsync;
+        }
+
+        public boolean isAsync() {
+            return isAsync;
         }
 
         public List<Parameter> getParameters() {

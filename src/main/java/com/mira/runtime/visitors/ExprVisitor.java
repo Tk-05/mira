@@ -2,6 +2,7 @@ package com.mira.runtime.visitors;
 
 import com.mira.parser.nodes.expression.Expression.AccessExpression;
 import com.mira.parser.nodes.expression.Expression.ArrayExpression;
+import com.mira.parser.nodes.expression.Expression.AwaitExpression;
 import com.mira.parser.nodes.expression.Expression.BinaryExpression;
 import com.mira.parser.nodes.expression.Expression.CallExpression;
 import com.mira.parser.nodes.expression.Expression.ComplexExpression;
@@ -53,4 +54,6 @@ public interface ExprVisitor<T> {
     public <T> T visitTernaryExpr(TernaryExpression expression);
 
     public <T> T visitThrownExpection(ThrownException expression);
+
+    public <T> T visitAwaitExpr(AwaitExpression expression);
 }
