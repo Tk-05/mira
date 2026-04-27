@@ -42,8 +42,10 @@ public class Main {
                         Flags.mainFunction = true;
                     case "-li" ->
                         Flags.libInfo = true;
-                    case "-args" ->
-                        Flags.args = args[i + 1].substring(0, args[i + 1].length()).split(",");
+                    case "-args" -> {
+                        Flags.args = args[i + 1].split(",");
+                        i++;
+                    }
                     case "-debug" ->
                         Flags.debug = true;
                     case "-lint" ->
