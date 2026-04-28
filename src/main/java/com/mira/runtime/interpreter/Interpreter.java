@@ -491,7 +491,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                 if (right == null) {
                     return (T) "-";
                 } else {
-                    return (T) ("-" + right);
+                    return (T) Double.valueOf(-toNumber(right));
                 }
             }
 

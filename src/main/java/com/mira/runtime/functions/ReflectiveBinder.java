@@ -4,6 +4,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -15,26 +16,20 @@ import com.mira.runtime.interpreter.Environment;
 
 public final class ReflectiveBinder {
 
-    private static final Class<?> BYTE_POINTER_TYPE;
-    private static final Method BP_IS_NULL;
-    private static final Method BP_GET_STRING;
-
-    static {
-        Class<?> cls = null;
-        Method isNull = null;
-        Method getString = null;
-        try {
-            cls = Class.forName("org.bytedeco.javacpp.BytePointer");
-            isNull = cls.getMethod("isNull");
-            getString = cls.getMethod("getString");
-        } catch (ClassNotFoundException | NoSuchMethodException ignored) {
-        }
-        BYTE_POINTER_TYPE = cls;
-        BP_IS_NULL = isNull;
-        BP_GET_STRING = getString;
-    }
+    private static final String BP_CLASS_NAME = "org.bytedeco.javacpp.BytePointer";
 
     private ReflectiveBinder() {
+    }
+
+    private static boolean isBytePointerType(Class<?> type) {
+        Class<?> c = type;
+        while (c != null) {
+            if (BP_CLASS_NAME.equals(c.getName())) {
+                return true;
+            }
+            c = c.getSuperclass();
+        }
+        return false;
     }
 
     public static void bindMethods(Class<?> source, Environment env) {
@@ -100,7 +95,7 @@ public final class ReflectiveBinder {
     }
 
     private static int typeScore(Class<?> type) {
-        if (BYTE_POINTER_TYPE != null && BYTE_POINTER_TYPE.isAssignableFrom(type)) {
+        if (isBytePointerType(type)) {
             return -1;
         }
         if (type == double.class || type == Double.class) {
@@ -159,6 +154,14 @@ public final class ReflectiveBinder {
         if (target == String.class) {
             return String.valueOf(val);
         }
+        if (isBytePointerType(target)) {
+            try {
+                byte[] utf8 = (String.valueOf(val) + "\0").getBytes(StandardCharsets.UTF_8);
+                return target.getConstructor(byte[].class).newInstance((Object) utf8);
+            } catch (ReflectiveOperationException e) {
+                throw new RuntimeException("Failed to convert string to BytePointer", e);
+            }
+        }
         return target.cast(val);
     }
 
@@ -166,13 +169,15 @@ public final class ReflectiveBinder {
         if (type == void.class || val == null) {
             return null;
         }
-        if (BYTE_POINTER_TYPE != null && BYTE_POINTER_TYPE.isInstance(val)) {
+        if (isBytePointerType(val.getClass())) {
             try {
-                if ((Boolean) BP_IS_NULL.invoke(val)) {
+                Method isNull = val.getClass().getMethod("isNull");
+                if ((Boolean) isNull.invoke(val)) {
                     return "";
                 }
-                return BP_GET_STRING.invoke(val);
-            } catch (IllegalAccessException | InvocationTargetException e) {
+                Method getString = val.getClass().getMethod("getString");
+                return getString.invoke(val);
+            } catch (ReflectiveOperationException e) {
                 return "";
             }
         }
