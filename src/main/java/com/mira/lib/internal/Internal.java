@@ -48,6 +48,14 @@ public class Internal implements Lib {
                 })
         );
 
+        environment.define("println",
+                new NativeFunction(1, args -> {
+                    Object value = args.get(0);
+                    System.out.println(value);
+                    return null;
+                })
+        );
+
         environment.define("scan",
                 new NativeFunction(0, args -> {
                     try {

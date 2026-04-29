@@ -13,6 +13,7 @@ public final class LibIndex {
 
     public static final List<GlobalFunction> GLOBALS = List.of(
             new GlobalFunction("print", 1, false),
+            new GlobalFunction("println", 1, false),
             new GlobalFunction("scan", 0, false),
             new GlobalFunction("exec", 1, false),
             new GlobalFunction("exit", 1, false),

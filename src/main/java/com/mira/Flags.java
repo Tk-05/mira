@@ -17,4 +17,8 @@ public class Flags {
     public static String[] args = null;
     public static String fileName = null;
     public static String[] sourceLines = null;
+
+    public static boolean compile = false;
+    public static boolean compileAndRun = false;
+    public static Path outputDir = null;
 }

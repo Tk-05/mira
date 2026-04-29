@@ -5,6 +5,7 @@ import java.nio.file.Paths;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import com.mira.compiler.CompileRunner;
 import com.mira.debugger.Debugger;
 import com.mira.error.DiagnosticFormatter;
 import com.mira.lexer.Tokenizer;
@@ -56,6 +57,16 @@ public class Main {
                         Flags.crashDump = true;
                     case "-ast" ->
                         Flags.printAsts = true;
+                    case "-compile" ->
+                        Flags.compile = true;
+                    case "-compile-run" -> {
+                        Flags.compile = true;
+                        Flags.compileAndRun = true;
+                    }
+                    case "-o" -> {
+                        Flags.outputDir = Paths.get(args[i + 1]);
+                        i++;
+                    }
                     default ->
                         throw new RuntimeException(args[i] + " is not a known flag");
                 }
@@ -123,6 +134,11 @@ public class Main {
                 return;
             }
 
+            if (Flags.compile) {
+                new CompileRunner().run(asts);
+                return;
+            }
+
             if (Flags.mainFunction) {
                 Object exitValue = interpreter.run(asts, Flags.args, true);
                 WarningCollector.flush();
@@ -148,4 +164,5 @@ public class Main {
             }
         }
     }
+
 }
