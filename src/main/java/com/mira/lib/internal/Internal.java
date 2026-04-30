@@ -38,6 +38,10 @@ public class Internal implements Lib {
         reader.start();
     }
 
+    public static String readLine() throws InterruptedException {
+        return stdinQueue.take();
+    }
+
     @Override
     public void loadLib(Environment environment) {
         environment.define("print",

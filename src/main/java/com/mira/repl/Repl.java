@@ -1,10 +1,11 @@
 package com.mira.repl;
 
-import java.util.Scanner;
+import java.nio.file.Paths;
 
 import com.mira.Flags;
 import com.mira.error.DiagnosticFormatter;
 import com.mira.lexer.Tokenizer;
+import com.mira.lib.internal.Internal;
 import com.mira.parser.Parser;
 import com.mira.runtime.interpreter.Interpreter;
 import com.mira.warning.WarningCollector;
@@ -17,9 +18,9 @@ public class Repl {
     private static final Tokenizer tokenizer = new Tokenizer();
     private static final Parser parser = new Parser();
     private static final Interpreter interpreter = new Interpreter();
-    private static final Scanner scanner = new Scanner(System.in);
 
     public static void run() {
+        Flags.inputPath.set(Paths.get(".").toAbsolutePath().normalize());
         printBanner();
 
         while (true) {
@@ -27,17 +28,13 @@ public class Repl {
                 String input = readInput();
 
                 if (input == null) {
-                    System.out.println("\nGoodbye!");
+                    System.out.println("Goodbye!");
+                    System.out.flush();
                     break;
                 }
 
                 if (input.isBlank()) {
                     continue;
-                }
-
-                if (input.strip().equals("exit")) {
-                    System.out.println("Goodbye!");
-                    break;
                 }
 
                 String normalized = input.strip();
@@ -55,35 +52,45 @@ public class Repl {
 
                 if (result != null) {
                     System.out.println(result);
+                    System.out.flush();
                 }
-            } catch (Exception e) {
+            } catch (Exception e) {//Leave exception generic
                 WarningCollector.flush();
                 System.err.println(DiagnosticFormatter.format(e));
+                System.err.flush();
             }
         }
     }
 
-    private static String readInput() {
+    private static String readInput() throws InterruptedException {
         System.out.print(PROMPT);
+        System.out.flush();
 
-        if (!scanner.hasNextLine()) {
+        String firstLine = Internal.readLine();
+        if (firstLine == null) {
             return null;
         }
 
-        String firstLine = scanner.nextLine();
-
-        if (firstLine.strip().equals("exit")) {
-            return "exit";
+        String stripped = firstLine.strip();
+        if (stripped.equalsIgnoreCase("exit") || stripped.equalsIgnoreCase("quit")) {
+            return null;
+        }
+        if (stripped.equalsIgnoreCase("clear")) {
+            System.out.print("\033[2J\033[H");
+            System.out.flush();
+            return "";
         }
 
         StringBuilder buffer = new StringBuilder(firstLine);
 
         while (isIncomplete(buffer.toString())) {
             System.out.print(PROMPT_CONTINUE);
-            if (!scanner.hasNextLine()) {
+            System.out.flush();
+            String next = Internal.readLine();
+            if (next == null) {
                 break;
             }
-            buffer.append('\n').append(scanner.nextLine());
+            buffer.append('\n').append(next);
         }
 
         return buffer.toString();
@@ -127,8 +134,9 @@ public class Repl {
     }
 
     private static void printBanner() {
-        System.out.println("REPL");
-        System.out.println("Type 'exit' to quit.");
+        System.out.println("Mira REPL");
+        System.out.println("Type 'exit' or 'quit' to quit, 'clear' to clear the screen.");
         System.out.println();
+        System.out.flush();
     }
 }
