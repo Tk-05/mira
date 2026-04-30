@@ -42,7 +42,15 @@ fn short(arg) {
     return false;
 }
 
+fn outer() {
+    fn inner() {
+        return 0;
+    }
+    return inner();
+}
+
 fn main() {
+    println(outer());
     var i : 10;
     $i\%= 5;
     $i**=2;

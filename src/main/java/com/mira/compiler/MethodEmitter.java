@@ -427,11 +427,19 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
                 mv.visitMethodInsn(INVOKESTATIC, ctx.className,
                         "mira$" + name, ClassEmitter.FN_DESC, false);
             } else {
-                emitGlobals();
-                mv.visitLdcInsn(name);
-                emitObjectArray(expression.getArguments());
-                mv.visitMethodInsn(INVOKESTATIC, RT, "callNamed",
-                        "(" + ENV_D + "Ljava/lang/String;[" + OBJ_D + ")" + OBJ_D, false);
+                Integer slot = ctx.slots.slotOf(name);
+                if (slot != null) {
+                    mv.visitVarInsn(ALOAD, slot);
+                    emitObjectArray(expression.getArguments());
+                    mv.visitMethodInsn(INVOKESTATIC, RT, "dynamicCall",
+                            "(" + OBJ_D + "[" + OBJ_D + ")" + OBJ_D, false);
+                } else {
+                    emitGlobals();
+                    mv.visitLdcInsn(name);
+                    emitObjectArray(expression.getArguments());
+                    mv.visitMethodInsn(INVOKESTATIC, RT, "callNamed",
+                            "(" + ENV_D + "Ljava/lang/String;[" + OBJ_D + ")" + OBJ_D, false);
+                }
             }
         } else {
             emitCalleeObject(callee);
