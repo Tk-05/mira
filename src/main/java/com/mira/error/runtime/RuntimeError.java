@@ -229,4 +229,22 @@ public class RuntimeError extends MiraError {
                     + "with the current interpreter version");
         }
     }
+
+    public static class ModuleMissingDeclarationError extends RuntimeError {
+
+        public ModuleMissingDeclarationError(String module) {
+            super("E225",
+                    "Module '" + module + "' is missing a 'module' declaration",
+                    "Add 'module <name>;' as the first statement in '" + module + "'");
+        }
+    }
+
+    public static class ModuleNameMismatchError extends RuntimeError {
+
+        public ModuleNameMismatchError(String file, String expected, String found) {
+            super("E226",
+                    "Module name mismatch in '" + file + "': expected '" + expected + "' but found '" + found + "'",
+                    "Rename either the file or the 'module' declaration so they match");
+        }
+    }
 }

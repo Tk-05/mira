@@ -1,4 +1,4 @@
-module mandelbrot;
+module Mandelbrot;
 
 import native "../../../../extern/raylib/target/raylib-RELEASE.jar" as ray;
 import math as m;

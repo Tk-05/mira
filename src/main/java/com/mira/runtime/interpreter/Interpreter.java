@@ -148,17 +148,27 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         pureFunctions = PurityAnalyzer.analyze(asts);
         callCache.clear();
 
+        for (Node ast : asts) {
+            switch (ast) {
+                case FuncDecl funcDecl when !(globalEnvironment.getOrNull(funcDecl.getName()) instanceof Namespace) -> {
+                    if (Flags.mainFunction) {
+                        funcDecl.getBody().add(new Return(new DumbExpression(new Token(null, "0", 0, 0))));
+                    }
+                    funcDecl.accept(this);
+                }
+                case EnumDecl enumDecl when !(globalEnvironment.getOrNull(enumDecl.getIdentifier()) instanceof Namespace) ->
+                    enumDecl.accept(this);
+                case VarDecl varDecl when varDecl.isConst() && !(globalEnvironment.getOrNull(varDecl.getName()) instanceof Namespace) ->
+                    varDecl.accept(this);
+                default -> {
+                }
+            }
+        }
+
         if (Flags.mainFunction) {
             for (Node ast : asts) {
-                switch (ast) {
-                    case FuncDecl funcDecl -> {
-                        funcDecl.getBody().add(new Return(new DumbExpression(new Token(null, "0", 0, 0))));
-                        funcDecl.accept(this);
-                    }
-                    case VarDecl varDecl ->
-                        varDecl.accept(this);
-                    default -> {
-                    }
+                if (ast instanceof VarDecl varDecl && !varDecl.isConst()) {
+                    varDecl.accept(this);
                 }
             }
         }
@@ -193,6 +203,9 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             } else {
                 globalEnvironment.define("args", getArgsTuple(args));
                 for (Node ast : asts) {
+                    if (isHoisted(ast)) {
+                        continue;
+                    }
                     lastResult = switch (ast) {
                         case Expression expression ->
                             expression.accept(this);
@@ -222,6 +235,9 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                 return (T) new CallExpression(new DumbExpression(new Token(null, "main", 0, 0)), new ArrayList<>()).accept(this);
             } else {
                 for (Node ast : asts) {
+                    if (isHoisted(ast)) {
+                        continue;
+                    }
                     lastResult = switch (ast) {
                         case Expression expression ->
                             expression.accept(this);
@@ -274,11 +290,12 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
     public void loadASTIntoContext(Node ast, Environment targetEnv) {
         Environment previous = localEnvironment;
-        localEnvironment = null;
-
         Environment previousGlobal = globalEnvironment;
         if (targetEnv instanceof Namespace) {
             globalEnvironment = targetEnv;
+            localEnvironment = targetEnv;
+        } else {
+            localEnvironment = null;
         }
 
         switch (ast) {
@@ -637,7 +654,12 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
     @Override
     public <T> T visitNamespaceCallExpr(NamespaceCallExpression expression) {
-        Object namespaceObj = globalEnvironment.get(expression.getAlias());
+        Object namespaceObj = localEnvironment != null
+                ? localEnvironment.getOrNull(expression.getAlias())
+                : null;
+        if (namespaceObj == null) {
+            namespaceObj = globalEnvironment.get(expression.getAlias());
+        }
 
         if (!(namespaceObj instanceof Namespace namespace)) {
             throw new NotANamespaceError(expression.getAlias());
@@ -748,9 +770,8 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         Object object = expression.getObject().accept(this);
 
         if (object instanceof String name) {
-            object = localEnvironment != null && localEnvironment.exists(name)
-                    ? localEnvironment.get(name)
-                    : globalEnvironment.get(name);
+            Object fromLocal = localEnvironment != null ? localEnvironment.getOrNull(name) : null;
+            object = fromLocal != null ? fromLocal : globalEnvironment.get(name);
         }
 
         if (!(object instanceof Environment objectEnv)) {
@@ -1760,6 +1781,12 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             default ->
                 throw new AssertionError("Unexpected condition type: " + condition.getClass());
         };
+    }
+
+    private boolean isHoisted(Node ast) {
+        return ast instanceof FuncDecl
+                || ast instanceof EnumDecl
+                || (ast instanceof VarDecl vd && vd.isConst());
     }
 
     private void assignIterator(String name, Object value) {

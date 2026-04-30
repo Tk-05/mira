@@ -128,8 +128,9 @@ public class Function implements Callable {
                 }
             }
         } catch (ReturnSignal returnSignal) {
-            interpreter.setLocalEnvironment(previous);
             return returnSignal.getValue();
+        } finally {
+            interpreter.setLocalEnvironment(previous);
         }
 
         return null;

@@ -91,9 +91,12 @@ public class ImportResolver {
         };
         ImportExpression expr = new ImportExpression(moduleExpr, alias, kind);
         switch (kind) {
-            case STDLIB -> resolveStdlibImport(expr, env);
-            case NATIVE -> resolveNativeImport(expr, env);
-            case MODULE -> resolveModuleImport(new Interpreter(), expr, env);
+            case STDLIB ->
+                resolveStdlibImport(expr, env);
+            case NATIVE ->
+                resolveNativeImport(expr, env);
+            case MODULE ->
+                resolveModuleImport(new Interpreter(), expr, env);
         }
     }
 
@@ -224,10 +227,8 @@ public class ImportResolver {
             String expectedModuleName = fileName.replace(".mira", "");
 
             if (!declaredModuleName.equals(expectedModuleName)) {
-                throw new RuntimeException(
-                        "Module name mismatch: expected '" + expectedModuleName
-                        + "' but found '" + declaredModuleName + "'"
-                );
+                throw new com.mira.error.runtime.RuntimeError.ModuleNameMismatchError(
+                        fileName, expectedModuleName, declaredModuleName);
             }
 
             String alias = importExpression.getNamespace();
@@ -265,7 +266,7 @@ public class ImportResolver {
 
     private static String validateModuleDeclaration(List<Node> asts, ImportExpression expr) {
         if (!(asts.getFirst() instanceof ModuleDecl moduleDecl)) {
-            throw new AssertionError("Module '" + expr.getModule() + "' has no module declaration");
+            throw new com.mira.error.runtime.RuntimeError.ModuleMissingDeclarationError(expr.getModule());
         }
         return moduleDecl.getModuleName();
     }
