@@ -1,0 +1,469 @@
+module Fractals;
+
+import native "../../../../extern/raylib/target/raylib-RELEASE.jar" as ray;
+import math as m;
+import collection as c;
+
+const MAX_ITER : 80;
+const COARSE   : 8;
+
+fn mandelbrot(cr, ci, maxIter) {
+    var a : eval($cr - 0.25);
+    var q : eval($a * $a + $ci * $ci);
+    if (eval($q * ($q + $a)) < eval($ci * $ci * 0.25)) { return 0; }
+    var b : eval($cr + 1.0);
+    if (eval($b * $b + $ci * $ci) < 0.0625) { return 0; }
+    var zr : 0.0;
+    var zi : 0.0;
+    var i  : 0;
+    while ($i < $maxIter) {
+        var zr2 : eval($zr * $zr);
+        var zi2 : eval($zi * $zi);
+        if (eval($zr2 + $zi2) > 4.0) { return $i; }
+        var newZr : eval($zr2 - $zi2 + $cr);
+        $zi : eval(2.0 * $zr * $zi + $ci);
+        $zr : $newZr;
+        $i++;
+    }
+    return 0;
+}
+
+fn julia(zr, zi, cr, ci, maxIter) {
+    var i : 0;
+    while ($i < $maxIter) {
+        var zr2 : eval($zr * $zr);
+        var zi2 : eval($zi * $zi);
+        if (eval($zr2 + $zi2) > 4.0) { return $i; }
+        var newZr : eval($zr2 - $zi2 + $cr);
+        $zi : eval(2.0 * $zr * $zi + $ci);
+        $zr : $newZr;
+        $i++;
+    }
+    return 0;
+}
+
+// Nova/Newton for f(z) = z^3 - 1: z -> (2z^3+1)/(3z^2) + ncr+nci*i.
+// ncr=nci=0 gives standard Newton; mouse-controlled ncr/nci gives Nova fractals.
+// Returns an encoded value: root 0 -> 1..maxIter,
+//   root 1 -> maxIter+1..2*maxIter, root 2 -> 2*maxIter+1..3*maxIter.
+fn newton(zr, zi, maxIter, ncr, nci) {
+    var i     : 0;
+    var iters : 0;
+    while ($i < $maxIter) {
+        var zr2   : eval($zr * $zr);
+        var zi2   : eval($zi * $zi);
+        var z3r   : eval($zr * ($zr2 - 3.0 * $zi2));
+        var z3i   : eval($zi * (3.0 * $zr2 - $zi2));
+        var nr    : eval(2.0 * $z3r + 1.0);
+        var ni    : eval(2.0 * $z3i);
+        var dr    : eval(3.0 * ($zr2 - $zi2));
+        var di    : eval(6.0 * $zr * $zi);
+        var denom : eval($dr * $dr + $di * $di);
+        $iters++;
+        if ($denom > 0.0000000001) {
+            var newZr : eval(($nr * $dr + $ni * $di) / $denom + $ncr);
+            var newZi : eval(($ni * $dr - $nr * $di) / $denom + $nci);
+            var diffR : eval($newZr - $zr);
+            var diffI : eval($newZi - $zi);
+            $zr : $newZr;
+            $zi : $newZi;
+            if (eval($diffR * $diffR + $diffI * $diffI) < 0.0000000001) {
+                $i : $maxIter;
+            } else {
+                $i++;
+            }
+        } else {
+            $i : $maxIter;
+        }
+    }
+    var d0 : eval(($zr - 1.0) * ($zr - 1.0) + $zi * $zi);
+    var d1 : eval(($zr + 0.5) * ($zr + 0.5) + ($zi - 0.866025) * ($zi - 0.866025));
+    var d2 : eval(($zr + 0.5) * ($zr + 0.5) + ($zi + 0.866025) * ($zi + 0.866025));
+    if ($d0 < $d1 && $d0 < $d2) { return $iters; }
+    if ($d1 < $d2) { return eval($maxIter + $iters); }
+    return eval($maxIter * 2 + $iters);
+}
+
+fn buildPalette(maxIter, offset) {
+    var pal : c.newList();
+    c.push($pal, ray.Color(0, 0, 0, 255));
+    for (var i : 1; $i <= $maxIter; $i++) {
+        var tp : eval(($i + $offset) * 0.05 * m.pi * 2.0);
+        var r  : eval(m.sin($tp) * 127.5 + 127.5);
+        var g  : eval(m.sin(eval($tp + 2.094)) * 127.5 + 127.5);
+        var b  : eval(m.sin(eval($tp + 4.189)) * 127.5 + 127.5);
+        c.push($pal, ray.Color(m.clamp($r, 0, 255), m.clamp($g, 0, 255), m.clamp($b, 0, 255), 255));
+    }
+    return $pal;
+}
+
+// Three color families (120 degrees apart), brightness encodes convergence speed.
+fn buildNewtonPalette(maxIter, offset) {
+    var pal : c.newList();
+    c.push($pal, ray.Color(0, 0, 0, 255));
+    for (var root : 0; $root < 3; $root++) {
+        var baseAngle : eval($root * 2.094395 + $offset * 0.05);
+        for (var i : 1; $i <= $maxIter; $i++) {
+            var bri : eval(($maxIter - $i + 1.0) / $maxIter);
+            var r   : eval(m.sin($baseAngle) * 127.5 * $bri + 127.5 * $bri);
+            var g   : eval(m.sin(eval($baseAngle + 2.094)) * 127.5 * $bri + 127.5 * $bri);
+            var b   : eval(m.sin(eval($baseAngle + 4.189)) * 127.5 * $bri + 127.5 * $bri);
+            c.push($pal, ray.Color(m.clamp($r, 0, 255), m.clamp($g, 0, 255), m.clamp($b, 0, 255), 255));
+        }
+    }
+    return $pal;
+}
+
+fn render(tex, cx, cy, zoom, step, maxIter, w, h, pal, isJulia, jre, jim, isNewton, ncr, nci) {
+    var scaleX : eval($zoom * 2.0 / $w);
+    var scaleY : eval($zoom * 2.0 / $h);
+    var stepX  : eval($scaleX * $step);
+    var stepY  : eval($scaleY * $step);
+    var halfW  : eval($w * 0.5);
+    var halfH  : eval($h * 0.5);
+    ray.BeginTextureMode($tex);
+    ray.ClearBackground(ray.Color(0, 0, 0, 255));
+    var ci : eval($cy - $halfH * $scaleY);
+    for (var py : 0; $py < $h; $py += $step) {
+        var cr : eval($cx - $halfW * $scaleX);
+        for (var px : 0; $px < $w; $px += $step) {
+            var iters : 0;
+            if ($isNewton) {
+                $iters : newton($cr, $ci, $maxIter, $ncr, $nci);
+            } else if ($isJulia) {
+                $iters : julia($cr, $ci, $jre, $jim, $maxIter);
+            } else {
+                $iters : mandelbrot($cr, $ci, $maxIter);
+            }
+            ray.DrawRectangle($px, $py, $step, $step, $pal[$iters]);
+            $cr += $stepX;
+        }
+        $ci += $stepY;
+    }
+    ray.EndTextureMode();
+}
+
+fn main() {
+    ray.SetConfigFlags(ray.FLAG_WINDOW_RESIZABLE);
+    ray.InitWindow(800, 600, "Fractals");
+    ray.SetTargetFPS(60);
+
+    var width  : 800;
+    var height : 600;
+
+    var view : {
+        var cx          : -0.5;
+        var cy          : 0.0;
+        var zoom        : 2.0;
+        var maxIter     : $MAX_ITER;
+        var step        : 4;
+        var isJulia     : false;
+        var jre         : -0.7;
+        var jim         : 0.27015;
+        var juliaLocked   : false;
+        var isNewton      : false;
+        var ncr           : 0.0;
+        var nci           : 0.0;
+        var newtonLocked  : false;
+        var colorCycle    : false;
+        var cycleTime   : 0.0;
+    };
+
+    var palette      : buildPalette($view.maxIter, 0.0);
+    var lastIter     : $view.maxIter;
+    var lastIsNewton : false;
+    var tex          : ray.LoadRenderTexture($width, $height);
+    var dirty        : true;
+    var needRefine   : false;
+    var lastMx       : -1;
+    var lastMy       : -1;
+
+    while (!ray.WindowShouldClose()) {
+
+        // ── Window resize ────────────────────────────────────────────────
+        if (ray.IsWindowResized()) {
+            $width  : ray.GetScreenWidth();
+            $height : ray.GetScreenHeight();
+            ray.UnloadRenderTexture($tex);
+            $tex   : ray.LoadRenderTexture($width, $height);
+            $dirty : true;
+        }
+
+        // ── Zoom toward mouse cursor ──────────────────────────────────────
+        var wheel : ray.GetMouseWheelMove();
+        if ($wheel > 0) {
+            var mx    : ray.GetMouseX();
+            var my    : ray.GetMouseY();
+            var halfW : eval($width  * 0.5);
+            var halfH : eval($height * 0.5);
+            var sx    : eval($view.zoom * 2.0 / $width);
+            var sy    : eval($view.zoom * 2.0 / $height);
+            var mre   : eval($view.cx + ($mx - $halfW) * $sx);
+            var mim   : eval($view.cy + ($my - $halfH) * $sy);
+            $view.zoom : eval($view.zoom * 0.8);
+            var sx2   : eval($view.zoom * 2.0 / $width);
+            var sy2   : eval($view.zoom * 2.0 / $height);
+            $view.cx  : eval($mre - ($mx - $halfW) * $sx2);
+            $view.cy  : eval($mim - ($my - $halfH) * $sy2);
+            $dirty : true;
+        } else if ($wheel < 0) {
+            $view.zoom : eval($view.zoom * 1.25);
+            $dirty : true;
+        }
+
+        // ── Pan ───────────────────────────────────────────────────────────
+        var panSpeed : eval($view.zoom * 0.03);
+        if (ray.IsKeyDown(ray.KEY_LEFT))  { $view.cx : eval($view.cx - $panSpeed); $dirty : true; }
+        if (ray.IsKeyDown(ray.KEY_RIGHT)) { $view.cx : eval($view.cx + $panSpeed); $dirty : true; }
+        if (ray.IsKeyDown(ray.KEY_UP))    { $view.cy : eval($view.cy - $panSpeed); $dirty : true; }
+        if (ray.IsKeyDown(ray.KEY_DOWN))  { $view.cy : eval($view.cy + $panSpeed); $dirty : true; }
+
+        // ── Toggle Julia (J key) ──────────────────────────────────────────
+        if (ray.IsKeyPressed(ray.KEY_J)) {
+            if ($view.isJulia) {
+                $view.isJulia : false;
+                $view.cx      : -0.5;
+                $view.cy      : 0.0;
+                $view.zoom    : 2.0;
+            } else {
+                $view.isNewton    : false;
+                $view.isJulia     : true;
+                $view.juliaLocked : false;
+                $view.cx          : 0.0;
+                $view.cy          : 0.0;
+                $view.zoom        : 2.0;
+                $lastMx           : -1;
+                $lastMy           : -1;
+            }
+            $dirty : true;
+        }
+
+        // ── Toggle Newton (N key) ─────────────────────────────────────────
+        if (ray.IsKeyPressed(ray.KEY_N)) {
+            if ($view.isNewton) {
+                $view.isNewton : false;
+                $view.cx       : -0.5;
+                $view.cy       : 0.0;
+                $view.zoom     : 2.0;
+            } else {
+                $view.isJulia        : false;
+                $view.isNewton       : true;
+                $view.ncr            : 0.0;
+                $view.nci            : 0.0;
+                $view.newtonLocked   : false;
+                $view.cx             : 0.0;
+                $view.cy             : 0.0;
+                $view.zoom           : 2.0;
+                $lastMx              : -1;
+                $lastMy              : -1;
+            }
+            $dirty : true;
+        }
+
+        // ── Julia: mouse tracking, left click to lock/unlock ─────────────
+        if ($view.isJulia) {
+            if (ray.IsMouseButtonPressed(ray.MOUSE_BUTTON_LEFT)) {
+                if ($view.juliaLocked) {
+                    $view.juliaLocked : false;
+                    $lastMx : -1;
+                    $lastMy : -1;
+                } else {
+                    $view.juliaLocked : true;
+                }
+            }
+            if (!$view.juliaLocked) {
+                var mx : ray.GetMouseX();
+                var my : ray.GetMouseY();
+                if ($mx != $lastMx || $my != $lastMy) {
+                    $lastMx : $mx;
+                    $lastMy : $my;
+                    var halfW : eval($width  * 0.5);
+                    var halfH : eval($height * 0.5);
+                    var sx    : eval($view.zoom * 2.0 / $width);
+                    var sy    : eval($view.zoom * 2.0 / $height);
+                    $view.jre : eval($view.cx + ($mx - $halfW) * $sx);
+                    $view.jim : eval($view.cy + ($my - $halfH) * $sy);
+                    $dirty : true;
+                }
+            }
+        }
+
+        // ── Newton: mouse tracking (Nova c), left click to lock/unlock ───
+        if ($view.isNewton) {
+            if (ray.IsMouseButtonPressed(ray.MOUSE_BUTTON_LEFT)) {
+                if ($view.newtonLocked) {
+                    $view.newtonLocked : false;
+                    $lastMx : -1;
+                    $lastMy : -1;
+                } else {
+                    $view.newtonLocked : true;
+                }
+            }
+            if (!$view.newtonLocked) {
+                var mx : ray.GetMouseX();
+                var my : ray.GetMouseY();
+                if ($mx != $lastMx || $my != $lastMy) {
+                    $lastMx : $mx;
+                    $lastMy : $my;
+                    var halfW : eval($width  * 0.5);
+                    var halfH : eval($height * 0.5);
+                    var sx    : eval($view.zoom * 2.0 / $width);
+                    var sy    : eval($view.zoom * 2.0 / $height);
+                    $view.ncr : eval($view.cx + ($mx - $halfW) * $sx);
+                    $view.nci : eval($view.cy + ($my - $halfH) * $sy);
+                    $dirty : true;
+                }
+            }
+        }
+
+        // ── Toggle color cycle ────────────────────────────────────────────
+        if (ray.IsKeyPressed(ray.KEY_C)) {
+            if ($view.colorCycle) {
+                $view.colorCycle : false;
+                $view.cycleTime  : 0.0;
+                if ($view.isNewton) {
+                    $palette : buildNewtonPalette($view.maxIter, 0.0);
+                } else {
+                    $palette : buildPalette($view.maxIter, 0.0);
+                }
+            } else {
+                $view.colorCycle : true;
+            }
+            $dirty : true;
+        }
+
+        // ── Iteration count (I=more, U=less) ─────────────────────────────
+        if (ray.IsKeyPressed(ray.KEY_I) || ray.IsKeyPressed(ray.KEY_KP_ADD)) {
+            $view.maxIter : eval($view.maxIter + 10);
+            $dirty : true;
+        }
+        if (ray.IsKeyPressed(ray.KEY_U) || ray.IsKeyPressed(ray.KEY_KP_SUBTRACT)) {
+            $view.maxIter : eval($view.maxIter - 10);
+            if ($view.maxIter < 10) { $view.maxIter : 10; }
+            $dirty : true;
+        }
+
+        // ── Resolution (PgUp=finer, PgDn=coarser) ────────────────────────
+        if (ray.IsKeyPressed(ray.KEY_PAGE_UP)) {
+            $view.step : eval($view.step / 2);
+            if ($view.step < 1) { $view.step : 1; }
+            $dirty : true;
+        }
+        if (ray.IsKeyPressed(ray.KEY_PAGE_DOWN)) {
+            $view.step : eval($view.step * 2);
+            if ($view.step > 16) { $view.step : 16; }
+            $dirty : true;
+        }
+
+        // ── Reset ─────────────────────────────────────────────────────────
+        if (ray.IsKeyPressed(ray.KEY_R)) {
+            $view.cx          : -0.5;
+            $view.cy          : 0.0;
+            $view.zoom        : 2.0;
+            $view.maxIter     : $MAX_ITER;
+            $view.step        : 4;
+            $view.isJulia     : false;
+            $view.jre         : -0.7;
+            $view.jim         : 0.27015;
+            $view.juliaLocked   : false;
+            $view.isNewton      : false;
+            $view.ncr           : 0.0;
+            $view.nci           : 0.0;
+            $view.newtonLocked  : false;
+            $view.colorCycle    : false;
+            $view.cycleTime   : 0.0;
+            $lastMx       : -1;
+            $lastMy       : -1;
+            $dirty : true;
+        }
+
+        // ── Rendering ─────────────────────────────────────────────────────
+        if ($view.colorCycle) {
+            $view.cycleTime : eval($view.cycleTime + 0.5);
+            if ($view.isNewton) {
+                $palette : buildNewtonPalette($view.maxIter, $view.cycleTime);
+            } else {
+                $palette : buildPalette($view.maxIter, $view.cycleTime);
+            }
+            $lastIter     : $view.maxIter;
+            $lastIsNewton : $view.isNewton;
+            render($tex, $view.cx, $view.cy, $view.zoom, $view.step, $view.maxIter, $width, $height, $palette, $view.isJulia, $view.jre, $view.jim, $view.isNewton, $view.ncr, $view.nci);
+            $dirty      : false;
+            $needRefine : false;
+        } else {
+            if ($view.maxIter != $lastIter || $view.isNewton != $lastIsNewton) {
+                if ($view.isNewton) {
+                    $palette : buildNewtonPalette($view.maxIter, 0.0);
+                } else {
+                    $palette : buildPalette($view.maxIter, 0.0);
+                }
+                $lastIter     : $view.maxIter;
+                $lastIsNewton : $view.isNewton;
+            }
+            var coarseStep : $view.step < $COARSE ? $COARSE : $view.step;
+            if ($dirty) {
+                render($tex, $view.cx, $view.cy, $view.zoom, $coarseStep, $view.maxIter, $width, $height, $palette, $view.isJulia, $view.jre, $view.jim, $view.isNewton, $view.ncr, $view.nci);
+                $dirty      : false;
+                $needRefine : $view.step < $coarseStep;
+            } else if ($needRefine) {
+                render($tex, $view.cx, $view.cy, $view.zoom, $view.step, $view.maxIter, $width, $height, $palette, $view.isJulia, $view.jre, $view.jim, $view.isNewton, $view.ncr, $view.nci);
+                $needRefine : false;
+            }
+        }
+
+        // ── Draw ──────────────────────────────────────────────────────────
+        ray.BeginDrawing();
+        ray.ClearBackground(ray.Color(0, 0, 0, 255));
+        var negH : eval(0 - $height);
+        ray.DrawTextureRec(ray.GetRenderTextureTexture($tex), ray.Rectangle(0, 0, $width, $negH), ray.Vector2(0, 0), ray.WHITE);
+        ray.DrawFPS(10, 10);
+        var helpY  : eval($height - 75);
+        var help2Y : eval($height - 55);
+        var info1Y : eval($height - 35);
+        var infoY  : eval($height - 15);
+        if ($view.isNewton) {
+            ray.DrawText("NOVA/NEWTON  Scroll/Arrows: nav   I/U: iter   PgUp/PgDn: res   N: Mandelbrot   J: Julia   C: color cycle   R: reset   ESC: quit", 10, $helpY, 14, ray.SKYBLUE);
+            if ($view.newtonLocked) {
+                ray.DrawText("Click: unlock mouse tracking   [LOCKED]", 10, $help2Y, 14, ray.ORANGE);
+            } else {
+                ray.DrawText("Mouse controls Nova c   Click: lock", 10, $help2Y, 14, ray.SKYBLUE);
+            }
+            ray.DrawText("c = " $view.ncr " + " $view.nci "i", 10, $info1Y, 14, ray.SKYBLUE);
+        } else if ($view.isJulia) {
+            ray.DrawText("JULIA  Scroll/Arrows: nav   I/U: iter   PgUp/PgDn: res   J: Mandelbrot   N: Newton   C: color cycle   R: reset   ESC: quit", 10, $helpY, 14, ray.YELLOW);
+            if ($view.juliaLocked) {
+                ray.DrawText("Click: unlock mouse tracking   [LOCKED]", 10, $help2Y, 14, ray.ORANGE);
+            } else {
+                ray.DrawText("Mouse controls c   Click: lock", 10, $help2Y, 14, ray.YELLOW);
+            }
+            ray.DrawText("c = " $view.jre " + " $view.jim "i", 10, $info1Y, 14, ray.YELLOW);
+        } else {
+            ray.DrawText("MANDELBROT  Scroll/Arrows: nav   I/U: iter   PgUp/PgDn: res   R: reset   ESC: quit", 10, $helpY, 14, ray.GRAY);
+            ray.DrawText("J: Julia mode (mouse controls c)   N: Newton   C: color cycle", 10, $help2Y, 14, ray.GRAY);
+            ray.DrawText("c = " $view.jre " + " $view.jim "i", 10, $info1Y, 14, ray.DARKGRAY);
+        }
+        if ($view.colorCycle) {
+            ray.DrawText("[COLOR CYCLE ON]", eval($width - 170), 10, 14, ray.LIME);
+        }
+        if ($view.isJulia && $view.juliaLocked) {
+            ray.DrawText("[LOCKED]", eval($width - 90), 30, 14, ray.ORANGE);
+        }
+        if ($view.isNewton && $view.newtonLocked) {
+            ray.DrawText("[LOCKED]", eval($width - 90), 30, 14, ray.ORANGE);
+        }
+        ray.DrawText("Re: " $view.cx, 10, $infoY, 14, ray.DARKGRAY);
+        ray.DrawText("Im: " $view.cy, 220, $infoY, 14, ray.DARKGRAY);
+        ray.DrawText("Zoom: " $view.zoom, 420, $infoY, 14, ray.DARKGRAY);
+        ray.DrawText("Iter: " $view.maxIter, 590, $infoY, 14, ray.DARKGRAY);
+        ray.DrawText("Step: " $view.step, 700, $infoY, 14, ray.DARKGRAY);
+        ray.EndDrawing();
+
+        if (ray.IsKeyPressed(ray.KEY_ESCAPE)) {
+            ray.CloseWindow();
+            return;
+        }
+    }
+
+    ray.UnloadRenderTexture($tex);
+    ray.CloseWindow();
+}
