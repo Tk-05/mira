@@ -93,7 +93,11 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
     }
 
     private void emitGlobals() {
-        mv.visitFieldInsn(GETSTATIC, ctx.className, "GLOBALS", ENV_D);
+        if (ctx.objectEnvSlot >= 0) {
+            mv.visitVarInsn(ALOAD, ctx.objectEnvSlot);
+        } else {
+            mv.visitFieldInsn(GETSTATIC, ctx.className, "GLOBALS", ENV_D);
+        }
     }
 
     private void emitNullVal() {
@@ -462,7 +466,7 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
 
     @Override
     public <T> T visitNamespaceCallExpr(NamespaceCallExpression expression) {
-        emitGlobals();
+        mv.visitFieldInsn(GETSTATIC, ctx.className, "NAMESPACES", ENV_D);
         mv.visitLdcInsn(expression.getAlias());
         mv.visitLdcInsn(expression.getFunctionName());
         emitObjectArray(expression.getArguments());
@@ -606,6 +610,10 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
     }
 
     private void resolveIfStringName() {
+        mv.visitFieldInsn(GETSTATIC, ctx.className, "NAMESPACES", ENV_D);
+        mv.visitInsn(SWAP);
+        mv.visitMethodInsn(INVOKESTATIC, RT, "resolveIfNamespace",
+                "(" + ENV_D + OBJ_D + ")" + OBJ_D, false);
     }
 
     @Override
@@ -648,11 +656,10 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
             emitMethodAsLambda(method, mName, lClass);
             mv.visitVarInsn(ALOAD, objSlot);
             mv.visitLdcInsn(method.getName());
-            int lSlot = ctx.slots.allocate("$$method$" + n);
-            mv.visitVarInsn(ASTORE, lSlot);
-            mv.visitVarInsn(ALOAD, objSlot);
-            mv.visitLdcInsn(method.getName());
-            mv.visitVarInsn(ALOAD, lSlot);
+            mv.visitTypeInsn(NEW, lClass);
+            mv.visitInsn(DUP);
+            emitIntConst(method.getArity());
+            mv.visitMethodInsn(INVOKESPECIAL, lClass, "<init>", "(I)V", false);
             mv.visitMethodInsn(INVOKEVIRTUAL, ENV, "define",
                     "(Ljava/lang/String;" + OBJ_D + ")V", false);
         }
@@ -674,6 +681,14 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
         CompilerContext lCtx = new CompilerContext(ctx.className, lmv, lSlots,
                 ctx.knownFunctions, ctx.lambdaCounter, false);
         MethodEmitter lme = new MethodEmitter(lCtx, ce);
+
+        int objEnvSlot = lSlots.allocate("$$objEnv");
+        lmv.visitFieldInsn(GETSTATIC, RT, "METHOD_ENV", "Ljava/lang/ThreadLocal;");
+        lmv.visitMethodInsn(INVOKEVIRTUAL, "java/lang/ThreadLocal", "get", "()Ljava/lang/Object;", false);
+        lmv.visitTypeInsn(org.objectweb.asm.Opcodes.CHECKCAST, ENV);
+        lmv.visitVarInsn(ASTORE, objEnvSlot);
+        lCtx.objectEnvSlot = objEnvSlot;
+
         List<Parameter> params = method.getParameters();
         for (int i = 0; i < params.size(); i++) {
             int slot = lSlots.allocate(params.get(i).name());

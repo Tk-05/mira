@@ -1,5 +1,8 @@
 package com.mira.compiler;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -20,14 +23,20 @@ import static org.objectweb.asm.Opcodes.PUTSTATIC;
 import static org.objectweb.asm.Opcodes.RETURN;
 
 import com.mira.Flags;
+import com.mira.lexer.Tokenizer;
+import com.mira.parser.Parser;
 import com.mira.parser.nodes.Node;
 import com.mira.parser.nodes.Parameter;
+import com.mira.parser.nodes.expression.Expression;
+import com.mira.parser.nodes.expression.Expression.ImportExpression;
 import com.mira.parser.nodes.statement.Statement.FuncDecl;
 import com.mira.parser.nodes.statement.Statement.ModuleDecl;
 
-public class MiraCompiler {
+public class Compiler {
 
-    public record CompileResult(byte[] mainClass, Map<String, byte[]> lambdaClasses, String className) {}
+    public record CompileResult(byte[] mainClass, Map<String, byte[]> lambdaClasses, String className) {
+
+    }
 
     private static final String ENV = ClassEmitter.ENV_NAME;
     private static final String ENV_D = ClassEmitter.ENV_DESC;
@@ -47,9 +56,11 @@ public class MiraCompiler {
             }
         }
 
-        emitStaticInit(ce, className, knownFunctions, lambdaCounter, ast);
+        Map<String, byte[]> extras = new HashMap<>();
+        Map<String, String> compiledModules = compileModuleImports(ast, extras);
 
-        emitMain(ce, className, knownFunctions, lambdaCounter, ast);
+        emitStaticInit(ce, className, ast);
+        emitMain(ce, className, knownFunctions, lambdaCounter, ast, compiledModules);
 
         for (Node node : ast) {
             if (node instanceof FuncDecl fd) {
@@ -58,14 +69,52 @@ public class MiraCompiler {
         }
 
         byte[] mainBytes = ce.finish();
-        Map<String, byte[]> extras = new HashMap<>(ce.getExtraClasses());
+        extras.putAll(ce.getExtraClasses());
         return new CompileResult(mainBytes, extras, className);
     }
 
-    // ------------------------------------------------------------------ clinit
+    private Map<String, String> compileModuleImports(List<Node> ast, Map<String, byte[]> extras) {
+        Map<String, String> result = new HashMap<>();
+        for (Node node : ast) {
+            if (!(node instanceof ImportExpression ie)) {
+                continue;
+            }
+            if (ie.getKind() != ImportExpression.ImportKind.MODULE) {
+                continue;
+            }
+            String alias = ie.getNamespace();
+            if (alias == null || alias.isBlank()) {
+                continue;
+            }
+            String rawPath = ie.getModule().replace("\"", "");
+            if (!rawPath.endsWith(".mira")) {
+                rawPath += ".mira";
+            }
+            Path modulePath = Flags.inputPath.get().toAbsolutePath().getParent()
+                    .resolve(rawPath).normalize();
+            if (!Files.exists(modulePath)) {
+                throw new RuntimeException("Module not found: " + modulePath);
+            }
+            try {
+                String source = Files.readString(modulePath);
+                List<Node> moduleAst = new Parser().parseTokens(
+                        new Tokenizer().tokenize(source, false));
+                Path prev = Flags.inputPath.get();
+                Flags.inputPath.set(modulePath);
+                CompileResult r = new Compiler().compile(moduleAst,
+                        modulePath.getFileName().toString());
+                Flags.inputPath.set(prev);
+                extras.put(r.className(), r.mainClass());
+                extras.putAll(r.lambdaClasses());
+                result.put(alias, r.className());
+            } catch (IOException e) {
+                throw new RuntimeException("Cannot read module: " + modulePath, e);
+            }
+        }
+        return result;
+    }
 
-    private void emitStaticInit(ClassEmitter ce, String className,
-            Set<String> knownFunctions, int[] lambdaCounter, List<Node> ast) {
+    private void emitStaticInit(ClassEmitter ce, String className, List<Node> ast) {
         MethodVisitor mv = ce.openStaticInit();
         mv.visitCode();
 
@@ -76,9 +125,37 @@ public class MiraCompiler {
                 "(L" + ENV + ";)V", false);
         mv.visitFieldInsn(PUTSTATIC, className, "GLOBALS", ENV_D);
 
+        mv.visitTypeInsn(NEW, ENV);
+        mv.visitInsn(DUP);
+        mv.visitInsn(org.objectweb.asm.Opcodes.ACONST_NULL);
+        mv.visitMethodInsn(INVOKESPECIAL, ENV, "<init>",
+                "(L" + ENV + ";)V", false);
+        mv.visitFieldInsn(PUTSTATIC, className, "NAMESPACES", ENV_D);
+
         mv.visitFieldInsn(org.objectweb.asm.Opcodes.GETSTATIC, className, "GLOBALS", ENV_D);
         mv.visitMethodInsn(INVOKESTATIC, IMPORT_RESOLVER, "loadInternal",
                 "(" + ENV_D + ")V", false);
+
+        for (Node node : ast) {
+            if (node instanceof Expression.ImportExpression ie) {
+                if (ie.getKind() == Expression.ImportExpression.ImportKind.MODULE) {
+                    continue;
+                }
+                String alias = ie.getNamespace();
+                boolean hasAlias = alias != null && !alias.isBlank();
+                String targetField = hasAlias ? "NAMESPACES" : "GLOBALS";
+                mv.visitFieldInsn(org.objectweb.asm.Opcodes.GETSTATIC, className, targetField, ENV_D);
+                mv.visitLdcInsn(ie.getKind().name());
+                mv.visitLdcInsn(ie.getModule());
+                if (hasAlias) {
+                    mv.visitLdcInsn(alias);
+                } else {
+                    mv.visitInsn(org.objectweb.asm.Opcodes.ACONST_NULL);
+                }
+                mv.visitMethodInsn(INVOKESTATIC, IMPORT_RESOLVER, "loadForCompiled",
+                        "(" + ENV_D + "Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V", false);
+            }
+        }
 
         for (Node node : ast) {
             if (node instanceof FuncDecl fd) {
@@ -103,7 +180,8 @@ public class MiraCompiler {
     }
 
     private void emitMain(ClassEmitter ce, String className,
-            Set<String> knownFunctions, int[] lambdaCounter, List<Node> ast) {
+            Set<String> knownFunctions, int[] lambdaCounter, List<Node> ast,
+            Map<String, String> compiledModules) {
         MethodVisitor mv = ce.openMain();
         mv.visitCode();
 
@@ -120,8 +198,21 @@ public class MiraCompiler {
                 "(Ljava/lang/String;Ljava/lang/Object;)V", false);
 
         for (Node node : ast) {
-            if (node instanceof FuncDecl || node instanceof ModuleDecl) continue;
+            if (node instanceof FuncDecl || node instanceof ModuleDecl
+                    || node instanceof Expression.ImportExpression) {
+                continue;
+            }
             emitter.emitNode(node);
+        }
+
+        for (Map.Entry<String, String> entry : compiledModules.entrySet()) {
+            String alias = entry.getKey();
+            String dotName = entry.getValue().replace('/', '.');
+            mv.visitFieldInsn(org.objectweb.asm.Opcodes.GETSTATIC, className, "NAMESPACES", ClassEmitter.ENV_DESC);
+            mv.visitLdcInsn(alias);
+            mv.visitLdcInsn(dotName);
+            mv.visitMethodInsn(INVOKESTATIC, RT, "loadCompiledModule",
+                    "(" + ClassEmitter.ENV_DESC + "Ljava/lang/String;Ljava/lang/String;)V", false);
         }
 
         if (Flags.mainFunction && knownFunctions.contains("main")) {
@@ -180,9 +271,13 @@ public class MiraCompiler {
     static String toClassName(String scriptName) {
         String base = scriptName;
         int slash = base.lastIndexOf('/');
-        if (slash >= 0) base = base.substring(slash + 1);
+        if (slash >= 0) {
+            base = base.substring(slash + 1);
+        }
         int dot = base.lastIndexOf('.');
-        if (dot >= 0) base = base.substring(0, dot);
+        if (dot >= 0) {
+            base = base.substring(0, dot);
+        }
         base = Character.toUpperCase(base.charAt(0)) + base.substring(1);
         return "com/mira/compiled/" + base;
     }

@@ -25,7 +25,7 @@ public class ClassEmitter {
 
     static final String ENV_DESC = "Lcom/mira/runtime/interpreter/Environment;";
     static final String ENV_NAME = "com/mira/runtime/interpreter/Environment";
-    static final String RT_NAME = "com/mira/compiler/MiraRuntime";
+    static final String RT_NAME = "com/mira/compiler/Runtime";
     static final String NULL_NAME = "com/mira/runtime/interpreter/NullValue";
     static final String THROW_NAME = "com/mira/runtime/functions/ThrowSignal";
 
@@ -40,6 +40,7 @@ public class ClassEmitter {
         this.cw = new ClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS);
         cw.visit(V21, ACC_PUBLIC | ACC_FINAL, internalName, null, "java/lang/Object", null);
         cw.visitField(ACC_PRIVATE | ACC_STATIC | ACC_FINAL, "GLOBALS", ENV_DESC, null, null).visitEnd();
+        cw.visitField(ACC_PRIVATE | ACC_STATIC | ACC_FINAL, "NAMESPACES", ENV_DESC, null, null).visitEnd();
     }
 
     public String getInternalName() {

@@ -7,6 +7,7 @@ import java.util.List;
 
 import com.mira.parser.nodes.expression.Expression;
 import com.mira.parser.nodes.expression.Expression.ArrayExpression;
+import com.mira.parser.nodes.expression.Expression.DumbExpression;
 import com.mira.parser.nodes.expression.Expression.ListExpression;
 import com.mira.parser.nodes.expression.Expression.MapExpression;
 import com.mira.runtime.functions.Callable;
@@ -15,9 +16,70 @@ import com.mira.runtime.interpreter.Environment;
 import com.mira.runtime.interpreter.Namespace;
 import com.mira.runtime.interpreter.NullValue;
 
-public final class MiraRuntime {
+public final class Runtime {
 
-    private MiraRuntime() {
+    public static final ThreadLocal<Environment> METHOD_ENV = new ThreadLocal<>();
+
+    public static void loadCompiledModule(Environment namespaces, String alias, String dotClassName) {
+        try {
+            ClassLoader cl = Thread.currentThread().getContextClassLoader();
+            if (cl == null) {
+                cl = Runtime.class.getClassLoader();
+            }
+            Class<?> cls = Class.forName(dotClassName, true, cl);
+            try {
+                java.lang.reflect.Method mainMethod = cls.getMethod("main", String[].class);
+                mainMethod.invoke(null, (Object) new String[0]);
+            } catch (java.lang.reflect.InvocationTargetException ite) {
+                Throwable cause = ite.getCause();
+                if (cause instanceof RuntimeException re) throw re;
+                throw new RuntimeException(cause);
+            } catch (NoSuchMethodException | IllegalAccessException e) {
+                throw new RuntimeException("Failed to initialize module: " + dotClassName, e);
+            }
+            Namespace ns = new Namespace(alias);
+            for (java.lang.reflect.Method m : cls.getDeclaredMethods()) {
+                if (!m.getName().startsWith("mira$")) {
+                    continue;
+                }
+                String fnName = m.getName().substring(5);
+                if (fnName.equals("main")) {
+                    continue;
+                }
+                try {
+                    m.setAccessible(true);
+                } catch (Exception ignored) {
+                }
+                java.lang.reflect.Method fm = m;
+                ns.define(fnName, new Callable() {
+                    @Override
+                    public Object call(com.mira.runtime.interpreter.Interpreter interp, List<Object> args) {
+                        try {
+                            return fm.invoke(null, (Object) args.toArray());
+                        } catch (java.lang.reflect.InvocationTargetException ite) {
+                            Throwable cause = ite.getCause();
+                            if (cause instanceof RuntimeException re) {
+                                throw re;
+                            }
+                            throw new RuntimeException(cause);
+                        } catch (IllegalAccessException e) {
+                            throw new RuntimeException(e);
+                        }
+                    }
+
+                    @Override
+                    public int getArity() {
+                        return fm.getParameterCount();
+                    }
+                });
+            }
+            namespaces.forceDefine(alias, ns);
+        } catch (ClassNotFoundException e) {
+            throw new RuntimeException("Compiled module not found: " + dotClassName, e);
+        }
+    }
+
+    private Runtime() {
     }
 
     public static Object nullVal() {
@@ -342,6 +404,29 @@ public final class MiraRuntime {
         return new ListExpression(members);
     }
 
+    private static Object evalExpr(Expression expr) {
+        if (expr instanceof ArrayExpression || expr instanceof ListExpression
+                || expr instanceof MapExpression) {
+            return expr;
+        }
+        if (expr instanceof DumbExpression dumb) {
+            String val = dumb.getValue();
+            return switch (val) {
+                case "true" -> Boolean.TRUE;
+                case "false" -> Boolean.FALSE;
+                case "null" -> NullValue.INSTANCE;
+                default -> {
+                    if (!val.isEmpty() && (Character.isDigit(val.charAt(0)) || val.charAt(0) == '-')) {
+                        try { yield Long.parseLong(val); } catch (NumberFormatException ignored) {}
+                        try { yield Double.parseDouble(val); } catch (NumberFormatException ignored) {}
+                    }
+                    yield val;
+                }
+            };
+        }
+        return expr.accept(null);
+    }
+
     public static Object arrayGet(Object container, Object index) {
         return switch (container) {
             case MapExpression map -> {
@@ -350,17 +435,15 @@ public final class MiraRuntime {
                 if (val == null) {
                     throw new RuntimeException("Map key not found: " + key);
                 }
-                yield val.accept(null);
+                yield evalExpr(val);
             }
             case ArrayExpression arr -> {
                 int i = ((Number) index).intValue();
-                Expression elem = arr.getMembers().get(i);
-                yield elem.accept(null);
+                yield evalExpr(arr.getMembers().get(i));
             }
             case ListExpression list -> {
                 int i = ((Number) index).intValue();
-                Expression elem = list.getMembers().get(i);
-                yield elem.accept(null);
+                yield evalExpr(list.getMembers().get(i));
             }
             default ->
                 throw new RuntimeException("Not indexable: " + container);
@@ -378,6 +461,13 @@ public final class MiraRuntime {
             default ->
                 throw new RuntimeException("Not indexable: " + container);
         }
+    }
+
+    public static Object resolveIfNamespace(Environment namespaces, Object val) {
+        if (val instanceof String name) {
+            return namespaces.get(name);
+        }
+        return val;
     }
 
     public static Object fieldGet(Object obj, String field) {
@@ -412,7 +502,13 @@ public final class MiraRuntime {
         if (!(fn instanceof Callable callable)) {
             throw new RuntimeException("Not callable: " + method);
         }
-        return callable.call(null, Arrays.asList(args));
+        Environment prev = METHOD_ENV.get();
+        METHOD_ENV.set(env);
+        try {
+            return callable.call(null, Arrays.asList(args));
+        } finally {
+            METHOD_ENV.set(prev);
+        }
     }
 
     public static Object optionalMethodCall(Object obj, String method, Object[] args) {
@@ -430,8 +526,8 @@ public final class MiraRuntime {
         return callable.call(null, Arrays.asList(args));
     }
 
-    public static Object namespaceCall(Environment globals, String ns, String fn, Object[] args) {
-        Object nsObj = globals.get(ns);
+    public static Object namespaceCall(Environment namespaces, String ns, String fn, Object[] args) {
+        Object nsObj = namespaces.get(ns);
         if (!(nsObj instanceof Namespace namespace)) {
             throw new RuntimeException("Not a namespace: " + ns);
         }
@@ -495,9 +591,9 @@ public final class MiraRuntime {
     public static Object collectionGet(Object container, int index) {
         return switch (container) {
             case ArrayExpression arr ->
-                arr.getMembers().get(index).accept(null);
+                evalExpr(arr.getMembers().get(index));
             case ListExpression list ->
-                list.getMembers().get(index).accept(null);
+                evalExpr(list.getMembers().get(index));
             case String s ->
                 String.valueOf(s.charAt(index));
             default ->

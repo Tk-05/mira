@@ -20,5 +20,6 @@ public class Flags {
 
     public static boolean compile = false;
     public static boolean compileAndRun = false;
+    public static boolean dumpByteCode = false;
     public static Path outputDir = null;
 }

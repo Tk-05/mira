@@ -63,6 +63,8 @@ public class Main {
                         Flags.compile = true;
                         Flags.compileAndRun = true;
                     }
+                    case "-b" ->
+                        Flags.dumpByteCode = true;
                     case "-o" -> {
                         Flags.outputDir = Paths.get(args[i + 1]);
                         i++;

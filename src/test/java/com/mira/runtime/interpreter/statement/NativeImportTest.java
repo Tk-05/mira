@@ -9,7 +9,6 @@ import java.util.jar.JarEntry;
 import java.util.jar.JarOutputStream;
 
 import org.junit.jupiter.api.AfterAll;
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import org.junit.jupiter.api.BeforeAll;
@@ -20,6 +19,7 @@ import com.mira.Flags;
 import com.mira.error.parser.ParserError.LexemeMismatchError;
 import com.mira.error.runtime.RuntimeError.NativeLibNoImplementationError;
 import com.mira.error.runtime.RuntimeError.NativeLibNotFoundError;
+import com.mira.error.runtime.RuntimeError.ObjectAlreadyDefinedInScope;
 import com.mira.lib.Lib;
 import com.mira.runtime.functions.NativeFunction;
 import com.mira.runtime.interpreter.Environment;
@@ -113,7 +113,7 @@ public class NativeImportTest extends InterpreterTestBase {
     @Test
     void duplicateNativeImportWithSameAliasIsIdempotent() {
         String path = escaped(greetJar);
-        assertDoesNotThrow(() -> run("""
+        assertThrows(ObjectAlreadyDefinedInScope.class,() -> run("""
                 import native "%s" as ext;
                 import native "%s" as ext;
                 ext.greet("world");

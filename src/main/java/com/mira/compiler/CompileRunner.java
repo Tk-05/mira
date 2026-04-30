@@ -2,6 +2,7 @@ package com.mira.compiler;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.nio.file.Files;
@@ -10,15 +11,18 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.objectweb.asm.ClassReader;
+import org.objectweb.asm.util.TraceClassVisitor;
+
 import com.mira.Flags;
-import com.mira.compiler.MiraCompiler.CompileResult;
+import com.mira.compiler.Compiler.CompileResult;
 import com.mira.parser.nodes.Node;
 
 public class CompileRunner {
 
     public void run(List<Node> ast) throws Exception {
         long compileStart = System.currentTimeMillis();
-        CompileResult result = new MiraCompiler().compile(ast, Flags.fileName);
+        CompileResult result = new Compiler().compile(ast, Flags.fileName);
         long compileMs = System.currentTimeMillis() - compileStart;
 
         if (Flags.outputDir != null) {
@@ -28,6 +32,10 @@ public class CompileRunner {
             Path outDir = Flags.inputPath.get().getParent();
             writeToDisk(result, outDir);
             printStats(result, outDir, compileMs);
+        }
+
+        if (Flags.dumpByteCode) {
+            dumpBytecode(result);
         }
 
         if (Flags.compileAndRun) {
@@ -44,10 +52,13 @@ public class CompileRunner {
         Method mainMethod = cls.getMethod("main", String[].class);
         String[] programArgs = Flags.args != null ? Flags.args : new String[0];
         try {
+            Thread.currentThread().setContextClassLoader(loader);
             mainMethod.invoke(null, (Object) programArgs);
         } catch (InvocationTargetException ite) {
             Throwable cause = ite.getCause();
-            if (cause instanceof RuntimeException re) throw re;
+            if (cause instanceof RuntimeException re) {
+                throw re;
+            }
             throw new RuntimeException(cause);
         }
     }
@@ -70,6 +81,20 @@ public class CompileRunner {
         System.out.println("  time   : " + compileMs + " ms");
         System.out.println("  run    : java -cp mira-RELEASE.jar" + File.pathSeparator
                 + outDir.toAbsolutePath() + " " + result.className().replace('/', '.'));
+    }
+
+    private void dumpBytecode(CompileResult result) {
+        PrintWriter pw = new PrintWriter(System.out, true);
+        dumpClass(result.className(), result.mainClass(), pw);
+        for (Map.Entry<String, byte[]> entry : result.lambdaClasses().entrySet()) {
+            dumpClass(entry.getKey(), entry.getValue(), pw);
+        }
+    }
+
+    private static void dumpClass(String internalName, byte[] bytes, PrintWriter pw) {
+        pw.println("=== " + internalName + " ===");
+        new ClassReader(bytes).accept(new TraceClassVisitor(pw), ClassReader.SKIP_DEBUG);
+        pw.println();
     }
 
     private static void writeClass(Path outDir, String internalName, byte[] bytes) throws IOException {

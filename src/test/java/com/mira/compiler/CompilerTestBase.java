@@ -19,8 +19,8 @@ public abstract class CompilerTestBase {
 
     protected String run(String source) {
         List<Node> ast = parser.parseTokens(tokenizer.tokenize(source, false));
-        MiraCompiler compiler = new MiraCompiler();
-        MiraCompiler.CompileResult result = compiler.compile(ast, "test.mira");
+        Compiler compiler = new Compiler();
+        Compiler.CompileResult result = compiler.compile(ast, "test.mira");
 
         Map<String, byte[]> all = new HashMap<>(result.lambdaClasses());
         all.put(result.className(), result.mainClass());

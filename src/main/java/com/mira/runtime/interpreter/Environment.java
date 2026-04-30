@@ -40,6 +40,11 @@ public class Environment {
         }
     }
 
+    public void forceDefine(String name, Object value) {
+        values.put(name, value);
+        constants.remove(name);
+    }
+
     public void defineConst(String name, Object value) {
         if (overwriteMode.get() || !exists(name)) {
             values.put(name, value);
