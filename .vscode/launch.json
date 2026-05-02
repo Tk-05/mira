@@ -26,11 +26,7 @@
                     "-li",
                     "-lint",
                     "-crash",
-                    "-compile-run",
-                    "-o",
-                    "target/",
-                    "-args",
-                    "Hello World"
+                    "-compile-run"
                 ]
         },
         {
