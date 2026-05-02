@@ -3,6 +3,7 @@ package com.mira.lib.internal;
 import java.util.List;
 import java.util.Scanner;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
@@ -15,7 +16,9 @@ import com.mira.parser.Parser;
 import com.mira.parser.nodes.Node;
 import com.mira.parser.nodes.expression.Expression.ArrayExpression;
 import com.mira.parser.nodes.expression.Expression.ListExpression;
+import com.mira.runtime.functions.Callable;
 import com.mira.runtime.functions.NativeFunction;
+import com.mira.runtime.functions.Promise;
 import com.mira.runtime.interpreter.Environment;
 import com.mira.runtime.interpreter.Evaluator;
 import com.mira.runtime.interpreter.Interpreter;
@@ -164,5 +167,22 @@ public class Internal implements Lib {
             }
             return null;
         }));
+
+        environment.define("spawn", new Callable() {
+            @Override
+            public int getArity() {
+                return 1;
+            }
+
+            @Override
+            public Object call(Interpreter interpreter, List<Object> arguments) {
+                Callable callable = (Callable) arguments.get(0);
+                Interpreter forked = interpreter != null ? interpreter.fork() : null;
+                CompletableFuture<Object> future = CompletableFuture.supplyAsync(()
+                        -> callable.call(forked, List.of())
+                );
+                return new Promise(future);
+            }
+        });
     }
 }

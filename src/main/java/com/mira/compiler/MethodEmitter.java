@@ -547,12 +547,19 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
         lmv.visitMaxs(0, 0);
         lmv.visitEnd();
 
-        ce.emitLambdaClass(lambdaClass, ctx.className, methodName, arity);
+        String syncClass = lambdaClass + (lambda.isAsync() ? "$sync" : "");
+        ce.emitLambdaClass(syncClass, ctx.className, methodName, arity);
 
-        mv.visitTypeInsn(NEW, lambdaClass);
+        String visibleClass = syncClass;
+        if (lambda.isAsync()) {
+            ce.emitAsyncLambdaClass(lambdaClass, syncClass, arity);
+            visibleClass = lambdaClass;
+        }
+
+        mv.visitTypeInsn(NEW, visibleClass);
         mv.visitInsn(DUP);
         emitIntConst(arity);
-        mv.visitMethodInsn(INVOKESPECIAL, lambdaClass, "<init>", "(I)V", false);
+        mv.visitMethodInsn(INVOKESPECIAL, visibleClass, "<init>", "(I)V", false);
         return null;
     }
 
@@ -842,12 +849,19 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
         lmv.visitInsn(ARETURN);
         lmv.visitMaxs(0, 0);
         lmv.visitEnd();
-        ce.emitLambdaClass(lClass, ctx.className, mName, stmt.getArity());
+        String syncClass = lClass + (stmt.isAsync() ? "$sync" : "");
+        ce.emitLambdaClass(syncClass, ctx.className, mName, stmt.getArity());
 
-        mv.visitTypeInsn(NEW, lClass);
+        String visibleClass = syncClass;
+        if (stmt.isAsync()) {
+            ce.emitAsyncLambdaClass(lClass, syncClass, stmt.getArity());
+            visibleClass = lClass;
+        }
+
+        mv.visitTypeInsn(NEW, visibleClass);
         mv.visitInsn(DUP);
         emitIntConst(stmt.getArity());
-        mv.visitMethodInsn(INVOKESPECIAL, lClass, "<init>", "(I)V", false);
+        mv.visitMethodInsn(INVOKESPECIAL, visibleClass, "<init>", "(I)V", false);
         emitVarStore(stmt.getName(), true);
         return null;
     }

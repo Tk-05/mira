@@ -2,7 +2,7 @@ module main;
 
 import module "./Debug2.mira" as test;
 import native "../../../../extern/raylib/target/raylib-RELEASE.jar" as ray;
-import module "./Mandelbrot.mira" as mb;
+import module "./Fractals.mira" as fractals;
 import string;
 import collection as col;
 import net;
@@ -56,7 +56,7 @@ fn main() {
     $i**=2;
     print($i"\n");
     if(scan() == ray) {
-        mb.run();
+        fractals.run();
     } else {
         $multiComment"\n"|>print();
 

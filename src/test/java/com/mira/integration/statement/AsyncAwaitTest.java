@@ -3,21 +3,16 @@ package com.mira.integration.statement;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import com.mira.runtime.functions.Promise;
 import com.mira.integration.InterpreterTestBase;
+import com.mira.runtime.functions.Promise;
 
 public class AsyncAwaitTest extends InterpreterTestBase {
 
-    @BeforeEach
-    void disableCompilerTest() {
-        skipCompilerTest = true;
-    }
-
     @Test
     void asyncFunctionReturnsPromise() {
+        skipCompilerTest = true;
         Object result = run("async fn task() { return 1; } task();");
         assertInstanceOf(Promise.class, result);
     }
@@ -49,6 +44,7 @@ public class AsyncAwaitTest extends InterpreterTestBase {
 
     @Test
     void asyncLambdaReturnsPromise() {
+        skipCompilerTest = true;
         Object result = run("var task : async fn() { return 99; }; task();");
         assertInstanceOf(Promise.class, result);
     }

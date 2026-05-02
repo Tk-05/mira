@@ -55,7 +55,7 @@ public class Compiler {
 
         Set<String> knownFunctions = new HashSet<>();
         for (Node node : ast) {
-            if (node instanceof FuncDecl fd) {
+            if (node instanceof FuncDecl fd && !fd.isAsync()) {
                 knownFunctions.add(fd.getName());
             }
         }
@@ -174,15 +174,22 @@ public class Compiler {
         for (Node node : ast) {
             if (node instanceof FuncDecl fd) {
                 String mName = "mira$" + fd.getName();
-                String lClass = className + "$Lambda$fn$" + fd.getName();
-                ce.emitLambdaClass(lClass, className, mName, fd.getArity());
+                String syncClass = className + "$Lambda$fn$" + fd.getName() + (fd.isAsync() ? "$sync" : "");
+                ce.emitLambdaClass(syncClass, className, mName, fd.getArity());
+
+                String visibleClass = syncClass;
+                if (fd.isAsync()) {
+                    String asyncClass = className + "$Lambda$fn$" + fd.getName();
+                    ce.emitAsyncLambdaClass(asyncClass, syncClass, fd.getArity());
+                    visibleClass = asyncClass;
+                }
 
                 mv.visitFieldInsn(org.objectweb.asm.Opcodes.GETSTATIC, className, "GLOBALS", ENV_D);
                 mv.visitLdcInsn(fd.getName());
-                mv.visitTypeInsn(NEW, lClass);
+                mv.visitTypeInsn(NEW, visibleClass);
                 mv.visitInsn(DUP);
                 emitIntConst(mv, fd.getArity());
-                mv.visitMethodInsn(INVOKESPECIAL, lClass, "<init>", "(I)V", false);
+                mv.visitMethodInsn(INVOKESPECIAL, visibleClass, "<init>", "(I)V", false);
                 mv.visitMethodInsn(INVOKEVIRTUAL, ENV, "define",
                         "(Ljava/lang/String;" + OBJ_D + ")V", false);
             }

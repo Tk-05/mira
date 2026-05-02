@@ -32,7 +32,9 @@ public final class Runtime {
                 mainMethod.invoke(null, (Object) new String[0]);
             } catch (java.lang.reflect.InvocationTargetException ite) {
                 Throwable cause = ite.getCause();
-                if (cause instanceof RuntimeException re) throw re;
+                if (cause instanceof RuntimeException re) {
+                    throw re;
+                }
                 throw new RuntimeException(cause);
             } catch (NoSuchMethodException | IllegalAccessException e) {
                 throw new RuntimeException("Failed to initialize module: " + dotClassName, e);
@@ -416,13 +418,22 @@ public final class Runtime {
         if (expr instanceof DumbExpression dumb) {
             String val = dumb.getValue();
             return switch (val) {
-                case "true" -> Boolean.TRUE;
-                case "false" -> Boolean.FALSE;
-                case "null" -> NullValue.INSTANCE;
+                case "true" ->
+                    Boolean.TRUE;
+                case "false" ->
+                    Boolean.FALSE;
+                case "null" ->
+                    NullValue.INSTANCE;
                 default -> {
                     if (!val.isEmpty() && (Character.isDigit(val.charAt(0)) || val.charAt(0) == '-')) {
-                        try { yield Long.parseLong(val); } catch (NumberFormatException ignored) {}
-                        try { yield Double.parseDouble(val); } catch (NumberFormatException ignored) {}
+                        try {
+                            yield Long.parseLong(val);
+                        } catch (NumberFormatException ignored) {
+                        }
+                        try {
+                            yield Double.parseDouble(val);
+                        } catch (NumberFormatException ignored) {
+                        }
                     }
                     yield val;
                 }
@@ -477,8 +488,12 @@ public final class Runtime {
 
     public static Object resolveIfNamespace(Object val, Environment namespaces, Environment globals) {
         if (val instanceof String name) {
-            if (namespaces.exists(name)) return namespaces.get(name);
-            if (globals != null && globals.exists(name)) return globals.get(name);
+            if (namespaces.exists(name)) {
+                return namespaces.get(name);
+            }
+            if (globals != null && globals.exists(name)) {
+                return globals.get(name);
+            }
         }
         return val;
     }
@@ -630,5 +645,30 @@ public final class Runtime {
             members.add(wrapExpr(args[i]));
         }
         return new ListExpression(members);
+    }
+
+    public static Object asyncWrap(Callable callable, Object[] args) {
+        java.util.List<Object> argsList = java.util.Arrays.asList(args);
+        java.util.concurrent.CompletableFuture<Object> future
+                = java.util.concurrent.CompletableFuture.supplyAsync(() -> callable.call(null, argsList));
+        return new com.mira.runtime.functions.Promise(future);
+    }
+
+    public static Object awaitPromise(Object value) {
+        if (value instanceof com.mira.runtime.functions.Promise promise) {
+            try {
+                return promise.getFuture().get();
+            } catch (java.util.concurrent.ExecutionException e) {
+                Throwable cause = e.getCause();
+                if (cause instanceof ThrowSignal ts) {
+                    throw ts;
+                }
+                throw new ThrowSignal("AsyncError", cause != null ? cause.getMessage() : "async error");
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new ThrowSignal("InterruptedError", e.getMessage());
+            }
+        }
+        return value;
     }
 }
