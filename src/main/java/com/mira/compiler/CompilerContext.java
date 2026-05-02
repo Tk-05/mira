@@ -24,6 +24,7 @@ public class CompilerContext {
     public final boolean isTopLevel;
 
     public int objectEnvSlot = -1;
+    public int blockDepth = 0;
 
     public CompilerContext(String className, MethodVisitor mv, LocalSlotTable slots,
             Set<String> knownFunctions, int[] lambdaCounter, boolean isTopLevel) {

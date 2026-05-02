@@ -337,6 +337,10 @@ public final class Runtime {
         return (a == null || a instanceof NullValue) ? b : a;
     }
 
+    public static boolean isNullValue(Object a) {
+        return a == null || a instanceof NullValue;
+    }
+
     public static Expression wrapExpr(Object val) {
         if (val instanceof Expression e) {
             return e;
@@ -450,6 +454,14 @@ public final class Runtime {
         };
     }
 
+    public static Object safeArrayGet(Object container, Object index) {
+        try {
+            return arrayGet(container, index);
+        } catch (IndexOutOfBoundsException e) {
+            return NullValue.INSTANCE;
+        }
+    }
+
     public static void arraySet(Object container, Object index, Object value) {
         switch (container) {
             case ArrayExpression arr ->
@@ -463,9 +475,10 @@ public final class Runtime {
         }
     }
 
-    public static Object resolveIfNamespace(Environment namespaces, Object val) {
+    public static Object resolveIfNamespace(Object val, Environment namespaces, Environment globals) {
         if (val instanceof String name) {
-            return namespaces.get(name);
+            if (namespaces.exists(name)) return namespaces.get(name);
+            if (globals != null && globals.exists(name)) return globals.get(name);
         }
         return val;
     }

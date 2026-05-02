@@ -100,6 +100,10 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
         }
     }
 
+    private void emitRealGlobals() {
+        mv.visitFieldInsn(GETSTATIC, ctx.className, "GLOBALS", ENV_D);
+    }
+
     private void emitNullVal() {
         mv.visitMethodInsn(INVOKESTATIC, RT, "nullVal", "()" + OBJ_D, false);
     }
@@ -144,7 +148,7 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
     }
 
     private void emitVarStore(String name, boolean isNewDecl) {
-        if (!ctx.isTopLevel) {
+        if (!ctx.isTopLevel || ctx.blockDepth > 0) {
             if (isNewDecl) {
                 int slot = ctx.slots.allocate(name);
                 mv.visitVarInsn(ASTORE, slot);
@@ -273,8 +277,8 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
                 Label notNull = new Label(), end = new Label();
                 expression.getLeft().accept(this);
                 mv.visitInsn(DUP);
-                mv.visitMethodInsn(INVOKESTATIC, RT, "isTruthy", "(" + OBJ_D + ")Z", false);
-                mv.visitJumpInsn(IFNE, notNull);
+                mv.visitMethodInsn(INVOKESTATIC, RT, "isNullValue", "(" + OBJ_D + ")Z", false);
+                mv.visitJumpInsn(IFEQ, notNull);
                 mv.visitInsn(POP);
                 expression.getRight().accept(this);
                 mv.visitJumpInsn(GOTO, end);
@@ -353,6 +357,7 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
                     emitVarLookup(dumb.getValue());
                 } else {
                     expression.getRight().accept(this);
+                    mv.visitTypeInsn(org.objectweb.asm.Opcodes.CHECKCAST, "java/lang/String");
                     emitGlobals();
                     mv.visitInsn(SWAP);
                     mv.visitMethodInsn(INVOKEVIRTUAL, ENV, "get",
@@ -434,7 +439,7 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
                     mv.visitMethodInsn(INVOKESTATIC, RT, "dynamicCall",
                             "(" + OBJ_D + "[" + OBJ_D + ")" + OBJ_D, false);
                 } else {
-                    emitGlobals();
+                    emitRealGlobals();
                     mv.visitLdcInsn(name);
                     emitObjectArray(expression.getArguments());
                     mv.visitMethodInsn(INVOKESTATIC, RT, "callNamed",
@@ -499,10 +504,40 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
 
         List<Parameter> params = lambda.getParameters();
         for (int i = 0; i < params.size(); i++) {
-            int slot = lSlots.allocate(params.get(i).name());
+            Parameter param = params.get(i);
+            int slot = lSlots.allocate(param.name());
+            if (param.hasDefault()) {
+                Label useDefault = new Label(), useDefaultAfterPop = new Label(), done = new Label();
+                lmv.visitVarInsn(ALOAD, 0);
+                lmv.visitInsn(org.objectweb.asm.Opcodes.ARRAYLENGTH);
+                emitIntConst(lmv, i + 1);
+                lmv.visitJumpInsn(org.objectweb.asm.Opcodes.IF_ICMPLT, useDefault);
+                lmv.visitVarInsn(ALOAD, 0);
+                emitIntConst(lmv, i);
+                lmv.visitInsn(AALOAD);
+                lmv.visitInsn(DUP);
+                lmv.visitMethodInsn(INVOKESTATIC, RT, "isNullValue", "(Ljava/lang/Object;)Z", false);
+                lmv.visitJumpInsn(org.objectweb.asm.Opcodes.IFNE, useDefaultAfterPop);
+                lmv.visitJumpInsn(GOTO, done);
+                lmv.visitLabel(useDefaultAfterPop);
+                lmv.visitInsn(POP);
+                lmv.visitLabel(useDefault);
+                param.defaultValue().accept(lme);
+                lmv.visitLabel(done);
+            } else {
+                lmv.visitVarInsn(ALOAD, 0);
+                emitIntConst(lmv, i);
+                lmv.visitInsn(AALOAD);
+            }
+            lmv.visitVarInsn(ASTORE, slot);
+        }
+
+        if (lambda.getVariadicParam() != null) {
+            int slot = lSlots.allocate(lambda.getVariadicParam());
             lmv.visitVarInsn(ALOAD, 0);
-            emitIntConst(lmv, i);
-            lmv.visitInsn(AALOAD);
+            emitIntConst(lmv, params.size());
+            lmv.visitMethodInsn(INVOKESTATIC, RT, "variadicTail",
+                    "([Ljava/lang/Object;I)Ljava/lang/Object;", false);
             lmv.visitVarInsn(ASTORE, slot);
         }
 
@@ -619,9 +654,9 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
 
     private void resolveIfStringName() {
         mv.visitFieldInsn(GETSTATIC, ctx.className, "NAMESPACES", ENV_D);
-        mv.visitInsn(SWAP);
+        mv.visitFieldInsn(GETSTATIC, ctx.className, "GLOBALS", ENV_D);
         mv.visitMethodInsn(INVOKESTATIC, RT, "resolveIfNamespace",
-                "(" + ENV_D + OBJ_D + ")" + OBJ_D, false);
+                "(" + OBJ_D + ENV_D + ENV_D + ")" + OBJ_D, false);
     }
 
     @Override
@@ -699,10 +734,31 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
 
         List<Parameter> params = method.getParameters();
         for (int i = 0; i < params.size(); i++) {
-            int slot = lSlots.allocate(params.get(i).name());
-            lmv.visitVarInsn(ALOAD, 0);
-            emitIntConst(lmv, i);
-            lmv.visitInsn(AALOAD);
+            Parameter param = params.get(i);
+            int slot = lSlots.allocate(param.name());
+            if (param.hasDefault()) {
+                Label useDefault = new Label(), useDefaultAfterPop = new Label(), done = new Label();
+                lmv.visitVarInsn(ALOAD, 0);
+                lmv.visitInsn(org.objectweb.asm.Opcodes.ARRAYLENGTH);
+                emitIntConst(lmv, i + 1);
+                lmv.visitJumpInsn(org.objectweb.asm.Opcodes.IF_ICMPLT, useDefault);
+                lmv.visitVarInsn(ALOAD, 0);
+                emitIntConst(lmv, i);
+                lmv.visitInsn(AALOAD);
+                lmv.visitInsn(DUP);
+                lmv.visitMethodInsn(INVOKESTATIC, RT, "isNullValue", "(Ljava/lang/Object;)Z", false);
+                lmv.visitJumpInsn(org.objectweb.asm.Opcodes.IFNE, useDefaultAfterPop);
+                lmv.visitJumpInsn(GOTO, done);
+                lmv.visitLabel(useDefaultAfterPop);
+                lmv.visitInsn(POP);
+                lmv.visitLabel(useDefault);
+                param.defaultValue().accept(lme);
+                lmv.visitLabel(done);
+            } else {
+                lmv.visitVarInsn(ALOAD, 0);
+                emitIntConst(lmv, i);
+                lmv.visitInsn(AALOAD);
+            }
             lmv.visitVarInsn(ASTORE, slot);
         }
         lme.emitBody(method.getBody());
@@ -711,11 +767,6 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
         lmv.visitMaxs(0, 0);
         lmv.visitEnd();
         ce.emitLambdaClass(lClass, ctx.className, mName, method.getArity());
-
-        mv.visitTypeInsn(NEW, lClass);
-        mv.visitInsn(DUP);
-        emitIntConst(method.getArity());
-        mv.visitMethodInsn(INVOKESPECIAL, lClass, "<init>", "(I)V", false);
     }
 
     @Override
@@ -850,7 +901,18 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
         } else {
             emitNullVal();
         }
-        mv.visitInsn(ARETURN);
+        if (ctx.isTopLevel) {
+            String sig = "com/mira/runtime/functions/ReturnSignal";
+            int tmpSlot = ctx.slots.allocateTemp();
+            mv.visitVarInsn(ASTORE, tmpSlot);
+            mv.visitTypeInsn(NEW, sig);
+            mv.visitInsn(DUP);
+            mv.visitVarInsn(ALOAD, tmpSlot);
+            mv.visitMethodInsn(INVOKESPECIAL, sig, "<init>", "(Ljava/lang/Object;)V", false);
+            mv.visitInsn(ATHROW);
+        } else {
+            mv.visitInsn(ARETURN);
+        }
         return null;
     }
 
@@ -1044,7 +1106,9 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
     @Override
     public Void visitBlock(Block stmt) {
         ctx.slots.enterScope();
+        ctx.blockDepth++;
         emitBody(stmt.getBody());
+        ctx.blockDepth--;
         ctx.slots.exitScope();
         return null;
     }
@@ -1088,14 +1152,15 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
         Label tryStart = new Label(), tryEnd = new Label(),
                 catchStart = new Label(), afterCatch = new Label();
 
-        mv.visitTryCatchBlock(tryStart, tryEnd, catchStart,
-                ClassEmitter.THROW_NAME);
-
         mv.visitLabel(tryStart);
         ctx.slots.enterScope();
         emitBody(stmt.getTryBody());
         ctx.slots.exitScope();
         mv.visitLabel(tryEnd);
+
+        mv.visitTryCatchBlock(tryStart, tryEnd, catchStart,
+                ClassEmitter.THROW_NAME);
+
         mv.visitJumpInsn(GOTO, afterCatch);
 
         mv.visitLabel(catchStart);
@@ -1216,7 +1281,7 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
             mv.visitVarInsn(ALOAD, collSlot);
             mv.visitLdcInsn((long) i);
             mv.visitMethodInsn(INVOKESTATIC, RT, "wrapLong", "(J)" + OBJ_D, false);
-            mv.visitMethodInsn(INVOKESTATIC, RT, "arrayGet",
+            mv.visitMethodInsn(INVOKESTATIC, RT, "safeArrayGet",
                     "(" + OBJ_D + OBJ_D + ")" + OBJ_D, false);
             emitVarStore(names.get(i), true);
         }

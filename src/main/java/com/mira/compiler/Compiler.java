@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
 import static org.objectweb.asm.Opcodes.ALOAD;
 import static org.objectweb.asm.Opcodes.ARETURN;
@@ -20,6 +21,7 @@ import static org.objectweb.asm.Opcodes.INVOKESTATIC;
 import static org.objectweb.asm.Opcodes.INVOKEVIRTUAL;
 import static org.objectweb.asm.Opcodes.NEW;
 import static org.objectweb.asm.Opcodes.PUTSTATIC;
+import static org.objectweb.asm.Opcodes.GOTO;
 import static org.objectweb.asm.Opcodes.RETURN;
 
 import com.mira.Flags;
@@ -257,10 +259,31 @@ public class Compiler {
 
         List<Parameter> params = fd.getParameters();
         for (int i = 0; i < params.size(); i++) {
-            int slot = slots.allocate(params.get(i).name());
-            mv.visitVarInsn(ALOAD, 0);
-            emitIntConst(mv, i);
-            mv.visitInsn(org.objectweb.asm.Opcodes.AALOAD);
+            Parameter param = params.get(i);
+            int slot = slots.allocate(param.name());
+            if (param.hasDefault()) {
+                Label useDefault = new Label(), useDefaultAfterPop = new Label(), done = new Label();
+                mv.visitVarInsn(ALOAD, 0);
+                mv.visitInsn(org.objectweb.asm.Opcodes.ARRAYLENGTH);
+                emitIntConst(mv, i + 1);
+                mv.visitJumpInsn(org.objectweb.asm.Opcodes.IF_ICMPLT, useDefault);
+                mv.visitVarInsn(ALOAD, 0);
+                emitIntConst(mv, i);
+                mv.visitInsn(org.objectweb.asm.Opcodes.AALOAD);
+                mv.visitInsn(org.objectweb.asm.Opcodes.DUP);
+                mv.visitMethodInsn(INVOKESTATIC, RT, "isNullValue", "(Ljava/lang/Object;)Z", false);
+                mv.visitJumpInsn(org.objectweb.asm.Opcodes.IFNE, useDefaultAfterPop);
+                mv.visitJumpInsn(GOTO, done);
+                mv.visitLabel(useDefaultAfterPop);
+                mv.visitInsn(org.objectweb.asm.Opcodes.POP);
+                mv.visitLabel(useDefault);
+                param.defaultValue().accept(emitter);
+                mv.visitLabel(done);
+            } else {
+                mv.visitVarInsn(ALOAD, 0);
+                emitIntConst(mv, i);
+                mv.visitInsn(org.objectweb.asm.Opcodes.AALOAD);
+            }
             mv.visitVarInsn(ASTORE, slot);
         }
         if (fd.getVariadicParam() != null) {

@@ -41,6 +41,10 @@ public class LocalSlotTable {
         return null;
     }
 
+    public int allocateTemp() {
+        return nextSlot++;
+    }
+
     public int current() {
         return nextSlot;
     }
