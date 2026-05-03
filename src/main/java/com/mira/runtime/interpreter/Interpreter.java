@@ -33,6 +33,7 @@ import com.mira.parser.nodes.expression.Expression;
 import com.mira.parser.nodes.expression.Expression.AccessExpression;
 import com.mira.parser.nodes.expression.Expression.ArrayExpression;
 import com.mira.parser.nodes.expression.Expression.AwaitExpression;
+import com.mira.parser.nodes.expression.Expression.SwitchExpression;
 import com.mira.parser.nodes.expression.Expression.BinaryExpression;
 import com.mira.parser.nodes.expression.Expression.CallExpression;
 import com.mira.parser.nodes.expression.Expression.ComplexExpression;
@@ -1803,6 +1804,21 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                 throw new AssertionError();
             }
         }
+    }
+
+    @Override
+    public <T> T visitSwitchExpr(SwitchExpression expression) {
+        Object subject = expression.getSubject().accept(this);
+        for (SwitchExpression.SwitchExprCase c : expression.getCases()) {
+            Object caseVal = c.value().accept(this);
+            if (evaluateComparison(subject, "==", caseVal)) {
+                return (T) c.result().accept(this);
+            }
+        }
+        if (expression.getDefaultExpr() != null) {
+            return (T) expression.getDefaultExpr().accept(this);
+        }
+        return (T) NullValue.INSTANCE;
     }
 
     @Override

@@ -54,6 +54,16 @@ fn main() {
     var i : 10;
     $i\%= 5;
     $i**=2;
+
+    switch($i) {
+        case (1) {
+            println($i);
+        }
+        default {
+            println("Default");
+        }
+    }
+
     print($i"\n");
     if(scan() == ray) {
         fractals.run();
@@ -164,7 +174,11 @@ fn main() {
 
         print("It's " $temps[$idx] " on " $timestamp "\n");
 
-        return eval($ret);
+        return switch($ret) {
+            case (69) -> eval($ret)
+            case (2)  -> 2
+            default   -> 0
+        };
         print("Dead code");
     }
 }

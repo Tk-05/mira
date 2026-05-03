@@ -17,6 +17,7 @@ import com.mira.parser.nodes.expression.Expression.ObjectExpression;
 import com.mira.parser.nodes.expression.Expression.RangeExpression;
 import com.mira.parser.nodes.expression.Expression.TernaryExpression;
 import com.mira.parser.nodes.expression.Expression.ThrownException;
+import com.mira.parser.nodes.expression.Expression.SwitchExpression;
 import com.mira.parser.nodes.expression.Expression.UnaryExpression;
 
 public interface ExprVisitor<T> {
@@ -56,4 +57,6 @@ public interface ExprVisitor<T> {
     public <T> T visitThrownExpection(ThrownException expression);
 
     public <T> T visitAwaitExpr(AwaitExpression expression);
+
+    public <T> T visitSwitchExpr(SwitchExpression expression);
 }

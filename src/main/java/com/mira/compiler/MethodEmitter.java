@@ -38,6 +38,7 @@ import com.mira.parser.nodes.expression.Expression;
 import com.mira.parser.nodes.expression.Expression.AccessExpression;
 import com.mira.parser.nodes.expression.Expression.ArrayExpression;
 import com.mira.parser.nodes.expression.Expression.AwaitExpression;
+import com.mira.parser.nodes.expression.Expression.SwitchExpression;
 import com.mira.parser.nodes.expression.Expression.BinaryExpression;
 import com.mira.parser.nodes.expression.Expression.CallExpression;
 import com.mira.parser.nodes.expression.Expression.ComplexExpression;
@@ -807,6 +808,36 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
         expression.getExpr().accept(this);
         mv.visitMethodInsn(INVOKESTATIC, RT, "awaitPromise",
                 "(" + OBJ_D + ")" + OBJ_D, false);
+        return null;
+    }
+
+    @Override
+    public <T> T visitSwitchExpr(SwitchExpression expression) {
+        int subjSlot = ctx.slots.allocate("$$switchExpr");
+        expression.getSubject().accept(this);
+        mv.visitVarInsn(ASTORE, subjSlot);
+
+        Label switchEnd = new Label();
+
+        for (SwitchExpression.SwitchExprCase c : expression.getCases()) {
+            Label skip = new Label();
+            mv.visitVarInsn(ALOAD, subjSlot);
+            c.value().accept(this);
+            mv.visitMethodInsn(INVOKESTATIC, RT, "eq",
+                    "(" + OBJ_D + OBJ_D + ")" + OBJ_D, false);
+            emitIsTruthy();
+            mv.visitJumpInsn(IFEQ, skip);
+            c.result().accept(this);
+            mv.visitJumpInsn(GOTO, switchEnd);
+            mv.visitLabel(skip);
+        }
+
+        if (expression.getDefaultExpr() != null) {
+            expression.getDefaultExpr().accept(this);
+        } else {
+            emitNullVal();
+        }
+        mv.visitLabel(switchEnd);
         return null;
     }
 

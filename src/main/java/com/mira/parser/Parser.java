@@ -30,6 +30,7 @@ import com.mira.parser.nodes.expression.Expression.MethodCallExpression;
 import com.mira.parser.nodes.expression.Expression.NamespaceCallExpression;
 import com.mira.parser.nodes.expression.Expression.ObjectExpression;
 import com.mira.parser.nodes.expression.Expression.RangeExpression;
+import com.mira.parser.nodes.expression.Expression.SwitchExpression;
 import com.mira.parser.nodes.expression.Expression.TernaryExpression;
 import com.mira.parser.nodes.expression.Expression.ThrownException;
 import com.mira.parser.nodes.expression.Expression.UnaryExpression;
@@ -350,6 +351,11 @@ public class Parser {
             Expression first = parseExpression();
             matchLexeme(")");
             expr = first;
+
+        } else if (current.getLexeme().equals("switch")
+                && current.getTokenType() == TokenType.KEYWORD) {
+            consume();
+            expr = parseSwitchExpression();
 
         } else if (current.getLexeme().equals("await")
                 && current.getTokenType() == TokenType.KEYWORD) {
@@ -939,8 +945,29 @@ public class Parser {
     private Node parseReturn() {
         consume();
         Expression value;
-        if (isExpressionToken(peek()) || peek().getTokenType() == TokenType.OPERATION) {
-            value = parseExpression();
+        boolean startsExpression = isExpressionToken(peek())
+                || peek().getTokenType() == TokenType.OPERATION
+                || (peek().getTokenType() == TokenType.KEYWORD
+                && (peek().getLexeme().equals("switch")
+                || peek().getLexeme().equals("await")
+                || peek().getLexeme().equals("async")
+                || peek().getLexeme().equals("fn")));
+        if (startsExpression) {
+            value = parsePratt(0);
+            // Continue as a complex expression only for string interpolation:
+            // the only valid continuation tokens are string literals and $ variable refs.
+            List<Expression> parts = new ArrayList<>();
+            parts.add(value);
+            while (!isStructuralDelimiter(peek()) && peek().getTokenType() != TokenType.EOF) {
+                skipWhitespaceTokens();
+                Token next = peek();
+                if (next.getTokenType() != TokenType.STRING_LITERAL
+                        && !(next.getTokenType() == TokenType.OPERATION && next.getLexeme().equals("$"))) {
+                    break;
+                }
+                parts.add(parsePratt(0));
+            }
+            value = parts.size() == 1 ? parts.get(0) : new ComplexExpression(parts);
         } else {
             value = new DumbExpression(new Token(null, "0.0", -1, -1));
         }
@@ -1238,6 +1265,69 @@ public class Parser {
         return new Block(body);
     }
 
+    private Node parseSwitchArrowBody() {
+        skipWhitespaceTokens();
+        String lex = peek().getLexeme();
+        if (lex.equals("$") && isAssignment()) {
+            Node assign = parseAssign();
+            matchLexeme(";");
+            return assign;
+        }
+
+        if (peek().getTokenType() == TokenType.KEYWORD) {
+            return switch (lex) {
+                case "var", "const", "return", "break", "continue", "throw" ->
+                    parseStatement(true);
+                case "if" ->
+                    parseIf();
+                case "while" ->
+                    parseWhile();
+                case "for" ->
+                    parseFor();
+                default ->
+                    parsePratt(0);
+            };
+        }
+
+        return parsePratt(0);
+    }
+
+    private Expression parseSwitchExpression() {
+        matchLexeme("(");
+        Expression subject = parseExpression();
+        matchLexeme(")");
+        matchLexeme("{");
+
+        List<SwitchExpression.SwitchExprCase> cases = new ArrayList<>();
+        Expression defaultExpr = null;
+
+        while (!peek().getLexeme().equals("}")) {
+            switch (peek().getLexeme()) {
+                case "case" -> {
+                    matchLexeme("case");
+                    matchLexeme("(");
+                    Expression value = parseExpression();
+                    matchLexeme(")");
+                    matchLexeme("->");
+                    skipWhitespaceTokens();
+                    Expression result = parsePratt(0);
+                    cases.add(new SwitchExpression.SwitchExprCase(value, result));
+                }
+                case "default" -> {
+                    matchLexeme("default");
+                    matchLexeme("->");
+                    skipWhitespaceTokens();
+                    defaultExpr = parsePratt(0);
+                }
+                default ->
+                    throw new UnexpectedToken(peek(), "Expected 'case' or 'default' in switch expression");
+            }
+        }
+
+        matchLexeme("}");
+        return new SwitchExpression(subject, cases, defaultExpr);
+    }
+
     private Node parseSwitch() {
         matchLexeme("switch");
         matchLexeme("(");
@@ -1255,22 +1345,32 @@ public class Parser {
                     matchLexeme("(");
                     Expression value = parseExpression();
                     matchLexeme(")");
-                    matchLexeme("{");
                     List<Node> body = new ArrayList<>();
-                    while (!peek().getLexeme().equals("}")) {
-                        body.add(parseStatement(true));
+                    if (peek().getLexeme().equals("->")) {
+                        matchLexeme("->");
+                        body.add(parseSwitchArrowBody());
+                    } else {
+                        matchLexeme("{");
+                        while (!peek().getLexeme().equals("}")) {
+                            body.add(parseStatement(true));
+                        }
+                        matchLexeme("}");
                     }
-                    matchLexeme("}");
                     cases.add(new SwitchCase(value, body));
                 }
                 case "default" -> {
                     matchLexeme("default");
-                    matchLexeme("{");
                     defaultBody = new ArrayList<>();
-                    while (!peek().getLexeme().equals("}")) {
-                        defaultBody.add(parseStatement(true));
+                    if (peek().getLexeme().equals("->")) {
+                        matchLexeme("->");
+                        defaultBody.add(parseSwitchArrowBody());
+                    } else {
+                        matchLexeme("{");
+                        while (!peek().getLexeme().equals("}")) {
+                            defaultBody.add(parseStatement(true));
+                        }
+                        matchLexeme("}");
                     }
-                    matchLexeme("}");
                 }
                 default ->
                     throw new UnexpectedToken(peek(), "Expected 'case' or 'default' in switch body");

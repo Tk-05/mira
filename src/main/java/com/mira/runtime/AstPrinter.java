@@ -10,6 +10,7 @@ import com.mira.parser.nodes.expression.Expression;
 import com.mira.parser.nodes.expression.Expression.AccessExpression;
 import com.mira.parser.nodes.expression.Expression.ArrayExpression;
 import com.mira.parser.nodes.expression.Expression.AwaitExpression;
+import com.mira.parser.nodes.expression.Expression.SwitchExpression;
 import com.mira.parser.nodes.expression.Expression.BinaryExpression;
 import com.mira.parser.nodes.expression.Expression.CallExpression;
 import com.mira.parser.nodes.expression.Expression.ComplexExpression;
@@ -408,5 +409,18 @@ public class AstPrinter implements ExprVisitor<String>, StmtVisitor<String> {
     @Override
     public String visitAwaitExpr(AwaitExpression awaitExpression) {
         return pad() + "Await " + node(awaitExpression.getExpr());
+    }
+
+    @Override
+    public String visitSwitchExpr(SwitchExpression expression) {
+        StringBuilder sb = new StringBuilder(pad() + "SwitchExpr\n");
+        sb.append(node(expression.getSubject()));
+        for (SwitchExpression.SwitchExprCase c : expression.getCases()) {
+            sb.append(pad()).append("Case ").append(node(c.value())).append(" -> ").append(node(c.result())).append("\n");
+        }
+        if (expression.getDefaultExpr() != null) {
+            sb.append(pad()).append("Default -> ").append(node(expression.getDefaultExpr())).append("\n");
+        }
+        return sb.toString();
     }
 }

@@ -7,7 +7,7 @@
 3. [Expressions](#expressions) — Operators, `??`, `?.`, Ternary, Pipe
 4. [Data Structures](#data-structures) — List, Array, Object, Map, Range
 5. [Control Flow](#control-flow)
-6. [Functions](#functions) — Default Parameters, Variadic, Inner Functions, Lambdas, Async/Await
+6. [Functions](#functions) — Default Parameters, Variadic, Inner Functions, Lambdas, Async/Await, spawn
 7. [Objects with Methods](#objects-with-methods)
 8. [Enums](#enums)
 9. [Built-in Functions](#built-in-functions)
@@ -478,6 +478,8 @@ foreach (var <name> in <collection>) {
 
 Compares an expression against a list of `case` values. Only the first matching block is executed — no `break` needed. `default` is optional and runs when no `case` matches.
 
+**Block form:**
+
 ```
 switch (<expression>) {
     case (<value>) {
@@ -492,15 +494,78 @@ switch (<expression>) {
 }
 ```
 
+**Arrow form** — single statement per case, no braces needed:
+
+```
+switch (<expression>) {
+    case (<value>) -> <statement>
+    case (<value>) -> <statement>
+    default -> <statement>
+}
+```
+
 Example:
 
 ```
 var x : 2;
 switch ($x) {
-    case (1) { print("one\n"); }
-    case (2) { print("two\n"); }
-    default  { print("other\n"); }
+    case (1) -> print("one\n")
+    case (2) -> print("two\n")
+    default  -> print("other\n")
 }
+```
+
+Both forms can be mixed freely in the same switch.
+
+### Switch Expression
+
+`switch` can also be used as an expression that returns a value. The arrow (`->`) form is required. Each arm is a single expression — no braces, no semicolons.
+
+```
+switch (<expression>) {
+    case (<value>) -> <expression>
+    case (<value>) -> <expression>
+    default -> <expression>
+}
+```
+
+Returns `null` if no case matches and there is no `default`.
+
+Example as a return value:
+
+```
+fn describe(n) {
+    return switch($n) {
+        case (1) -> "one"
+        case (2) -> "two"
+        default  -> "other"
+    };
+}
+
+describe(1)   // => "one"
+describe(9)   // => "other"
+```
+
+Example as a variable initializer:
+
+```
+var label : switch($code) {
+    case (200) -> "ok"
+    case (404) -> "not found"
+    default    -> "error"
+};
+```
+
+Usage with enums:
+
+```
+var dir : Direction.EAST;
+var label : switch($dir) {
+    case (Direction.NORTH) -> "N"
+    case (Direction.SOUTH) -> "S"
+    case (Direction.EAST)  -> "E"
+    case (Direction.WEST)  -> "W"
+};
 ```
 
 ### Break / Continue
@@ -808,6 +873,44 @@ try {
 }
 ```
 
+### spawn
+
+`spawn` runs any callable (lambda or function reference) in a background thread and returns a `Promise`. This is the low-level building block for parallelism — use it when you need to run arbitrary code concurrently without declaring an `async fn`.
+
+```
+var handle : spawn(fn() { <body> });
+var result : await($handle);
+```
+
+Example — parallel heavy computations:
+
+```
+fn heavy(n) {
+    var s : 0;
+    for (var i : 0; $i < $n; $i++) { $s += $i; }
+    return $s;
+}
+
+var h1 : spawn(fn() { return heavy(1000000); });
+var h2 : spawn(fn() { return heavy(2000000); });
+
+print(await($h1) "\n");
+print(await($h2) "\n");
+```
+
+Both spawned tasks run in parallel on the common thread pool. `await` blocks only when you actually need the result.
+
+Error propagation works the same as with `async fn`:
+
+```
+var h : spawn(fn() { throw "oops"; });
+try {
+    await($h);
+} catch(e) {
+    print("caught: " $e "\n");
+}
+```
+
 ---
 
 ## Objects with Methods
@@ -972,10 +1075,20 @@ Usage with `switch`:
 ```
 var code : Status.NOT_FOUND;
 switch ($code) {
-    case (200) { print("ok\n"); }
-    case (404) { print("not found\n"); }
-    default    { print("error\n"); }
+    case (200) -> print("ok\n")
+    case (404) -> print("not found\n")
+    default    -> print("error\n")
 }
+```
+
+Or as a switch expression:
+
+```
+var message : switch($code) {
+    case (200) -> "ok"
+    case (404) -> "not found"
+    default    -> "error"
+};
 ```
 
 ---

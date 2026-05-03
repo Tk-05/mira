@@ -607,6 +607,45 @@ public abstract class Expression implements Node {
         }
     }
 
+    public static class SwitchExpression extends Expression {
+
+        public record SwitchExprCase(Expression value, Expression result) {
+
+        }
+
+        private final Expression subject;
+        private final List<SwitchExprCase> cases;
+        private final Expression defaultExpr;
+
+        public SwitchExpression(Expression subject, List<SwitchExprCase> cases, Expression defaultExpr) {
+            this.subject = subject;
+            this.cases = cases;
+            this.defaultExpr = defaultExpr;
+        }
+
+        public Expression getSubject() {
+            return subject;
+        }
+
+        public List<SwitchExprCase> getCases() {
+            return cases;
+        }
+
+        public Expression getDefaultExpr() {
+            return defaultExpr;
+        }
+
+        @Override
+        public <T> T accept(ExprVisitor<T> visitor) {
+            return visitor.visitSwitchExpr(this);
+        }
+
+        @Override
+        public String toString() {
+            return "switch(" + subject + "){...}";
+        }
+    }
+
     public static class LambdaExpression extends Expression {
 
         private final List<Parameter> parameters;

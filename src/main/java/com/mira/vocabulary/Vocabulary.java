@@ -67,7 +67,8 @@ public class Vocabulary {
             "<<", ">>",
             "|>",
             "??", "?.",
-            "$", ":", "!", "?"
+            "$", ":", "!", "?",
+            "->"
     );
 
     public static final Set<String> delimiters = Set.of(
