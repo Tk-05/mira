@@ -18,7 +18,7 @@ public class Tokenizer {
 
     static {
         OPERATOR_START_CHARS = new HashSet<>();
-        for (String op : Vocabulary.operations) {
+        for (String op : Vocabulary.OPERATORS) {
             OPERATOR_START_CHARS.add(op.charAt(0));
         }
         DELIMITER_START_CHARS = new HashSet<>();
@@ -36,14 +36,6 @@ public class Tokenizer {
     private int line = 1;
     private int column = 0;
 
-    private void reset() {
-        start = 0;
-        current = 0;
-        line = 1;
-        column = 0;
-        tokens.clear();
-    }
-
     public List<Token> tokenize(String source, boolean ignoreSequences) {
         this.source = source;
         this.ignoreSequences = ignoreSequences;
@@ -56,6 +48,14 @@ public class Tokenizer {
 
         tokens.add(new Token(TokenType.EOF, "", line, column));
         return tokens;
+    }
+
+    private void reset() {
+        start = 0;
+        current = 0;
+        line = 1;
+        column = 0;
+        tokens.clear();
     }
 
     private void scanToken() {
@@ -128,66 +128,6 @@ public class Tokenizer {
                 throw new UnexpectedCharacterError(line, column, c);
             }
         }
-    }
-
-    private void scanDelimiter() {
-        String bestMatch = null;
-
-        for (int len = Vocabulary.MAX_OPERATOR_LENGTH; len > 0; len--) {
-            if (start + len > source.length()) {
-                continue;
-            }
-
-            String candidate = source.substring(start, start + len);
-
-            if (Vocabulary.stringIsDelimiter(candidate)) {
-                bestMatch = candidate;
-                break;
-            }
-        }
-
-        if (bestMatch == null) {
-            throw new UnexpectedCharacterError(line, column);
-        }
-
-        current = start + bestMatch.length();
-
-        tokens.add(new Token(
-                TokenType.DELIMITER,
-                bestMatch,
-                line,
-                column
-        ));
-    }
-
-    private void scanOperator() {
-        String bestMatch = null;
-
-        for (int len = Vocabulary.MAX_OPERATOR_LENGTH; len > 0; len--) {
-            if (start + len > source.length()) {
-                continue;
-            }
-
-            String candidate = source.substring(start, start + len);
-
-            if (Vocabulary.stringIsOperation(candidate)) {
-                bestMatch = candidate;
-                break;
-            }
-        }
-
-        if (bestMatch == null) {
-            throw new UnexpectedCharacterError(line, column);
-        }
-
-        current = start + bestMatch.length();
-
-        tokens.add(new Token(
-                TokenType.OPERATION,
-                bestMatch,
-                line,
-                column
-        ));
     }
 
     private void scanString() {
@@ -316,8 +256,69 @@ public class Tokenizer {
         tokens.add(new Token(TokenType.EXPRESSION, source.substring(start, current), line, column));
     }
 
-    private static boolean isHexDigit(char c) {
-        return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
+    private void scanOperator() {
+        String bestMatch = null;
+
+        for (int len = Vocabulary.MAX_OPERATOR_LENGTH; len > 0; len--) {
+            if (start + len > source.length()) {
+                continue;
+            }
+
+            String candidate = source.substring(start, start + len);
+
+            if (Vocabulary.stringIsOperation(candidate)) {
+                bestMatch = candidate;
+                break;
+            }
+        }
+
+        if (bestMatch == null) {
+            throw new UnexpectedCharacterError(line, column);
+        }
+
+        current = start + bestMatch.length();
+
+        tokens.add(new Token(
+                TokenType.OPERATION,
+                bestMatch,
+                line,
+                column
+        ));
+    }
+
+    private void scanDelimiter() {
+        String bestMatch = null;
+
+        for (int len = Vocabulary.MAX_OPERATOR_LENGTH; len > 0; len--) {
+            if (start + len > source.length()) {
+                continue;
+            }
+
+            String candidate = source.substring(start, start + len);
+
+            if (Vocabulary.stringIsDelimiter(candidate)) {
+                bestMatch = candidate;
+                break;
+            }
+        }
+
+        if (bestMatch == null) {
+            throw new UnexpectedCharacterError(line, column);
+        }
+
+        current = start + bestMatch.length();
+
+        tokens.add(new Token(
+                TokenType.DELIMITER,
+                bestMatch,
+                line,
+                column
+        ));
+    }
+
+    private void addToken(TokenType type) {
+        String text = source.substring(start, current);
+        tokens.add(new Token(type, text, line, column));
     }
 
     private char advance() {
@@ -351,20 +352,19 @@ public class Tokenizer {
         return Character.isLetter(c) || c == '_';
     }
 
+    private boolean isIdentifierPart(char c) {
+        return Character.isLetterOrDigit(c) || c == '_';
+    }
+
+    private static boolean isHexDigit(char c) {
+        return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
+    }
+
     private boolean startsOperator(char c) {
         return OPERATOR_START_CHARS.contains(c);
     }
 
     private boolean startsDelimiter(char c) {
         return DELIMITER_START_CHARS.contains(c);
-    }
-
-    private boolean isIdentifierPart(char c) {
-        return Character.isLetterOrDigit(c) || c == '_';
-    }
-
-    private void addToken(TokenType type) {
-        String text = source.substring(start, current);
-        tokens.add(new Token(type, text, line, column));
     }
 }

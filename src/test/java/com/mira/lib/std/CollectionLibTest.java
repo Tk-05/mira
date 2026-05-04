@@ -13,7 +13,6 @@ import com.mira.lexer.token.Token;
 import com.mira.lexer.token.TokenType;
 import com.mira.parser.nodes.expression.Expression.DumbExpression;
 import com.mira.parser.nodes.expression.Expression.ListExpression;
-import com.mira.parser.nodes.expression.Expression.TupleExpression;
 import com.mira.runtime.functions.NativeFunction;
 import com.mira.runtime.interpreter.Environment;
 import com.mira.runtime.interpreter.Interpreter;
@@ -41,14 +40,6 @@ public class CollectionLibTest {
         return new ListExpression(members);
     }
 
-    private static TupleExpression makeTuple(String... values) {
-        List<com.mira.parser.nodes.expression.Expression> members = new ArrayList<>();
-        for (String v : values) {
-            members.add(wrap(v));
-        }
-        return new TupleExpression(members);
-    }
-
     private Object call(String name, Object... args) {
         NativeFunction fn = (NativeFunction) environment.get(name);
         return fn.call(interpreter, List.of(args));
@@ -57,11 +48,6 @@ public class CollectionLibTest {
     @Test
     void testSizeOnList() {
         assertEquals(3.0, call("size", makeList("1", "2", "3")));
-    }
-
-    @Test
-    void testSizeOnTuple() {
-        assertEquals(2.0, call("size", makeTuple("a", "b")));
     }
 
     @Test
@@ -85,11 +71,6 @@ public class CollectionLibTest {
     }
 
     @Test
-    void testPushOnTupleThrows() {
-        assertThrows(RuntimeException.class, () -> call("push", makeTuple("x"), "y"));
-    }
-
-    @Test
     void testPopRemovesLastElement() {
         ListExpression list = makeList("1", "2", "3");
         call("pop", list);
@@ -102,20 +83,31 @@ public class CollectionLibTest {
     }
 
     @Test
-    void testPopOnTupleThrows() {
-        assertThrows(RuntimeException.class, () -> call("pop", makeTuple("x")));
+    void testRemoveByIndex() {
+        ListExpression list = makeList("a", "b", "c");
+        call("remove", list, "1");
+        assertEquals(2, list.getMembers().size());
+        assertEquals("a", ((DumbExpression) list.getMembers().get(0)).getValue());
+        assertEquals("c", ((DumbExpression) list.getMembers().get(1)).getValue());
+    }
+
+    @Test
+    void testRemoveFirstElement() {
+        ListExpression list = makeList("x", "y", "z");
+        call("remove", list, "0");
+        assertEquals(2, list.getMembers().size());
+        assertEquals("y", ((DumbExpression) list.getMembers().get(0)).getValue());
+    }
+
+    @Test
+    void testRemoveOnNonListThrows() {
+        assertThrows(RuntimeException.class, () -> call("remove", "notAList", "0"));
     }
 
     @Test
     void testFirstOnList() {
         Object result = call("first", makeList("a", "b", "c"));
         assertEquals("a", ((DumbExpression) result).getValue());
-    }
-
-    @Test
-    void testFirstOnTuple() {
-        Object result = call("first", makeTuple("x", "y"));
-        assertEquals("x", ((DumbExpression) result).getValue());
     }
 
     @Test
@@ -127,12 +119,6 @@ public class CollectionLibTest {
     void testLastOnList() {
         Object result = call("last", makeList("a", "b", "c"));
         assertEquals("c", ((DumbExpression) result).getValue());
-    }
-
-    @Test
-    void testLastOnTuple() {
-        Object result = call("last", makeTuple("x", "y"));
-        assertEquals("y", ((DumbExpression) result).getValue());
     }
 
     @Test
@@ -148,11 +134,6 @@ public class CollectionLibTest {
     @Test
     void testContainsFalse() {
         assertEquals(false, call("contains", makeList("a", "b", "c"), "z"));
-    }
-
-    @Test
-    void testContainsOnTuple() {
-        assertEquals(true, call("contains", makeTuple("x", "y"), "x"));
     }
 
     @Test
@@ -270,12 +251,5 @@ public class CollectionLibTest {
         Object result = call("newList");
         assertInstanceOf(ListExpression.class, result);
         assertEquals(0, ((ListExpression) result).getMembers().size());
-    }
-
-    @Test
-    void testNewTuple() {
-        Object result = call("newTuple");
-        assertInstanceOf(TupleExpression.class, result);
-        assertEquals(0, ((TupleExpression) result).getMembers().size());
     }
 }

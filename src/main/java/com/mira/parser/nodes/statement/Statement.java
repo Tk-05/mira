@@ -6,6 +6,7 @@ import java.util.Map;
 import com.mira.parser.nodes.Node;
 import com.mira.parser.nodes.Parameter;
 import com.mira.parser.nodes.expression.Expression;
+import com.mira.parser.nodes.expression.Expression.ThrownException;
 import com.mira.runtime.visitors.StmtVisitor;
 
 public abstract class Statement implements Node {
@@ -50,13 +51,24 @@ public abstract class Statement implements Node {
         private final List<Parameter> parameters;
         private final List<Node> body;
         private final String variadicParam;
+        private final boolean isAsync;
 
         public FuncDecl(String name, List<Parameter> parameters,
                 List<Node> body, String variadicParam) {
+            this(name, parameters, body, variadicParam, false);
+        }
+
+        public FuncDecl(String name, List<Parameter> parameters,
+                List<Node> body, String variadicParam, boolean isAsync) {
             this.name = name;
             this.parameters = parameters;
             this.body = body;
             this.variadicParam = variadicParam;
+            this.isAsync = isAsync;
+        }
+
+        public boolean isAsync() {
+            return isAsync;
         }
 
         public String getName() {
@@ -381,9 +393,9 @@ public abstract class Statement implements Node {
 
     public static class Throw extends Statement {
 
-        private final Expression value;
+        private final ThrownException value;
 
-        public Throw(Expression value) {
+        public Throw(ThrownException value) {
             this.value = value;
         }
 
@@ -397,17 +409,40 @@ public abstract class Statement implements Node {
         }
     }
 
+    public static class CatchClause {
+
+        private final String typeFilter;
+        private final String paramName;
+        private final List<Node> body;
+
+        public CatchClause(String typeFilter, String paramName, List<Node> body) {
+            this.typeFilter = typeFilter;
+            this.paramName = paramName;
+            this.body = body;
+        }
+
+        public String getTypeFilter() {
+            return typeFilter;
+        }
+
+        public String getParamName() {
+            return paramName;
+        }
+
+        public List<Node> getBody() {
+            return body;
+        }
+    }
+
     public static class TryCatch extends Statement {
 
         private final List<Node> tryBody;
-        private final String catchParam;
-        private final List<Node> catchBody;
+        private final List<CatchClause> catchClauses;
         private final List<Node> finallyBody;
 
-        public TryCatch(List<Node> tryBody, String catchParam, List<Node> catchBody, List<Node> finallyBody) {
+        public TryCatch(List<Node> tryBody, List<CatchClause> catchClauses, List<Node> finallyBody) {
             this.tryBody = tryBody;
-            this.catchParam = catchParam;
-            this.catchBody = catchBody;
+            this.catchClauses = catchClauses;
             this.finallyBody = finallyBody;
         }
 
@@ -415,12 +450,8 @@ public abstract class Statement implements Node {
             return tryBody;
         }
 
-        public String getCatchParam() {
-            return catchParam;
-        }
-
-        public List<Node> getCatchBody() {
-            return catchBody;
+        public List<CatchClause> getCatchClauses() {
+            return catchClauses;
         }
 
         public List<Node> getFinallyBody() {

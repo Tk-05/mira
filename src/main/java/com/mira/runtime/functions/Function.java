@@ -2,6 +2,7 @@ package com.mira.runtime.functions;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 import com.mira.parser.nodes.Node;
 import com.mira.parser.nodes.Parameter;
@@ -39,14 +40,20 @@ public class Function implements Callable {
     private final int arity;
     private final int maxArity;
     private final String variadicParam;
+    private final boolean isAsync;
 
     public Function(Environment environment, List<Node> body, List<Parameter> parameters, int arity, int maxArity, String variadicParam) {
+        this(environment, body, parameters, arity, maxArity, variadicParam, false);
+    }
+
+    public Function(Environment environment, List<Node> body, List<Parameter> parameters, int arity, int maxArity, String variadicParam, boolean isAsync) {
         this.environment = environment;
         this.body = body;
         this.parameters = parameters;
         this.arity = arity;
         this.maxArity = maxArity;
         this.variadicParam = variadicParam;
+        this.isAsync = isAsync;
     }
 
     private static Expression wrap(Object val) {
@@ -80,6 +87,31 @@ public class Function implements Callable {
             localEnv.define(variadicParam, new ListExpression(rest));
         }
 
+        if (isAsync) {
+            Interpreter forked = interpreter.fork();
+            CompletableFuture<Object> future = CompletableFuture.supplyAsync(() -> {
+                forked.setLocalEnvironment(localEnv);
+                try {
+                    for (Node node : body) {
+                        switch (node) {
+                            case Statement stmt ->
+                                stmt.accept(forked);
+                            case Expression expr ->
+                                expr.accept(forked);
+                            default ->
+                                throw new AssertionError();
+                        }
+                    }
+                } catch (ReturnSignal returnSignal) {
+                    return returnSignal.getValue();
+                } finally {
+                    forked.setLocalEnvironment(null);
+                }
+                return null;
+            });
+            return new Promise(future);
+        }
+
         Environment previous = interpreter.getLocalEnvironment();
         interpreter.setLocalEnvironment(localEnv);
 
@@ -96,8 +128,9 @@ public class Function implements Callable {
                 }
             }
         } catch (ReturnSignal returnSignal) {
-            interpreter.setLocalEnvironment(previous);
             return returnSignal.getValue();
+        } finally {
+            interpreter.setLocalEnvironment(previous);
         }
 
         return null;

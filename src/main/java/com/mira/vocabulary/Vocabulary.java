@@ -35,13 +35,32 @@ public class Vocabulary {
             "finally",
             "throw",
             "native",
-            "do"
+            "do",
+            "await",
+            "async",
+            "typeof"
     );
 
-    public static final Set<String> operations = Set.of(
-            "+", "-", "*", "/", "%",
+    public static final Set<String> COMPARISON_OPERATORS = Set.of("==", "!=", "<", ">", "<=", ">=");
+
+    public static final Set<String> LOGICAL_OPERATORS = Set.of("&&", "||");
+
+    public static final Set<String> ARITHMETIC_OPERATORS = Set.of("+", "-", "*", "/", "%", "**", "\\%");
+
+    public static final Set<String> BITWISE_OPERATORS = Set.of("&", "|", "^", "~", "<<", ">>");
+
+    public static final Set<String> COMPOUND_ASSIGNMENT_OPERATORS = Set.of(
+            "+=", "-=", "*=", "/=", "%=", "**=", "\\%=", "&=", "|=", "^="
+    );
+
+    public static final Set<String> UNARY_OPERATORS = Set.of("++", "--", "!", "~");
+
+    public static final Set<String> SPECIAL_OPERATORS = Set.of("|>", "??", "?.", "$", ":", "?");
+
+    public static final Set<String> OPERATORS = Set.of(
+            "+", "-", "*", "/", "%", "**", "\\%",
             "++", "--",
-            "+=", "-=", "*=", "/=", "%=",
+            "+=", "-=", "*=", "/=", "%=", "**=", "\\%=",
             "&=", "|=", "^=",
             "==", "!=", "<", ">", "<=", ">=",
             "&&", "||",
@@ -49,7 +68,8 @@ public class Vocabulary {
             "<<", ">>",
             "|>",
             "??", "?.",
-            "$", ":", "!", "?"
+            "$", ":", "!", "?",
+            "->"
     );
 
     public static final Set<String> delimiters = Set.of(
@@ -67,7 +87,7 @@ public class Vocabulary {
     );
 
     public static boolean stringIsKeyword(String s) {
-        return keywords.contains(s) || s.startsWith("$");
+        return keywords.contains(s);
     }
 
     public static boolean stringIsDelimiter(String string) {
@@ -75,6 +95,6 @@ public class Vocabulary {
     }
 
     public static boolean stringIsOperation(String string) {
-        return operations.contains(string);
+        return OPERATORS.contains(string);
     }
 }

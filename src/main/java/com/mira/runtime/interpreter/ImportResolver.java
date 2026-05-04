@@ -39,6 +39,7 @@ import com.mira.lib.std.Shell;
 import com.mira.lib.std.Strings;
 import com.mira.parser.Parser;
 import com.mira.parser.nodes.Node;
+import com.mira.parser.nodes.expression.Expression;
 import com.mira.parser.nodes.expression.Expression.ImportExpression;
 import com.mira.parser.nodes.statement.Statement.ModuleDecl;
 
@@ -70,6 +71,48 @@ public class ImportResolver {
             put("map", new com.mira.lib.std.Map());
         }
     };
+
+    public static void loadInternal(Environment environment) {
+        internal.loadLib(environment);
+    }
+
+    public static void loadForCompiled(Environment env, String kindStr, String module, String alias) {
+        ImportExpression.ImportKind kind = ImportExpression.ImportKind.valueOf(kindStr);
+        Expression moduleExpr = new Expression() {
+            @Override
+            public <T> T accept(com.mira.runtime.visitors.ExprVisitor<T> v) {
+                return (T) null;
+            }
+
+            @Override
+            public String toString() {
+                return module;
+            }
+        };
+        ImportExpression expr = new ImportExpression(moduleExpr, alias, kind);
+        switch (kind) {
+            case STDLIB ->
+                resolveStdlibImport(expr, env);
+            case NATIVE ->
+                resolveNativeImport(expr, env);
+            case MODULE ->
+                resolveModuleImport(new Interpreter(), expr, env);
+        }
+    }
+
+    public static void reset() {
+        moduleLoadFutures.clear();
+        loadedLibs.clear();
+        loadedNativeLibs.clear();
+        globalLibNames.clear();
+        for (URLClassLoader loader : nativeClassLoaders) {
+            try {
+                loader.close();
+            } catch (IOException ignored) {
+            }
+        }
+        nativeClassLoaders.clear();
+    }
 
     public static void resolveImports(List<ImportExpression> imports, Environment environment, Interpreter interpreter, boolean entryPoint) {
         long start = System.currentTimeMillis();
@@ -184,10 +227,8 @@ public class ImportResolver {
             String expectedModuleName = fileName.replace(".mira", "");
 
             if (!declaredModuleName.equals(expectedModuleName)) {
-                throw new RuntimeException(
-                        "Module name mismatch: expected '" + expectedModuleName
-                        + "' but found '" + declaredModuleName + "'"
-                );
+                throw new com.mira.error.runtime.RuntimeError.ModuleNameMismatchError(
+                        fileName, expectedModuleName, declaredModuleName);
             }
 
             String alias = importExpression.getNamespace();
@@ -225,7 +266,7 @@ public class ImportResolver {
 
     private static String validateModuleDeclaration(List<Node> asts, ImportExpression expr) {
         if (!(asts.getFirst() instanceof ModuleDecl moduleDecl)) {
-            throw new AssertionError("Module '" + expr.getModule() + "' has no module declaration");
+            throw new com.mira.error.runtime.RuntimeError.ModuleMissingDeclarationError(expr.getModule());
         }
         return moduleDecl.getModuleName();
     }
@@ -236,7 +277,8 @@ public class ImportResolver {
         boolean hasAlias = alias != null && !alias.isBlank();
 
         String cacheKey = hasAlias ? libName + "#" + alias : libName;
-        if (loadedLibs.contains(cacheKey)) {
+        boolean alreadyLoaded = loadedLibs.contains(cacheKey);
+        if (alreadyLoaded && !hasAlias) {
             return;
         }
 
@@ -245,7 +287,9 @@ public class ImportResolver {
             throw new RuntimeException("Import '" + libName + "' could not be resolved");
         }
 
-        loadedLibs.add(cacheKey);
+        if (!alreadyLoaded) {
+            loadedLibs.add(cacheKey);
+        }
 
         if (hasAlias) {
             Namespace ns = new Namespace(alias);
@@ -299,6 +343,9 @@ public class ImportResolver {
         String cacheKey = jarPath.toAbsolutePath() + "#" + alias;
 
         if (loadedNativeLibs.containsKey(cacheKey)) {
+            Namespace ns = new Namespace(alias);
+            loadedNativeLibs.get(cacheKey).loadLib(ns);
+            environment.define(alias, ns);
             return;
         }
 
@@ -330,21 +377,4 @@ public class ImportResolver {
         environment.define(alias, ns);
     }
 
-    public static void loadInternal(Environment environment) {
-        internal.loadLib(environment);
-    }
-
-    public static void reset() {
-        moduleLoadFutures.clear();
-        loadedLibs.clear();
-        loadedNativeLibs.clear();
-        globalLibNames.clear();
-        for (URLClassLoader loader : nativeClassLoaders) {
-            try {
-                loader.close();
-            } catch (IOException ignored) {
-            }
-        }
-        nativeClassLoaders.clear();
-    }
 }

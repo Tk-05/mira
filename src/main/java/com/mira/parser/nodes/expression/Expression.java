@@ -181,38 +181,6 @@ public abstract class Expression implements Node {
         }
     }
 
-    public static class TupleExpression extends Expression implements Mutability {
-
-        private final List<Expression> members;
-
-        public TupleExpression(List<Expression> members) {
-            this.members = members;
-        }
-
-        @Override
-        public <T> T accept(ExprVisitor<T> visitor) {
-            return visitor.visitTupleExpr(this);
-        }
-
-        public int getLength() {
-            return members.size();
-        }
-
-        public List<Expression> getMembers() {
-            return members;
-        }
-
-        @Override
-        public String toString() {
-            return StringFormatter.formatToString(this);
-        }
-
-        @Override
-        public boolean isMutable() {
-            return false;
-        }
-    }
-
     public static class AccessExpression extends Expression {
 
         private final Expression reference;
@@ -616,16 +584,111 @@ public abstract class Expression implements Node {
         }
     }
 
+    public static class AwaitExpression extends Expression {
+
+        private final Expression expr;
+
+        public AwaitExpression(Expression expr) {
+            this.expr = expr;
+        }
+
+        public Expression getExpr() {
+            return expr;
+        }
+
+        @Override
+        public <T> T accept(ExprVisitor<T> visitor) {
+            return visitor.visitAwaitExpr(this);
+        }
+
+        @Override
+        public String toString() {
+            return "await(" + expr + ")";
+        }
+    }
+
+    public static class TypeofExpression extends Expression {
+
+        private final Expression expr;
+
+        public TypeofExpression(Expression expr) {
+            this.expr = expr;
+        }
+
+        public Expression getExpr() {
+            return expr;
+        }
+
+        @Override
+        public <T> T accept(ExprVisitor<T> visitor) {
+            return visitor.visitTypeofExpr(this);
+        }
+
+        @Override
+        public String toString() {
+            return "typeof(" + expr + ")";
+        }
+    }
+
+    public static class SwitchExpression extends Expression {
+
+        public record SwitchExprCase(Expression value, Expression result) {
+
+        }
+
+        private final Expression subject;
+        private final List<SwitchExprCase> cases;
+        private final Expression defaultExpr;
+
+        public SwitchExpression(Expression subject, List<SwitchExprCase> cases, Expression defaultExpr) {
+            this.subject = subject;
+            this.cases = cases;
+            this.defaultExpr = defaultExpr;
+        }
+
+        public Expression getSubject() {
+            return subject;
+        }
+
+        public List<SwitchExprCase> getCases() {
+            return cases;
+        }
+
+        public Expression getDefaultExpr() {
+            return defaultExpr;
+        }
+
+        @Override
+        public <T> T accept(ExprVisitor<T> visitor) {
+            return visitor.visitSwitchExpr(this);
+        }
+
+        @Override
+        public String toString() {
+            return "switch(" + subject + "){...}";
+        }
+    }
+
     public static class LambdaExpression extends Expression {
 
         private final List<Parameter> parameters;
         private final List<Node> body;
         private final String variadicParam;
+        private final boolean isAsync;
 
         public LambdaExpression(List<Parameter> parameters, List<Node> body, String variadicParam) {
+            this(parameters, body, variadicParam, false);
+        }
+
+        public LambdaExpression(List<Parameter> parameters, List<Node> body, String variadicParam, boolean isAsync) {
             this.parameters = parameters;
             this.body = body;
             this.variadicParam = variadicParam;
+            this.isAsync = isAsync;
+        }
+
+        public boolean isAsync() {
+            return isAsync;
         }
 
         public List<Parameter> getParameters() {
@@ -659,6 +722,35 @@ public abstract class Expression implements Node {
         @Override
         public String toString() {
             return "<lambda/" + parameters.size() + ">";
+        }
+    }
+
+    public static class ThrownException extends Expression {
+
+        private final String identifier;
+        private final Expression value;
+
+        public ThrownException(String identifier, Expression value) {
+            this.identifier = identifier;
+            this.value = value;
+        }
+
+        public String getIdentifier() {
+            return identifier;
+        }
+
+        public Expression getValue() {
+            return value;
+        }
+
+        @Override
+        public <T> T accept(ExprVisitor<T> visitor) {
+            return visitor.visitThrownExpection(this);
+        }
+
+        @Override
+        public String toString() {
+            return identifier + "(" + value + ")";
         }
     }
 }

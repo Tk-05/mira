@@ -1,0 +1,58 @@
+package com.mira.integration.statement;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import com.mira.integration.InterpreterTestBase;
+
+public class OverwriteTest extends InterpreterTestBase {
+
+    @BeforeEach
+    void disableCompilerTest() {
+        skipCompilerTest = true;
+    }
+
+    @Test
+    void overwriteExistingVariable() {
+        interpreter.getGlobalEnvironment().define("test", "Test");
+        assertEquals("HelloWorld", runContinued("""
+                overwrite(
+                "
+                    var test : Hello World;
+                "
+                );
+
+                $test;
+                """));
+    }
+
+    @Test
+    void overwriteWithMultipleStatements() {
+        assertEquals(3.0, runContinued("""
+                overwrite(
+                "
+                    var a : 1;
+                    var b : 2;
+                    var result : eval($a + $b);
+                "
+                );
+
+                eval($result);
+                """));
+    }
+
+    @Test
+    void overwriteWithFunctionDeclaration() {
+        run("");
+        assertEquals(42.0, runContinued("""
+                overwrite(
+                "
+                    fn answer() { return 42; }
+                "
+                );
+
+                eval(answer());
+                """));
+    }
+}

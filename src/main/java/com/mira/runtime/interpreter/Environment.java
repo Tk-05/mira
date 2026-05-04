@@ -15,6 +15,7 @@ public class Environment {
     private final Environment parent;
     private final Map<String, Object> values;
     private final Set<String> constants = new HashSet<>();
+    private final Set<String> declaredFunctions = new HashSet<>();
     private static final ThreadLocal<Boolean> overwriteMode = ThreadLocal.withInitial(() -> false);
 
     public Environment() {
@@ -40,6 +41,21 @@ public class Environment {
         }
     }
 
+    public void defineFunction(String name, Object value) {
+        define(name, value);
+        declaredFunctions.add(name);
+    }
+
+    public boolean isDeclaredFunction(String name) {
+        if (declaredFunctions.contains(name)) return true;
+        return parent != null && parent.isDeclaredFunction(name);
+    }
+
+    public void forceDefine(String name, Object value) {
+        values.put(name, value);
+        constants.remove(name);
+    }
+
     public void defineConst(String name, Object value) {
         if (overwriteMode.get() || !exists(name)) {
             values.put(name, value);
@@ -49,14 +65,19 @@ public class Environment {
         }
     }
 
-    public boolean isConst(String name) {
-        if (constants.contains(name)) {
-            return true;
+    public void assign(String name, Object value) {
+        if (values.containsKey(name)) {
+            if (!overwriteMode.get() && constants.contains(name)) {
+                throw new ReferenceIsImmutableError(name);
+            }
+            values.put(name, value);
+            return;
         }
         if (parent != null) {
-            return parent.isConst(name);
+            parent.assign(name, value);
+            return;
         }
-        return false;
+        throw new UndefinedVariableError(name);
     }
 
     public Object get(String name) {
@@ -81,21 +102,6 @@ public class Environment {
         return null;
     }
 
-    public void assign(String name, Object value) {
-        if (values.containsKey(name)) {
-            if (!overwriteMode.get() && constants.contains(name)) {
-                throw new ReferenceIsImmutableError(name);
-            }
-            values.put(name, value);
-            return;
-        }
-        if (parent != null) {
-            parent.assign(name, value);
-            return;
-        }
-        throw new UndefinedVariableError(name);
-    }
-
     public boolean exists(String name) {
         return values.containsKey(name);
     }
@@ -110,8 +116,29 @@ public class Environment {
         return false;
     }
 
+    public boolean isConst(String name) {
+        if (constants.contains(name)) {
+            return true;
+        }
+        if (parent != null) {
+            return parent.isConst(name);
+        }
+        return false;
+    }
+
     public Environment getParent() {
         return parent;
+    }
+
+    public Environment snapshot(Environment globalEnv) {
+        if (this == globalEnv || parent == null) {
+            return this;
+        }
+        Environment parentSnapshot = parent.snapshot(globalEnv);
+        Environment copy = new Environment(parentSnapshot);
+        copy.values.putAll(this.values);
+        copy.constants.addAll(this.constants);
+        return copy;
     }
 
     public int getSize() {

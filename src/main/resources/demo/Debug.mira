@@ -2,6 +2,7 @@ module main;
 
 import module "./Debug2.mira" as test;
 import native "../../../../extern/raylib/target/raylib-RELEASE.jar" as ray;
+import module "./Fractals.mira" as fractals;
 import string;
 import collection as col;
 import net;
@@ -41,44 +42,37 @@ fn short(arg) {
     return false;
 }
 
+fn outer() {
+    fn inner() {
+        return 0;
+    }
+    return inner();
+}
+
+fn function(body) {
+    $body();
+}
+
 fn main() {
-    if(scan() == ray) {
-        ray.InitWindow(1920, 1080, "Mira Raylib Demo");
-        ray.SetTargetFPS(60);
-        ray.ToggleFullscreen();
+    function(() -> println("Hello Lambda"));
+    println(typeof 1);
+    println(outer());
+    var i : 10;
+    $i\%= 5;
+    $i**=2;
 
-        var bg    : ray.Color(30, 30, 30, 255);
-        var white : ray.WHITE;
-        var red   : ray.RED;
-        var blue  : ray.SKYBLUE;
-        var green : ray.GREEN;
-
-        var cam : ray.Camera3D(18, 16, 18, 0, 0, 0, 45);
-
-        while(!ray.WindowShouldClose()) {
-            ray.UpdateCamera($cam, ray.CAMERA_ORBITAL);
-            ray.BeginDrawing();
-            ray.ClearBackground($bg);
-
-            ray.BeginMode3D($cam);
-            ray.DrawGrid(20, 1);
-            ray.DrawCube(0, 0.5, 0, 1, 1, 1, $red);
-            ray.DrawCubeWires(0, 0.5, 0, 1, 1, 1, $white);
-            ray.DrawSphere(3, 1, 0, 0.75, $blue);
-            ray.EndMode3D();
-
-            ray.DrawText("Mira + Raylib", 10, 10, 24, $green);
-            ray.DrawText("ESC to quit", 10, 40, 16, $white);
-            ray.DrawFPS(10, 70);
-
-            if(ray.IsKeyDown(ray.KEY_ESCAPE)) {
-                ray.CloseWindow();
-                return;
-            }
-
-            ray.EndDrawing();
+    switch($i) {
+        case (1) {
+            println($i);
         }
-        ray.CloseWindow();
+        default {
+            println("Default");
+        }
+    }
+
+    print($i"\n");
+    if(scan() == ray) {
+        fractals.run();
     } else {
         $multiComment"\n"|>print();
 
@@ -146,6 +140,8 @@ fn main() {
                     [0,0,69]
                 ];
 
+        print("Array access : "$list[2] "\n");
+
         var ret : 0;
 
         while(true) {
@@ -159,9 +155,9 @@ fn main() {
         }
 
         try {
-            throw "Error";
-        } catch(e) {
-            print($e "\n");
+            throw oob("Ouf of bounds");
+        } catch(oob) {
+            print($oob "\n");
         }
 
         (eval($hex + 1)"\n")|>print();
@@ -184,7 +180,11 @@ fn main() {
 
         print("It's " $temps[$idx] " on " $timestamp "\n");
 
-        return eval($ret);
+        return switch($ret) {
+            case (69) -> eval($ret)
+            case (2)  -> 2
+            default   -> 0
+        };
         print("Dead code");
     }
 }

@@ -16,6 +16,21 @@
         },
         {
             "type": "java",
+            "name": "Compile and run",
+            "request": "launch",
+            "mainClass": "com.mira.Main",
+            "projectName": "mira",
+            "args": [
+                    "src/main/resources/demo/Debug.mira",
+                    "-m",
+                    "-li",
+                    "-lint",
+                    "-crash",
+                    "-compile-run"
+                ]
+        },
+        {
+            "type": "java",
             "name": "Run main with hot reload",
             "request": "launch",
             "mainClass": "com.mira.Main",
@@ -48,7 +63,8 @@
             "args": [
                     "src/main/resources/demo/Debug.mira",
                     "-m",
-                    "-li"
+                    "-li",
+                    "-ast"
                 ]
         },
         {

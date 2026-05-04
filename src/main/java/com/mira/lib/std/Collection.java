@@ -11,7 +11,6 @@ import com.mira.parser.nodes.expression.Expression;
 import com.mira.parser.nodes.expression.Expression.DumbExpression;
 import com.mira.parser.nodes.expression.Expression.ArrayExpression;
 import com.mira.parser.nodes.expression.Expression.ListExpression;
-import com.mira.parser.nodes.expression.Expression.TupleExpression;
 import com.mira.runtime.functions.NativeFunction;
 import com.mira.runtime.interpreter.Environment;
 
@@ -44,10 +43,8 @@ public class Collection implements Lib {
                 new ArrayList<>(a.getMembers());
             case ListExpression l ->
                 new ArrayList<>(l.getMembers());
-            case TupleExpression t ->
-                new ArrayList<>(t.getMembers());
             default ->
-                throw new RuntimeException("Expected array, list, or tuple, got: " + arg.getClass().getSimpleName());
+                throw new RuntimeException("Expected array or list, got: " + arg.getClass().getSimpleName());
         };
     }
 
@@ -140,7 +137,6 @@ public class Collection implements Lib {
                 switch (e) {
                     case ArrayExpression inner -> result.addAll(inner.getMembers());
                     case ListExpression inner -> result.addAll(inner.getMembers());
-                    case TupleExpression inner -> result.addAll(inner.getMembers());
                     default -> result.add(e);
                 }
             }
@@ -165,8 +161,13 @@ public class Collection implements Lib {
             return new ListExpression(new ArrayList<>());
         }));
 
-        environment.define("newTuple", new NativeFunction(0, args -> {
-            return new TupleExpression(new ArrayList<>());
+        environment.define("remove", new NativeFunction(2, args -> {
+            if (!(args.get(0) instanceof ListExpression list)) {
+                throw new RuntimeException("remove requires a list");
+            }
+            int index = (int) Double.parseDouble(String.valueOf(args.get(1)));
+            list.getMembers().remove(index);
+            return list;
         }));
     }
 }

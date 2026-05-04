@@ -5,9 +5,9 @@
 1. [Program Structure](#program-structure)
 2. [Values](#values) — Variables, Destructuring, Literals
 3. [Expressions](#expressions) — Operators, `??`, `?.`, Ternary, Pipe
-4. [Data Structures](#data-structures) — List, Array, Tuple, Object, Map, Range
+4. [Data Structures](#data-structures) — List, Array, Object, Map, Range
 5. [Control Flow](#control-flow)
-6. [Functions](#functions) — Default Parameters, Variadic, Lambdas
+6. [Functions](#functions) — Default Parameters, Variadic, Inner Functions, Lambdas, Async/Await, spawn
 7. [Objects with Methods](#objects-with-methods)
 8. [Enums](#enums)
 9. [Built-in Functions](#built-in-functions)
@@ -107,7 +107,7 @@ const <name> : <expression>; // Immutable
 
 ### Destructuring
 
-Unpacks a tuple, list, or array into multiple variables in one statement:
+Unpacks a list or array into multiple variables in one statement:
 
 ```
 var (<name1>, <name2>, ...) : <expression>;
@@ -116,14 +116,14 @@ var (<name1>, <name2>, ...) : <expression>;
 Example:
 
 ```
-var t : (10, 20, 30);
+var t : {10, 20, 30};
 var (a, b, c) : $t;
 print($a "\n");   // => 10
 print($b "\n");   // => 20
 print($c "\n");   // => 30
 ```
 
-Works with lists and arrays too:
+Works with arrays too:
 
 ```
 var (x, y) : {1, 2};
@@ -157,6 +157,8 @@ $<name> -= <expression>;
 $<name> *= <expression>;
 $<name> /= <expression>;
 $<name> %= <expression>;
+$<name> **= <expression>;
+$<name> \%= <expression>;
 $<name> &= <expression>;
 $<name> |= <expression>;
 $<name> ^= <expression>;
@@ -196,7 +198,7 @@ Line 2
 
 | Category         | Operators                        |
 | ---------------- | -------------------------------- |
-| Arithmetic       | `+`, `-`, `*`, `/`, `%`          |
+| Arithmetic       | `+`, `-`, `*`, `/`, `%`, `**`, `\%` |
 | Comparison       | `<`, `>`, `<=`, `>=`, `==`, `!=` |
 | Logical          | `&&`, `\|\|`, `!`                |
 | Bitwise          | `&`, `\|`, `^`, `~`, `<<`, `>>`  |
@@ -204,6 +206,23 @@ Line 2
 | Ternary          | `? :`                            |
 | Null-Coalescing  | `??`                             |
 | Optional Chaining | `?.`                            |
+
+`**` is the power/exponentiation operator. It has higher precedence than `*`, `/`, and `%`:
+
+```
+eval(10 ** 2)      // => 100
+eval(2 ** 10)      // => 1024
+eval(9 ** 0.5)     // => 3.0  (square root)
+eval(2 * 3 ** 2)   // => 18   (3**2 first, then * 2)
+```
+
+`\%` is the floor division operator — divides and rounds down to the nearest integer:
+
+```
+eval(7 \% 2)       // => 3
+eval(9 \% 4)       // => 2
+eval(7.5 \% 3.0)   // => 2.0
+```
 
 Arithmetic must be wrapped in `eval()`:
 
@@ -292,14 +311,12 @@ $user?.name ?? "anonymous"
 
 ### Grouping
 
-Parentheses with a single expression (no comma) group for precedence:
+Parentheses with a single expression group for precedence:
 
 ```
 (($val1 + $val2) + 1)
 eval(($a + $b) * $c)
 ```
-
-A comma turns parentheses into a tuple — see [Tuple](#tuple) above.
 
 ---
 
@@ -326,29 +343,6 @@ $x[1] : 99;              // Mutate element (allowed)
 ```
 
 Arrays cannot grow or shrink — `push` and `pop` only work on lists.
-
-### Tuple
-
-Fixed-size, immutable sequence using parentheses with at least one comma:
-
-```
-var x : (10, 20, 30);
-$x[0];                   // Index access
-$x[1] : 99;              // ERROR — tuples are immutable
-```
-
-Single-element tuple requires a trailing comma to distinguish from grouping:
-
-```
-var single : (42,);      // Tuple with one element
-var grouped : (42);      // Grouping expression — just the number 42
-```
-
-Empty tuple:
-
-```
-var empty : ();
-```
 
 ### Object
 
@@ -472,7 +466,7 @@ for (var <name> in <range>) {
 
 ### Foreach
 
-Iterates over a list, array, tuple, string, or range:
+Iterates over a list, array, string, or range:
 
 ```
 foreach (var <name> in <collection>) {
@@ -483,6 +477,8 @@ foreach (var <name> in <collection>) {
 ### Switch
 
 Compares an expression against a list of `case` values. Only the first matching block is executed — no `break` needed. `default` is optional and runs when no `case` matches.
+
+**Block form:**
 
 ```
 switch (<expression>) {
@@ -498,15 +494,78 @@ switch (<expression>) {
 }
 ```
 
+**Arrow form** — single statement per case, no braces needed:
+
+```
+switch (<expression>) {
+    case (<value>) -> <statement>
+    case (<value>) -> <statement>
+    default -> <statement>
+}
+```
+
 Example:
 
 ```
 var x : 2;
 switch ($x) {
-    case (1) { print("one\n"); }
-    case (2) { print("two\n"); }
-    default  { print("other\n"); }
+    case (1) -> print("one\n")
+    case (2) -> print("two\n")
+    default  -> print("other\n")
 }
+```
+
+Both forms can be mixed freely in the same switch.
+
+### Switch Expression
+
+`switch` can also be used as an expression that returns a value. The arrow (`->`) form is required. Each arm is a single expression — no braces, no semicolons.
+
+```
+switch (<expression>) {
+    case (<value>) -> <expression>
+    case (<value>) -> <expression>
+    default -> <expression>
+}
+```
+
+Returns `null` if no case matches and there is no `default`.
+
+Example as a return value:
+
+```
+fn describe(n) {
+    return switch($n) {
+        case (1) -> "one"
+        case (2) -> "two"
+        default  -> "other"
+    };
+}
+
+describe(1)   // => "one"
+describe(9)   // => "other"
+```
+
+Example as a variable initializer:
+
+```
+var label : switch($code) {
+    case (200) -> "ok"
+    case (404) -> "not found"
+    default    -> "error"
+};
+```
+
+Usage with enums:
+
+```
+var dir : Direction.EAST;
+var label : switch($dir) {
+    case (Direction.NORTH) -> "N"
+    case (Direction.SOUTH) -> "S"
+    case (Direction.EAST)  -> "E"
+    case (Direction.WEST)  -> "W"
+};
 ```
 
 ### Break / Continue
@@ -652,6 +711,67 @@ fn log(prefix, ...args) {
 }
 ```
 
+### Inner Functions
+
+A `fn` declaration inside another function body is an inner function. When the outer function executes, the inner function is registered in the **global** scope and captures the outer function's local variables as a closure.
+
+```
+fn <outer>(<params>) {
+    fn <inner>(<params>) {
+        <body>
+    }
+    <inner>(<args>)
+}
+```
+
+Example:
+
+```
+fn makeAdder(base) {
+    fn add(x) {
+        return eval($base + $x);
+    }
+    return add(10);
+}
+
+makeAdder(5);   // => 15
+add(3);         // => 8  (add is now globally visible, base is still 5)
+```
+
+**Scoping rules:**
+
+- The inner function is added to the global environment when the outer function first runs — before that, it does not exist.
+- The inner function closes over the outer function's local variables at the time of definition, exactly like a lambda.
+- Calling the outer function multiple times re-registers the inner function, replacing the previous closure.
+
+Inner functions are useful as named helper routines that share the outer function's parameters without passing them explicitly:
+
+```
+fn process(data, threshold) {
+    fn isValid(x) {
+        return $x > $threshold;
+    }
+    foreach (var item in $data) {
+        if (isValid($item)) {
+            print($item "\n");
+        }
+    }
+}
+```
+
+For a local-only helper that should not leak into global scope, use a lambda stored in a `var` instead:
+
+```
+fn process(data, threshold) {
+    var isValid : fn(x) { return $x > $threshold; };
+    foreach (var item in $data) {
+        if (isValid($item)) {
+            print($item "\n");
+        }
+    }
+}
+```
+
 ### Lambdas
 
 Lambdas are nameless functions that can be stored and passed around:
@@ -673,7 +793,7 @@ As an argument:
 
 ```
 fn apply(f, x) {
-    return f($x);
+    return $f($x);
 }
 
 eval(apply(fn(n) { return eval($n * $n); }, 3));   // => 9
@@ -691,6 +811,199 @@ Lambdas support variadic parameters too:
 
 ```
 var join : fn(sep, ...parts) { return join($parts, $sep); };
+```
+
+### Arrow Lambdas
+
+A shorter syntax for lambdas using `->`. Parameters are always wrapped in parentheses:
+
+```
+(<param1>, <param2>) -> <expression>
+(<param1>, <param2>) -> { <body> }
+```
+
+If the body is a single expression, it is returned implicitly — no `return` needed:
+
+```
+var double : (x) -> eval($x * 2);
+var add : (a, b) -> eval($a + $b);
+var greet : () -> "hello";
+```
+
+A block body with `{}` allows multiple statements:
+
+```
+var process : (x) -> {
+    println($x);
+    return eval($x + 1);
+};
+```
+
+Arrow lambdas work anywhere a regular lambda does — as arguments, in closures, with default parameters:
+
+```
+fn apply(f, x) { return f($x); }
+eval(apply((x) -> eval($x * $x), 5));   // => 25
+
+var base : 10;
+var offset : (n) -> eval($n + $base);   // captures outer variable
+eval(offset(3));   // => 13
+
+var clamp : (x : 0) -> $x;   // default parameter
+clamp();    // => 0
+```
+
+### typeof
+
+`typeof` is a keyword operator that returns a string describing the runtime type of any value. It has the same precedence as a unary prefix operator.
+
+```
+typeof <expression>
+```
+
+**Return values:**
+
+| Value | Result |
+|---|---|
+| Integer or float | `"number"` |
+| String | `"string"` |
+| Boolean | `"bool"` |
+| `null` | `"null"` |
+| List `{...}` | `"list"` |
+| Array `[...]` | `"array"` |
+| Map | `"map"` |
+| Function or lambda | `"fn"` |
+| Promise | `"promise"` |
+| Object | `"object"` |
+
+```
+typeof 42;          // "number"
+typeof "hello";     // "string"
+typeof true;        // "bool"
+typeof null;        // "null"
+```
+
+For variables, `typeof` evaluates the variable and inspects the stored value:
+
+```
+var x : 99;
+typeof $x;          // "number"
+
+var l : {1, 2, 3};
+typeof $l;          // "list"
+```
+
+`typeof` can be used in conditions and switch expressions:
+
+```
+var x : 42;
+typeof $x == "number" ? "yes" : "no";   // "yes"
+```
+
+```
+var result : switch(typeof $x) {
+    case("number") -> "it's a number"
+    case("string") -> "it's a string"
+    default        -> "something else"
+};
+```
+
+### Async / Await
+
+Mark a function as `async` to make it execute in the background. Calling an async function immediately returns a `Promise` without blocking. Use `await` to block until the promise resolves and get its value.
+
+```
+async fn <name>(<params>) {
+    <body>
+}
+
+var result : await <name>(<args>);
+```
+
+Example:
+
+```
+async fn fetchData(url) {
+    var response : httpGet($url);
+    return $response;
+}
+
+var data : await fetchData("https://example.com/api");
+print($data "\n");
+```
+
+Multiple async calls can be started before awaiting, so they run in parallel:
+
+```
+async fn slow(n) {
+    sleep(eval($n * 100));
+    return $n;
+}
+
+var p1 : slow(3);
+var p2 : slow(1);
+var p3 : slow(2);
+
+print(await $p1 "\n");   // => 3
+print(await $p2 "\n");   // => 1
+print(await $p3 "\n");   // => 2
+```
+
+Async lambdas work the same way:
+
+```
+var fetch : async fn(url) { return httpGet($url); };
+var result : await fetch("https://example.com");
+```
+
+**Scoping:** async functions share the global environment with the caller. Each async call runs on a separate interpreter instance, so local variables are isolated.
+
+**Error handling:** if an async function throws, the exception is re-thrown at the `await` site and can be caught normally:
+
+```
+try {
+    var result : await riskyOp();
+} catch(e) {
+    print("failed: " $e "\n");
+}
+```
+
+### spawn
+
+`spawn` runs any callable (lambda or function reference) in a background thread and returns a `Promise`. This is the low-level building block for parallelism — use it when you need to run arbitrary code concurrently without declaring an `async fn`.
+
+```
+var handle : spawn(fn() { <body> });
+var result : await($handle);
+```
+
+Example — parallel heavy computations:
+
+```
+fn heavy(n) {
+    var s : 0;
+    for (var i : 0; $i < $n; $i++) { $s += $i; }
+    return $s;
+}
+
+var h1 : spawn(fn() { return heavy(1000000); });
+var h2 : spawn(fn() { return heavy(2000000); });
+
+print(await($h1) "\n");
+print(await($h2) "\n");
+```
+
+Both spawned tasks run in parallel on the common thread pool. `await` blocks only when you actually need the result.
+
+Error propagation works the same as with `async fn`:
+
+```
+var h : spawn(fn() { throw "oops"; });
+try {
+    await($h);
+} catch(e) {
+    print("caught: " $e "\n");
+}
 ```
 
 ---
@@ -857,10 +1170,20 @@ Usage with `switch`:
 ```
 var code : Status.NOT_FOUND;
 switch ($code) {
-    case (200) { print("ok\n"); }
-    case (404) { print("not found\n"); }
-    default    { print("error\n"); }
+    case (200) -> print("ok\n")
+    case (404) -> print("not found\n")
+    default    -> print("error\n")
 }
+```
+
+Or as a switch expression:
+
+```
+var message : switch($code) {
+    case (200) -> "ok"
+    case (404) -> "not found"
+    default    -> "error"
+};
 ```
 
 ---
@@ -875,7 +1198,7 @@ Always available without any import.
 | `scan()`                    | —                      | Reads a line from stdin and returns it as a string        |
 | `eval(<expr>)`              | Arithmetic expression  | Evaluates an arithmetic expression and returns the result |
 | `exec(<code>)`              | String                 | Parses and executes a string of Mira code at runtime      |
-| `length(<value>)`           | String, List, Array, or Tuple | Returns the number of characters / elements          |
+| `length(<value>)`           | String, List, or Array | Returns the number of characters / elements          |
 | `exit(<code>)`              | Number                 | Exits the program with the given exit code                |
 | `assert(<cond>)`            | Boolean expression     | Throws a runtime error if the condition is false          |
 | `assert(<cond>, <message>)` | Boolean, String        | Throws with a custom message if condition is false        |
@@ -898,13 +1221,14 @@ Always available without any import.
 
 ### `collection`
 
-Works with lists, arrays, and tuples unless noted otherwise.
+Works with lists and arrays unless noted otherwise.
 
 | Function                    | Description                                               |
 | --------------------------- | --------------------------------------------------------- |
 | `size(col)`                 | Returns the number of elements                            |
-| `push(list, value)`         | Appends a value to the list (mutates) — lists only        |
+| `push(list, value)`         | Appends a value to the end (mutates) — lists only         |
 | `pop(list)`                 | Removes the last element (mutates) — lists only           |
+| `remove(list, index)`       | Removes the element at the given index (mutates) — lists only |
 | `first(col)`                | Returns the first element                                 |
 | `last(col)`                 | Returns the last element                                  |
 | `contains(col, value)`      | Returns true if the value is in the collection            |
@@ -912,10 +1236,9 @@ Works with lists, arrays, and tuples unless noted otherwise.
 | `slice(col, from, to)`      | Returns a sub-list                                        |
 | `reverse(col)`              | Returns a reversed copy as a list                         |
 | `concat(col1, col2)`        | Concatenates two collections into a new list              |
-| `flatten(col)`              | Flattens one level of nested lists/arrays/tuples          |
+| `flatten(col)`              | Flattens one level of nested lists/arrays                 |
 | `join(col, separator)`      | Joins elements into a string                              |
 | `newList()`                 | Creates an empty mutable list                             |
-| `newTuple()`                | Creates an empty tuple                                    |
 
 ### `map`
 

@@ -5,6 +5,7 @@ import java.nio.file.Paths;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import com.mira.compiler.CompileRunner;
 import com.mira.debugger.Debugger;
 import com.mira.error.DiagnosticFormatter;
 import com.mira.lexer.Tokenizer;
@@ -13,6 +14,8 @@ import com.mira.linter.Linter;
 import com.mira.parser.Parser;
 import com.mira.parser.nodes.Node;
 import com.mira.repl.Repl;
+import com.mira.runtime.AstPrinter;
+import com.mira.runtime.HotReloader;
 import com.mira.runtime.functions.ReturnSignal;
 import com.mira.runtime.interpreter.Interpreter;
 import com.mira.utils.FileLoader;
@@ -40,14 +43,32 @@ public class Main {
                         Flags.mainFunction = true;
                     case "-li" ->
                         Flags.libInfo = true;
-                    case "-args" ->
-                        Flags.args = args[i + 1].substring(0, args[i + 1].length()).split(",");
+                    case "-args" -> {
+                        Flags.args = args[i + 1].split(",");
+                        i++;
+                    }
                     case "-debug" ->
                         Flags.debug = true;
                     case "-lint" ->
                         Flags.lint = true;
                     case "-watch" ->
                         Flags.hotReload = true;
+                    case "-crash" ->
+                        Flags.crashDump = true;
+                    case "-ast" ->
+                        Flags.printAsts = true;
+                    case "-compile" ->
+                        Flags.compile = true;
+                    case "-compile-run" -> {
+                        Flags.compile = true;
+                        Flags.compileAndRun = true;
+                    }
+                    case "-b" ->
+                        Flags.dumpByteCode = true;
+                    case "-o" -> {
+                        Flags.outputDir = Paths.get(args[i + 1]);
+                        i++;
+                    }
                     default ->
                         throw new RuntimeException(args[i] + " is not a known flag");
                 }
@@ -70,14 +91,14 @@ public class Main {
         }
     }
 
-    static void runFile() {
+    private static void runFile() {
         runFile(new AtomicBoolean(false));
     }
 
-    static void runFile(AtomicBoolean stopping) {
+    public static void runFile(AtomicBoolean stopping) {
         long start = System.currentTimeMillis();
 
-        String readFile = "";
+        String readFile;
         try {
             readFile = FileLoader.readFileFromPath(Flags.inputPath.get().toString());
         } catch (IOException e) {
@@ -90,6 +111,7 @@ public class Main {
         Flags.fileName = Flags.inputPath.get().getFileName().toString();
         Flags.sourceLines = readFile.split("\n", -1);
 
+        Interpreter interpreter = new Interpreter();
         try {
             Tokenizer tokenizer = new Tokenizer();
             List<Token> tokens = tokenizer.tokenize(readFile, false);
@@ -101,6 +123,10 @@ public class Main {
             Parser parser = new Parser();
             List<Node> asts = parser.parseTokens(tokens);
 
+            if (Flags.printAsts) {
+                System.out.println(new AstPrinter().print(asts));
+            }
+
             if (Flags.lint) {
                 new Linter().lint(asts);
                 WarningCollector.flush();
@@ -110,7 +136,10 @@ public class Main {
                 return;
             }
 
-            Interpreter interpreter = new Interpreter();
+            if (Flags.compile) {
+                new CompileRunner().run(asts);
+                return;
+            }
 
             if (Flags.mainFunction) {
                 Object exitValue = interpreter.run(asts, Flags.args, true);
@@ -132,6 +161,10 @@ public class Main {
                 return;
             }
             System.err.println(DiagnosticFormatter.format(e));
+            if (Flags.crashDump) {
+                interpreter.dumpState(e, System.err);
+            }
         }
     }
+
 }

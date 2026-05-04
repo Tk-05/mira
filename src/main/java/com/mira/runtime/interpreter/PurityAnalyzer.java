@@ -9,19 +9,19 @@ import java.util.Set;
 import com.mira.lib.LibIndex;
 import com.mira.parser.nodes.Node;
 import com.mira.parser.nodes.expression.Expression.AccessExpression;
+import com.mira.parser.nodes.expression.Expression.AwaitExpression;
 import com.mira.parser.nodes.expression.Expression.ArrayExpression;
 import com.mira.parser.nodes.expression.Expression.BinaryExpression;
 import com.mira.parser.nodes.expression.Expression.CallExpression;
 import com.mira.parser.nodes.expression.Expression.ComplexExpression;
 import com.mira.parser.nodes.expression.Expression.DumbExpression;
 import com.mira.parser.nodes.expression.Expression.FieldAccessExpression;
-import com.mira.parser.nodes.expression.Expression.MethodCallExpression;
 import com.mira.parser.nodes.expression.Expression.LambdaExpression;
 import com.mira.parser.nodes.expression.Expression.ListExpression;
+import com.mira.parser.nodes.expression.Expression.MethodCallExpression;
 import com.mira.parser.nodes.expression.Expression.NamespaceCallExpression;
 import com.mira.parser.nodes.expression.Expression.ObjectExpression;
 import com.mira.parser.nodes.expression.Expression.RangeExpression;
-import com.mira.parser.nodes.expression.Expression.TupleExpression;
 import com.mira.parser.nodes.expression.Expression.UnaryExpression;
 import com.mira.parser.nodes.statement.Statement.Assign;
 import com.mira.parser.nodes.statement.Statement.Block;
@@ -92,8 +92,6 @@ public class PurityAnalyzer {
                 c.getExpressions().stream().allMatch(e -> isNodePure(e, pure));
             case ArrayExpression a ->
                 a.getMembers().stream().allMatch(e -> isNodePure(e, pure));
-            case TupleExpression t ->
-                t.getMembers().stream().allMatch(e -> isNodePure(e, pure));
             case ListExpression l ->
                 l.getMembers().stream().allMatch(e -> isNodePure(e, pure));
             case AccessExpression a ->
@@ -102,6 +100,8 @@ public class PurityAnalyzer {
             case FieldAccessExpression f ->
                 isNodePure(f.getObject(), pure);
             case MethodCallExpression m ->
+                false;
+            case AwaitExpression a ->
                 false;
             case ObjectExpression o ->
                 o.getVarDecls().stream()
@@ -134,7 +134,7 @@ public class PurityAnalyzer {
                 isBodyPure(stmt.getBody(), pure);
             case TryCatch stmt ->
                 isBodyPure(stmt.getTryBody(), pure)
-                && isBodyPure(stmt.getCatchBody(), pure);
+                && stmt.getCatchClauses().stream().allMatch(c -> isBodyPure(c.getBody(), pure));
             case Switch stmt ->
                 isNodePure(stmt.getSubject(), pure)
                 && stmt.getCases().stream().allMatch(c -> isBodyPure(c.getBody(), pure))

@@ -3,6 +3,7 @@ package com.mira.lib.internal;
 import java.util.List;
 import java.util.Scanner;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
@@ -15,8 +16,9 @@ import com.mira.parser.Parser;
 import com.mira.parser.nodes.Node;
 import com.mira.parser.nodes.expression.Expression.ArrayExpression;
 import com.mira.parser.nodes.expression.Expression.ListExpression;
-import com.mira.parser.nodes.expression.Expression.TupleExpression;
+import com.mira.runtime.functions.Callable;
 import com.mira.runtime.functions.NativeFunction;
+import com.mira.runtime.functions.Promise;
 import com.mira.runtime.interpreter.Environment;
 import com.mira.runtime.interpreter.Evaluator;
 import com.mira.runtime.interpreter.Interpreter;
@@ -39,12 +41,24 @@ public class Internal implements Lib {
         reader.start();
     }
 
+    public static String readLine() throws InterruptedException {
+        return stdinQueue.take();
+    }
+
     @Override
     public void loadLib(Environment environment) {
         environment.define("print",
                 new NativeFunction(1, args -> {
                     Object value = args.get(0);
                     System.out.print(value);
+                    return null;
+                })
+        );
+
+        environment.define("println",
+                new NativeFunction(1, args -> {
+                    Object value = args.get(0);
+                    System.out.println(value);
                     return null;
                 })
         );
@@ -66,7 +80,14 @@ public class Internal implements Lib {
 
         environment.define("eval",
                 new NativeFunction(1, args -> {
-                    String eval = String.valueOf(args.get(0));
+                    Object arg = args.get(0);
+                    if (arg instanceof Number) {
+                        return arg;
+                    }
+                    if (arg instanceof Boolean) {
+                        return arg;
+                    }
+                    String eval = String.valueOf(arg);
                     return Evaluator.evaluate(eval, false);
                 }));
 
@@ -87,9 +108,6 @@ public class Internal implements Lib {
                         case ArrayExpression array -> {
                             return array.getLength();
                         }
-                        case TupleExpression tuple -> {
-                            return String.valueOf(tuple.getMembers().size());
-                        }
                         case String string -> {
                             return string.length();
                         }
@@ -101,7 +119,7 @@ public class Internal implements Lib {
                         }
                         default -> {
                             throw new InvalidArgumentError("length",
-                                    "unsupported type '" + arg.getClass().getSimpleName() + "' — expected a string, list, or tuple");
+                                    "unsupported type '" + arg.getClass().getSimpleName() + "' — expected a string, array, or list");
                         }
                     }
                 })
@@ -149,5 +167,22 @@ public class Internal implements Lib {
             }
             return null;
         }));
+
+        environment.define("spawn", new Callable() {
+            @Override
+            public int getArity() {
+                return 1;
+            }
+
+            @Override
+            public Object call(Interpreter interpreter, List<Object> arguments) {
+                Callable callable = (Callable) arguments.get(0);
+                Interpreter forked = interpreter != null ? interpreter.fork() : null;
+                CompletableFuture<Object> future = CompletableFuture.supplyAsync(()
+                        -> callable.call(forked, List.of())
+                );
+                return new Promise(future);
+            }
+        });
     }
 }

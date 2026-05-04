@@ -43,6 +43,15 @@ public class LintScope {
         return !scopes.isEmpty() && scopes.peek().containsKey(name);
     }
 
+    public boolean isDeclaredInOutermostScope(String name) {
+        if (scopes.isEmpty()) return false;
+        Map<String, VarInfo> outermost = null;
+        for (Map<String, VarInfo> scope : scopes) {
+            outermost = scope;
+        }
+        return outermost != null && outermost.containsKey(name);
+    }
+
     public boolean isConst(String name) {
         for (Map<String, VarInfo> scope : scopes) {
             VarInfo info = scope.get(name);

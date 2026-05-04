@@ -4,12 +4,14 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 
 import com.mira.error.lexer.LexerError.UnexpectedCharacterError;
 import com.mira.error.lexer.LexerError.UnterminatedStringError;
 import com.mira.lexer.token.Token;
 import com.mira.lexer.token.TokenType;
+import com.mira.vocabulary.Vocabulary;
 
 public class LexerTest {
 
@@ -41,7 +43,10 @@ public class LexerTest {
         assertEquals(TokenType.KEYWORD, tokenizer.tokenize("throw", false).getFirst().getTokenType());
         assertEquals(TokenType.KEYWORD, tokenizer.tokenize("native", false).getFirst().getTokenType());
         assertEquals(TokenType.KEYWORD, tokenizer.tokenize("do", false).getFirst().getTokenType());
-         assertEquals(TokenType.KEYWORD, tokenizer.tokenize("finally", false).getFirst().getTokenType());
+        assertEquals(TokenType.KEYWORD, tokenizer.tokenize("finally", false).getFirst().getTokenType());
+        assertEquals(TokenType.KEYWORD, tokenizer.tokenize("await", false).getFirst().getTokenType());
+        assertEquals(TokenType.KEYWORD, tokenizer.tokenize("async", false).getFirst().getTokenType());
+        assertEquals(TokenType.KEYWORD, tokenizer.tokenize("typeof", false).getFirst().getTokenType());
     }
 
     @Test
@@ -263,5 +268,72 @@ public class LexerTest {
     void testHexNumber() {
         List<Token> tokens = tokenizer.tokenize("0xFF", false);
         assertEquals("0xFF", tokens.getFirst().getLexeme());
+    }
+
+    @Test
+    void testComparisonOperators() {
+        for (String op : Vocabulary.COMPARISON_OPERATORS) {
+            assertEquals(TokenType.OPERATION, tokenizer.tokenize(op, false).getFirst().getTokenType(),
+                    "Expected OPERATION for comparison operator: " + op);
+        }
+    }
+
+    @Test
+    void testLogicalOperators() {
+        for (String op : Vocabulary.LOGICAL_OPERATORS) {
+            assertEquals(TokenType.OPERATION, tokenizer.tokenize(op, false).getFirst().getTokenType(),
+                    "Expected OPERATION for logical operator: " + op);
+        }
+    }
+
+    @Test
+    void testArithmeticOperators() {
+        for (String op : Vocabulary.ARITHMETIC_OPERATORS) {
+            assertEquals(TokenType.OPERATION, tokenizer.tokenize(op, false).getFirst().getTokenType(),
+                    "Expected OPERATION for arithmetic operator: " + op);
+        }
+    }
+
+    @Test
+    void testBitwiseOperators() {
+        for (String op : Vocabulary.BITWISE_OPERATORS) {
+            assertEquals(TokenType.OPERATION, tokenizer.tokenize(op, false).getFirst().getTokenType(),
+                    "Expected OPERATION for bitwise operator: " + op);
+        }
+    }
+
+    @Test
+    void testCompoundAssignmentOperators() {
+        for (String op : Vocabulary.COMPOUND_ASSIGNMENT_OPERATORS) {
+            assertEquals(TokenType.OPERATION, tokenizer.tokenize(op, false).getFirst().getTokenType(),
+                    "Expected OPERATION for compound assignment operator: " + op);
+        }
+    }
+
+    @Test
+    void testUnaryOperators() {
+        for (String op : Vocabulary.UNARY_OPERATORS) {
+            assertEquals(TokenType.OPERATION, tokenizer.tokenize(op, false).getFirst().getTokenType(),
+                    "Expected OPERATION for unary operator: " + op);
+        }
+    }
+
+    @Test
+    void testSpecialOperators() {
+        for (String op : Vocabulary.SPECIAL_OPERATORS) {
+            assertEquals(TokenType.OPERATION, tokenizer.tokenize(op, false).getFirst().getTokenType(),
+                    "Expected OPERATION for special operator: " + op);
+        }
+    }
+
+    @Test
+    void testVocabularySubsetsAreSubsetsOfOperations() {
+        assertTrue(Vocabulary.OPERATORS.containsAll(Vocabulary.COMPARISON_OPERATORS));
+        assertTrue(Vocabulary.OPERATORS.containsAll(Vocabulary.LOGICAL_OPERATORS));
+        assertTrue(Vocabulary.OPERATORS.containsAll(Vocabulary.ARITHMETIC_OPERATORS));
+        assertTrue(Vocabulary.OPERATORS.containsAll(Vocabulary.BITWISE_OPERATORS));
+        assertTrue(Vocabulary.OPERATORS.containsAll(Vocabulary.COMPOUND_ASSIGNMENT_OPERATORS));
+        assertTrue(Vocabulary.OPERATORS.containsAll(Vocabulary.UNARY_OPERATORS));
+        assertTrue(Vocabulary.OPERATORS.containsAll(Vocabulary.SPECIAL_OPERATORS));
     }
 }
