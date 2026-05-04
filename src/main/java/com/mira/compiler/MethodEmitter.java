@@ -435,7 +435,11 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
                         "mira$" + name, ClassEmitter.FN_DESC, false);
             } else {
                 Integer slot = ctx.slots.slotOf(name);
-                if (slot != null) {
+                if (slot != null && !ctx.localFunctions.contains(name)) {
+                    mv.visitLdcInsn(name);
+                    mv.visitMethodInsn(INVOKESTATIC, RT, "localCallableError",
+                            "(Ljava/lang/String;)" + OBJ_D, false);
+                } else if (slot != null) {
                     mv.visitVarInsn(ALOAD, slot);
                     emitObjectArray(expression.getArguments());
                     mv.visitMethodInsn(INVOKESTATIC, RT, "dynamicCall",
@@ -866,6 +870,7 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
         if (ctx.isTopLevel) {
             return null;
         }
+        ctx.localFunctions.add(stmt.getName());
         int n = ctx.lambdaCounter[0]++;
         String mName = "mira$lambda$" + n;
         String lClass = ctx.className + "$Lambda$" + n;

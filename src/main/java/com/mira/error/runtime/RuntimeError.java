@@ -247,4 +247,13 @@ public class RuntimeError extends MiraError {
                     "Rename either the file or the 'module' declaration so they match");
         }
     }
+
+    public static class LocalCallableError extends RuntimeError {
+
+        public LocalCallableError(String name) {
+            super("E227",
+                    "'" + name + "' is a local variable, not a global function",
+                    "Use $" + name + "() to call a variable");
+        }
+    }
 }

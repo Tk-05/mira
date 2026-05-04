@@ -793,7 +793,7 @@ As an argument:
 
 ```
 fn apply(f, x) {
-    return f($x);
+    return $f($x);
 }
 
 eval(apply(fn(n) { return eval($n * $n); }, 3));   // => 9
@@ -811,6 +811,46 @@ Lambdas support variadic parameters too:
 
 ```
 var join : fn(sep, ...parts) { return join($parts, $sep); };
+```
+
+### Arrow Lambdas
+
+A shorter syntax for lambdas using `->`. Parameters are always wrapped in parentheses:
+
+```
+(<param1>, <param2>) -> <expression>
+(<param1>, <param2>) -> { <body> }
+```
+
+If the body is a single expression, it is returned implicitly — no `return` needed:
+
+```
+var double : (x) -> eval($x * 2);
+var add : (a, b) -> eval($a + $b);
+var greet : () -> "hello";
+```
+
+A block body with `{}` allows multiple statements:
+
+```
+var process : (x) -> {
+    println($x);
+    return eval($x + 1);
+};
+```
+
+Arrow lambdas work anywhere a regular lambda does — as arguments, in closures, with default parameters:
+
+```
+fn apply(f, x) { return f($x); }
+eval(apply((x) -> eval($x * $x), 5));   // => 25
+
+var base : 10;
+var offset : (n) -> eval($n + $base);   // captures outer variable
+eval(offset(3));   // => 13
+
+var clamp : (x : 0) -> $x;   // default parameter
+clamp();    // => 0
 ```
 
 ### typeof

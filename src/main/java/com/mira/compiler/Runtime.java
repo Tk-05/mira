@@ -582,6 +582,10 @@ public final class Runtime {
         return methodCall(obj, method, args);
     }
 
+    public static Object localCallableError(String name) {
+        throw new com.mira.error.runtime.RuntimeError.LocalCallableError(name);
+    }
+
     public static Object callNamed(Environment globals, String name, Object[] args) {
         Object callee = globals.get(name);
         if (!(callee instanceof Callable callable)) {

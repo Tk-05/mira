@@ -2,6 +2,7 @@ package com.mira.compiler;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
+import java.util.HashSet;
 import java.util.Set;
 
 import org.objectweb.asm.Label;
@@ -15,6 +16,7 @@ public class CompilerContext {
     public final LocalSlotTable slots;
 
     public final Set<String> knownFunctions;
+    public final Set<String> localFunctions = new HashSet<>();
 
     public final int[] lambdaCounter;
 

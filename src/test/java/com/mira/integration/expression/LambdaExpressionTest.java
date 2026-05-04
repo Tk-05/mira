@@ -53,7 +53,7 @@ public class LambdaExpressionTest extends InterpreterTestBase {
     @Test
     void lambdaPassedAsArgument() {
         assertEquals(24.0, run("""
-                fn apply(f, x) { return f($x); }
+                fn apply(f, x) { return $f($x); }
                 var triple : fn(n) { return eval($n * 3); };
                 eval(apply($triple, 8));
                 """));
@@ -62,7 +62,7 @@ public class LambdaExpressionTest extends InterpreterTestBase {
     @Test
     void lambdaInlineAsArgument() {
         assertEquals(9.0, run("""
-                fn apply(f, x) { return f($x); }
+                fn apply(f, x) { return $f($x); }
                 eval(apply(fn(n) { return eval($n * $n); }, 3));
                 """));
     }
@@ -70,7 +70,7 @@ public class LambdaExpressionTest extends InterpreterTestBase {
     @Test
     void higherOrderFunctionWithMultipleParams() {
         assertEquals(12.0, run("""
-                fn applyTwo(f, a, b) { return f($a, $b); }
+                fn applyTwo(f, a, b) { return $f($a, $b); }
                 var multiply : fn(x, y) { return eval($x * $y); };
                 eval(applyTwo($multiply, 3, 4));
                 """));

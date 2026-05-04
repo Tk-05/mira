@@ -14,6 +14,7 @@ import com.mira.Flags;
 import com.mira.error.runtime.RuntimeError.ArgMismatchError;
 import com.mira.error.runtime.RuntimeError.FieldAccessError;
 import com.mira.error.runtime.RuntimeError.ImmutableCollectionError;
+import com.mira.error.runtime.RuntimeError.LocalCallableError;
 import com.mira.error.runtime.RuntimeError.NoModuleDeclarationError;
 import com.mira.error.runtime.RuntimeError.NotANamespaceError;
 import com.mira.error.runtime.RuntimeError.NotCallableError;
@@ -33,8 +34,6 @@ import com.mira.parser.nodes.expression.Expression;
 import com.mira.parser.nodes.expression.Expression.AccessExpression;
 import com.mira.parser.nodes.expression.Expression.ArrayExpression;
 import com.mira.parser.nodes.expression.Expression.AwaitExpression;
-import com.mira.parser.nodes.expression.Expression.SwitchExpression;
-import com.mira.parser.nodes.expression.Expression.TypeofExpression;
 import com.mira.parser.nodes.expression.Expression.BinaryExpression;
 import com.mira.parser.nodes.expression.Expression.CallExpression;
 import com.mira.parser.nodes.expression.Expression.ComplexExpression;
@@ -49,8 +48,10 @@ import com.mira.parser.nodes.expression.Expression.Mutability;
 import com.mira.parser.nodes.expression.Expression.NamespaceCallExpression;
 import com.mira.parser.nodes.expression.Expression.ObjectExpression;
 import com.mira.parser.nodes.expression.Expression.RangeExpression;
+import com.mira.parser.nodes.expression.Expression.SwitchExpression;
 import com.mira.parser.nodes.expression.Expression.TernaryExpression;
 import com.mira.parser.nodes.expression.Expression.ThrownException;
+import com.mira.parser.nodes.expression.Expression.TypeofExpression;
 import com.mira.parser.nodes.expression.Expression.UnaryExpression;
 import com.mira.parser.nodes.statement.Statement;
 import com.mira.parser.nodes.statement.Statement.Assign;
@@ -604,10 +605,17 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
         if (calleeResult instanceof String name) {
             calleeName = name;
-            if (localEnvironment != null) {
+            callee = globalEnvironment.getOrNull(calleeName);
+            if (callee == null && localEnvironment != null) {
                 Object local = localEnvironment.getOrNull(calleeName);
-                callee = local != null ? local : globalEnvironment.get(calleeName);
-            } else {
+                if (local instanceof Callable) {
+                    if (!localEnvironment.isDeclaredFunction(calleeName)) {
+                        throw new LocalCallableError(calleeName);
+                    }
+                    callee = local;
+                }
+            }
+            if (callee == null) {
                 callee = globalEnvironment.get(calleeName);
             }
         } else if (calleeResult instanceof Callable) {
@@ -687,7 +695,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
     @Override
     public Void visitFuncDecl(FuncDecl funcDecl) {
-        globalEnvironment.define(funcDecl.getName(),
+        globalEnvironment.defineFunction(funcDecl.getName(),
                 new Function(localEnvironment,
                         funcDecl.getBody(),
                         funcDecl.getParameters(),
@@ -1811,18 +1819,30 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
     public <T> T visitTypeofExpr(TypeofExpression expression) {
         Object val = expression.getExpr().accept(this);
         return (T) switch (val) {
-            case null -> "null";
-            case NullValue n -> "null";
-            case Boolean b -> "bool";
-            case Number n -> "number";
-            case String s -> "string";
-            case Promise p -> "promise";
-            case Callable c -> "fn";
-            case ListExpression l -> "list";
-            case ArrayExpression a -> "array";
-            case MapExpression m -> "map";
-            case Environment e -> "object";
-            default -> "unknown";
+            case null ->
+                "null";
+            case NullValue n ->
+                "null";
+            case Boolean b ->
+                "bool";
+            case Number n ->
+                "number";
+            case String s ->
+                "string";
+            case Promise p ->
+                "promise";
+            case Callable c ->
+                "fn";
+            case ListExpression l ->
+                "list";
+            case ArrayExpression a ->
+                "array";
+            case MapExpression m ->
+                "map";
+            case Environment e ->
+                "object";
+            default ->
+                "unknown";
         };
     }
 

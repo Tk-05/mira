@@ -31,9 +31,9 @@ import com.mira.parser.nodes.expression.Expression.NamespaceCallExpression;
 import com.mira.parser.nodes.expression.Expression.ObjectExpression;
 import com.mira.parser.nodes.expression.Expression.RangeExpression;
 import com.mira.parser.nodes.expression.Expression.SwitchExpression;
-import com.mira.parser.nodes.expression.Expression.TypeofExpression;
 import com.mira.parser.nodes.expression.Expression.TernaryExpression;
 import com.mira.parser.nodes.expression.Expression.ThrownException;
+import com.mira.parser.nodes.expression.Expression.TypeofExpression;
 import com.mira.parser.nodes.expression.Expression.UnaryExpression;
 import com.mira.parser.nodes.statement.Statement;
 import com.mira.parser.nodes.statement.Statement.Assign;
@@ -348,10 +348,14 @@ public class Parser {
 
         } else if (current.getLexeme().equals("(")
                 && current.getTokenType() != TokenType.STRING_LITERAL) {
-            consume();
-            Expression first = parseExpression();
-            matchLexeme(")");
-            expr = first;
+            if (isArrowLambda()) {
+                expr = parseArrowLambdaExpression();
+            } else {
+                consume();
+                Expression first = parseExpression();
+                matchLexeme(")");
+                expr = first;
+            }
 
         } else if (current.getLexeme().equals("typeof")
                 && current.getTokenType() == TokenType.KEYWORD) {
@@ -695,6 +699,46 @@ public class Parser {
         matchLexeme("}");
 
         return new LambdaExpression(parameters, body, variadicHolder[0], isAsync);
+    }
+
+    private boolean isArrowLambda() {
+        int depth = 0;
+        int offset = 0;
+        while (index + offset < tokens.size()) {
+            String lex = peekOffset(offset).getLexeme();
+            if (lex.equals("(")) {
+                depth++;
+            } else if (lex.equals(")")) {
+                depth--;
+                if (depth == 0) {
+                    return peekOffset(offset + 1).getLexeme().equals("->");
+                }
+            }
+            offset++;
+        }
+        return false;
+    }
+
+    private Expression parseArrowLambdaExpression() {
+        matchLexeme("(");
+        String[] variadicHolder = {null};
+        List<Parameter> parameters = parseParameterList(variadicHolder);
+        matchLexeme(")");
+        matchLexeme("->");
+
+        List<Node> body = new ArrayList<>();
+        if (peek().getLexeme().equals("{")) {
+            matchLexeme("{");
+            while (!peek().getLexeme().equals("}")) {
+                body.add(parseStatement(true));
+            }
+            matchLexeme("}");
+        } else {
+            Expression result = parseExpression();
+            body.add(new Return(result));
+        }
+
+        return new LambdaExpression(parameters, body, variadicHolder[0], false);
     }
 
     private Node parseImportExpression() {

@@ -15,6 +15,7 @@ public class Environment {
     private final Environment parent;
     private final Map<String, Object> values;
     private final Set<String> constants = new HashSet<>();
+    private final Set<String> declaredFunctions = new HashSet<>();
     private static final ThreadLocal<Boolean> overwriteMode = ThreadLocal.withInitial(() -> false);
 
     public Environment() {
@@ -38,6 +39,16 @@ public class Environment {
         } else {
             throw new ObjectAlreadyDefinedInScope(name);
         }
+    }
+
+    public void defineFunction(String name, Object value) {
+        define(name, value);
+        declaredFunctions.add(name);
+    }
+
+    public boolean isDeclaredFunction(String name) {
+        if (declaredFunctions.contains(name)) return true;
+        return parent != null && parent.isDeclaredFunction(name);
     }
 
     public void forceDefine(String name, Object value) {

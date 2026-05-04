@@ -49,7 +49,12 @@ fn outer() {
     return inner();
 }
 
+fn function(body) {
+    $body();
+}
+
 fn main() {
+    function(() -> println("Hello Lambda"));
     println(typeof 1);
     println(outer());
     var i : 10;
