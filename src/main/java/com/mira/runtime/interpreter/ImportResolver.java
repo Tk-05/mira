@@ -222,14 +222,7 @@ public class ImportResolver {
             Path previousFile = Flags.inputPath.get();
             Flags.inputPath.set(modulePath);
 
-            String declaredModuleName = validateModuleDeclaration(asts, importExpression);
-            String fileName = modulePath.getFileName().toString();
-            String expectedModuleName = fileName.replace(".mira", "");
-
-            if (!declaredModuleName.equals(expectedModuleName)) {
-                throw new com.mira.error.runtime.RuntimeError.ModuleNameMismatchError(
-                        fileName, expectedModuleName, declaredModuleName);
-            }
+            validateModuleDeclaration(asts, importExpression);
 
             String alias = importExpression.getNamespace();
             boolean hasAlias = alias != null && !alias.isBlank();

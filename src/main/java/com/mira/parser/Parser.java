@@ -1004,8 +1004,6 @@ public class Parser {
                 || peek().getLexeme().equals("fn")));
         if (startsExpression) {
             value = parsePratt(0);
-            // Continue as a complex expression only for string interpolation:
-            // the only valid continuation tokens are string literals and $ variable refs.
             List<Expression> parts = new ArrayList<>();
             parts.add(value);
             while (!isStructuralDelimiter(peek()) && peek().getTokenType() != TokenType.EOF) {

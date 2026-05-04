@@ -1,4 +1,4 @@
-module main;
+module Debug;
 
 import module "./Debug2.mira" as test;
 import native "../../../../extern/raylib/target/raylib-RELEASE.jar" as ray;
@@ -19,6 +19,13 @@ enum test {
     TEST3
 }
 
+enum direction {
+    NORTH,
+    EAST,
+    SOUTH,
+    WEST
+}
+
 var vals : {"69" : 420};
 
 var multiComment : """
@@ -34,7 +41,7 @@ var square : {
 
     fn area() {
         return $width * $height;
-    } 
+    }
 };
 
 fn short(arg) {
@@ -54,6 +61,15 @@ fn function(body) {
 }
 
 fn main() {
+    var dir : $direction.EAST;
+    var label : switch($dir) {
+        case ($direction.NORTH) -> "N"
+        case ($direction.SOUTH) -> "S"
+        case ($direction.EAST)  -> "E"
+        case ($direction.WEST)  -> "W"
+    };
+    println($label);
+
     function(() -> println("Hello Lambda"));
     println(typeof 1);
     println(outer());
@@ -84,7 +100,7 @@ fn main() {
         } while($i < 5);
 
         if(short("left") && short("right")) {}
-        
+
         {
             var a : 0;
             var b : 1;
@@ -123,7 +139,7 @@ fn main() {
         if($boolean) {
             print("test:" $wrapper.a.a "\n");
         }
-        
+
         for(var i in <0..length($list)>) {
             print($i "\n");
         }
@@ -135,10 +151,10 @@ fn main() {
         print(test.hello("test"));
 
         var list : [
-                    [0,0,0],
-                    [0,0,0],
-                    [0,0,69]
-                ];
+        [0,0,0],
+        [0,0,0],
+        [0,0,69]
+        ];
 
         print("Array access : "$list[2] "\n");
 
@@ -162,7 +178,7 @@ fn main() {
 
         (eval($hex + 1)"\n")|>print();
 
-        //53.5507 
+        //53.5507
         print("Enter the latitude: \n");
         var latitude : scan();
         //9.993

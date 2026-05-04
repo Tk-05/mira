@@ -1,4 +1,4 @@
-# Mira Language Syntax Reference
+# Mira Language Documentation
 
 ## Table of Contents
 
@@ -12,7 +12,8 @@
 8. [Enums](#enums)
 9. [Built-in Functions](#built-in-functions)
 10. [Standard Libraries](#standard-libraries)
-11. [Example Program](#example-program)
+11. [IDE Integration (LSP)](#ide-integration-lsp)
+12. [Example Program](#example-program)
 
 ---
 
@@ -87,11 +88,11 @@ mylib.jar
 
 **Errors:**
 
-| Error | Cause |
-| ----- | ----- |
-| `E222 NativeLibNotFoundError` | JAR file does not exist at the given path |
+| Error                                 | Cause                                                 |
+| ------------------------------------- | ----------------------------------------------------- |
+| `E222 NativeLibNotFoundError`         | JAR file does not exist at the given path             |
 | `E223 NativeLibNoImplementationError` | JAR has no `META-INF/services/com.mira.lib.Lib` entry |
-| `E224 NativeLibLoadError` | JAR is invalid or incompatible with the interpreter |
+| `E224 NativeLibLoadError`             | JAR is invalid or incompatible with the interpreter   |
 
 ---
 
@@ -196,16 +197,16 @@ Line 2
 
 ### Operators
 
-| Category         | Operators                        |
-| ---------------- | -------------------------------- |
-| Arithmetic       | `+`, `-`, `*`, `/`, `%`, `**`, `\%` |
-| Comparison       | `<`, `>`, `<=`, `>=`, `==`, `!=` |
-| Logical          | `&&`, `\|\|`, `!`                |
-| Bitwise          | `&`, `\|`, `^`, `~`, `<<`, `>>`  |
-| Postfix          | `++`, `--`                       |
-| Ternary          | `? :`                            |
-| Null-Coalescing  | `??`                             |
-| Optional Chaining | `?.`                            |
+| Category          | Operators                           |
+| ----------------- | ----------------------------------- |
+| Arithmetic        | `+`, `-`, `*`, `/`, `%`, `**`, `\%` |
+| Comparison        | `<`, `>`, `<=`, `>=`, `==`, `!=`    |
+| Logical           | `&&`, `\|\|`, `!`                   |
+| Bitwise           | `&`, `\|`, `^`, `~`, `<<`, `>>`     |
+| Postfix           | `++`, `--`                          |
+| Ternary           | `? :`                               |
+| Null-Coalescing   | `??`                                |
+| Optional Chaining | `?.`                                |
 
 `**` is the power/exponentiation operator. It has higher precedence than `*`, `/`, and `%`:
 
@@ -559,12 +560,12 @@ var label : switch($code) {
 Usage with enums:
 
 ```
-var dir : Direction.EAST;
+var dir : $Direction.EAST;
 var label : switch($dir) {
-    case (Direction.NORTH) -> "N"
-    case (Direction.SOUTH) -> "S"
-    case (Direction.EAST)  -> "E"
-    case (Direction.WEST)  -> "W"
+    case ($Direction.NORTH) -> "N"
+    case ($Direction.SOUTH) -> "S"
+    case ($Direction.EAST)  -> "E"
+    case ($Direction.WEST)  -> "W"
 };
 ```
 
@@ -863,18 +864,18 @@ typeof <expression>
 
 **Return values:**
 
-| Value | Result |
-|---|---|
-| Integer or float | `"number"` |
-| String | `"string"` |
-| Boolean | `"bool"` |
-| `null` | `"null"` |
-| List `{...}` | `"list"` |
-| Array `[...]` | `"array"` |
-| Map | `"map"` |
-| Function or lambda | `"fn"` |
-| Promise | `"promise"` |
-| Object | `"object"` |
+| Value              | Result      |
+| ------------------ | ----------- |
+| Integer or float   | `"number"`  |
+| String             | `"string"`  |
+| Boolean            | `"bool"`    |
+| `null`             | `"null"`    |
+| List `{...}`       | `"list"`    |
+| Array `[...]`      | `"array"`   |
+| Map                | `"map"`     |
+| Function or lambda | `"fn"`      |
+| Promise            | `"promise"` |
+| Object             | `"object"`  |
 
 ```
 typeof 42;          // "number"
@@ -1151,16 +1152,16 @@ Mixed enums (some explicit, some auto-indexed) are allowed. Auto-indexed variant
 ### Access & Usage
 
 ```
-Direction.NORTH   // => 0
-Status.OK         // => 200
-Color.RED         // => "red"
+$Direction.NORTH   // => 0
+$Status.OK         // => 200
+$Color.RED         // => "red"
 ```
 
 Enum values can be stored and compared like any other value:
 
 ```
-var dir : Direction.SOUTH;
-if ($dir == Direction.SOUTH) {
+var dir : $Direction.SOUTH;
+if ($dir == $Direction.SOUTH) {
     print("heading south\n");
 }
 ```
@@ -1168,7 +1169,7 @@ if ($dir == Direction.SOUTH) {
 Usage with `switch`:
 
 ```
-var code : Status.NOT_FOUND;
+var code : $Status.NOT_FOUND;
 switch ($code) {
     case (200) -> print("ok\n")
     case (404) -> print("not found\n")
@@ -1198,7 +1199,7 @@ Always available without any import.
 | `scan()`                    | —                      | Reads a line from stdin and returns it as a string        |
 | `eval(<expr>)`              | Arithmetic expression  | Evaluates an arithmetic expression and returns the result |
 | `exec(<code>)`              | String                 | Parses and executes a string of Mira code at runtime      |
-| `length(<value>)`           | String, List, or Array | Returns the number of characters / elements          |
+| `length(<value>)`           | String, List, or Array | Returns the number of characters / elements               |
 | `exit(<code>)`              | Number                 | Exits the program with the given exit code                |
 | `assert(<cond>)`            | Boolean expression     | Throws a runtime error if the condition is false          |
 | `assert(<cond>, <message>)` | Boolean, String        | Throws with a custom message if condition is false        |
@@ -1209,98 +1210,98 @@ Always available without any import.
 
 ### `string`
 
-| Function                    | Description                              |
-| --------------------------- | ---------------------------------------- |
-| `charAt(str, index)`        | Returns the character at the given index |
-| `indexOf(str, char)`        | Returns the first index of a character   |
-| `trim(str)`                 | Removes leading and trailing whitespace  |
-| `split(str, delimiter)`     | Splits string into an array              |
-| `substr(str, start, end)`   | Returns a substring                      |
-| `strEqual(str1, str2)`      | Returns true if both strings are equal   |
-| `replace(str, from, to)`    | Replaces all occurrences of a character  |
+| Function                  | Description                              |
+| ------------------------- | ---------------------------------------- |
+| `charAt(str, index)`      | Returns the character at the given index |
+| `indexOf(str, char)`      | Returns the first index of a character   |
+| `trim(str)`               | Removes leading and trailing whitespace  |
+| `split(str, delimiter)`   | Splits string into an array              |
+| `substr(str, start, end)` | Returns a substring                      |
+| `strEqual(str1, str2)`    | Returns true if both strings are equal   |
+| `replace(str, from, to)`  | Replaces all occurrences of a character  |
 
 ### `collection`
 
 Works with lists and arrays unless noted otherwise.
 
-| Function                    | Description                                               |
-| --------------------------- | --------------------------------------------------------- |
-| `size(col)`                 | Returns the number of elements                            |
-| `push(list, value)`         | Appends a value to the end (mutates) — lists only         |
-| `pop(list)`                 | Removes the last element (mutates) — lists only           |
-| `remove(list, index)`       | Removes the element at the given index (mutates) — lists only |
-| `first(col)`                | Returns the first element                                 |
-| `last(col)`                 | Returns the last element                                  |
-| `contains(col, value)`      | Returns true if the value is in the collection            |
-| `findIndex(col, value)`     | Returns the index of a value, or `-1`                     |
-| `slice(col, from, to)`      | Returns a sub-list                                        |
-| `reverse(col)`              | Returns a reversed copy as a list                         |
-| `concat(col1, col2)`        | Concatenates two collections into a new list              |
-| `flatten(col)`              | Flattens one level of nested lists/arrays                 |
-| `join(col, separator)`      | Joins elements into a string                              |
-| `newList()`                 | Creates an empty mutable list                             |
+| Function                | Description                                                   |
+| ----------------------- | ------------------------------------------------------------- |
+| `size(col)`             | Returns the number of elements                                |
+| `push(list, value)`     | Appends a value to the end (mutates) — lists only             |
+| `pop(list)`             | Removes the last element (mutates) — lists only               |
+| `remove(list, index)`   | Removes the element at the given index (mutates) — lists only |
+| `first(col)`            | Returns the first element                                     |
+| `last(col)`             | Returns the last element                                      |
+| `contains(col, value)`  | Returns true if the value is in the collection                |
+| `findIndex(col, value)` | Returns the index of a value, or `-1`                         |
+| `slice(col, from, to)`  | Returns a sub-list                                            |
+| `reverse(col)`          | Returns a reversed copy as a list                             |
+| `concat(col1, col2)`    | Concatenates two collections into a new list                  |
+| `flatten(col)`          | Flattens one level of nested lists/arrays                     |
+| `join(col, separator)`  | Joins elements into a string                                  |
+| `newList()`             | Creates an empty mutable list                                 |
 
 ### `map`
 
-| Function                  | Description                                      |
-| ------------------------- | ------------------------------------------------ |
-| `newMap()`                | Creates an empty mutable map                     |
-| `mapSize(map)`            | Returns the number of entries                    |
-| `mapHas(map, key)`        | Returns true if the key exists                   |
-| `mapRemove(map, key)`     | Removes the entry and returns the map            |
-| `mapKeys(map)`            | Returns a list of all keys                       |
-| `mapValues(map)`          | Returns a list of all values                     |
+| Function              | Description                           |
+| --------------------- | ------------------------------------- |
+| `newMap()`            | Creates an empty mutable map          |
+| `mapSize(map)`        | Returns the number of entries         |
+| `mapHas(map, key)`    | Returns true if the key exists        |
+| `mapRemove(map, key)` | Removes the entry and returns the map |
+| `mapKeys(map)`        | Returns a list of all keys            |
+| `mapValues(map)`      | Returns a list of all values          |
 
 ### `math`
 
 Constants: `pi`, `e`, `inf`, `nan`
 
-| Function              | Description                        |
-| --------------------- | ---------------------------------- |
-| `pow(base, exp)`      | Exponentiation                     |
-| `sqrt(x)`             | Square root                        |
-| `cbrt(x)`             | Cube root                          |
-| `abs(x)`              | Absolute value                     |
-| `round(x)`            | Round to nearest integer           |
-| `floor(x)`            | Round down                         |
-| `ceil(x)`             | Round up                           |
-| `min(a, b)`           | Minimum of two values              |
-| `max(a, b)`           | Maximum of two values              |
-| `clamp(x, min, max)`  | Clamp value to range               |
-| `sign(x)`             | Sign: `-1`, `0`, or `1`            |
-| `log(x)`              | Natural logarithm                  |
-| `log10(x)`            | Base-10 logarithm                  |
-| `log2(x)`             | Base-2 logarithm                   |
-| `sin(x)`              | Sine (radians)                     |
-| `cos(x)`              | Cosine (radians)                   |
-| `tan(x)`              | Tangent (radians)                  |
-| `asin(x)`             | Arc sine                           |
-| `acos(x)`             | Arc cosine                         |
-| `atan(x)`             | Arc tangent                        |
-| `atan2(y, x)`         | Arc tangent of y/x                 |
-| `toRad(deg)`          | Degrees to radians                 |
-| `toDeg(rad)`          | Radians to degrees                 |
-| `rand()`              | Random float in `[0, 1)`           |
-| `randInt(min, max)`   | Random integer in `[min, max]`     |
-| `isNaN(x)`            | True if value is NaN               |
-| `isInf(x)`            | True if value is infinite          |
+| Function             | Description                    |
+| -------------------- | ------------------------------ |
+| `pow(base, exp)`     | Exponentiation                 |
+| `sqrt(x)`            | Square root                    |
+| `cbrt(x)`            | Cube root                      |
+| `abs(x)`             | Absolute value                 |
+| `round(x)`           | Round to nearest integer       |
+| `floor(x)`           | Round down                     |
+| `ceil(x)`            | Round up                       |
+| `min(a, b)`          | Minimum of two values          |
+| `max(a, b)`          | Maximum of two values          |
+| `clamp(x, min, max)` | Clamp value to range           |
+| `sign(x)`            | Sign: `-1`, `0`, or `1`        |
+| `log(x)`             | Natural logarithm              |
+| `log10(x)`           | Base-10 logarithm              |
+| `log2(x)`            | Base-2 logarithm               |
+| `sin(x)`             | Sine (radians)                 |
+| `cos(x)`             | Cosine (radians)               |
+| `tan(x)`             | Tangent (radians)              |
+| `asin(x)`            | Arc sine                       |
+| `acos(x)`            | Arc cosine                     |
+| `atan(x)`            | Arc tangent                    |
+| `atan2(y, x)`        | Arc tangent of y/x             |
+| `toRad(deg)`         | Degrees to radians             |
+| `toDeg(rad)`         | Radians to degrees             |
+| `rand()`             | Random float in `[0, 1)`       |
+| `randInt(min, max)`  | Random integer in `[min, max]` |
+| `isNaN(x)`           | True if value is NaN           |
+| `isInf(x)`           | True if value is infinite      |
 
 ### `io`
 
-| Function                    | Description                                               |
-| --------------------------- | --------------------------------------------------------- |
-| `readFile(path)`            | Reads a file and returns its content as a string          |
-| `writeFile(path, content)`  | Writes a string to a file, creating directories if needed |
+| Function                   | Description                                               |
+| -------------------------- | --------------------------------------------------------- |
+| `readFile(path)`           | Reads a file and returns its content as a string          |
+| `writeFile(path, content)` | Writes a string to a file, creating directories if needed |
 
 ### `net`
 
-| Function                           | Description                              |
-| ---------------------------------- | ---------------------------------------- |
-| `httpGet(url)`                     | Sends a GET request, returns body        |
-| `httpPost(url, body, contentType)` | Sends a POST request, returns body       |
-| `httpStatus(url)`                  | Returns the HTTP status code             |
-| `httpHeader(url, header)`          | Returns a response header value          |
-| `httpDownload(url, path)`          | Downloads a file to the given path       |
+| Function                           | Description                        |
+| ---------------------------------- | ---------------------------------- |
+| `httpGet(url)`                     | Sends a GET request, returns body  |
+| `httpPost(url, body, contentType)` | Sends a POST request, returns body |
+| `httpStatus(url)`                  | Returns the HTTP status code       |
+| `httpHeader(url, header)`          | Returns a response header value    |
+| `httpDownload(url, path)`          | Downloads a file to the given path |
 
 ### `dateTime`
 
@@ -1335,48 +1336,162 @@ Constants: `pi`, `e`, `inf`, `nan`
 
 ### `regex`
 
-| Function                             | Description                                   |
-| ------------------------------------ | --------------------------------------------- |
-| `matches(input, pattern)`            | True if the whole string matches the pattern  |
-| `contains(input, pattern)`           | True if the pattern is found anywhere         |
-| `findFirst(input, pattern)`          | Returns the first match, or `""`              |
-| `findAll(input, pattern)`            | Returns all matches as a list                 |
-| `replaceAll(input, pattern, repl)`   | Replaces all matches                          |
-| `replaceFirst(input, pattern, repl)` | Replaces the first match                      |
-| `split(input, pattern)`              | Splits by regex pattern into a list           |
-| `capture(input, pattern)`            | Returns capture groups of the first match     |
-| `countMatches(input, pattern)`       | Returns the number of matches                 |
+| Function                             | Description                                  |
+| ------------------------------------ | -------------------------------------------- |
+| `matches(input, pattern)`            | True if the whole string matches the pattern |
+| `contains(input, pattern)`           | True if the pattern is found anywhere        |
+| `findFirst(input, pattern)`          | Returns the first match, or `""`             |
+| `findAll(input, pattern)`            | Returns all matches as a list                |
+| `replaceAll(input, pattern, repl)`   | Replaces all matches                         |
+| `replaceFirst(input, pattern, repl)` | Replaces the first match                     |
+| `split(input, pattern)`              | Splits by regex pattern into a list          |
+| `capture(input, pattern)`            | Returns capture groups of the first match    |
+| `countMatches(input, pattern)`       | Returns the number of matches                |
 
 ### `shell`
 
-| Function            | Description                                     |
-| ------------------- | ----------------------------------------------- |
-| `execute(cmd)`      | Runs a shell command and returns stdout         |
-| `executeCode(cmd)`  | Runs a shell command and returns the exit code  |
-| `getenv(name)`      | Returns an environment variable value           |
-| `hasenv(name)`      | Returns true if the environment variable exists |
-| `osName()`          | Returns the OS name                             |
-| `isWindows()`       | True if running on Windows                      |
-| `isLinux()`         | True if running on Linux                        |
-| `isMac()`           | True if running on macOS                        |
-| `cwd()`             | Current working directory                       |
-| `username()`        | Current OS username                             |
-| `homedir()`         | Home directory path                             |
+| Function           | Description                                     |
+| ------------------ | ----------------------------------------------- |
+| `execute(cmd)`     | Runs a shell command and returns stdout         |
+| `executeCode(cmd)` | Runs a shell command and returns the exit code  |
+| `getenv(name)`     | Returns an environment variable value           |
+| `hasenv(name)`     | Returns true if the environment variable exists |
+| `osName()`         | Returns the OS name                             |
+| `isWindows()`      | True if running on Windows                      |
+| `isLinux()`        | True if running on Linux                        |
+| `isMac()`          | True if running on macOS                        |
+| `cwd()`            | Current working directory                       |
+| `username()`       | Current OS username                             |
+| `homedir()`        | Home directory path                             |
 
 ### `process`
 
-| Function                  | Description                                          |
-| ------------------------- | ---------------------------------------------------- |
-| `processStart(cmd)`       | Starts a background process, returns an ID           |
-| `processAlive(id)`        | True if the process is still running                 |
-| `processWait(id)`         | Waits for the process to finish, returns exit code   |
-| `processKill(id)`         | Terminates the process                               |
-| `processOutput(id)`       | Returns buffered stdout of the process               |
-| `processExitCode(id)`     | Returns the exit code of a finished process          |
-| `pid()`                   | Returns the PID of the current process               |
-| `listProcesses()`         | Returns a list of all running PIDs                   |
-| `processInfo(pid)`        | Returns the command of a process by PID              |
-| `sleep(ms)`               | Pauses execution for the given number of milliseconds|
+| Function              | Description                                           |
+| --------------------- | ----------------------------------------------------- |
+| `processStart(cmd)`   | Starts a background process, returns an ID            |
+| `processAlive(id)`    | True if the process is still running                  |
+| `processWait(id)`     | Waits for the process to finish, returns exit code    |
+| `processKill(id)`     | Terminates the process                                |
+| `processOutput(id)`   | Returns buffered stdout of the process                |
+| `processExitCode(id)` | Returns the exit code of a finished process           |
+| `pid()`               | Returns the PID of the current process                |
+| `listProcesses()`     | Returns a list of all running PIDs                    |
+| `processInfo(pid)`    | Returns the command of a process by PID               |
+| `sleep(ms)`           | Pauses execution for the given number of milliseconds |
+
+---
+
+## IDE Integration (LSP)
+
+Mira ships with a built-in Language Server that implements the [Language Server Protocol (LSP)](https://microsoft.github.io/language-server-protocol/). It runs as a subprocess of your editor and communicates over stdin/stdout.
+
+### Features
+
+| Feature                 | Description                                                                                              |
+| ----------------------- | -------------------------------------------------------------------------------------------------------- |
+| **Syntax highlighting** | Keywords, strings, numbers, variables (`$x`), comments, function names                                   |
+| **Diagnostics**         | Parse errors, linter warnings, and hints shown inline as you type                                        |
+| **Code completion**     | Keywords, built-in functions, stdlib functions, local variables and functions, imported module functions |
+| **Document formatting** | Fixes indentation with `Shift+Alt+F` — preserves all string content                                      |
+
+### VS Code Extension
+
+The Mira VS Code extension is located in `lsp/` inside the repository. It activates automatically for `.mira` files.
+
+**Requirements:**
+
+- Java 17 or later on `PATH`
+- The Mira JAR at `~/.mira/mira.jar` (placed there automatically by `mvn package`)
+
+**Building the extension:**
+
+```
+cd lsp
+npm install
+npm run build
+```
+
+This compiles the TypeScript and produces `mira-language-*.vsix`.
+
+**Installing:**
+
+1. Open VS Code
+2. Go to **Extensions** (`Ctrl+Shift+X`)
+3. Click the `···` menu → **Install from VSIX...**
+4. Select the generated `.vsix` file
+
+**Reinstalling after a JAR update:**
+
+Run `mvn package -DskipTests` from the project root — the JAR is automatically copied to `~/.mira/mira.jar`. The extension picks up the new JAR on the next VS Code window reload.
+
+### LSP Server
+
+The language server starts as a subprocess of the editor. It can also be started manually for debugging:
+
+```
+java -jar mira.jar --lsp
+```
+
+It reads LSP JSON-RPC messages from stdin and writes responses to stdout. All other Mira output (diagnostics, errors) goes to stderr so it does not interfere with the protocol.
+
+### Diagnostics
+
+Errors and warnings appear as red/yellow underlines directly in the editor. Hover over them to see the message and any hint.
+
+**Sources of diagnostics:**
+
+| Source    | Severity       | Example                        |
+| --------- | -------------- | ------------------------------ |
+| Tokenizer | Error          | Unterminated string literal    |
+| Parser    | Error          | Unexpected token, missing `)`  |
+| Linter    | Warning / Info | Unused variable, shadowed name |
+
+Diagnostics are cleared automatically when the file is closed.
+
+### Completions
+
+Completions trigger automatically as you type. The following are always available:
+
+- All Mira **keywords** (`var`, `fn`, `if`, `foreach`, `switch`, `return`, …)
+- All **built-in globals** (`print`, `scan`, `eval`, `length`, `assert`, …)
+
+Additionally, for each open file the server provides:
+
+- **Local variables** declared with `var` or `const` — shown as `$name`
+- **Local functions** declared with `fn` — shown with their parameter list
+- **Imported stdlib functions** — shown as `alias.function(params)` when imported with an alias
+- **Imported module functions** — parsed from the imported `.mira` file and shown with full signatures
+
+Example — after `import math as m;`, typing `m.` suggests:
+
+```
+m.sqrt(x)
+m.pow(base, exp)
+m.sin(x)
+...
+```
+
+### Formatter
+
+The document formatter (`Shift+Alt+F` in VS Code) re-indents the entire file using 4-space indentation. It:
+
+- Increases indent after `{`
+- Decreases indent before `}`
+- Preserves all string content exactly — no characters inside strings are modified
+- Preserves multi-line strings (`"""..."""`) verbatim
+- Preserves blank lines
+- Skips brace counting inside `//` line comments and `/* */` block comments
+
+The formatter does not change anything other than leading whitespace — it will not add or remove semicolons, reorder statements, or modify expressions.
+
+### Language Configuration
+
+The extension registers the following editor behaviors for `.mira` files:
+
+- **Line comment:** `//`
+- **Block comment:** `/* ... */`
+- **Auto-closing pairs:** `{}`, `[]`, `()`, `""`
+- **Bracket matching:** `{}`, `[]`, `()`
 
 ---
 

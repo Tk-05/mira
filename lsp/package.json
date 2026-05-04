@@ -1,0 +1,61 @@
+{
+  "name": "mira-language",
+  "displayName": "Mira",
+  "description": "Mira language support — syntax highlighting and live diagnostics",
+  "version": "0.1.0",
+  "publisher": "mira",
+  "engines": {
+    "vscode": "^1.100.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "activationEvents": [],
+  "main": "./out/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "mira",
+        "aliases": [
+          "Mira"
+        ],
+        "extensions": [
+          ".mira"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "mira",
+        "scopeName": "source.mira",
+        "path": "./syntaxes/mira.tmLanguage.json"
+      }
+    ],
+    "configuration": {
+      "title": "Mira",
+      "properties": {
+        "mira.jarPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to mira-RELEASE.jar. Leave empty to use ~/.mira/mira.jar"
+        }
+      }
+    }
+  },
+  "dependencies": {
+    "vscode-languageclient": "latest"
+  },
+  "devDependencies": {
+    "@types/node": "latest",
+    "@types/vscode": "^1.100.0",
+    "@vscode/vsce": "latest",
+    "typescript": "latest"
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "package": "vsce package",
+    "build": "tsc -p ./ && vsce package"
+  }
+}

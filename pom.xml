@@ -34,6 +34,16 @@
             <artifactId>assertj-core</artifactId>
             <version>3.27.7</version>
         </dependency>
+        <dependency>
+            <groupId>org.eclipse.lsp4j</groupId>
+            <artifactId>org.eclipse.lsp4j</artifactId>
+            <version>0.21.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.eclipse.lsp4j</groupId>
+            <artifactId>org.eclipse.lsp4j.jsonrpc</artifactId>
+            <version>0.21.0</version>
+        </dependency>
     </dependencies>
 
     <build>
@@ -77,6 +87,28 @@
                                     </excludes>
                                 </filter>
                             </filters>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-antrun-plugin</artifactId>
+                <version>3.1.0</version>
+                <executions>
+                    <execution>
+                        <id>copy-to-mira-home</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                        <configuration>
+                            <target>
+                                <mkdir dir="${user.home}/.mira"/>
+                                <copy file="${project.build.directory}/mira-RELEASE.jar"
+                                      tofile="${user.home}/.mira/mira.jar"
+                                      overwrite="true"/>
+                            </target>
                         </configuration>
                     </execution>
                 </executions>

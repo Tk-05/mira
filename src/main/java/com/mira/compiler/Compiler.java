@@ -26,7 +26,6 @@ import static org.objectweb.asm.Opcodes.RETURN;
 
 import com.mira.Flags;
 import com.mira.error.runtime.RuntimeError.ModuleMissingDeclarationError;
-import com.mira.error.runtime.RuntimeError.ModuleNameMismatchError;
 import com.mira.lexer.Tokenizer;
 import com.mira.parser.Parser;
 import com.mira.parser.nodes.Node;
@@ -105,12 +104,8 @@ public class Compiler {
                         new Tokenizer().tokenize(source, false));
 
                 String fileName = modulePath.getFileName().toString();
-                String expectedModuleName = fileName.replace(".mira", "");
-                if (moduleAst.isEmpty() || !(moduleAst.getFirst() instanceof ModuleDecl moduleDecl)) {
+                if (moduleAst.isEmpty() || !(moduleAst.getFirst() instanceof ModuleDecl)) {
                     throw new ModuleMissingDeclarationError(fileName);
-                }
-                if (!moduleDecl.getModuleName().equals(expectedModuleName)) {
-                    throw new ModuleNameMismatchError(fileName, expectedModuleName, moduleDecl.getModuleName());
                 }
 
                 Path prev = Flags.inputPath.get();
