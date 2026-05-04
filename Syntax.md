@@ -813,6 +813,61 @@ Lambdas support variadic parameters too:
 var join : fn(sep, ...parts) { return join($parts, $sep); };
 ```
 
+### typeof
+
+`typeof` is a keyword operator that returns a string describing the runtime type of any value. It has the same precedence as a unary prefix operator.
+
+```
+typeof <expression>
+```
+
+**Return values:**
+
+| Value | Result |
+|---|---|
+| Integer or float | `"number"` |
+| String | `"string"` |
+| Boolean | `"bool"` |
+| `null` | `"null"` |
+| List `{...}` | `"list"` |
+| Array `[...]` | `"array"` |
+| Map | `"map"` |
+| Function or lambda | `"fn"` |
+| Promise | `"promise"` |
+| Object | `"object"` |
+
+```
+typeof 42;          // "number"
+typeof "hello";     // "string"
+typeof true;        // "bool"
+typeof null;        // "null"
+```
+
+For variables, `typeof` evaluates the variable and inspects the stored value:
+
+```
+var x : 99;
+typeof $x;          // "number"
+
+var l : {1, 2, 3};
+typeof $l;          // "list"
+```
+
+`typeof` can be used in conditions and switch expressions:
+
+```
+var x : 42;
+typeof $x == "number" ? "yes" : "no";   // "yes"
+```
+
+```
+var result : switch(typeof $x) {
+    case("number") -> "it's a number"
+    case("string") -> "it's a string"
+    default        -> "something else"
+};
+```
+
 ### Async / Await
 
 Mark a function as `async` to make it execute in the background. Calling an async function immediately returns a `Promise` without blocking. Use `await` to block until the promise resolves and get its value.

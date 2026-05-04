@@ -11,8 +11,10 @@ import com.mira.parser.nodes.expression.Expression.DumbExpression;
 import com.mira.parser.nodes.expression.Expression.ListExpression;
 import com.mira.parser.nodes.expression.Expression.MapExpression;
 import com.mira.runtime.functions.Callable;
+import com.mira.runtime.functions.Promise;
 import com.mira.runtime.functions.ThrowSignal;
 import com.mira.runtime.interpreter.Environment;
+import com.mira.runtime.interpreter.Interpreter;
 import com.mira.runtime.interpreter.Namespace;
 import com.mira.runtime.interpreter.NullValue;
 
@@ -55,7 +57,7 @@ public final class Runtime {
                 java.lang.reflect.Method fm = m;
                 ns.define(fnName, new Callable() {
                     @Override
-                    public Object call(com.mira.runtime.interpreter.Interpreter interp, List<Object> args) {
+                    public Object call(Interpreter interp, List<Object> args) {
                         try {
                             return fm.invoke(null, (Object) args.toArray());
                         } catch (java.lang.reflect.InvocationTargetException ite) {
@@ -341,6 +343,40 @@ public final class Runtime {
 
     public static boolean isNullValue(Object a) {
         return a == null || a instanceof NullValue;
+    }
+
+    public static Object typeofVal(Object val) {
+        if (val == null || val instanceof NullValue) {
+            return "null";
+        }
+        if (val instanceof Boolean) {
+            return "bool";
+        }
+        if (val instanceof Number) {
+            return "number";
+        }
+        if (val instanceof String) {
+            return "string";
+        }
+        if (val instanceof Promise) {
+            return "promise";
+        }
+        if (val instanceof Callable) {
+            return "fn";
+        }
+        if (val instanceof ListExpression) {
+            return "list";
+        }
+        if (val instanceof ArrayExpression) {
+            return "array";
+        }
+        if (val instanceof MapExpression) {
+            return "map";
+        }
+        if (val instanceof Environment) {
+            return "object";
+        }
+        return "unknown";
     }
 
     public static Expression wrapExpr(Object val) {

@@ -50,6 +50,7 @@ fn outer() {
 }
 
 fn main() {
+    println(typeof 1);
     println(outer());
     var i : 10;
     $i\%= 5;

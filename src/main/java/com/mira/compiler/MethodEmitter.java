@@ -39,6 +39,7 @@ import com.mira.parser.nodes.expression.Expression.AccessExpression;
 import com.mira.parser.nodes.expression.Expression.ArrayExpression;
 import com.mira.parser.nodes.expression.Expression.AwaitExpression;
 import com.mira.parser.nodes.expression.Expression.SwitchExpression;
+import com.mira.parser.nodes.expression.Expression.TypeofExpression;
 import com.mira.parser.nodes.expression.Expression.BinaryExpression;
 import com.mira.parser.nodes.expression.Expression.CallExpression;
 import com.mira.parser.nodes.expression.Expression.ComplexExpression;
@@ -807,6 +808,14 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
     public <T> T visitAwaitExpr(AwaitExpression expression) {
         expression.getExpr().accept(this);
         mv.visitMethodInsn(INVOKESTATIC, RT, "awaitPromise",
+                "(" + OBJ_D + ")" + OBJ_D, false);
+        return null;
+    }
+
+    @Override
+    public <T> T visitTypeofExpr(TypeofExpression expression) {
+        expression.getExpr().accept(this);
+        mv.visitMethodInsn(INVOKESTATIC, RT, "typeofVal",
                 "(" + OBJ_D + ")" + OBJ_D, false);
         return null;
     }

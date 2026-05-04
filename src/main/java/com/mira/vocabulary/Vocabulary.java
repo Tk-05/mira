@@ -37,7 +37,8 @@ public class Vocabulary {
             "native",
             "do",
             "await",
-            "async"
+            "async",
+            "typeof"
     );
 
     public static final Set<String> COMPARISON_OPERATORS = Set.of("==", "!=", "<", ">", "<=", ">=");

@@ -31,6 +31,7 @@ import com.mira.parser.nodes.expression.Expression.NamespaceCallExpression;
 import com.mira.parser.nodes.expression.Expression.ObjectExpression;
 import com.mira.parser.nodes.expression.Expression.RangeExpression;
 import com.mira.parser.nodes.expression.Expression.SwitchExpression;
+import com.mira.parser.nodes.expression.Expression.TypeofExpression;
 import com.mira.parser.nodes.expression.Expression.TernaryExpression;
 import com.mira.parser.nodes.expression.Expression.ThrownException;
 import com.mira.parser.nodes.expression.Expression.UnaryExpression;
@@ -351,6 +352,11 @@ public class Parser {
             Expression first = parseExpression();
             matchLexeme(")");
             expr = first;
+
+        } else if (current.getLexeme().equals("typeof")
+                && current.getTokenType() == TokenType.KEYWORD) {
+            consume();
+            expr = new TypeofExpression(parsePrimary());
 
         } else if (current.getLexeme().equals("switch")
                 && current.getTokenType() == TokenType.KEYWORD) {

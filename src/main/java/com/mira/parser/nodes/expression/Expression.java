@@ -607,6 +607,29 @@ public abstract class Expression implements Node {
         }
     }
 
+    public static class TypeofExpression extends Expression {
+
+        private final Expression expr;
+
+        public TypeofExpression(Expression expr) {
+            this.expr = expr;
+        }
+
+        public Expression getExpr() {
+            return expr;
+        }
+
+        @Override
+        public <T> T accept(ExprVisitor<T> visitor) {
+            return visitor.visitTypeofExpr(this);
+        }
+
+        @Override
+        public String toString() {
+            return "typeof(" + expr + ")";
+        }
+    }
+
     public static class SwitchExpression extends Expression {
 
         public record SwitchExprCase(Expression value, Expression result) {

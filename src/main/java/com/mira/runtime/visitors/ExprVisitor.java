@@ -18,6 +18,7 @@ import com.mira.parser.nodes.expression.Expression.RangeExpression;
 import com.mira.parser.nodes.expression.Expression.TernaryExpression;
 import com.mira.parser.nodes.expression.Expression.ThrownException;
 import com.mira.parser.nodes.expression.Expression.SwitchExpression;
+import com.mira.parser.nodes.expression.Expression.TypeofExpression;
 import com.mira.parser.nodes.expression.Expression.UnaryExpression;
 
 public interface ExprVisitor<T> {
@@ -59,4 +60,6 @@ public interface ExprVisitor<T> {
     public <T> T visitAwaitExpr(AwaitExpression expression);
 
     public <T> T visitSwitchExpr(SwitchExpression expression);
+
+    public <T> T visitTypeofExpr(TypeofExpression expression);
 }
