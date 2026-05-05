@@ -11,7 +11,7 @@ import com.mira.parser.nodes.expression.Expression.ListExpression;
 import com.mira.parser.nodes.statement.Statement;
 import com.mira.runtime.interpreter.Environment;
 import com.mira.runtime.interpreter.Interpreter;
-import com.mira.runtime.interpreter.NullValue;
+import com.mira.runtime.values.NullValue;
 
 public class Function implements Callable {
 

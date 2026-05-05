@@ -12,8 +12,9 @@
 8. [Enums](#enums)
 9. [Built-in Functions](#built-in-functions)
 10. [Standard Libraries](#standard-libraries)
-11. [IDE Integration (LSP)](#ide-integration-lsp)
-12. [Example Program](#example-program)
+11. [Multithreading](#multithreading)
+12. [IDE Integration (LSP)](#ide-integration-lsp)
+13. [Example Program](#example-program)
 
 ---
 
@@ -1378,6 +1379,80 @@ Constants: `pi`, `e`, `inf`, `nan`
 | `listProcesses()`     | Returns a list of all running PIDs                    |
 | `processInfo(pid)`    | Returns the command of a process by PID               |
 | `sleep(ms)`           | Pauses execution for the given number of milliseconds |
+
+---
+
+## Multithreading
+
+Mira supports parallel execution via `spawn`/`await` and safe shared-state access via the `lock` statement and the `thread` standard library.
+
+### Spawning Threads
+
+`spawn(callable)` runs a callable concurrently and returns a **Promise**. `await(promise)` blocks until the result is ready.
+
+```
+import thread as thread;
+
+fn compute(n) {
+    var sum : 0;
+    for (var i : 0; $i < $n; $i : eval($i + 1)) {
+        $sum : eval($sum + $i);
+    }
+    return $sum;
+}
+
+var t1 : spawn(fn() { return compute(100000); });
+var t2 : spawn(fn() { return compute(200000); });
+
+println(await($t1));
+println(await($t2));
+```
+
+### Mutexes and the `lock` Statement
+
+When multiple threads share mutable state, use a **mutex** to prevent race conditions. Create one with `thread.newMutex()`, then guard critical sections with `lock`.
+
+```
+import thread as thread;
+
+var mu      : thread.newMutex();
+var counter : 0;
+
+fn increment() {
+    lock($mu) {
+        $counter : eval($counter + 1);
+    }
+}
+
+var tasks : {};
+for (var i : 0; $i < 10; $i : eval($i + 1)) {
+    col.push($tasks, spawn(fn() { increment(); }));
+}
+
+foreach (var t in $tasks) {
+    await($t);
+}
+
+println($counter);   // => 10
+```
+
+**Syntax:**
+
+```
+lock(mutexExpression) {
+    // critical section
+}
+```
+
+The `lock` block is always released — even if an exception is thrown inside. The underlying implementation uses the JVM's built-in `monitorenter`/`monitorexit` instructions.
+
+### `thread` Library
+
+Import with `import thread as thread;`.
+
+| Function      | Description                               |
+|---------------|-------------------------------------------|
+| `newMutex()`  | Creates a new mutex object                |
 
 ---
 

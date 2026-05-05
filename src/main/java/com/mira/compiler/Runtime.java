@@ -16,7 +16,7 @@ import com.mira.runtime.functions.ThrowSignal;
 import com.mira.runtime.interpreter.Environment;
 import com.mira.runtime.interpreter.Interpreter;
 import com.mira.runtime.interpreter.Namespace;
-import com.mira.runtime.interpreter.NullValue;
+import com.mira.runtime.values.NullValue;
 
 public final class Runtime {
 

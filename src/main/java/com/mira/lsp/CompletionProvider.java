@@ -55,7 +55,8 @@ public class CompletionProvider {
                     "replaceFirst", "split", "capture", "countMatches")),
             Map.entry("process", List.of("processStart", "processAlive", "processWait", "processKill",
                     "processOutput", "processExitCode", "pid", "listProcesses",
-                    "processInfo", "sleep"))
+                    "processInfo", "sleep")),
+            Map.entry("thread", List.of("newMutex"))
     );
 
     public static List<CompletionItem> provide(List<Node> ast, String documentUri) {

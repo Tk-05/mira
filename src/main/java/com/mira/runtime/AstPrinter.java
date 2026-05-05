@@ -37,6 +37,7 @@ import com.mira.parser.nodes.statement.Statement.For;
 import com.mira.parser.nodes.statement.Statement.Foreach;
 import com.mira.parser.nodes.statement.Statement.FuncDecl;
 import com.mira.parser.nodes.statement.Statement.If;
+import com.mira.parser.nodes.statement.Statement.Lock;
 import com.mira.parser.nodes.statement.Statement.Overwrite;
 import com.mira.parser.nodes.statement.Statement.Return;
 import com.mira.parser.nodes.statement.Statement.Switch;
@@ -267,6 +268,12 @@ public class AstPrinter implements ExprVisitor<String>, StmtVisitor<String> {
     public String visitVarDestructure(VarDestructure stmt) {
         return pad() + "Destructure [" + String.join(", ", stmt.getNames()) + "]"
                 + child(stmt.getInitializer());
+    }
+
+    @Override
+    public String visitLock(Lock stmt) {
+        return pad() + "Lock(" + node(stmt.getMutex()) + ")"
+                + body(stmt.getBody());
     }
 
     @Override

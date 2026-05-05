@@ -892,6 +892,9 @@ public class Parser {
                     matchLexeme(";");
                 }
             }
+            case "lock" -> {
+                node = parseLock();
+            }
             default -> {
                 node = parseExpression();
                 if (expectSemicolon) {
@@ -1246,6 +1249,20 @@ public class Parser {
         matchLexeme(")");
 
         return new Throw(new ThrownException(identifier, value));
+    }
+
+    private Node parseLock() {
+        matchLexeme("lock");
+        matchLexeme("(");
+        Expression mutex = parseExpression();
+        matchLexeme(")");
+        matchLexeme("{");
+        List<Node> body = new ArrayList<>();
+        while (!peek().getLexeme().equals("}")) {
+            body.add(parseStatement(true));
+        }
+        matchLexeme("}");
+        return new Statement.Lock(mutex, body);
     }
 
     private Node parseTryCatch() {

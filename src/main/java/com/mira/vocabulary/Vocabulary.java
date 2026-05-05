@@ -38,7 +38,8 @@ public class Vocabulary {
             "do",
             "await",
             "async",
-            "typeof"
+            "typeof",
+            "lock"
     );
 
     public static final Set<String> COMPARISON_OPERATORS = Set.of("==", "!=", "<", ">", "<=", ">=");

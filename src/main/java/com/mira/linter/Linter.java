@@ -29,16 +29,17 @@ import com.mira.parser.nodes.expression.Expression.TypeofExpression;
 import com.mira.parser.nodes.expression.Expression.UnaryExpression;
 import com.mira.parser.nodes.statement.Statement.Assign;
 import com.mira.parser.nodes.statement.Statement.Block;
+import com.mira.parser.nodes.statement.Statement.CatchClause;
 import com.mira.parser.nodes.statement.Statement.EnumDecl;
 import com.mira.parser.nodes.statement.Statement.For;
 import com.mira.parser.nodes.statement.Statement.Foreach;
 import com.mira.parser.nodes.statement.Statement.FuncDecl;
 import com.mira.parser.nodes.statement.Statement.If;
+import com.mira.parser.nodes.statement.Statement.Lock;
 import com.mira.parser.nodes.statement.Statement.Overwrite;
 import com.mira.parser.nodes.statement.Statement.Return;
 import com.mira.parser.nodes.statement.Statement.Switch;
 import com.mira.parser.nodes.statement.Statement.Throw;
-import com.mira.parser.nodes.statement.Statement.CatchClause;
 import com.mira.parser.nodes.statement.Statement.TryCatch;
 import com.mira.parser.nodes.statement.Statement.VarDecl;
 import com.mira.parser.nodes.statement.Statement.VarDestructure;
@@ -123,6 +124,8 @@ public class Linter {
                 lintEnum(stmt);
             case VarDestructure stmt ->
                 lintVarDestructure(stmt);
+            case Lock stmt ->
+                lintLock(stmt);
             case CallExpression e ->
                 lintCallExpression(e);
             default ->
@@ -309,6 +312,13 @@ public class Linter {
         }
         lintBodyWithDeadCodeCheck(stmt.getBody());
         checkUnused(scope.pop());
+    }
+
+    private void lintLock(Lock stmt) {
+        lintExpr(stmt.getMutex());
+        for (Node n : stmt.getBody()) {
+            lintNode(n);
+        }
     }
 
     private void lintVarDestructure(VarDestructure stmt) {

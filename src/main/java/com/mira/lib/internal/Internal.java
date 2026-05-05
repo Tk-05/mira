@@ -22,7 +22,7 @@ import com.mira.runtime.functions.Promise;
 import com.mira.runtime.interpreter.Environment;
 import com.mira.runtime.interpreter.Evaluator;
 import com.mira.runtime.interpreter.Interpreter;
-import com.mira.runtime.interpreter.NullValue;
+import com.mira.runtime.values.NullValue;
 
 public class Internal implements Lib {
 

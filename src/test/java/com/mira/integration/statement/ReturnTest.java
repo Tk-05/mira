@@ -7,8 +7,8 @@ import org.junit.jupiter.api.Test;
 import com.mira.lexer.Tokenizer;
 import com.mira.parser.Parser;
 import com.mira.runtime.functions.ReturnSignal;
+import com.mira.runtime.values.NullValue;
 import com.mira.integration.InterpreterTestBase;
-import com.mira.runtime.interpreter.NullValue;
 
 public class ReturnTest extends InterpreterTestBase {
 

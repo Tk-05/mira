@@ -26,6 +26,8 @@ import static org.objectweb.asm.Opcodes.INVOKESTATIC;
 import static org.objectweb.asm.Opcodes.INVOKEVIRTUAL;
 import static org.objectweb.asm.Opcodes.ISTORE;
 import static org.objectweb.asm.Opcodes.IXOR;
+import static org.objectweb.asm.Opcodes.MONITORENTER;
+import static org.objectweb.asm.Opcodes.MONITOREXIT;
 import static org.objectweb.asm.Opcodes.NEW;
 import static org.objectweb.asm.Opcodes.POP;
 import static org.objectweb.asm.Opcodes.SIPUSH;
@@ -38,8 +40,6 @@ import com.mira.parser.nodes.expression.Expression;
 import com.mira.parser.nodes.expression.Expression.AccessExpression;
 import com.mira.parser.nodes.expression.Expression.ArrayExpression;
 import com.mira.parser.nodes.expression.Expression.AwaitExpression;
-import com.mira.parser.nodes.expression.Expression.SwitchExpression;
-import com.mira.parser.nodes.expression.Expression.TypeofExpression;
 import com.mira.parser.nodes.expression.Expression.BinaryExpression;
 import com.mira.parser.nodes.expression.Expression.CallExpression;
 import com.mira.parser.nodes.expression.Expression.ComplexExpression;
@@ -52,8 +52,10 @@ import com.mira.parser.nodes.expression.Expression.MethodCallExpression;
 import com.mira.parser.nodes.expression.Expression.NamespaceCallExpression;
 import com.mira.parser.nodes.expression.Expression.ObjectExpression;
 import com.mira.parser.nodes.expression.Expression.RangeExpression;
+import com.mira.parser.nodes.expression.Expression.SwitchExpression;
 import com.mira.parser.nodes.expression.Expression.TernaryExpression;
 import com.mira.parser.nodes.expression.Expression.ThrownException;
+import com.mira.parser.nodes.expression.Expression.TypeofExpression;
 import com.mira.parser.nodes.expression.Expression.UnaryExpression;
 import com.mira.parser.nodes.statement.Statement;
 import com.mira.parser.nodes.statement.Statement.Assign;
@@ -65,6 +67,7 @@ import com.mira.parser.nodes.statement.Statement.For;
 import com.mira.parser.nodes.statement.Statement.Foreach;
 import com.mira.parser.nodes.statement.Statement.FuncDecl;
 import com.mira.parser.nodes.statement.Statement.If;
+import com.mira.parser.nodes.statement.Statement.Lock;
 import com.mira.parser.nodes.statement.Statement.Overwrite;
 import com.mira.parser.nodes.statement.Statement.Return;
 import com.mira.parser.nodes.statement.Statement.Switch;
@@ -1344,6 +1347,37 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
                     "(" + OBJ_D + OBJ_D + ")" + OBJ_D, false);
             emitVarStore(names.get(i), true);
         }
+        return null;
+    }
+
+    @Override
+    public Void visitLock(Lock stmt) {
+        stmt.getMutex().accept(this);
+        int monSlot = ctx.slots.allocate("$$lock");
+        mv.visitVarInsn(ASTORE, monSlot);
+        mv.visitVarInsn(ALOAD, monSlot);
+        mv.visitInsn(MONITORENTER);
+
+        Label start = new Label();
+        Label end = new Label();
+        Label handler = new Label();
+        mv.visitLabel(start);
+
+        for (Node n : stmt.getBody()) {
+            emitNode(n);
+        }
+
+        mv.visitVarInsn(ALOAD, monSlot);
+        mv.visitInsn(MONITOREXIT);
+        mv.visitJumpInsn(GOTO, end);
+
+        mv.visitLabel(handler);
+        mv.visitVarInsn(ALOAD, monSlot);
+        mv.visitInsn(MONITOREXIT);
+        mv.visitInsn(ATHROW);
+
+        mv.visitLabel(end);
+        mv.visitTryCatchBlock(start, handler, handler, null);
         return null;
     }
 

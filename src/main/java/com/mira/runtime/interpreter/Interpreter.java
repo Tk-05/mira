@@ -64,6 +64,7 @@ import com.mira.parser.nodes.statement.Statement.For;
 import com.mira.parser.nodes.statement.Statement.Foreach;
 import com.mira.parser.nodes.statement.Statement.FuncDecl;
 import com.mira.parser.nodes.statement.Statement.If;
+import com.mira.parser.nodes.statement.Statement.Lock;
 import com.mira.parser.nodes.statement.Statement.ModuleDecl;
 import com.mira.parser.nodes.statement.Statement.Overwrite;
 import com.mira.parser.nodes.statement.Statement.Return;
@@ -82,6 +83,8 @@ import com.mira.runtime.functions.NativeFunction;
 import com.mira.runtime.functions.Promise;
 import com.mira.runtime.functions.ReturnSignal;
 import com.mira.runtime.functions.ThrowSignal;
+import com.mira.runtime.values.MutexValue;
+import com.mira.runtime.values.NullValue;
 import com.mira.runtime.visitors.ExprVisitor;
 import com.mira.runtime.visitors.StmtVisitor;
 import com.mira.vocabulary.Vocabulary;
@@ -1322,6 +1325,19 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         for (int i = 0; i < names.size(); i++) {
             Object element = i < members.size() ? members.get(i).accept(this) : NullValue.INSTANCE;
             env.define(names.get(i), element);
+        }
+        return null;
+    }
+
+    @Override
+    public Object visitLock(Lock stmt) {
+        notifyDebugger(stmt);
+        Object val = stmt.getMutex().accept(this);
+        if (!(val instanceof MutexValue mutex)) {
+            throw new TypeConversionError(val);
+        }
+        synchronized (mutex) {
+            runBodyInFreshScope(stmt.getBody());
         }
         return null;
     }

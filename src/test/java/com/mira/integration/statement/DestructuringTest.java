@@ -5,7 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import org.junit.jupiter.api.Test;
 
 import com.mira.integration.InterpreterTestBase;
-import com.mira.runtime.interpreter.NullValue;
+import com.mira.runtime.values.NullValue;
 
 public class DestructuringTest extends InterpreterTestBase {
 

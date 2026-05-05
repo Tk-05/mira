@@ -41,6 +41,7 @@ import com.mira.parser.Parser;
 import com.mira.parser.nodes.Node;
 import com.mira.parser.nodes.expression.Expression;
 import com.mira.parser.nodes.expression.Expression.ImportExpression;
+import com.mira.parser.nodes.expression.Expression.ImportExpression.ImportKind;
 import com.mira.parser.nodes.statement.Statement.ModuleDecl;
 
 public class ImportResolver {
@@ -69,6 +70,7 @@ public class ImportResolver {
             put("process", new com.mira.lib.std.Process());
             put("regex", new Regex());
             put("map", new com.mira.lib.std.Map());
+            put("thread", new com.mira.lib.std.ThreadLib());
         }
     };
 
@@ -77,7 +79,7 @@ public class ImportResolver {
     }
 
     public static void loadForCompiled(Environment env, String kindStr, String module, String alias) {
-        ImportExpression.ImportKind kind = ImportExpression.ImportKind.valueOf(kindStr);
+        ImportKind kind = ImportKind.valueOf(kindStr);
         Expression moduleExpr = new Expression() {
             @Override
             public <T> T accept(com.mira.runtime.visitors.ExprVisitor<T> v) {
@@ -123,7 +125,7 @@ public class ImportResolver {
 
         Path parentInputPath = Flags.inputPath.get();
         List<ImportExpression> aliasedModules = imports.stream()
-                .filter(e -> e.getKind() == ImportExpression.ImportKind.MODULE
+                .filter(e -> e.getKind() == ImportKind.MODULE
                 && e.getNamespace() != null && !e.getNamespace().isBlank())
                 .toList();
 

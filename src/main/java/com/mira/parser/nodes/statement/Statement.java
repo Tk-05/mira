@@ -488,6 +488,30 @@ public abstract class Statement implements Node {
         }
     }
 
+    public static class Lock extends Statement {
+
+        private final Expression mutex;
+        private final List<Node> body;
+
+        public Lock(Expression mutex, List<Node> body) {
+            this.mutex = mutex;
+            this.body = body;
+        }
+
+        public Expression getMutex() {
+            return mutex;
+        }
+
+        public List<Node> getBody() {
+            return body;
+        }
+
+        @Override
+        public <T> T accept(StmtVisitor<T> visitor) {
+            return visitor.visitLock(this);
+        }
+    }
+
     public static class VarDestructure extends Statement {
 
         private final List<String> names;
