@@ -3,10 +3,16 @@ module Fractals;
 import native "../../../../extern/raylib/target/raylib-RELEASE.jar" as ray;
 import math as m;
 import collection as c;
+import thread as thread;
+import map as mp;
 
 const MAX_ITER : 80;
 const COARSE   : 8;
-const THREADS  : 10;
+const THREADS  : 16;
+
+var gMu      : thread.newMutex();
+var gNextRow : 0;
+var gResults : null;
 
 fn mandelbrot(cr, ci, maxIter) {
     var a : eval($cr - 0.25);
@@ -110,17 +116,26 @@ fn buildNewtonPalette(maxIter, offset) {
     return $pal;
 }
 
-async fn renderBand(cx, cy, zoom, step, maxIter, w, h, isJulia, jre, jim, isNewton, ncr, nci, pyStart, pyEnd) {
+async fn worker(cx, cy, zoom, step, maxIter, w, h, isJulia, jre, jim, isNewton, ncr, nci) {
     var scaleX : eval($zoom * 2.0 / $w);
     var scaleY : eval($zoom * 2.0 / $h);
     var stepX  : eval($scaleX * $step);
-    var stepY  : eval($scaleY * $step);
     var halfW  : eval($w * 0.5);
     var halfH  : eval($h * 0.5);
-    var pixels : c.newList();
-    var ci : eval($cy + ($pyStart - $halfH) * $scaleY);
-    for (var py : $pyStart; $py < $pyEnd; $py += $step) {
-        var cr : eval($cx - $halfW * $scaleX);
+
+    while (true) {
+        var py : -1;
+        lock($gMu) {
+            if ($gNextRow < $h) {
+                $py      : $gNextRow;
+                $gNextRow : eval($gNextRow + $step);
+            }
+        }
+        if ($py < 0) { return; }
+
+        var ci  : eval($cy + ($py - $halfH) * $scaleY);
+        var row : c.newList();
+        var cr  : eval($cx - $halfW * $scaleX);
         for (var px : 0; $px < $w; $px += $step) {
             var iters : 0;
             if ($isNewton) {
@@ -130,29 +145,38 @@ async fn renderBand(cx, cy, zoom, step, maxIter, w, h, isJulia, jre, jim, isNewt
             } else {
                 $iters : mandelbrot($cr, $ci, $maxIter);
             }
-            c.push($pixels, {var px : $px; var py : $py; var col : $iters;});
+            c.push($row, $iters);
             $cr += $stepX;
         }
-        $ci += $stepY;
+
+        lock($gMu) {
+            mp.mapSet($gResults, $py, $row);
+        }
     }
-    return $pixels;
 }
 
 fn render(tex, cx, cy, zoom, step, maxIter, w, h, pal, isJulia, jre, jim, isNewton, ncr, nci) {
-    var bandH   : eval($h / $THREADS);
+    lock($gMu) {
+        $gNextRow : 0;
+        $gResults : mp.newMap();
+    }
+
     var handles : c.newList();
     for (var t : 0; $t < $THREADS; $t++) {
-        var s     : eval($t * $bandH);
-        var nextS : eval(eval($t + 1) * $bandH);
-        var e     : $nextS > $h ? $h : $nextS;
-        c.push($handles, renderBand($cx, $cy, $zoom, $step, $maxIter, $w, $h, $isJulia, $jre, $jim, $isNewton, $ncr, $nci, $s, $e));
+        c.push($handles, worker($cx, $cy, $zoom, $step, $maxIter, $w, $h, $isJulia, $jre, $jim, $isNewton, $ncr, $nci));
     }
+    for (var t : 0; $t < $THREADS; $t++) { await($handles[$t]); }
+
     ray.BeginTextureMode($tex);
     ray.ClearBackground(ray.Color(0, 0, 0, 255));
-    foreach(var handle in $handles) {
-        var pixels : await($handle);
-        foreach(var pix in $pixels) {
-            ray.DrawRectangle($pix.px, $pix.py, $step, $step, $pal[$pix.col]);
+    for (var py : 0; $py < $h; $py += $step) {
+        var row : mp.mapGet($gResults, $py);
+        if ($row != null) {
+            var px : 0;
+            foreach (var iters in $row) {
+                ray.DrawRectangle($px, $py, $step, $step, $pal[$iters]);
+                $px : eval($px + $step);
+            }
         }
     }
     ray.EndTextureMode();

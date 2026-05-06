@@ -342,9 +342,11 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         }
         out.println();
 
-        out.println("--- Java Stack Trace ---");
-        cause.printStackTrace(out);
-        out.println();
+        if (Flags.crashDumpFull) {
+            out.println("--- Java Stack Trace ---");
+            cause.printStackTrace(out);
+            out.println();
+        }
 
         out.println("--- Memory Dump ---");
         Environment env = localEnvironment != null ? localEnvironment : globalEnvironment;

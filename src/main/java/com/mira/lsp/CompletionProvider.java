@@ -37,7 +37,7 @@ public class CompletionProvider {
             Map.entry("string", List.of("charAt", "indexOf", "trim", "split", "substr", "strEqual", "replace")),
             Map.entry("collection", List.of("size", "push", "pop", "first", "last", "contains", "indexOf",
                     "slice", "reverse", "concat", "flatten", "join", "newList", "remove")),
-            Map.entry("map", List.of("newMap", "mapSize", "mapHas", "mapRemove", "mapKeys", "mapValues")),
+            Map.entry("map", List.of("newMap", "mapSize", "mapHas", "mapRemove", "mapKeys", "mapValues", "mapSet", "mapGet")),
             Map.entry("math", List.of("pow", "max", "min", "abs", "rand", "randInt", "round", "floor",
                     "ceil", "sqrt", "cbrt", "log", "log10", "log2", "sin", "cos", "tan",
                     "asin", "acos", "atan", "atan2", "toRad", "toDeg", "sign", "clamp",

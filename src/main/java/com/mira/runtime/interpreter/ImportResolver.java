@@ -231,15 +231,20 @@ public class ImportResolver {
             Environment targetEnv = hasAlias ? new Namespace(alias) : environment;
 
             List<ImportExpression> nestedImports = new ArrayList<>();
+            List<Node> moduleBody = new ArrayList<>();
             for (Node ast : asts) {
                 if (ast instanceof ImportExpression expr) {
                     nestedImports.add(expr);
                 } else if (!(ast instanceof ModuleDecl)) {
-                    interpreter.loadASTIntoContext(ast, targetEnv);
+                    moduleBody.add(ast);
                 }
             }
 
             resolveImports(nestedImports, targetEnv, interpreter, false);
+
+            for (Node ast : moduleBody) {
+                interpreter.loadASTIntoContext(ast, targetEnv);
+            }
 
             if (hasAlias) {
                 synchronized (environment) {

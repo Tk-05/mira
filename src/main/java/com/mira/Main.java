@@ -67,6 +67,10 @@ public class Main {
                         Flags.hotReload = true;
                     case "-crash" ->
                         Flags.crashDump = true;
+                    case "-crashFull" -> {
+                        Flags.crashDump = true;
+                        Flags.crashDumpFull = true;
+                    }
                     case "-ast" ->
                         Flags.printAsts = true;
                     case "-compile" ->

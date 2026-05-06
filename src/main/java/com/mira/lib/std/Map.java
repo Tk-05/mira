@@ -59,5 +59,24 @@ public class Map implements Lib {
             java.util.List<Expression> values = new ArrayList<>(map.getEntries().values());
             return new ListExpression(values);
         }));
+
+        environment.define("mapSet", new NativeFunction(3, args -> {
+            MapExpression map = toMap(args.get(0));
+            String key = String.valueOf(args.get(1));
+            Object value = args.get(2);
+            if (value instanceof Expression expr) {
+                map.getEntries().put(key, expr);
+            } else {
+                map.getEntries().put(key, new DumbExpression(new Token(TokenType.EXPRESSION, String.valueOf(value), 0, 0)));
+            }
+            return map;
+        }));
+
+        environment.define("mapGet", new NativeFunction(2, args -> {
+            MapExpression map = toMap(args.get(0));
+            String key = String.valueOf(args.get(1));
+            Expression val = map.getEntries().get(key);
+            return val != null ? val : com.mira.runtime.values.NullValue.INSTANCE;
+        }));
     }
 }
