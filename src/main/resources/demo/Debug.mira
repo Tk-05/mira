@@ -49,7 +49,7 @@ fn short(arg) {
     return false;
 }
 
-fn outer() {
+pure fn outer() {
     fn inner() {
         return 0;
     }

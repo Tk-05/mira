@@ -15,8 +15,10 @@ import static org.objectweb.asm.Opcodes.ALOAD;
 import static org.objectweb.asm.Opcodes.ARETURN;
 import static org.objectweb.asm.Opcodes.ASTORE;
 import static org.objectweb.asm.Opcodes.DUP;
+import static org.objectweb.asm.Opcodes.GETSTATIC;
 import static org.objectweb.asm.Opcodes.GOTO;
 import static org.objectweb.asm.Opcodes.ICONST_0;
+import static org.objectweb.asm.Opcodes.IF_ACMPEQ;
 import static org.objectweb.asm.Opcodes.INVOKESPECIAL;
 import static org.objectweb.asm.Opcodes.INVOKESTATIC;
 import static org.objectweb.asm.Opcodes.INVOKEVIRTUAL;
@@ -53,21 +55,26 @@ public class Compiler {
         int[] lambdaCounter = {0};
 
         Set<String> knownFunctions = new HashSet<>();
+        Set<String> pureFunctions = new HashSet<>();
         for (Node node : ast) {
             if (node instanceof FuncDecl fd && !fd.isAsync()) {
                 knownFunctions.add(fd.getName());
+                if (fd.isPure()) {
+                    pureFunctions.add(fd.getName());
+                    ce.declareCacheField(fd.getName());
+                }
             }
         }
 
         Map<String, byte[]> extras = new HashMap<>();
         Map<String, String> compiledModules = compileModuleImports(ast, extras);
 
-        emitStaticInit(ce, className, ast);
+        emitStaticInit(ce, className, ast, pureFunctions);
         emitMain(ce, className, knownFunctions, lambdaCounter, ast, compiledModules);
 
         for (Node node : ast) {
             if (node instanceof FuncDecl fd) {
-                emitTopLevelFunction(ce, className, knownFunctions, lambdaCounter, fd);
+                emitTopLevelFunction(ce, className, knownFunctions, lambdaCounter, fd, pureFunctions);
             }
         }
 
@@ -123,7 +130,7 @@ public class Compiler {
         return result;
     }
 
-    private void emitStaticInit(ClassEmitter ce, String className, List<Node> ast) {
+    private void emitStaticInit(ClassEmitter ce, String className, List<Node> ast, Set<String> pureFunctions) {
         MethodVisitor mv = ce.openStaticInit();
         mv.visitCode();
 
@@ -164,6 +171,13 @@ public class Compiler {
                 mv.visitMethodInsn(INVOKESTATIC, IMPORT_RESOLVER, "loadForCompiled",
                         "(" + ENV_D + "Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V", false);
             }
+        }
+
+        for (String fnName : pureFunctions) {
+            mv.visitTypeInsn(NEW, "java/util/concurrent/ConcurrentHashMap");
+            mv.visitInsn(DUP);
+            mv.visitMethodInsn(INVOKESPECIAL, "java/util/concurrent/ConcurrentHashMap", "<init>", "()V", false);
+            mv.visitFieldInsn(PUTSTATIC, className, "CACHE$" + fnName, "Ljava/util/concurrent/ConcurrentHashMap;");
         }
 
         for (Node node : ast) {
@@ -283,9 +297,11 @@ public class Compiler {
     }
 
     private void emitTopLevelFunction(ClassEmitter ce, String className,
-            Set<String> knownFunctions, int[] lambdaCounter, FuncDecl fd) {
-        String mName = "mira$" + fd.getName();
-        MethodVisitor mv = ce.openFunction(mName);
+            Set<String> knownFunctions, int[] lambdaCounter, FuncDecl fd, Set<String> pureFunctions) {
+        boolean isPure = pureFunctions.contains(fd.getName()) && !fd.isAsync();
+        String implName = isPure ? "mira$" + fd.getName() + "$impl" : "mira$" + fd.getName();
+
+        MethodVisitor mv = ce.openFunction(implName);
         mv.visitCode();
 
         LocalSlotTable slots = new LocalSlotTable(1);
@@ -334,6 +350,48 @@ public class Compiler {
         emitter.emitBody(fd.getBody());
 
         mv.visitMethodInsn(INVOKESTATIC, RT, "nullVal", "()" + OBJ_D, false);
+        mv.visitInsn(ARETURN);
+        mv.visitMaxs(0, 0);
+        mv.visitEnd();
+
+        if (isPure) {
+            emitPureFunctionWrapper(ce, className, fd.getName());
+        }
+    }
+
+    private static final String CACHE_DESC = "Ljava/util/concurrent/ConcurrentHashMap;";
+
+    private void emitPureFunctionWrapper(ClassEmitter ce, String className, String funcName) {
+        MethodVisitor mv = ce.openFunction("mira$" + funcName);
+        mv.visitCode();
+
+        Label missLabel = new Label();
+
+        mv.visitFieldInsn(GETSTATIC, className, "CACHE$" + funcName, CACHE_DESC);
+        mv.visitVarInsn(ALOAD, 0);
+        mv.visitMethodInsn(INVOKESTATIC, RT, "cacheGet",
+                "(" + CACHE_DESC + "[Ljava/lang/Object;)Ljava/lang/Object;", false);
+        mv.visitVarInsn(ASTORE, 1);
+
+        mv.visitVarInsn(ALOAD, 1);
+        mv.visitFieldInsn(GETSTATIC, RT, "CACHE_MISS", OBJ_D);
+        mv.visitJumpInsn(IF_ACMPEQ, missLabel);
+        mv.visitVarInsn(ALOAD, 1);
+        mv.visitInsn(ARETURN);
+
+        mv.visitLabel(missLabel);
+        mv.visitVarInsn(ALOAD, 0);
+        mv.visitMethodInsn(INVOKESTATIC, className, "mira$" + funcName + "$impl",
+                "([Ljava/lang/Object;)Ljava/lang/Object;", false);
+        mv.visitVarInsn(ASTORE, 2);
+
+        mv.visitFieldInsn(GETSTATIC, className, "CACHE$" + funcName, CACHE_DESC);
+        mv.visitVarInsn(ALOAD, 0);
+        mv.visitVarInsn(ALOAD, 2);
+        mv.visitMethodInsn(INVOKESTATIC, RT, "cachePut",
+                "(" + CACHE_DESC + "[Ljava/lang/Object;Ljava/lang/Object;)V", false);
+
+        mv.visitVarInsn(ALOAD, 2);
         mv.visitInsn(ARETURN);
         mv.visitMaxs(0, 0);
         mv.visitEnd();

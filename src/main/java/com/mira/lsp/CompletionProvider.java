@@ -25,7 +25,7 @@ public class CompletionProvider {
             "var", "const", "fn", "return", "if", "else", "while", "for", "foreach",
             "in", "break", "continue", "switch", "case", "default", "do",
             "try", "catch", "finally", "throw", "import", "module", "as",
-            "enum", "async", "await", "typeof", "spawn", "true", "false", "null"
+            "enum", "async", "await", "typeof", "spawn", "pure", "true", "false", "null"
     );
 
     private static final List<String> GLOBALS = List.of(
@@ -88,7 +88,8 @@ public class CompletionProvider {
             } else if (node instanceof Statement.FuncDecl f) {
                 CompletionItem item = new CompletionItem(f.getName());
                 item.setKind(CompletionItemKind.Function);
-                item.setDetail("fn " + f.getName() + "("
+                String prefix = f.isPure() ? "pure fn " : "fn ";
+                item.setDetail(prefix + f.getName() + "("
                         + f.getParameters().stream()
                                 .map(Parameter::name)
                                 .collect(Collectors.joining(", ")) + ")");
@@ -122,7 +123,7 @@ public class CompletionProvider {
                     List<String> fns = STDLIB.get(modName);
                     if (fns != null) {
                         for (String fn : fns) {
-                            items.add(namespaceItem(alias, fn, ""));
+                            items.add(namespaceItem(alias, fn, "", false));
                         }
                     }
                 }
@@ -148,17 +149,18 @@ public class CompletionProvider {
                     String params = f.getParameters().stream()
                             .map(Parameter::name)
                             .collect(Collectors.joining(", "));
-                    items.add(namespaceItem(alias, f.getName(), params));
+                    items.add(namespaceItem(alias, f.getName(), params, f.isPure()));
                 }
             }
         } catch (Exception ignored) {
         }
     }
 
-    private static CompletionItem namespaceItem(String alias, String fn, String params) {
+    private static CompletionItem namespaceItem(String alias, String fn, String params, boolean isPure) {
         CompletionItem item = new CompletionItem(alias + "." + fn);
         item.setKind(CompletionItemKind.Function);
-        item.setDetail("fn " + alias + "." + fn + "(" + params + ")");
+        String prefix = isPure ? "pure fn " : "fn ";
+        item.setDetail(prefix + alias + "." + fn + "(" + params + ")");
         return item;
     }
 }

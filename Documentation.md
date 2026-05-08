@@ -7,7 +7,7 @@
 3. [Expressions](#expressions) — Operators, `??`, `?.`, Ternary, Pipe
 4. [Data Structures](#data-structures) — List, Array, Object, Map, Range
 5. [Control Flow](#control-flow)
-6. [Functions](#functions) — Default Parameters, Variadic, Inner Functions, Lambdas, Async/Await, spawn
+6. [Functions](#functions) — Default Parameters, Variadic, Inner Functions, Lambdas, Async/Await, spawn, Pure Functions
 7. [Objects with Methods](#objects-with-methods)
 8. [Enums](#enums)
 9. [Built-in Functions](#built-in-functions)
@@ -1008,6 +1008,43 @@ try {
 }
 ```
 
+### Pure Functions
+
+Mark a function as `pure` to enable automatic memoization. A pure function must produce the same output for the same inputs and must have no observable side effects. Mira caches the result of each unique argument combination so that subsequent calls with the same arguments skip the function body entirely and return the cached value.
+
+```
+pure fn <name>(<params>) {
+    <body>
+}
+```
+
+Example:
+
+```
+pure fn fib(n) {
+    if ($n <= 1) { return $n; }
+    return eval(fib(eval($n - 1)) + fib(eval($n - 2)));
+}
+
+fib(30)   // computed once
+fib(30)   // returned from cache instantly
+```
+
+**How it works:**
+
+- **Interpreter:** results are keyed by `(functionName, argList)`. On a cache hit the body is skipped and the stored result is returned immediately.
+- **Compiler (AOT):** each `pure fn` gets a dedicated `ConcurrentHashMap` field in the generated class. The compiled wrapper checks the map before delegating to the actual implementation method.
+
+**When to use `pure`:**
+
+| Good fit                             | Bad fit                                   |
+| ------------------------------------ | ----------------------------------------- |
+| Recursive numeric algorithms         | Functions that read or write global state |
+| Expensive computations with few args | Functions that perform I/O                |
+| Deterministic transformations        | Functions whose result depends on time    |
+
+> **Note:** The interpreter also has an automatic purity analyzer (`PurityAnalyzer`) that detects functions without side effects and caches them silently. The `pure` keyword extends this: it forces caching even when automatic analysis would not classify the function as pure (e.g. because it calls another function whose purity cannot be statically proven).
+
 ---
 
 ## Objects with Methods
@@ -1450,9 +1487,9 @@ The `lock` block is always released — even if an exception is thrown inside. T
 
 Import with `import thread as thread;`.
 
-| Function      | Description                               |
-|---------------|-------------------------------------------|
-| `newMutex()`  | Creates a new mutex object                |
+| Function     | Description                |
+| ------------ | -------------------------- |
+| `newMutex()` | Creates a new mutex object |
 
 ---
 

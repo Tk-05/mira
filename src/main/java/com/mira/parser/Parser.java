@@ -796,6 +796,20 @@ public class Parser {
         int line = peek().getLine();
         Node node;
 
+        if (peek().getLexeme().equals("pure") && peek().getTokenType() == com.mira.lexer.token.TokenType.KEYWORD) {
+            consume();
+            if (!peek().getLexeme().equals("fn")) {
+                throw new UnexpectedToken(peek(), "Expected 'fn' after 'pure'");
+            }
+            increaseDepth();
+            node = parseFuncDecl(false, true);
+            decreaseDepth();
+            if (node instanceof Statement stmt) {
+                stmt.line = line;
+            }
+            return node;
+        }
+
         switch (peek().getLexeme()) {
             case "var" -> {
                 node = parseVarDecl(false);
@@ -820,7 +834,7 @@ public class Parser {
                     throw new UnexpectedToken(peek(), "Expected 'fn' after 'async'");
                 }
                 increaseDepth();
-                node = parseFuncDecl(true);
+                node = parseFuncDecl(true, false);
                 decreaseDepth();
             }
             case "return" -> {
@@ -977,6 +991,10 @@ public class Parser {
     }
 
     private Node parseFuncDecl(boolean isAsync) {
+        return parseFuncDecl(isAsync, false);
+    }
+
+    private Node parseFuncDecl(boolean isAsync, boolean isPure) {
         matchLexeme("fn");
         String name = matchExpression().getLexeme();
         matchLexeme("(");
@@ -992,7 +1010,7 @@ public class Parser {
         }
         matchLexeme("}");
 
-        return new FuncDecl(name, parameters, body, variadicHolder[0], isAsync);
+        return new FuncDecl(name, parameters, body, variadicHolder[0], isAsync, isPure);
     }
 
     private Node parseReturn() {

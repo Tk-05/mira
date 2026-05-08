@@ -22,6 +22,16 @@ public final class Runtime {
 
     public static final ThreadLocal<Environment> METHOD_ENV = new ThreadLocal<>();
 
+    public static final Object CACHE_MISS = new Object();
+
+    public static Object cacheGet(java.util.concurrent.ConcurrentHashMap<java.util.List<Object>, Object> cache, Object[] args) {
+        return cache.getOrDefault(java.util.Arrays.asList(args), CACHE_MISS);
+    }
+
+    public static void cachePut(java.util.concurrent.ConcurrentHashMap<java.util.List<Object>, Object> cache, Object[] args, Object value) {
+        cache.put(java.util.Arrays.asList(args), value);
+    }
+
     public static void loadCompiledModule(Environment namespaces, String alias, String dotClassName) {
         try {
             ClassLoader cl = Thread.currentThread().getContextClassLoader();

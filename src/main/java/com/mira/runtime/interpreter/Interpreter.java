@@ -127,6 +127,14 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         return instance;
     }
 
+    public Set<String> getPureFunctions() {
+        return pureFunctions;
+    }
+
+    public Map<?, ?> getCallCache() {
+        return callCache;
+    }
+
     public Interpreter fork() {
         Interpreter forked = new Interpreter();
         forked.globalEnvironment = this.globalEnvironment;
@@ -151,7 +159,13 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         }
         ImportResolver.resolveImports(imports, globalEnvironment, this, true);
 
-        pureFunctions = PurityAnalyzer.analyze(asts);
+        Set<String> pure = PurityAnalyzer.analyze(asts);
+        for (Node ast : asts) {
+            if (ast instanceof FuncDecl fd && fd.isPure()) {
+                pure.add(fd.getName());
+            }
+        }
+        pureFunctions = pure;
         callCache.clear();
 
         for (Node ast : asts) {

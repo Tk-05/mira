@@ -47,6 +47,7 @@ public class LexerTest {
         assertEquals(TokenType.KEYWORD, tokenizer.tokenize("await", false).getFirst().getTokenType());
         assertEquals(TokenType.KEYWORD, tokenizer.tokenize("async", false).getFirst().getTokenType());
         assertEquals(TokenType.KEYWORD, tokenizer.tokenize("typeof", false).getFirst().getTokenType());
+        assertEquals(TokenType.KEYWORD, tokenizer.tokenize("pure", false).getFirst().getTokenType());
     }
 
     @Test

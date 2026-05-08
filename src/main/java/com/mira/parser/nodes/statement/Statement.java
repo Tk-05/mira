@@ -52,23 +52,34 @@ public abstract class Statement implements Node {
         private final List<Node> body;
         private final String variadicParam;
         private final boolean isAsync;
+        private final boolean isPure;
 
         public FuncDecl(String name, List<Parameter> parameters,
                 List<Node> body, String variadicParam) {
-            this(name, parameters, body, variadicParam, false);
+            this(name, parameters, body, variadicParam, false, false);
         }
 
         public FuncDecl(String name, List<Parameter> parameters,
                 List<Node> body, String variadicParam, boolean isAsync) {
+            this(name, parameters, body, variadicParam, isAsync, false);
+        }
+
+        public FuncDecl(String name, List<Parameter> parameters,
+                List<Node> body, String variadicParam, boolean isAsync, boolean isPure) {
             this.name = name;
             this.parameters = parameters;
             this.body = body;
             this.variadicParam = variadicParam;
             this.isAsync = isAsync;
+            this.isPure = isPure;
         }
 
         public boolean isAsync() {
             return isAsync;
+        }
+
+        public boolean isPure() {
+            return isPure;
         }
 
         public String getName() {

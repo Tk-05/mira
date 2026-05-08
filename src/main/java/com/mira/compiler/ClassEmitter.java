@@ -49,6 +49,11 @@ public class ClassEmitter {
         return internalName;
     }
 
+    public void declareCacheField(String funcName) {
+        cw.visitField(ACC_PRIVATE | ACC_STATIC, "CACHE$" + funcName,
+                "Ljava/util/concurrent/ConcurrentHashMap;", null, null).visitEnd();
+    }
+
     public MethodVisitor openStaticInit() {
         return cw.visitMethod(ACC_STATIC, "<clinit>", "()V", null, null);
     }
