@@ -16,7 +16,6 @@ public class Vocabulary {
             "while",
             "break",
             "import",
-            "overwrite",
             "foreach",
             "in",
             "module",

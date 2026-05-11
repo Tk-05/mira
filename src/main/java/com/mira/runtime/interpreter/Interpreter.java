@@ -66,7 +66,6 @@ import com.mira.parser.nodes.statement.Statement.FuncDecl;
 import com.mira.parser.nodes.statement.Statement.If;
 import com.mira.parser.nodes.statement.Statement.Lock;
 import com.mira.parser.nodes.statement.Statement.ModuleDecl;
-import com.mira.parser.nodes.statement.Statement.Overwrite;
 import com.mira.parser.nodes.statement.Statement.Return;
 import com.mira.parser.nodes.statement.Statement.Switch;
 import com.mira.parser.nodes.statement.Statement.SwitchCase;
@@ -1460,29 +1459,6 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                 }
             }
         }
-
-        return null;
-    }
-
-    @Override
-    public Object visitOverwrite(Overwrite stmt) {
-        Tokenizer tokenizer = new Tokenizer();
-        Parser parser = new Parser();
-
-        List<Node> asts = parser.parseTokens(tokenizer.tokenize(stmt.getStmt(), false));
-        Environment.setOverwriteMode(true);
-        for (Node ast : asts) {
-            switch (ast) {
-                case Expression expression ->
-                    expression.accept(this);
-                case Statement statement ->
-                    statement.accept(this);
-                default -> {
-                    throw new AssertionError();
-                }
-            }
-        }
-        Environment.setOverwriteMode(false);
 
         return null;
     }

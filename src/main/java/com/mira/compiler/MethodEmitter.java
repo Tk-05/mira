@@ -68,7 +68,6 @@ import com.mira.parser.nodes.statement.Statement.Foreach;
 import com.mira.parser.nodes.statement.Statement.FuncDecl;
 import com.mira.parser.nodes.statement.Statement.If;
 import com.mira.parser.nodes.statement.Statement.Lock;
-import com.mira.parser.nodes.statement.Statement.Overwrite;
 import com.mira.parser.nodes.statement.Statement.Return;
 import com.mira.parser.nodes.statement.Statement.Switch;
 import com.mira.parser.nodes.statement.Statement.Throw;
@@ -1381,8 +1380,4 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
         return null;
     }
 
-    @Override
-    public Void visitOverwrite(Overwrite stmt) {
-        throw new UnsupportedOperationException("overwrite is not supported in compiled mode");
-    }
 }

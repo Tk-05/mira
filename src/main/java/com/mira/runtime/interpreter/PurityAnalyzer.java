@@ -29,7 +29,6 @@ import com.mira.parser.nodes.statement.Statement.For;
 import com.mira.parser.nodes.statement.Statement.Foreach;
 import com.mira.parser.nodes.statement.Statement.FuncDecl;
 import com.mira.parser.nodes.statement.Statement.If;
-import com.mira.parser.nodes.statement.Statement.Overwrite;
 import com.mira.parser.nodes.statement.Statement.Return;
 import com.mira.parser.nodes.statement.Statement.Switch;
 import com.mira.parser.nodes.statement.Statement.Throw;
@@ -114,8 +113,6 @@ public class PurityAnalyzer {
             case DumbExpression d2 ->
                 true;
 
-            case Overwrite o2 ->
-                false;
             case If stmt ->
                 isNodePure(stmt.getCondition(), pure)
                 && isBodyPure(stmt.getThenBody(), pure)

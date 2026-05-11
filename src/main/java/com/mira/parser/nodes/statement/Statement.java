@@ -287,24 +287,6 @@ public abstract class Statement implements Node {
         }
     }
 
-    public static class Overwrite extends Statement {
-
-        private final String stmt;
-
-        public Overwrite(String stmt) {
-            this.stmt = stmt;
-        }
-
-        @Override
-        public <T> T accept(StmtVisitor<T> visitor) {
-            return visitor.visitOverwrite(this);
-        }
-
-        public String getStmt() {
-            return stmt;
-        }
-    }
-
     public static class Foreach extends Statement {
 
         private final VarDecl iterator;

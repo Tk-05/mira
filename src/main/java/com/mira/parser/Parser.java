@@ -47,7 +47,6 @@ import com.mira.parser.nodes.statement.Statement.Foreach;
 import com.mira.parser.nodes.statement.Statement.FuncDecl;
 import com.mira.parser.nodes.statement.Statement.If;
 import com.mira.parser.nodes.statement.Statement.ModuleDecl;
-import com.mira.parser.nodes.statement.Statement.Overwrite;
 import com.mira.parser.nodes.statement.Statement.Return;
 import com.mira.parser.nodes.statement.Statement.Switch;
 import com.mira.parser.nodes.statement.Statement.SwitchCase;
@@ -890,10 +889,6 @@ public class Parser {
             case "switch" -> {
                 node = parseSwitch();
             }
-            case "overwrite" -> {
-                node = parseOverwrite();
-                matchLexeme(";");
-            }
             case "enum" -> {
                 node = parseEnumDecl();
             }
@@ -1496,11 +1491,4 @@ public class Parser {
         return new EnumDecl(values, identifier);
     }
 
-    private Node parseOverwrite() {
-        matchLexeme("overwrite");
-        matchLexeme("(");
-        String stmt = matchExpression().getLexeme();
-        matchLexeme(")");
-        return new Overwrite(stmt);
-    }
 }

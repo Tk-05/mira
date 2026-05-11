@@ -36,7 +36,6 @@ import com.mira.parser.nodes.statement.Statement.Foreach;
 import com.mira.parser.nodes.statement.Statement.FuncDecl;
 import com.mira.parser.nodes.statement.Statement.If;
 import com.mira.parser.nodes.statement.Statement.Lock;
-import com.mira.parser.nodes.statement.Statement.Overwrite;
 import com.mira.parser.nodes.statement.Statement.Return;
 import com.mira.parser.nodes.statement.Statement.Switch;
 import com.mira.parser.nodes.statement.Statement.Throw;
@@ -100,8 +99,6 @@ public class Linter {
                 lintFuncDecl(stmt);
             case Assign stmt ->
                 lintAssign(stmt);
-            case Overwrite stmt ->
-                lintOverwrite(stmt);
             case Return stmt ->
                 lintReturn(stmt);
             case If stmt ->
@@ -333,16 +330,6 @@ public class Linter {
         lintExpr(stmt.getExpression());
     }
 
-    private void lintOverwrite(Overwrite stmt) {
-        String name = stmt.getStmt();
-        if (scope.isConst(name)) {
-            warn("Cannot reassign const '" + name + "'", stmt.line, 0);
-        }
-        if (!scope.isDeclared(name)) {
-            warn("Assignment to undeclared variable '" + name + "'", stmt.line, 0);
-        }
-    }
-
     private void lintReturn(Return stmt) {
         if (stmt.getValue() != null) {
             lintExpr(stmt.getValue());
@@ -498,8 +485,6 @@ public class Linter {
             case Throw s ->
                 s.line;
             case Assign s ->
-                s.line;
-            case Overwrite s ->
                 s.line;
             case CallExpression e when e.getCallee() instanceof DumbExpression d ->
                 d.getLine();

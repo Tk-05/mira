@@ -9,7 +9,6 @@ import com.mira.parser.nodes.statement.Statement.For;
 import com.mira.parser.nodes.statement.Statement.Foreach;
 import com.mira.parser.nodes.statement.Statement.FuncDecl;
 import com.mira.parser.nodes.statement.Statement.If;
-import com.mira.parser.nodes.statement.Statement.Overwrite;
 import com.mira.parser.nodes.statement.Statement.Return;
 import com.mira.parser.nodes.statement.Statement.Switch;
 import com.mira.parser.nodes.statement.Statement.Throw;
@@ -40,8 +39,6 @@ public interface StmtVisitor<T> {
     public T visitContinue(Continue stmt);
 
     public T visitBlock(Block stmt);
-
-    public T visitOverwrite(Overwrite stmt);
 
     public T visitForeach(Foreach stmt);
 
