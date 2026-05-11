@@ -13,6 +13,8 @@ import com.mira.lexer.token.Token;
 import com.mira.lexer.token.TokenType;
 import com.mira.parser.nodes.expression.Expression.DumbExpression;
 import com.mira.parser.nodes.expression.Expression.ListExpression;
+import com.mira.parser.nodes.expression.Expression.MapExpression;
+import com.mira.runtime.functions.Callable;
 import com.mira.runtime.functions.NativeFunction;
 import com.mira.runtime.interpreter.Environment;
 import com.mira.runtime.interpreter.Interpreter;
@@ -43,6 +45,35 @@ public class CollectionLibTest {
     private Object call(String name, Object... args) {
         NativeFunction fn = (NativeFunction) environment.get(name);
         return fn.call(interpreter, List.of(args));
+    }
+
+    private Object callHof(String name, Object... args) {
+        Callable fn = (Callable) environment.get(name);
+        return fn.call(interpreter, List.of(args));
+    }
+
+    private static NativeFunction doubler() {
+        return new NativeFunction(1, args -> Double.parseDouble(String.valueOf(args.get(0))) * 2);
+    }
+
+    private static NativeFunction isEven() {
+        return new NativeFunction(1, args -> Double.parseDouble(String.valueOf(args.get(0))) % 2 == 0);
+    }
+
+    private static NativeFunction adder() {
+        return new NativeFunction(2, args -> Double.parseDouble(String.valueOf(args.get(0)))
+                + Double.parseDouble(String.valueOf(args.get(1))));
+    }
+
+    private static NativeFunction identity() {
+        return new NativeFunction(1, args -> Double.parseDouble(String.valueOf(args.get(0))));
+    }
+
+    private static NativeFunction toStringKey() {
+        return new NativeFunction(1, args -> {
+            double v = Double.parseDouble(String.valueOf(args.get(0)));
+            return v % 2 == 0 ? "even" : "odd";
+        });
     }
 
     @Test
@@ -251,5 +282,138 @@ public class CollectionLibTest {
         Object result = call("newList");
         assertInstanceOf(ListExpression.class, result);
         assertEquals(0, ((ListExpression) result).getMembers().size());
+    }
+
+    // HOF tests
+
+    @Test
+    void testMap() {
+        ListExpression result = (ListExpression) callHof("map", makeList("1", "2", "3"), doubler());
+        assertEquals(3, result.getMembers().size());
+        assertEquals(2.0, Double.parseDouble(String.valueOf(((DumbExpression) result.getMembers().get(0)).getValue())));
+    }
+
+    @Test
+    void testFilter() {
+        ListExpression result = (ListExpression) callHof("filter", makeList("1", "2", "3", "4"), isEven());
+        assertEquals(2, result.getMembers().size());
+    }
+
+    @Test
+    void testReduce() {
+        Object result = callHof("reduce", makeList("1", "2", "3", "4"), adder(), 0.0);
+        assertEquals(10.0, Double.parseDouble(String.valueOf(result)));
+    }
+
+    @Test
+    void testAnyTrue() {
+        assertEquals(true, callHof("any", makeList("1", "2", "3"), isEven()));
+    }
+
+    @Test
+    void testAnyFalse() {
+        assertEquals(false, callHof("any", makeList("1", "3", "5"), isEven()));
+    }
+
+    @Test
+    void testAllTrue() {
+        assertEquals(true, callHof("all", makeList("2", "4", "6"), isEven()));
+    }
+
+    @Test
+    void testAllFalse() {
+        assertEquals(false, callHof("all", makeList("1", "2", "3"), isEven()));
+    }
+
+    @Test
+    void testCount() {
+        assertEquals(2.0, callHof("count", makeList("1", "2", "3", "4"), isEven()));
+    }
+
+    @Test
+    void testSortBy() {
+        ListExpression result = (ListExpression) callHof("sortBy", makeList("3", "1", "2"), identity());
+        assertEquals("1", String.valueOf(((DumbExpression) result.getMembers().get(0)).getValue()));
+    }
+
+    // Utility tests
+
+    @Test
+    void testSort() {
+        ListExpression result = (ListExpression) call("sort", makeList("3", "1", "2"));
+        assertEquals("1", String.valueOf(((DumbExpression) result.getMembers().get(0)).getValue()));
+    }
+
+    @Test
+    void testUnique() {
+        ListExpression result = (ListExpression) call("unique", makeList("a", "b", "a", "c"));
+        assertEquals(3, result.getMembers().size());
+    }
+
+    @Test
+    void testSum() {
+        assertEquals(6.0, call("sum", makeList("1", "2", "3")));
+    }
+
+    @Test
+    void testAvg() {
+        assertEquals(2.0, call("avg", makeList("1", "2", "3")));
+    }
+
+    @Test
+    void testAvgEmptyThrows() {
+        assertThrows(RuntimeException.class, () -> call("avg", makeList()));
+    }
+
+    @Test
+    void testZip() {
+        ListExpression result = (ListExpression) call("zip", makeList("a", "b"), makeList("1", "2"));
+        assertEquals(2, result.getMembers().size());
+    }
+
+    @Test
+    void testFill() {
+        ListExpression result = (ListExpression) call("fill", "3", "x");
+        assertEquals(3, result.getMembers().size());
+    }
+
+    @Test
+    void testMin() {
+        assertEquals(1.0, call("min", makeList("3", "1", "2")));
+    }
+
+    @Test
+    void testMax() {
+        assertEquals(3.0, call("max", makeList("3", "1", "2")));
+    }
+
+    @Test
+    void testTake() {
+        ListExpression result = (ListExpression) call("take", makeList("a", "b", "c", "d"), "2");
+        assertEquals(2, result.getMembers().size());
+    }
+
+    @Test
+    void testDrop() {
+        ListExpression result = (ListExpression) call("drop", makeList("a", "b", "c", "d"), "2");
+        assertEquals(2, result.getMembers().size());
+    }
+
+    @Test
+    void testChunk() {
+        ListExpression result = (ListExpression) callHof("chunk", makeList("1", "2", "3", "4"), "2");
+        assertEquals(2, result.getMembers().size());
+    }
+
+    @Test
+    void testFindFirst() {
+        Object result = callHof("findFirst", makeList("1", "2", "3"), isEven());
+        assertEquals(2.0, Double.parseDouble(String.valueOf(result)));
+    }
+
+    @Test
+    void testGroupBy() {
+        Object result = callHof("groupBy", makeList("1", "2", "3", "4"), toStringKey());
+        assertInstanceOf(MapExpression.class, result);
     }
 }

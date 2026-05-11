@@ -1,6 +1,8 @@
 package com.mira.lib.std;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.Year;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
@@ -74,6 +76,23 @@ public class DateTime implements Lib {
         environment.define("fromEpoch", new NativeFunction(1, args -> {
             long epoch = (long) Double.parseDouble(String.valueOf(args.get(0)));
             return LocalDateTime.ofEpochSecond(epoch, 0, ZoneOffset.UTC).toString();
+        }));
+
+        environment.define("addDays", new NativeFunction(2, args -> {
+            LocalDate date = LocalDate.parse(String.valueOf(args.get(0)));
+            long n = (long) Double.parseDouble(String.valueOf(args.get(1)));
+            return date.plusDays(n).toString();
+        }));
+
+        environment.define("dateDiff", new NativeFunction(2, args -> {
+            LocalDate d1 = LocalDate.parse(String.valueOf(args.get(0)));
+            LocalDate d2 = LocalDate.parse(String.valueOf(args.get(1)));
+            return (double) ChronoUnit.DAYS.between(d1, d2);
+        }));
+
+        environment.define("isLeapYear", new NativeFunction(1, args -> {
+            int year = (int) Double.parseDouble(String.valueOf(args.get(0)));
+            return Year.of(year).isLeap();
         }));
     }
 }

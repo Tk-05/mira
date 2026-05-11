@@ -102,5 +102,42 @@ public class Net implements Lib {
                 throw new RuntimeException("download failed: " + e.getMessage());
             }
         }));
+
+        environment.define("httpPut", new NativeFunction(3, args -> {
+            String url = String.valueOf(args.get(0));
+            String body = String.valueOf(args.get(1));
+            String contentType = String.valueOf(args.get(2));
+            try {
+                HttpRequest request = HttpRequest.newBuilder()
+                        .uri(URI.create(url))
+                        .header("Content-Type", contentType)
+                        .PUT(HttpRequest.BodyPublishers.ofString(body))
+                        .build();
+                HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+                return response.body();
+            } catch (IOException | InterruptedException e) {
+                throw new RuntimeException("PUT failed: " + e.getMessage());
+            }
+        }));
+
+        environment.define("httpDelete", new NativeFunction(1, args -> {
+            String url = String.valueOf(args.get(0));
+            try {
+                HttpRequest request = HttpRequest.newBuilder()
+                        .uri(URI.create(url))
+                        .DELETE()
+                        .build();
+                HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+                return response.body();
+            } catch (IOException | InterruptedException e) {
+                throw new RuntimeException("DELETE failed: " + e.getMessage());
+            }
+        }));
+
+        environment.define("urlEncode", new NativeFunction(1, args
+                -> java.net.URLEncoder.encode(String.valueOf(args.get(0)), java.nio.charset.StandardCharsets.UTF_8)));
+
+        environment.define("urlDecode", new NativeFunction(1, args
+                -> java.net.URLDecoder.decode(String.valueOf(args.get(0)), java.nio.charset.StandardCharsets.UTF_8)));
     }
 }

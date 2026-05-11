@@ -186,4 +186,38 @@ public class MathLibTest {
             assertEquals(java.lang.Math.PI / 4, nativeFunction.call(interpreter, List.of(1, 1)));
         }
     }
+
+    @Test
+    void testGcd() {
+        NativeFunction fn = (NativeFunction) environment.get("gcd");
+        assertEquals(4.0, fn.call(interpreter, List.of(12, 8)));
+        assertEquals(1.0, fn.call(interpreter, List.of(7, 13)));
+    }
+
+    @Test
+    void testLcm() {
+        NativeFunction fn = (NativeFunction) environment.get("lcm");
+        assertEquals(12.0, fn.call(interpreter, List.of(4, 6)));
+        assertEquals(0.0, fn.call(interpreter, List.of(0, 5)));
+    }
+
+    @Test
+    void testFactorial() {
+        NativeFunction fn = (NativeFunction) environment.get("factorial");
+        assertEquals(120.0, fn.call(interpreter, List.of(5)));
+        assertEquals(1.0, fn.call(interpreter, List.of(0)));
+    }
+
+    @Test
+    void testTrunc() {
+        NativeFunction fn = (NativeFunction) environment.get("trunc");
+        assertEquals(-3.0, fn.call(interpreter, List.of(-3.9)));
+        assertEquals(3.0, fn.call(interpreter, List.of(3.9)));
+    }
+
+    @Test
+    void testHypot() {
+        NativeFunction fn = (NativeFunction) environment.get("hypot");
+        assertEquals(5.0, fn.call(interpreter, List.of(3, 4)));
+    }
 }

@@ -194,5 +194,139 @@ public class Json implements Lib {
             }
             return (double) -1;
         }));
+
+        environment.define("jsonKeys", new NativeFunction(1, args -> {
+            String json = String.valueOf(args.get(0)).trim();
+            List<Expression> members = new ArrayList<>();
+            int start = json.indexOf('{');
+            if (start < 0) {
+                return new ListExpression(members);
+            }
+            char[] chars = json.toCharArray();
+            int depth = 0;
+            boolean inStr = false;
+            for (int i = start + 1; i < chars.length; i++) {
+                char c = chars[i];
+                if (c == '"' && (i == 0 || chars[i - 1] != '\\')) {
+                    if (!inStr) {
+                        inStr = true;
+                        if (depth == 0) {
+                            int end = json.indexOf('"', i + 1);
+                            if (end > i) {
+                                String after = json.substring(end + 1).stripLeading();
+                                if (after.startsWith(":")) {
+                                    String key = json.substring(i + 1, end);
+                                    members.add(new DumbExpression(new Token(TokenType.EXPRESSION, key, 0, 0)));
+                                    i = end;
+                                    inStr = false;
+                                    continue;
+                                }
+                            }
+                        }
+                    } else {
+                        inStr = false;
+                    }
+                }
+                if (!inStr) {
+                    if (c == '{' || c == '[') {
+                        depth++;
+                    } else if (c == '}' || c == ']') {
+                        depth--;
+                    }
+                }
+            }
+            return new ListExpression(members);
+        }));
+
+        environment.define("jsonSize", new NativeFunction(1, args -> {
+            String json = String.valueOf(args.get(0)).trim();
+            if (json.startsWith("{")) {
+                int count = 0;
+                int depth = 0;
+                boolean inStr = false;
+                char[] chars = json.toCharArray();
+                int start = json.indexOf('{');
+                for (int i = start + 1; i < chars.length; i++) {
+                    char c = chars[i];
+                    if (c == '"' && (i == 0 || chars[i - 1] != '\\')) {
+                        if (!inStr) {
+                            inStr = true;
+                            if (depth == 0) {
+                                int end = json.indexOf('"', i + 1);
+                                if (end > i) {
+                                    String after = json.substring(end + 1).stripLeading();
+                                    if (after.startsWith(":")) {
+                                        count++;
+                                        i = end;
+                                        inStr = false;
+                                        continue;
+                                    }
+                                }
+                            }
+                        } else {
+                            inStr = false;
+                        }
+                    }
+                    if (!inStr) {
+                        if (c == '{' || c == '[') {
+                            depth++;
+                        } else if (c == '}' || c == ']') {
+                            depth--;
+                        }
+                    }
+                }
+                return (double) count;
+            } else if (json.startsWith("[")) {
+                int count = 0, depth = 0;
+                boolean inStr = false;
+                for (int i = 1; i < json.length(); i++) {
+                    char c = json.charAt(i);
+                    if (c == '"') {
+                        inStr = !inStr;
+                    }
+                    if (!inStr) {
+                        if (c == '{' || c == '[') {
+                            depth++;
+                        } else if (c == '}' || c == ']') {
+                            depth--;
+                        } else if (c == ',' && depth == 0) {
+                            count++;
+                        }
+                    }
+                }
+                String inner = json.substring(1, json.length() - 1).trim();
+                return inner.isEmpty() ? 0.0 : (double) (count + 1);
+            }
+            return 0.0;
+        }));
+
+        environment.define("jsonSet", new NativeFunction(3, args -> {
+            String json = String.valueOf(args.get(0));
+            String key = String.valueOf(args.get(1));
+            Object value = args.get(2);
+            String valStr;
+            if (value instanceof Double d) {
+                valStr = d == d.longValue() ? String.valueOf(d.longValue()) : String.valueOf(d);
+            } else if (value instanceof Boolean b) {
+                valStr = String.valueOf(b);
+            } else if (value == null || value.toString().equals("null")) {
+                valStr = "null";
+            } else {
+                valStr = "\"" + String.valueOf(value) + "\"";
+            }
+            String keyPattern = "\"" + Pattern.quote(key) + "\"\\s*:\\s*(?:\"[^\"]*\"|[^,}\\]]+)";
+            String replacement = "\"" + key + "\": " + valStr;
+            String result = json.replaceFirst(keyPattern, Matcher.quoteReplacement(replacement));
+            if (result.equals(json)) {
+                int lastBrace = json.lastIndexOf('}');
+                if (lastBrace < 0) {
+                    return json;
+                }
+                String trimmed = json.substring(0, lastBrace).trim();
+                String sep = trimmed.endsWith("{") ? "" : ", ";
+                result = trimmed + sep + "\"" + key + "\": " + valStr + "}";
+            }
+            return result;
+        }));
     }
 }

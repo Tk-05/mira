@@ -356,4 +356,20 @@ public class NetLibTest {
         Environment env = setup(failingClient());
         assertThrows(RuntimeException.class, () -> call(env, "httpDownload", "http://example.com/file.txt", "/tmp/mira-test.txt"));
     }
+
+    @Test
+    void testUrlEncode() {
+        Environment env = new Environment();
+        new Net().loadLib(env);
+        NativeFunction fn = (NativeFunction) env.get("urlEncode");
+        assertEquals("hello+world", fn.call(interpreter, List.of("hello world")));
+    }
+
+    @Test
+    void testUrlDecode() {
+        Environment env = new Environment();
+        new Net().loadLib(env);
+        NativeFunction fn = (NativeFunction) env.get("urlDecode");
+        assertEquals("hello world", fn.call(interpreter, List.of("hello+world")));
+    }
 }

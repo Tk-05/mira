@@ -172,4 +172,48 @@ public class MapLibTest {
         ListExpression values = (ListExpression) call("mapValues", makeMap());
         assertEquals(0, values.getMembers().size());
     }
+
+    @Test
+    void mapEntriesReturnsPairs() {
+        ListExpression entries = (ListExpression) call("mapEntries", makeMap("a", "1", "b", "2"));
+        assertEquals(2, entries.getMembers().size());
+        ListExpression first = (ListExpression) entries.getMembers().get(0);
+        assertEquals("a", ((DumbExpression) first.getMembers().get(0)).getValue());
+    }
+
+    @Test
+    void mapEntriesEmptyMap() {
+        ListExpression entries = (ListExpression) call("mapEntries", makeMap());
+        assertEquals(0, entries.getMembers().size());
+    }
+
+    @Test
+    void mapMergeCombinesMaps() {
+        MapExpression result = (MapExpression) call("mapMerge", makeMap("a", "1"), makeMap("b", "2"));
+        assertEquals(2, result.getEntries().size());
+        assertEquals(true, result.getEntries().containsKey("a"));
+        assertEquals(true, result.getEntries().containsKey("b"));
+    }
+
+    @Test
+    void mapMergeSecondOverwritesFirst() {
+        MapExpression result = (MapExpression) call("mapMerge", makeMap("a", "1"), makeMap("a", "99"));
+        assertEquals(1, result.getEntries().size());
+        assertEquals("99", ((DumbExpression) result.getEntries().get("a")).getValue());
+    }
+
+    @Test
+    void mapFromListsBuildsMap() {
+        com.mira.parser.nodes.expression.Expression.ListExpression keys = makeListExpr("x", "y");
+        com.mira.parser.nodes.expression.Expression.ListExpression vals = makeListExpr("1", "2");
+        MapExpression result = (MapExpression) call("mapFromLists", keys, vals);
+        assertEquals(2, result.getEntries().size());
+        assertEquals(true, result.getEntries().containsKey("x"));
+    }
+
+    private static com.mira.parser.nodes.expression.Expression.ListExpression makeListExpr(String... vals) {
+        java.util.List<com.mira.parser.nodes.expression.Expression> members = new java.util.ArrayList<>();
+        for (String v : vals) members.add(wrap(v));
+        return new com.mira.parser.nodes.expression.Expression.ListExpression(members);
+    }
 }

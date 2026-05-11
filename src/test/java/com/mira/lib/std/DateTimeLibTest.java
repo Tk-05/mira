@@ -220,4 +220,38 @@ public class DateTimeLibTest {
         String result = (String) call("fromEpoch", 1_000_000_000.0);
         assertTrue(result.startsWith("2001-09-09"));
     }
+
+    @Test
+    void testAddDays() {
+        String result = (String) call("addDays", "2024-01-01", 5.0);
+        assertEquals("2024-01-06", result);
+    }
+
+    @Test
+    void testAddDaysNegative() {
+        String result = (String) call("addDays", "2024-01-10", -5.0);
+        assertEquals("2024-01-05", result);
+    }
+
+    @Test
+    void testDateDiff() {
+        double result = (double) call("dateDiff", "2024-01-01", "2024-01-11");
+        assertEquals(10.0, result);
+    }
+
+    @Test
+    void testDateDiffNegative() {
+        double result = (double) call("dateDiff", "2024-01-11", "2024-01-01");
+        assertEquals(-10.0, result);
+    }
+
+    @Test
+    void testIsLeapYearTrue() {
+        assertEquals(true, call("isLeapYear", 2024.0));
+    }
+
+    @Test
+    void testIsLeapYearFalse() {
+        assertEquals(false, call("isLeapYear", 2023.0));
+    }
 }
