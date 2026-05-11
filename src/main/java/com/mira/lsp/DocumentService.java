@@ -8,12 +8,17 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.eclipse.lsp4j.CompletionItem;
 import org.eclipse.lsp4j.CompletionList;
 import org.eclipse.lsp4j.CompletionParams;
+import org.eclipse.lsp4j.DefinitionParams;
 import org.eclipse.lsp4j.Diagnostic;
 import org.eclipse.lsp4j.DidChangeTextDocumentParams;
 import org.eclipse.lsp4j.DidCloseTextDocumentParams;
 import org.eclipse.lsp4j.DidOpenTextDocumentParams;
 import org.eclipse.lsp4j.DidSaveTextDocumentParams;
 import org.eclipse.lsp4j.DocumentFormattingParams;
+import org.eclipse.lsp4j.Hover;
+import org.eclipse.lsp4j.HoverParams;
+import org.eclipse.lsp4j.Location;
+import org.eclipse.lsp4j.LocationLink;
 import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.Range;
 import org.eclipse.lsp4j.TextEdit;
@@ -63,7 +68,8 @@ public class DocumentService implements TextDocumentService {
     }
 
     @Override
-    public void didSave(DidSaveTextDocumentParams params) {}
+    public void didSave(DidSaveTextDocumentParams params) {
+    }
 
     @Override
     public CompletableFuture<List<? extends TextEdit>> formatting(DocumentFormattingParams params) {
@@ -82,12 +88,32 @@ public class DocumentService implements TextDocumentService {
         return CompletableFuture.completedFuture(Either.forLeft(CompletionProvider.provide(ast, uri)));
     }
 
+    @Override
+    public CompletableFuture<Hover> hover(HoverParams params) {
+        String uri = params.getTextDocument().getUri();
+        List<Node> ast = astCache.getOrDefault(uri, List.of());
+        String content = documents.getOrDefault(uri, "");
+        Hover hover = HoverProvider.provide(ast, content, params.getPosition());
+        return CompletableFuture.completedFuture(hover);
+    }
+
+    @Override
+    public CompletableFuture<Either<List<? extends Location>, List<? extends LocationLink>>> definition(DefinitionParams params) {
+        String uri = params.getTextDocument().getUri();
+        List<Node> ast = astCache.getOrDefault(uri, List.of());
+        String content = documents.getOrDefault(uri, "");
+        Location loc = DefinitionProvider.provide(ast, content, uri, params.getPosition());
+        List<Location> result = loc != null ? List.of(loc) : List.of();
+        return CompletableFuture.completedFuture(Either.forLeft(result));
+    }
+
     private void updateAstCache(String uri, String content) {
         try {
             List<Token> tokens = new Tokenizer().tokenize(content, false);
             List<Node> ast = new Parser().parseTokens(tokens);
             astCache.put(uri, ast);
-        } catch (MiraError ignored) {}
+        } catch (MiraError ignored) {
+        }
     }
 
     private List<Diagnostic> analyze(String content) {

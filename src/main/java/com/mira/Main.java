@@ -8,19 +8,20 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import com.mira.compiler.CompileRunner;
 import com.mira.debugger.Debugger;
 import com.mira.error.DiagnosticFormatter;
+import com.mira.error.runtime.RuntimeError.ModuleNameMismatchError;
 import com.mira.lexer.Tokenizer;
 import com.mira.lexer.token.Token;
 import com.mira.linter.Linter;
 import com.mira.lsp.Launcher;
 import com.mira.parser.Parser;
 import com.mira.parser.nodes.Node;
-import com.mira.error.runtime.RuntimeError.ModuleNameMismatchError;
 import com.mira.parser.nodes.statement.Statement.ModuleDecl;
 import com.mira.repl.Repl;
 import com.mira.runtime.AstPrinter;
 import com.mira.runtime.HotReloader;
 import com.mira.runtime.functions.ReturnSignal;
 import com.mira.runtime.interpreter.Interpreter;
+import com.mira.testing.TestRunner;
 import com.mira.utils.FileLoader;
 import com.mira.warning.WarningCollector;
 
@@ -71,6 +72,8 @@ public class Main {
                         Flags.crashDump = true;
                         Flags.crashDumpFull = true;
                     }
+                    case "-test" ->
+                        Flags.testMode = true;
                     case "-ast" ->
                         Flags.printAsts = true;
                     case "-compile" ->
@@ -175,6 +178,15 @@ public class Main {
                     System.out.println("Program exited with value: " + returnSignal.getValue() + " in " + (System.currentTimeMillis() - start) + " ms");
                 } finally {
                     WarningCollector.flush();
+                }
+            }
+
+            if (Flags.testMode) {
+                TestRunner.printSummary(System.out);
+                boolean failed = TestRunner.hasFailures();
+                TestRunner.reset();
+                if (failed) {
+                    System.exit(1);
                 }
             }
 

@@ -7,6 +7,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
+import com.mira.Flags;
 import com.mira.error.runtime.RuntimeError.ArgMismatchError;
 import com.mira.error.runtime.RuntimeError.AssertionFailedError;
 import com.mira.error.runtime.RuntimeError.InvalidArgumentError;
@@ -23,6 +24,7 @@ import com.mira.runtime.interpreter.Environment;
 import com.mira.runtime.interpreter.Evaluator;
 import com.mira.runtime.interpreter.Interpreter;
 import com.mira.runtime.values.NullValue;
+import com.mira.testing.TestRunner;
 
 public class Internal implements Lib {
 
@@ -184,5 +186,24 @@ public class Internal implements Lib {
                 return new Promise(future);
             }
         });
+
+        if (Flags.testMode) {
+            environment.define("test", new Callable() {
+                @Override
+                public int getArity() {
+                    return 2;
+                }
+
+                @Override
+                public Object call(Interpreter interpreter, List<Object> arguments) {
+                    String name = String.valueOf(arguments.get(0));
+                    if (!(arguments.get(1) instanceof Callable fn)) {
+                        throw new RuntimeException("test() second argument must be a function");
+                    }
+                    TestRunner.register(name, fn, interpreter);
+                    return NullValue.INSTANCE;
+                }
+            });
+        }
     }
 }

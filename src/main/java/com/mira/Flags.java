@@ -14,6 +14,7 @@ public class Flags {
     public static boolean hotReload = false;
     public static boolean crashDump = false;
     public static boolean crashDumpFull = false;
+    public static boolean testMode = false;
     public static boolean printAsts = false;
     public static String[] args = null;
     public static String fileName = null;

@@ -27,6 +27,8 @@ public class LspServer implements LanguageServer, LanguageClientAware {
         caps.setTextDocumentSync(TextDocumentSyncKind.Full);
         caps.setCompletionProvider(new CompletionOptions());
         caps.setDocumentFormattingProvider(true);
+        caps.setHoverProvider(true);
+        caps.setDefinitionProvider(true);
         return CompletableFuture.<InitializeResult>completedFuture(new InitializeResult(caps));
     }
 
