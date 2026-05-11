@@ -46,7 +46,9 @@ public class Environment {
     }
 
     public boolean isDeclaredFunction(String name) {
-        if (declaredFunctions.contains(name)) return true;
+        if (declaredFunctions.contains(name)) {
+            return true;
+        }
         return parent != null && parent.isDeclaredFunction(name);
     }
 
@@ -87,7 +89,50 @@ public class Environment {
         if (parent != null) {
             return parent.get(name);
         }
-        throw new UndefinedReferenceError(name);
+        String suggestion = findSimilar(name);
+        String hint = suggestion != null
+                ? "Did you mean '" + suggestion + "'?"
+                : "Make sure '" + name + "' is imported or declared before use";
+        throw new UndefinedReferenceError(name, hint);
+    }
+
+    private String findSimilar(String name) {
+        String best = null;
+        int bestDist = 3;
+        Environment env = this;
+        while (env != null) {
+            for (String key : env.values.keySet()) {
+                int dist = editDistance(name.toLowerCase(), key.toLowerCase());
+                if (dist < bestDist) {
+                    bestDist = dist;
+                    best = key;
+                }
+            }
+            env = env.parent;
+        }
+        return best;
+    }
+
+    private static int editDistance(String a, String b) {
+        int la = a.length(), lb = b.length();
+        if (Math.abs(la - lb) >= 3) {
+            return 99;
+        }
+        int[] prev = new int[lb + 1];
+        for (int j = 0; j <= lb; j++) {
+            prev[j] = j;
+        }
+        for (int i = 1; i <= la; i++) {
+            int[] curr = new int[lb + 1];
+            curr[0] = i;
+            for (int j = 1; j <= lb; j++) {
+                curr[j] = a.charAt(i - 1) == b.charAt(j - 1)
+                        ? prev[j - 1]
+                        : 1 + Math.min(prev[j - 1], Math.min(prev[j], curr[j - 1]));
+            }
+            prev = curr;
+        }
+        return prev[lb];
     }
 
     public Object getOrNull(String name) {

@@ -25,10 +25,8 @@ import com.mira.error.runtime.RuntimeError.RangeStepZeroError;
 import com.mira.error.runtime.RuntimeError.ReferenceIsImmutableError;
 import com.mira.error.runtime.RuntimeError.TypeConversionError;
 import com.mira.error.runtime.RuntimeError.UnknownOperatorError;
-import com.mira.lexer.Tokenizer;
 import com.mira.lexer.token.Token;
 import com.mira.lexer.token.TokenType;
-import com.mira.parser.Parser;
 import com.mira.parser.nodes.Node;
 import com.mira.parser.nodes.expression.Expression;
 import com.mira.parser.nodes.expression.Expression.AccessExpression;
@@ -340,6 +338,42 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         }
     }
 
+    private String typeName(Object val) {
+        return switch (val) {
+            case null ->
+                "null";
+            case com.mira.runtime.values.NullValue n ->
+                "null";
+            case Boolean b ->
+                "bool";
+            case Number n ->
+                "number";
+            case String s ->
+                "string";
+            case com.mira.runtime.functions.Promise p ->
+                "promise";
+            case Callable c ->
+                "fn";
+            case ListExpression l ->
+                "list";
+            case ArrayExpression a ->
+                "array";
+            case Expression.MapExpression m ->
+                "map";
+            case Environment e ->
+                "object";
+            default ->
+                val.getClass().getSimpleName();
+        };
+    }
+
+    private String buildSignature(String name, com.mira.runtime.functions.Function f) {
+        String params = f.getParameters().stream()
+                .map(p -> "$" + p.name())
+                .collect(java.util.stream.Collectors.joining(", "));
+        return "fn " + name + "(" + params + ")";
+    }
+
     public void dumpState(Throwable cause, PrintStream out) {
         out.println("\n=== MIRA CRASH DUMP ===");
         out.println("Cause: " + cause);
@@ -640,11 +674,11 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             calleeName = "<lambda>";
             callee = calleeResult;
         } else {
-            throw new NotCallableError(String.valueOf(calleeResult));
+            throw new NotCallableError(String.valueOf(calleeResult) + " (got: " + typeName(calleeResult) + ")");
         }
 
         if (!(callee instanceof Callable callable)) {
-            throw new NotCallableError(calleeName);
+            throw new NotCallableError(calleeName + " (got: " + typeName(callee) + ")");
         }
 
         List<Object> arguments = new ArrayList<>();
@@ -657,7 +691,8 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             int min = f.getArity();
             int max = f.getMaxArity();
             if (arguments.size() < min || (max != -1 && arguments.size() > max)) {
-                throw new ArgMismatchError(calleeName, min, arguments.size());
+                String sig = buildSignature(calleeName, f);
+                throw new ArgMismatchError(calleeName, min, arguments.size(), sig);
             }
         } else if (callable.getArity() != -1 && arguments.size() != callable.getArity()) {
             throw new ArgMismatchError(calleeName, callable.getArity(), arguments.size());

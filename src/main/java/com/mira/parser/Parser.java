@@ -690,12 +690,8 @@ public class Parser {
         List<Parameter> parameters = parseParameterList(variadicHolder);
         matchLexeme(")");
 
-        matchLexeme("{");
-        List<Node> body = new ArrayList<>();
-        while (!peek().getLexeme().equals("}")) {
-            body.add(parseStatement(true));
-        }
-        matchLexeme("}");
+        Token lambdaOpen = matchLexeme("{");
+        List<Node> body = parseBlockBody(lambdaOpen);
 
         return new LambdaExpression(parameters, body, variadicHolder[0], isAsync);
     }
@@ -727,11 +723,8 @@ public class Parser {
 
         List<Node> body = new ArrayList<>();
         if (peek().getLexeme().equals("{")) {
-            matchLexeme("{");
-            while (!peek().getLexeme().equals("}")) {
-                body.add(parseStatement(true));
-            }
-            matchLexeme("}");
+            Token arrowOpen = matchLexeme("{");
+            body = parseBlockBody(arrowOpen);
         } else {
             Expression result = parseExpression();
             body.add(new Return(result));
@@ -998,12 +991,8 @@ public class Parser {
         List<Parameter> parameters = parseParameterList(variadicHolder);
         matchLexeme(")");
 
-        matchLexeme("{");
-        List<Node> body = new ArrayList<>();
-        while (!peek().getLexeme().equals("}")) {
-            body.add(parseStatement(true));
-        }
-        matchLexeme("}");
+        Token open = matchLexeme("{");
+        List<Node> body = parseBlockBody(open);
 
         return new FuncDecl(name, parameters, body, variadicHolder[0], isAsync, isPure);
     }
@@ -1074,15 +1063,8 @@ public class Parser {
         Expression condition = parseExpression();
         matchLexeme(")");
 
-        matchLexeme("{");
-        List<Node> thenBody = new ArrayList<>();
-        while (!peek().getLexeme().equals("}")) {
-            if (peek().getLexeme().equals("}")) {
-                throw new UnexpectedToken(peek(), "Unexpected Token in if body");
-            }
-            thenBody.add(parseStatement(true));
-        }
-        matchLexeme("}");
+        Token thenOpen = matchLexeme("{");
+        List<Node> thenBody = parseBlockBody(thenOpen);
 
         if (peek().getLexeme().equals("else")) {
             matchLexeme("else");
@@ -1091,15 +1073,8 @@ public class Parser {
                 elseIfBody.add(parseIf());
                 return new If(condition, thenBody, elseIfBody);
             }
-            matchLexeme("{");
-            List<Node> elseBody = new ArrayList<>();
-            while (!peek().getLexeme().equals("}")) {
-                if (peek().getLexeme().equals("}")) {
-                    throw new UnexpectedToken(peek(), "Unexpected Token in else body");
-                }
-                elseBody.add(parseStatement(true));
-            }
-            matchLexeme("}");
+            Token elseOpen = matchLexeme("{");
+            List<Node> elseBody = parseBlockBody(elseOpen);
             return new If(condition, thenBody, elseBody);
         } else {
             return new If(condition, thenBody, null);
@@ -1120,12 +1095,8 @@ public class Parser {
             Expression range = parseRangeExpression();
             matchLexeme(")");
 
-            matchLexeme("{");
-            List<Node> body = new ArrayList<>();
-            while (!peek().getLexeme().equals("}")) {
-                body.add(parseStatement(true));
-            }
-            matchLexeme("}");
+            Token forOpen = matchLexeme("{");
+            List<Node> body = parseBlockBody(forOpen);
 
             return new Foreach(new VarDecl(iteratorName, null, false), range, body);
         }
@@ -1165,22 +1136,14 @@ public class Parser {
             }
             matchLexeme(")");
 
-            matchLexeme("{");
-            List<Node> body = new ArrayList<>();
-            while (!peek().getLexeme().equals("}")) {
-                body.add(parseStatement(true));
-            }
-            matchLexeme("}");
+            Token forOpen = matchLexeme("{");
+            List<Node> body = parseBlockBody(forOpen);
 
             return new For(varDecls, condition, postExpressions, body);
         } else {
             matchLexeme(")");
-            matchLexeme("{");
-            List<Node> body = new ArrayList<>();
-            while (!peek().getLexeme().equals("}")) {
-                body.add(parseStatement(true));
-            }
-            matchLexeme("}");
+            Token forOpen = matchLexeme("{");
+            List<Node> body = parseBlockBody(forOpen);
 
             return new For(varDecls, null, null, body);
         }
@@ -1191,25 +1154,16 @@ public class Parser {
         matchLexeme("(");
         Expression condition = parseExpression();
         matchLexeme(")");
-        matchLexeme("{");
-
-        List<Node> body = new ArrayList<>();
-        while (!peek().getLexeme().equals("}")) {
-            body.add(parseStatement(true));
-        }
-        matchLexeme("}");
+        Token whileOpen = matchLexeme("{");
+        List<Node> body = parseBlockBody(whileOpen);
 
         return new While(condition, body, false);
     }
 
     private Node parseDoWhile() {
         matchLexeme("do");
-        matchLexeme("{");
-        List<Node> body = new ArrayList<>();
-        while (!peek().getLexeme().equals("}")) {
-            body.add(parseStatement(true));
-        }
-        matchLexeme("}");
+        Token doOpen = matchLexeme("{");
+        List<Node> body = parseBlockBody(doOpen);
 
         matchLexeme("while");
         matchLexeme("(");
@@ -1231,12 +1185,8 @@ public class Parser {
 
         matchLexeme(")");
 
-        matchLexeme("{");
-        List<Node> body = new ArrayList<>();
-        while (!peek().getLexeme().equals("}")) {
-            body.add(parseStatement(true));
-        }
-        matchLexeme("}");
+        Token feOpen = matchLexeme("{");
+        List<Node> body = parseBlockBody(feOpen);
 
         return new Foreach(iterator, collection, body);
     }
@@ -1331,16 +1281,22 @@ public class Parser {
         return new TryCatch(tryBody, catchClauses, finallyBody);
     }
 
-    private Node parseBlock() {
-        matchLexeme("{");
-
+    private List<Node> parseBlockBody(Token open) {
         List<Node> body = new ArrayList<>();
         while (!peek().getLexeme().equals("}")) {
+            if (peek().getTokenType() == TokenType.EOF) {
+                throw new LexemeMismatchError(peek(),
+                        "Expected '}' to close block opened at line " + open.getLine() + ", column " + open.getColumn());
+            }
             body.add(parseStatement(true));
         }
         matchLexeme("}");
+        return body;
+    }
 
-        return new Block(body);
+    private Node parseBlock() {
+        Token open = matchLexeme("{");
+        return new Block(parseBlockBody(open));
     }
 
     private Node parseSwitchArrowBody() {

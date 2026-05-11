@@ -869,10 +869,9 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
 
     @Override
     public Void visitFuncDecl(FuncDecl stmt) {
-        if (ctx.isTopLevel) {
+        if (ctx.isTopLevel && ctx.blockDepth == 0) {
             return null;
         }
-        ctx.localFunctions.add(stmt.getName());
         int n = ctx.lambdaCounter[0]++;
         String mName = "mira$lambda$" + n;
         String lClass = ctx.className + "$Lambda$" + n;
@@ -909,7 +908,20 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
         mv.visitInsn(DUP);
         emitIntConst(stmt.getArity());
         mv.visitMethodInsn(INVOKESPECIAL, visibleClass, "<init>", "(I)V", false);
-        emitVarStore(stmt.getName(), true);
+
+        if (ctx.isTopLevel) {
+            // Block-scoped fn at top level: hoist to GLOBALS like the interpreter does
+            int tmp = ctx.slots.allocate("$$fn_" + stmt.getName());
+            mv.visitVarInsn(ASTORE, tmp);
+            emitRealGlobals();
+            mv.visitLdcInsn(stmt.getName());
+            mv.visitVarInsn(ALOAD, tmp);
+            mv.visitMethodInsn(INVOKEVIRTUAL, ENV, "defineFunction",
+                    "(Ljava/lang/String;" + OBJ_D + ")V", false);
+        } else {
+            ctx.localFunctions.add(stmt.getName());
+            emitVarStore(stmt.getName(), true);
+        }
         return null;
     }
 

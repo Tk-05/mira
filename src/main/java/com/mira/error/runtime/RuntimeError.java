@@ -24,6 +24,10 @@ public class RuntimeError extends MiraError {
                     "Undefined variable '" + identifier + "'",
                     "Declare '" + identifier + "' with 'var' or 'const' before using it");
         }
+
+        public UndefinedVariableError(String identifier, String hint) {
+            super("E202", "Undefined variable '" + identifier + "'", hint);
+        }
     }
 
     public static class ArgMismatchError extends RuntimeError {
@@ -34,6 +38,13 @@ public class RuntimeError extends MiraError {
                     + ", but got " + actual,
                     "Check the function signature and the number of arguments you are passing");
         }
+
+        public ArgMismatchError(String function, int expected, int actual, String signature) {
+            super("E203",
+                    "'" + function + "' expects " + expected + " argument" + (expected == 1 ? "" : "s")
+                    + ", but got " + actual,
+                    signature);
+        }
     }
 
     public static class UndefinedReferenceError extends RuntimeError {
@@ -42,6 +53,10 @@ public class RuntimeError extends MiraError {
             super("E204",
                     "'" + identifier + "' is not defined",
                     "Make sure '" + identifier + "' is imported or declared before use");
+        }
+
+        public UndefinedReferenceError(String identifier, String hint) {
+            super("E204", "'" + identifier + "' is not defined", hint);
         }
     }
 

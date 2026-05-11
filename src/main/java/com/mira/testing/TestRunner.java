@@ -22,15 +22,15 @@ public class TestRunner {
         try {
             fn.call(interpreter, List.of());
             results.add(new TestResult(name, true, null));
-            System.out.println("  ✓ " + name);
+            System.out.println("  PASS " + name);
         } catch (ThrowSignal ts) {
             String msg = ts.getValue() != null ? String.valueOf(ts.getValue()) : ts.getExceptionType();
             results.add(new TestResult(name, false, msg));
-            System.out.println("  ✗ " + name + " — " + msg);
+            System.out.println("  FAIL " + name + " — " + msg);
         } catch (Exception e) {
             String msg = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
             results.add(new TestResult(name, false, msg));
-            System.out.println("  ✗ " + name + " — " + msg);
+            System.out.println("  FAIL " + name + " — " + msg);
         }
     }
 

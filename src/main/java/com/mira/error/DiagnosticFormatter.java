@@ -43,18 +43,28 @@ public final class DiagnosticFormatter {
             String[] sourceLines = Flags.sourceLines;
             if (sourceLines != null && line <= sourceLines.length) {
                 String srcLine = sourceLines[line - 1];
-                String lineLabel = String.format("%4d", line);
 
-                sb.append(DIM).append("     |").append(RESET).append("\n");
-                sb.append(DIM).append(lineLabel).append(" |").append(RESET)
-                        .append(" ").append(srcLine).append("\n");
+                if (line >= 2) {
+                    String prevLine = sourceLines[line - 2];
+                    String prevLabel = String.format("%4d", line - 1);
+                    sb.append(DIM).append(prevLabel).append(" |").append(RESET)
+                            .append(" ").append(prevLine).append("\n");
+                } else {
+                    sb.append(DIM).append("     |").append(RESET).append("\n");
+                }
+
+                String lineLabel = String.format("%4d", line);
+                sb.append(lineLabel).append(" | ").append(srcLine).append("\n");
 
                 sb.append(DIM).append("     |").append(RESET).append(" ");
                 int caretPos = Math.max(0, col - 1);
                 for (int i = 0; i < caretPos; i++) {
                     sb.append(srcLine.length() > i && srcLine.charAt(i) == '\t' ? '\t' : ' ');
                 }
-                sb.append(RED).append(BOLD).append("^").append(RESET).append("\n");
+                int caretLen = error.getSpan();
+                sb.append(RED).append(BOLD);
+                sb.append("^".repeat(caretLen));
+                sb.append(RESET).append("\n");
                 sb.append(DIM).append("     |").append(RESET).append("\n");
             }
         } else {

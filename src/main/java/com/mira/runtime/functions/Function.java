@@ -144,4 +144,8 @@ public class Function implements Callable {
     public int getMaxArity() {
         return maxArity;
     }
+
+    public List<Parameter> getParameters() {
+        return parameters;
+    }
 }

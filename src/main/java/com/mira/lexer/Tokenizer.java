@@ -35,6 +35,8 @@ public class Tokenizer {
     private int current = 0;
     private int line = 1;
     private int column = 0;
+    private int tokenStartLine = 1;
+    private int tokenStartColumn = 1;
 
     public List<Token> tokenize(String source, boolean ignoreSequences) {
         this.source = source;
@@ -55,10 +57,14 @@ public class Tokenizer {
         current = 0;
         line = 1;
         column = 0;
+        tokenStartLine = 1;
+        tokenStartColumn = 1;
         tokens.clear();
     }
 
     private void scanToken() {
+        tokenStartLine = line;
+        tokenStartColumn = column + 1; // advance() will bring column to this value
         char c = advance();
 
         switch (c) {
@@ -185,8 +191,8 @@ public class Tokenizer {
         tokens.add(new Token(
                 TokenType.STRING_LITERAL,
                 valueBuilder.toString(),
-                line,
-                column
+                tokenStartLine,
+                tokenStartColumn
         ));
     }
 
@@ -204,7 +210,7 @@ public class Tokenizer {
                 advance();
                 advance();
                 advance();
-                tokens.add(new Token(TokenType.STRING_LITERAL, valueBuilder.toString(), line, column));
+                tokens.add(new Token(TokenType.STRING_LITERAL, valueBuilder.toString(), tokenStartLine, tokenStartColumn));
                 return;
             }
 
@@ -230,7 +236,7 @@ public class Tokenizer {
                 ? TokenType.KEYWORD
                 : TokenType.EXPRESSION;
 
-        tokens.add(new Token(type, text, line, column));
+        tokens.add(new Token(type, text, tokenStartLine, tokenStartColumn));
     }
 
     private void scanNumber() {
@@ -239,7 +245,7 @@ public class Tokenizer {
             while (!isAtEnd() && isHexDigit(peek())) {
                 advance();
             }
-            tokens.add(new Token(TokenType.EXPRESSION, source.substring(start, current), line, column));
+            tokens.add(new Token(TokenType.EXPRESSION, source.substring(start, current), tokenStartLine, tokenStartColumn));
             return;
         }
 
@@ -253,7 +259,7 @@ public class Tokenizer {
             } while (!isAtEnd() && Character.isDigit(peek()));
         }
 
-        tokens.add(new Token(TokenType.EXPRESSION, source.substring(start, current), line, column));
+        tokens.add(new Token(TokenType.EXPRESSION, source.substring(start, current), tokenStartLine, tokenStartColumn));
     }
 
     private void scanOperator() {
@@ -281,8 +287,8 @@ public class Tokenizer {
         tokens.add(new Token(
                 TokenType.OPERATION,
                 bestMatch,
-                line,
-                column
+                tokenStartLine,
+                tokenStartColumn
         ));
     }
 
@@ -311,14 +317,14 @@ public class Tokenizer {
         tokens.add(new Token(
                 TokenType.DELIMITER,
                 bestMatch,
-                line,
-                column
+                tokenStartLine,
+                tokenStartColumn
         ));
     }
 
     private void addToken(TokenType type) {
         String text = source.substring(start, current);
-        tokens.add(new Token(type, text, line, column));
+        tokens.add(new Token(type, text, tokenStartLine, tokenStartColumn));
     }
 
     private char advance() {

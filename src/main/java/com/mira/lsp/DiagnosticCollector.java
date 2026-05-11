@@ -44,7 +44,8 @@ public class DiagnosticCollector {
     private static Diagnostic fromError(MiraError e, DiagnosticSeverity severity) {
         int line = Math.max(e.getLine() - 1, 0);
         int col = Math.max(e.getColumn() - 1, 0);
-        Range range = new Range(new Position(line, col), new Position(line, col + 1));
+        int endCol = col + Math.max(1, e.getSpan());
+        Range range = new Range(new Position(line, col), new Position(line, endCol));
         String message = e.getMessage();
         if (e.getHint() != null) {
             message += "\n💡 " + e.getHint();

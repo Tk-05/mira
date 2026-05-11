@@ -58,35 +58,6 @@ java -jar target/mira-RELEASE.jar
 | `-o <dir>`              | Output directory for compiled `.class` files (default: same directory as source) |
 | `--lsp`                 | Start the Mira Language Server (LSP) over stdin/stdout                           |
 
-**Test framework:**
-
-Use the built-in `test(name, fn)` function to write tests, then run with `-test`:
-
-```mira
-module MyTests
-
-test("addition", fn() {
-    assert(1 + 1 == 2);
-});
-
-test("sqrt", fn() {
-    import math as m;
-    assert(m.sqrt(9.0) == 3.0);
-});
-```
-
-```bash
-java -jar target/mira-RELEASE.jar MyTests.mira -test
-#   ✓ addition
-#   ✓ sqrt
-#
-# ─── Test Summary ───
-#   Passed : 2
-#   Failed : 0
-#   Total  : 2
-#   Status : OK
-```
-
 **Language Server (LSP):**
 
 The Mira JAR includes a built-in LSP server. Start it with `--lsp` over stdin/stdout. The VS Code extension in `lsp/` connects automatically and provides:

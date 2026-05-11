@@ -1493,6 +1493,76 @@ Import with `import thread as thread;`.
 
 ---
 
+## Testing
+
+Mira has a built-in test framework. Use the `test(name, fn)` function to register test cases and run them with the `-test` flag.
+
+### Writing Tests
+
+```
+module MyTests;
+
+test("addition works", fn() {
+    assert(1 + 1 == 2);
+});
+
+test("string comparison", fn() {
+    assert(strEqual("hello", "hello"));
+});
+
+test("math library", fn() {
+    import math as m;
+    assert(m.sqrt(9.0) == 3.0);
+    assert(m.abs(-5.0) == 5.0);
+});
+```
+
+The second argument to `test` is a zero-argument function. Inside it, use `assert(condition)` to check expectations — `assert` throws an exception when the condition is false, which the test runner catches and records as a failure.
+
+### Running Tests
+
+```
+java -jar mira.jar MyTests.mira -test
+```
+
+**Output:**
+
+```
+  PASS addition works
+  PASS string comparison
+  PASS math library
+
+─── Test Summary ───
+  Passed : 3
+  Failed : 0
+  Total  : 3
+  Status : OK
+```
+
+When a test fails:
+
+```
+  FAIL addition works — assertion failed
+  PASS string comparison
+
+─── Test Summary ───
+  Passed : 1
+  Failed : 1
+  Total  : 2
+  Status : FAILED
+```
+
+The process exits with code `1` when any test fails, making it suitable for CI pipelines.
+
+### Notes
+
+- `test(name, fn)` is only available when running with `-test`. Defining a function named `test` in normal code works without conflicts.
+- Tests run sequentially in the order they are registered.
+- Any uncaught exception inside a test body counts as a failure. The error message is shown next to `FAIL`.
+- `assert` is a built-in function available in all contexts, not only inside tests.
+
+---
+
 ## IDE Integration (LSP)
 
 Mira ships with a built-in Language Server that implements the [Language Server Protocol (LSP)](https://microsoft.github.io/language-server-protocol/). It runs as a subprocess of your editor and communicates over stdin/stdout.
