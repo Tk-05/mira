@@ -20,6 +20,8 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 
 import com.mira.Flags;
+import com.mira.error.MiraError;
+import com.mira.error.runtime.RuntimeError;
 import com.mira.error.runtime.RuntimeError.LibImportConflictError;
 import com.mira.error.runtime.RuntimeError.NativeLibLoadError;
 import com.mira.error.runtime.RuntimeError.NativeLibNoImplementationError;
@@ -169,7 +171,13 @@ public class ImportResolver {
                     case STDLIB ->
                         resolveStdlibImport(expr, environment);
                 }
-            } catch (com.mira.error.MiraError e) {
+            } catch (MiraError e) {
+                if (!e.getImportChain().isEmpty()) {
+                    Path ip = Flags.inputPath.get();
+                    if (ip != null) {
+                        e.addImportChain(ip.getFileName().toString());
+                    }
+                }
                 throw e;
             } catch (RuntimeException e) {
                 throw new RuntimeException("Import '" + expr.getModule() + "' could not be resolved", e);
@@ -295,6 +303,10 @@ public class ImportResolver {
             Flags.inputPath.set(previousFile);
             loadFuture.complete(null);
 
+        } catch (MiraError e) {
+            e.addImportChain(modulePath.getFileName().toString());
+            loadFuture.completeExceptionally(e);
+            throw e;
         } catch (IOException | RuntimeException e) {
             loadFuture.completeExceptionally(e);
             if (e instanceof RuntimeException re) {
@@ -306,7 +318,7 @@ public class ImportResolver {
 
     private static String validateModuleDeclaration(List<Node> asts, ImportExpression expr) {
         if (!(asts.getFirst() instanceof ModuleDecl moduleDecl)) {
-            throw new com.mira.error.runtime.RuntimeError.ModuleMissingDeclarationError(expr.getModule());
+            throw new RuntimeError.ModuleMissingDeclarationError(expr.getModule());
         }
         return moduleDecl.getModuleName();
     }
@@ -361,7 +373,12 @@ public class ImportResolver {
             conflicts.retainAll(globalLibNames.keySet());
             if (!conflicts.isEmpty()) {
                 String conflictingLib = globalLibNames.get(conflicts.iterator().next());
-                throw new LibImportConflictError(conflictingLib, libName, conflicts);
+                LibImportConflictError err = new LibImportConflictError(conflictingLib, libName, conflicts);
+                Path ip = Flags.inputPath.get();
+                if (ip != null) {
+                    err.withSourceFile(ip.getFileName().toString());
+                }
+                throw err;
             }
             for (String name : toLoad) {
                 environment.define(name, temp.get(name));
@@ -380,30 +397,39 @@ public class ImportResolver {
                 ? candidate.normalize()
                 : currentFile.getParent().resolve(candidate).normalize();
 
+        Path ipRef = Flags.inputPath.get();
+        String importingFile = ipRef != null ? ipRef.getFileName().toString() : null;
+
         if (!Files.exists(jarPath)) {
-            throw new NativeLibNotFoundError(jarPath.toString());
+            throw new NativeLibNotFoundError(jarPath.toString()).withSourceFile(importingFile);
         }
 
         String libKey = jarPath.toAbsolutePath().toString();
-        Lib lib = loadedNativeLibs.computeIfAbsent(libKey, k -> {
-            try {
-                URL jarUrl = jarPath.toUri().toURL();
-                URLClassLoader loader = new URLClassLoader(
-                        new URL[]{jarUrl},
-                        ImportResolver.class.getClassLoader());
-                nativeClassLoaders.add(loader);
-                ServiceLoader<Lib> serviceLoader = ServiceLoader.load(Lib.class, loader);
-                Lib l = serviceLoader.findFirst().orElse(null);
-                if (l == null) {
-                    throw new NativeLibNoImplementationError(jarPath.toString());
+        Lib lib;
+        try {
+            lib = loadedNativeLibs.computeIfAbsent(libKey, k -> {
+                try {
+                    URL jarUrl = jarPath.toUri().toURL();
+                    URLClassLoader loader = new URLClassLoader(
+                            new URL[]{jarUrl},
+                            ImportResolver.class.getClassLoader());
+                    nativeClassLoaders.add(loader);
+                    ServiceLoader<Lib> serviceLoader = ServiceLoader.load(Lib.class, loader);
+                    Lib l = serviceLoader.findFirst().orElse(null);
+                    if (l == null) {
+                        throw new NativeLibNoImplementationError(jarPath.toString());
+                    }
+                    return l;
+                } catch (NativeLibNoImplementationError | NativeLibNotFoundError e) {
+                    throw e;
+                } catch (Exception e) {
+                    throw new NativeLibLoadError(jarPath.toString(), e);
                 }
-                return l;
-            } catch (NativeLibNoImplementationError | NativeLibNotFoundError e) {
-                throw e;
-            } catch (Exception e) {
-                throw new NativeLibLoadError(jarPath.toString(), e);
-            }
-        });
+            });
+        } catch (MiraError e) {
+            e.withSourceFile(importingFile);
+            throw e;
+        }
 
         Namespace ns = new Namespace(alias);
         lib.loadLib(ns);

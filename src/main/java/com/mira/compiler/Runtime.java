@@ -5,6 +5,11 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 
+import com.mira.error.runtime.RuntimeError.FieldAccessError;
+import com.mira.error.runtime.RuntimeError.NotANamespaceError;
+import com.mira.error.runtime.RuntimeError.NotCallableError;
+import com.mira.error.runtime.RuntimeError.RangeStepZeroError;
+import com.mira.error.runtime.RuntimeError.TypeConversionError;
 import com.mira.parser.nodes.expression.Expression;
 import com.mira.parser.nodes.expression.Expression.ArrayExpression;
 import com.mira.parser.nodes.expression.Expression.DumbExpression;
@@ -173,7 +178,7 @@ public final class Runtime {
         if (value instanceof String s) {
             return Double.parseDouble(s);
         }
-        throw new RuntimeException("Cannot convert to number: " + value);
+        throw new TypeConversionError(value);
     }
 
     public static Object add(Object a, Object b) {
@@ -462,7 +467,7 @@ public final class Runtime {
         long e = ((Number) end).longValue();
         long st = step != null ? ((Number) step).longValue() : 1L;
         if (st == 0) {
-            throw new RuntimeException("Range stepsize cannot be zero");
+            throw new RangeStepZeroError();
         }
         List<Expression> members = new ArrayList<>();
         for (long i = s; st > 0 ? i < e : i > e; i += st) {
@@ -533,7 +538,7 @@ public final class Runtime {
                 yield evalExpr(list.getMembers().get(i));
             }
             default ->
-                throw new RuntimeException("Not indexable: " + container);
+                throw new com.mira.error.runtime.RuntimeError.NotIterableError();
         };
     }
 
@@ -554,7 +559,7 @@ public final class Runtime {
             case MapExpression map ->
                 map.getEntries().put(String.valueOf(index), wrapExpr(value));
             default ->
-                throw new RuntimeException("Not indexable: " + container);
+                throw new com.mira.error.runtime.RuntimeError.NotIterableError();
         }
     }
 
@@ -570,7 +575,7 @@ public final class Runtime {
             throw new RuntimeException("Field access on string name - use $ to look up: " + name);
         }
         if (!(obj instanceof Environment env)) {
-            throw new RuntimeException("Field access on non-object: " + obj);
+            throw new FieldAccessError(field, String.valueOf(typeofVal(obj)));
         }
         return env.get(field);
     }
@@ -584,18 +589,18 @@ public final class Runtime {
 
     public static void fieldSet(Object obj, String field, Object value) {
         if (!(obj instanceof Environment env)) {
-            throw new RuntimeException("Field assign on non-object");
+            throw new FieldAccessError(field, String.valueOf(typeofVal(obj)));
         }
         env.assign(field, value);
     }
 
     public static Object methodCall(Object obj, String method, Object[] args) {
         if (!(obj instanceof Environment env)) {
-            throw new RuntimeException("Method call on non-object: " + obj);
+            throw new FieldAccessError(method, String.valueOf(typeofVal(obj)));
         }
         Object fn = env.get(method);
         if (!(fn instanceof Callable callable)) {
-            throw new RuntimeException("Not callable: " + method);
+            throw new NotCallableError(method + " (got: " + typeofVal(fn) + ")");
         }
         Environment prev = METHOD_ENV.get();
         METHOD_ENV.set(env);
@@ -620,7 +625,7 @@ public final class Runtime {
     public static Object callNamed(Environment globals, String name, Object[] args) {
         Object callee = globals.get(name);
         if (!(callee instanceof Callable callable)) {
-            throw new RuntimeException("Not callable: " + name);
+            throw new NotCallableError(name + " (got: " + typeofVal(callee) + ")");
         }
         return callable.call(null, Arrays.asList(args));
     }
@@ -628,18 +633,18 @@ public final class Runtime {
     public static Object namespaceCall(Environment globals, String ns, String fn, Object[] args) {
         Object nsObj = globals.get(ns);
         if (!(nsObj instanceof Namespace namespace)) {
-            throw new RuntimeException("Not a namespace: " + ns);
+            throw new NotANamespaceError(ns);
         }
         Object callee = namespace.get(fn);
         if (!(callee instanceof Callable callable)) {
-            throw new RuntimeException("Not callable: " + ns + "." + fn);
+            throw new NotCallableError(ns + "." + fn + " (got: " + typeofVal(callee) + ")");
         }
         return callable.call(null, Arrays.asList(args));
     }
 
     public static Object dynamicCall(Object callee, Object[] args) {
         if (!(callee instanceof Callable callable)) {
-            throw new RuntimeException("Not callable: " + callee);
+            throw new NotCallableError(String.valueOf(typeofVal(callee)));
         }
         return callable.call(null, Arrays.asList(args));
     }

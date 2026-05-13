@@ -34,14 +34,16 @@ public final class DiagnosticFormatter {
         int line = error.getLine();
         int col = error.getColumn();
 
-        String fileName = Flags.fileName != null ? Flags.fileName : "<input>";
+        String sourceFile = error.getSourceFile();
+        String fileName = sourceFile != null ? sourceFile
+                : (Flags.fileName != null ? Flags.fileName : "<input>");
 
         if (line > 0) {
             sb.append(CYAN).append("  --> ").append(RESET)
                     .append(fileName).append(":").append(line).append(":").append(col).append("\n");
 
             String[] sourceLines = Flags.sourceLines;
-            if (sourceLines != null && line <= sourceLines.length) {
+            if (sourceLines != null && line <= sourceLines.length && sourceFile == null) {
                 String srcLine = sourceLines[line - 1];
 
                 if (line >= 2) {
@@ -69,6 +71,12 @@ public final class DiagnosticFormatter {
             }
         } else {
             sb.append(CYAN).append("  --> ").append(RESET).append(fileName).append("\n");
+        }
+
+        java.util.List<String> chain = error.getImportChain();
+        if (!chain.isEmpty()) {
+            sb.append(CYAN).append("     = ").append(RESET)
+                    .append("imported via: ").append(String.join(" → ", chain)).append("\n");
         }
 
         if (error.getHint() != null) {

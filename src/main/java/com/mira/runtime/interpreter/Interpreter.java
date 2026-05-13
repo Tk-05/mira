@@ -533,7 +533,8 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             case ">=" ->
                 evaluateComparison(left, ">=", right);
             default ->
-                throw new UnknownOperatorError(op);
+                throw new UnknownOperatorError(op, typeName(left), typeName(right))
+                        .withLocation(expression.getOperator().getLine(), expression.getOperator().getColumn());
         };
     }
 
@@ -552,7 +553,14 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                     }
                 }
 
-                return (T) globalEnvironment.get(name);
+                try {
+                    return (T) globalEnvironment.get(name);
+                } catch (com.mira.error.MiraError e) {
+                    if (e.getLine() < 0 && expression.getRight() instanceof DumbExpression de) {
+                        e.withLocation(de.getLine(), de.getColumn());
+                    }
+                    throw e;
+                }
             }
 
             case "-" -> {
@@ -576,7 +584,8 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             case "++" -> {
                 if (!(expression.getRight() instanceof UnaryExpression varExpr)
                         || !varExpr.getOperation().getLexeme().equals("$")) {
-                    throw new PostUnaryError("++");
+                    throw new PostUnaryError("++")
+                            .withLocation(expression.getOperation().getLine(), expression.getOperation().getColumn());
                 }
 
                 String name = (String) varExpr.getRight().accept(this);
@@ -593,7 +602,8 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                     try {
                         numVal = parseNumber(String.valueOf(raw));
                     } catch (NumberFormatException e) {
-                        throw new PostExprNaNError(name);
+                        throw new PostExprNaNError(name)
+                                .withLocation(expression.getOperation().getLine(), expression.getOperation().getColumn());
                     }
                 }
                 Object newValue = numericAdd(numVal, 1L);
@@ -604,7 +614,8 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             case "--" -> {
                 if (!(expression.getRight() instanceof UnaryExpression varExpr)
                         || !varExpr.getOperation().getLexeme().equals("$")) {
-                    throw new PostUnaryError("--");
+                    throw new PostUnaryError("--")
+                            .withLocation(expression.getOperation().getLine(), expression.getOperation().getColumn());
                 }
 
                 String name = (String) varExpr.getRight().accept(this);
@@ -621,7 +632,8 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                     try {
                         numVal = parseNumber(String.valueOf(raw));
                     } catch (NumberFormatException e) {
-                        throw new PostExprNaNError(name);
+                        throw new PostExprNaNError(name)
+                                .withLocation(expression.getOperation().getLine(), expression.getOperation().getColumn());
                     }
                 }
                 Object newValue = numericSub(numVal, 1L);
@@ -635,7 +647,8 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             }
 
             default ->
-                throw new UnknownOperatorError(operator);
+                throw new UnknownOperatorError(operator)
+                        .withLocation(expression.getOperation().getLine(), expression.getOperation().getColumn());
         }
     }
 
@@ -655,6 +668,9 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         String calleeName;
         Object callee;
 
+        int calleeLine = expression.getCallee() instanceof DumbExpression de ? de.getLine() : -1;
+        int calleeCol = expression.getCallee() instanceof DumbExpression de2 ? de2.getColumn() : -1;
+
         if (calleeResult instanceof String name) {
             calleeName = name;
             callee = globalEnvironment.getOrNull(calleeName);
@@ -662,23 +678,34 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                 Object local = localEnvironment.getOrNull(calleeName);
                 if (local instanceof Callable) {
                     if (!localEnvironment.isDeclaredFunction(calleeName)) {
-                        throw new LocalCallableError(calleeName);
+                        LocalCallableError lcErr = new LocalCallableError(calleeName);
+                        lcErr.withLocation(calleeLine, calleeCol);
+                        throw lcErr;
                     }
                     callee = local;
                 }
             }
             if (callee == null) {
-                callee = globalEnvironment.get(calleeName);
+                try {
+                    callee = globalEnvironment.get(calleeName);
+                } catch (com.mira.error.MiraError e) {
+                    if (e.getLine() < 0) {
+                        e.withLocation(calleeLine, calleeCol);
+                    }
+                    throw e;
+                }
             }
         } else if (calleeResult instanceof Callable) {
             calleeName = "<lambda>";
             callee = calleeResult;
         } else {
-            throw new NotCallableError(String.valueOf(calleeResult) + " (got: " + typeName(calleeResult) + ")");
+            throw new NotCallableError(String.valueOf(calleeResult) + " (got: " + typeName(calleeResult) + ")")
+                    .withLocation(calleeLine, calleeCol);
         }
 
         if (!(callee instanceof Callable callable)) {
-            throw new NotCallableError(calleeName + " (got: " + typeName(callee) + ")");
+            throw new NotCallableError(calleeName + " (got: " + typeName(callee) + ")")
+                    .withLocation(calleeLine, calleeCol);
         }
 
         List<Object> arguments = new ArrayList<>();
@@ -692,10 +719,14 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             int max = f.getMaxArity();
             if (arguments.size() < min || (max != -1 && arguments.size() > max)) {
                 String sig = buildSignature(calleeName, f);
-                throw new ArgMismatchError(calleeName, min, arguments.size(), sig);
+                ArgMismatchError amErr = new ArgMismatchError(calleeName, min, arguments.size(), sig);
+                amErr.withLocation(calleeLine, calleeCol);
+                throw amErr;
             }
         } else if (callable.getArity() != -1 && arguments.size() != callable.getArity()) {
-            throw new ArgMismatchError(calleeName, callable.getArity(), arguments.size());
+            ArgMismatchError amErr = new ArgMismatchError(calleeName, callable.getArity(), arguments.size());
+            amErr.withLocation(calleeLine, calleeCol);
+            throw amErr;
         }
 
         miraCallStack.push(calleeName);
@@ -842,7 +873,10 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             if (expression.isOptional()) {
                 return (T) NullValue.INSTANCE;
             }
-            throw new FieldAccessError(expression.getField());
+            int faLine = expression.getObject() instanceof UnaryExpression ue ? ue.getOperation().getLine() : -1;
+            int faCol = expression.getObject() instanceof UnaryExpression ue2 ? ue2.getOperation().getColumn() : -1;
+            throw new FieldAccessError(expression.getField(), typeName(object))
+                    .withLocation(faLine, faCol);
         }
 
         return (T) objectEnv.get(expression.getField());
@@ -863,7 +897,10 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         }
 
         if (!(objectValue instanceof Environment objectEnv)) {
-            throw new FieldAccessError(expression.getMethod());
+            int mcLine = expression.getObject() instanceof UnaryExpression ue ? ue.getOperation().getLine() : -1;
+            int mcCol = expression.getObject() instanceof UnaryExpression ue2 ? ue2.getOperation().getColumn() : -1;
+            throw new FieldAccessError(expression.getMethod(), typeName(objectValue))
+                    .withLocation(mcLine, mcCol);
         }
 
         Object methodValue = objectEnv.get(expression.getMethod());
@@ -1340,10 +1377,17 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             }
         }
 
-        if (varDecl.isConst()) {
-            env.defineConst(varDecl.getName(), value);
-        } else {
-            env.define(varDecl.getName(), value);
+        try {
+            if (varDecl.isConst()) {
+                env.defineConst(varDecl.getName(), value);
+            } else {
+                env.define(varDecl.getName(), value);
+            }
+        } catch (com.mira.error.MiraError e) {
+            if (e.getLine() < 0) {
+                e.withLocation(varDecl.line, 0);
+            }
+            throw e;
         }
 
         return null;
@@ -1484,11 +1528,20 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                 if (assign.getReference() instanceof UnaryExpression unaryExpression) {
                     String name = String.valueOf(unaryExpression.getRight().accept(this));
                     Object expression = assign.getExpression().accept(this);
+                    int assignLine = unaryExpression.getOperation().getLine();
+                    int assignCol = unaryExpression.getOperation().getColumn();
 
-                    if (localEnvironment != null && localEnvironment.existsInChain(name)) {
-                        localEnvironment.assign(name, expression);
-                    } else {
-                        globalEnvironment.assign(name, expression);
+                    try {
+                        if (localEnvironment != null && localEnvironment.existsInChain(name)) {
+                            localEnvironment.assign(name, expression);
+                        } else {
+                            globalEnvironment.assign(name, expression);
+                        }
+                    } catch (com.mira.error.MiraError e) {
+                        if (e.getLine() < 0) {
+                            e.withLocation(assignLine, assignCol);
+                        }
+                        throw e;
                     }
                 } else {
                     throw new AssertionError();

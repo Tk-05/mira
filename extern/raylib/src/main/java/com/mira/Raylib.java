@@ -151,6 +151,33 @@ public class Raylib implements Lib {
             return start + t * (end - start);
         }));
 
+        // LoadFontEx with extended codepoints: ASCII (32–126) + bullet (8226) + middle dot (183)
+        env.define("LoadFontEx", new NativeFunction(2, args -> {
+            String path = String.valueOf(args.get(0));
+            int baseSize = toInt(args.get(1));
+            int[] cp = new int[97]; // 95 ASCII + 2 extra
+            for (int i = 0; i < 95; i++) {
+                cp[i] = 32 + i;
+            }
+            cp[95] = 183;   // ·
+            cp[96] = 8226;  // •
+            try (IntPointer ptr = new IntPointer(cp.length)) {
+                for (int i = 0; i < cp.length; i++) {
+                    ptr.put(i, cp[i]);
+                }
+                return com.raylib.Raylib.LoadFontEx(path, baseSize, ptr, cp.length);
+            }
+        }));
+
+        // MeasureTextEx — overrides auto-bound version to return width as double instead of Vector2
+        env.define("MeasureTextEx", new NativeFunction(4, args -> {
+            Font font = (Font) args.get(0);
+            String text = String.valueOf(args.get(1));
+            float fontSize = toFloat(args.get(2));
+            float spacing = toFloat(args.get(3));
+            return (double) com.raylib.Raylib.MeasureTextEx(font, text, fontSize, spacing).x();
+        }));
+
         // Short aliases for mouse buttons (MOUSE_BUTTON_* are auto-bound from Jaylib)
         env.define("MOUSE_LEFT", 0.0);
         env.define("MOUSE_RIGHT", 1.0);

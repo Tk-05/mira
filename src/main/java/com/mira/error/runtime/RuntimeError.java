@@ -94,6 +94,11 @@ public class RuntimeError extends MiraError {
             super("E208", "Unknown operator '" + token + "'",
                     "Check the list of supported operators in the language reference");
         }
+
+        public UnknownOperatorError(String token, String leftType, String rightType) {
+            super("E208", "Cannot apply '" + token + "' to " + leftType + " and " + rightType,
+                    "Check operand types before applying this operator");
+        }
     }
 
     public static class PostUnaryError extends RuntimeError {
@@ -157,6 +162,12 @@ public class RuntimeError extends MiraError {
         public FieldAccessError(String field) {
             super("E215",
                     "Cannot access field '" + field + "' on a non-object value",
+                    "Make sure the value is an object literal before using '.' field access");
+        }
+
+        public FieldAccessError(String field, String actualType) {
+            super("E215",
+                    "Cannot access field '" + field + "' on " + actualType + " (expected object)",
                     "Make sure the value is an object literal before using '.' field access");
         }
     }

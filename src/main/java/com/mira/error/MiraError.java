@@ -1,5 +1,9 @@
 package com.mira.error;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
 public abstract class MiraError extends RuntimeException {
 
     private final String errorCode;
@@ -7,6 +11,10 @@ public abstract class MiraError extends RuntimeException {
     private final int column;
     private final int span;
     private final String hint;
+    private String sourceFile = null;
+    private final List<String> importChain = new ArrayList<>();
+    private int runtimeLine = -1;
+    private int runtimeCol = -1;
 
     protected MiraError(String errorCode, String message, int line, int column, int span, String hint) {
         super(message);
@@ -33,16 +41,22 @@ public abstract class MiraError extends RuntimeException {
         this(errorCode, message, -1, -1, 1, hint);
     }
 
+    public MiraError withLocation(int line, int column) {
+        this.runtimeLine = line;
+        this.runtimeCol = column;
+        return this;
+    }
+
     public String getErrorCode() {
         return errorCode;
     }
 
     public int getLine() {
-        return line;
+        return runtimeLine >= 0 ? runtimeLine : line;
     }
 
     public int getColumn() {
-        return column;
+        return runtimeCol >= 0 ? runtimeCol : column;
     }
 
     public int getSpan() {
@@ -51,5 +65,22 @@ public abstract class MiraError extends RuntimeException {
 
     public String getHint() {
         return hint;
+    }
+
+    public MiraError withSourceFile(String file) {
+        this.sourceFile = file;
+        return this;
+    }
+
+    public String getSourceFile() {
+        return sourceFile;
+    }
+
+    public void addImportChain(String file) {
+        importChain.add(file);
+    }
+
+    public List<String> getImportChain() {
+        return Collections.unmodifiableList(importChain);
     }
 }
