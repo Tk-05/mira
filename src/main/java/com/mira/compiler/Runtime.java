@@ -24,6 +24,9 @@ public final class Runtime {
 
     public static final Object CACHE_MISS = new Object();
 
+    private static final java.util.concurrent.ConcurrentHashMap<String, java.util.Set<String>> moduleMainAdditions
+            = new java.util.concurrent.ConcurrentHashMap<>();
+
     public static Object cacheGet(java.util.concurrent.ConcurrentHashMap<java.util.List<Object>, Object> cache, Object[] args) {
         return cache.getOrDefault(java.util.Arrays.asList(args), CACHE_MISS);
     }
@@ -43,19 +46,30 @@ public final class Runtime {
             java.lang.reflect.Field globalsField = cls.getDeclaredField("GLOBALS");
             globalsField.setAccessible(true);
             Environment moduleGlobals = (Environment) globalsField.get(null);
-            java.util.Set<String> beforeMain = new java.util.HashSet<>(moduleGlobals.keySet());
 
-            try {
-                java.lang.reflect.Method mainMethod = cls.getMethod("main", String[].class);
-                mainMethod.invoke(null, (Object) new String[0]);
-            } catch (java.lang.reflect.InvocationTargetException ite) {
-                Throwable cause = ite.getCause();
-                if (cause instanceof RuntimeException re) {
-                    throw re;
+            java.util.Set<String> mainAdditions = moduleMainAdditions.get(dotClassName);
+            if (mainAdditions == null) {
+                java.util.Set<String> beforeMain = new java.util.HashSet<>(moduleGlobals.keySet());
+                try {
+                    java.lang.reflect.Method mainMethod = cls.getMethod("main", String[].class);
+                    mainMethod.invoke(null, (Object) new String[0]);
+                } catch (java.lang.reflect.InvocationTargetException ite) {
+                    Throwable cause = ite.getCause();
+                    if (cause instanceof RuntimeException re) {
+                        throw re;
+                    }
+                    throw new RuntimeException(cause);
+                } catch (NoSuchMethodException | IllegalAccessException e) {
+                    throw new RuntimeException("Failed to initialize module: " + dotClassName, e);
                 }
-                throw new RuntimeException(cause);
-            } catch (NoSuchMethodException | IllegalAccessException e) {
-                throw new RuntimeException("Failed to initialize module: " + dotClassName, e);
+                java.util.Set<String> delta = new java.util.HashSet<>();
+                for (String key : moduleGlobals.keySet()) {
+                    if (!beforeMain.contains(key) && !key.equals("args")) {
+                        delta.add(key);
+                    }
+                }
+                moduleMainAdditions.put(dotClassName, delta);
+                mainAdditions = delta;
             }
 
             Namespace ns = new Namespace(alias);
@@ -95,10 +109,8 @@ public final class Runtime {
                 });
             }
 
-            for (String name : moduleGlobals.keySet()) {
-                if (!beforeMain.contains(name)) {
-                    ns.forceDefine(name, moduleGlobals.get(name));
-                }
+            for (String name : mainAdditions) {
+                ns.forceDefine(name, moduleGlobals.get(name));
             }
 
             globals.forceDefine(alias, ns);

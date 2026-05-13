@@ -34,6 +34,7 @@ import com.mira.parser.nodes.Node;
 import com.mira.parser.nodes.Parameter;
 import com.mira.parser.nodes.expression.Expression;
 import com.mira.parser.nodes.expression.Expression.ImportExpression;
+import com.mira.parser.nodes.statement.Statement.EnumDecl;
 import com.mira.parser.nodes.statement.Statement.FuncDecl;
 import com.mira.parser.nodes.statement.Statement.ModuleDecl;
 
@@ -220,11 +221,9 @@ public class Compiler {
                 "(Ljava/lang/String;Ljava/lang/Object;)V", false);
 
         for (Node node : ast) {
-            if (node instanceof FuncDecl || node instanceof ModuleDecl
-                    || node instanceof Expression.ImportExpression) {
-                continue;
+            if (node instanceof EnumDecl) {
+                emitter.emitNode(node);
             }
-            emitter.emitNode(node);
         }
 
         for (Map.Entry<String, String> entry : compiledModules.entrySet()) {
@@ -235,6 +234,14 @@ public class Compiler {
             mv.visitLdcInsn(dotName);
             mv.visitMethodInsn(INVOKESTATIC, RT, "loadCompiledModule",
                     "(" + ClassEmitter.ENV_DESC + "Ljava/lang/String;Ljava/lang/String;)V", false);
+        }
+
+        for (Node node : ast) {
+            if (node instanceof FuncDecl || node instanceof ModuleDecl
+                    || node instanceof Expression.ImportExpression || node instanceof EnumDecl) {
+                continue;
+            }
+            emitter.emitNode(node);
         }
 
         if (Flags.mainFunction && knownFunctions.contains("main")) {

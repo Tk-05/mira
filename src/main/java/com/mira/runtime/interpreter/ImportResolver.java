@@ -58,8 +58,9 @@ public class ImportResolver {
     private static final ConcurrentHashMap<String, CompletableFuture<Void>> moduleLoadFutures = new ConcurrentHashMap<>();
     private static final Set<String> loadedLibs = new HashSet<>();
     private static final Map<String, String> globalLibNames = new HashMap<>();
-    private static final Map<String, Lib> loadedNativeLibs = new HashMap<>();
+    private static final ConcurrentHashMap<String, Lib> loadedNativeLibs = new ConcurrentHashMap<>();
     private static final List<URLClassLoader> nativeClassLoaders = new ArrayList<>();
+    private static final ConcurrentHashMap<String, Namespace> resolvedModules = new ConcurrentHashMap<>();
     private static final Map<String, Lib> libs = new HashMap<String, Lib>() {
         {
             put("math", new Math());
@@ -107,6 +108,7 @@ public class ImportResolver {
 
     public static void reset() {
         moduleLoadFutures.clear();
+        resolvedModules.clear();
         loadedLibs.clear();
         loadedNativeLibs.clear();
         globalLibNames.clear();
@@ -204,6 +206,17 @@ public class ImportResolver {
                 }
                 throw new RuntimeException(cause);
             }
+            String earlyAlias = importExpression.getNamespace();
+            if (earlyAlias != null && !earlyAlias.isBlank()) {
+                Namespace resolved = resolvedModules.get(moduleKey);
+                if (resolved != null) {
+                    synchronized (environment) {
+                        if (!environment.exists(earlyAlias)) {
+                            environment.define(earlyAlias, resolved);
+                        }
+                    }
+                }
+            }
             return;
         }
 
@@ -271,6 +284,7 @@ public class ImportResolver {
             if (hasAlias) {
                 Namespace publicNamespace = new Namespace(alias);
                 modulePrivateEnv.copyDeclarationsTo(publicNamespace, importedSymbols);
+                resolvedModules.put(moduleKey, publicNamespace);
                 synchronized (environment) {
                     environment.define(alias, publicNamespace);
                 }
@@ -366,38 +380,31 @@ public class ImportResolver {
                 ? candidate.normalize()
                 : currentFile.getParent().resolve(candidate).normalize();
 
-        String cacheKey = jarPath.toAbsolutePath() + "#" + alias;
-
-        if (loadedNativeLibs.containsKey(cacheKey)) {
-            Namespace ns = new Namespace(alias);
-            loadedNativeLibs.get(cacheKey).loadLib(ns);
-            environment.define(alias, ns);
-            return;
-        }
-
         if (!Files.exists(jarPath)) {
             throw new NativeLibNotFoundError(jarPath.toString());
         }
 
-        Lib lib;
-        try {
-            URL jarUrl = jarPath.toUri().toURL();
-            URLClassLoader loader = new URLClassLoader(
-                    new URL[]{jarUrl},
-                    ImportResolver.class.getClassLoader());
-            nativeClassLoaders.add(loader);
-            ServiceLoader<Lib> serviceLoader = ServiceLoader.load(Lib.class, loader);
-            lib = serviceLoader.findFirst().orElse(null);
-            if (lib == null) {
-                throw new NativeLibNoImplementationError(jarPath.toString());
+        String libKey = jarPath.toAbsolutePath().toString();
+        Lib lib = loadedNativeLibs.computeIfAbsent(libKey, k -> {
+            try {
+                URL jarUrl = jarPath.toUri().toURL();
+                URLClassLoader loader = new URLClassLoader(
+                        new URL[]{jarUrl},
+                        ImportResolver.class.getClassLoader());
+                nativeClassLoaders.add(loader);
+                ServiceLoader<Lib> serviceLoader = ServiceLoader.load(Lib.class, loader);
+                Lib l = serviceLoader.findFirst().orElse(null);
+                if (l == null) {
+                    throw new NativeLibNoImplementationError(jarPath.toString());
+                }
+                return l;
+            } catch (NativeLibNoImplementationError | NativeLibNotFoundError e) {
+                throw e;
+            } catch (Exception e) {
+                throw new NativeLibLoadError(jarPath.toString(), e);
             }
-        } catch (NativeLibNoImplementationError | NativeLibNotFoundError e) {
-            throw e;
-        } catch (Exception e) {
-            throw new NativeLibLoadError(jarPath.toString(), e);
-        }
+        });
 
-        loadedNativeLibs.put(cacheKey, lib);
         Namespace ns = new Namespace(alias);
         lib.loadLib(ns);
         environment.define(alias, ns);
