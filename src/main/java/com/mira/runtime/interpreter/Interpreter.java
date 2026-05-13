@@ -755,7 +755,8 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                         funcDecl.getArity(),
                         funcDecl.getMaxArity(),
                         funcDecl.getVariadicParam(),
-                        funcDecl.isAsync()));
+                        funcDecl.isAsync(),
+                        globalEnvironment));
 
         return null;
     }
@@ -765,7 +766,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         Environment capturedEnv = localEnvironment != null
                 ? localEnvironment.snapshot(globalEnvironment)
                 : globalEnvironment;
-        return (T) new Function(capturedEnv, lambda.getBody(), lambda.getParameters(), lambda.getArity(), lambda.getMaxArity(), lambda.getVariadicParam(), lambda.isAsync());
+        return (T) new Function(capturedEnv, lambda.getBody(), lambda.getParameters(), lambda.getArity(), lambda.getMaxArity(), lambda.getVariadicParam(), lambda.isAsync(), globalEnvironment);
     }
 
     @Override
@@ -978,7 +979,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
         for (FuncDecl method : expression.getMethods()) {
             Function fn = new Function(objectEnv, method.getBody(), method.getParameters(),
-                    method.getArity(), method.getMaxArity(), method.getVariadicParam());
+                    method.getArity(), method.getMaxArity(), method.getVariadicParam(), globalEnvironment);
             objectEnv.define(method.getName(), fn);
         }
 
@@ -1934,6 +1935,10 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
     public Environment getGlobalEnvironment() {
         return globalEnvironment;
+    }
+
+    public void setGlobalEnvironment(Environment globalEnvironment) {
+        this.globalEnvironment = globalEnvironment;
     }
 
     private String formatValue(Object val) {

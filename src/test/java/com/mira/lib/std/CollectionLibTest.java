@@ -284,8 +284,6 @@ public class CollectionLibTest {
         assertEquals(0, ((ListExpression) result).getMembers().size());
     }
 
-    // HOF tests
-
     @Test
     void testMap() {
         ListExpression result = (ListExpression) callHof("map", makeList("1", "2", "3"), doubler());
@@ -335,8 +333,6 @@ public class CollectionLibTest {
         ListExpression result = (ListExpression) callHof("sortBy", makeList("3", "1", "2"), identity());
         assertEquals("1", String.valueOf(((DumbExpression) result.getMembers().get(0)).getValue()));
     }
-
-    // Utility tests
 
     @Test
     void testSort() {

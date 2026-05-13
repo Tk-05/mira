@@ -32,13 +32,19 @@ public final class Runtime {
         cache.put(java.util.Arrays.asList(args), value);
     }
 
-    public static void loadCompiledModule(Environment namespaces, String alias, String dotClassName) {
+    public static void loadCompiledModule(Environment globals, String alias, String dotClassName) {
         try {
             ClassLoader cl = Thread.currentThread().getContextClassLoader();
             if (cl == null) {
                 cl = Runtime.class.getClassLoader();
             }
             Class<?> cls = Class.forName(dotClassName, true, cl);
+
+            java.lang.reflect.Field globalsField = cls.getDeclaredField("GLOBALS");
+            globalsField.setAccessible(true);
+            Environment moduleGlobals = (Environment) globalsField.get(null);
+            java.util.Set<String> beforeMain = new java.util.HashSet<>(moduleGlobals.keySet());
+
             try {
                 java.lang.reflect.Method mainMethod = cls.getMethod("main", String[].class);
                 mainMethod.invoke(null, (Object) new String[0]);
@@ -51,6 +57,7 @@ public final class Runtime {
             } catch (NoSuchMethodException | IllegalAccessException e) {
                 throw new RuntimeException("Failed to initialize module: " + dotClassName, e);
             }
+
             Namespace ns = new Namespace(alias);
             for (java.lang.reflect.Method m : cls.getDeclaredMethods()) {
                 if (!m.getName().startsWith("mira$")) {
@@ -87,8 +94,15 @@ public final class Runtime {
                     }
                 });
             }
-            namespaces.forceDefine(alias, ns);
-        } catch (ClassNotFoundException e) {
+
+            for (String name : moduleGlobals.keySet()) {
+                if (!beforeMain.contains(name)) {
+                    ns.forceDefine(name, moduleGlobals.get(name));
+                }
+            }
+
+            globals.forceDefine(alias, ns);
+        } catch (ClassNotFoundException | NoSuchFieldException | IllegalAccessException e) {
             throw new RuntimeException("Compiled module not found: " + dotClassName, e);
         }
     }
@@ -532,14 +546,9 @@ public final class Runtime {
         }
     }
 
-    public static Object resolveIfNamespace(Object val, Environment namespaces, Environment globals) {
-        if (val instanceof String name) {
-            if (namespaces.exists(name)) {
-                return namespaces.get(name);
-            }
-            if (globals != null && globals.exists(name)) {
-                return globals.get(name);
-            }
+    public static Object resolveIfNamespace(Object val, Environment globals) {
+        if (val instanceof String name && globals.exists(name)) {
+            return globals.get(name);
         }
         return val;
     }
@@ -604,8 +613,8 @@ public final class Runtime {
         return callable.call(null, Arrays.asList(args));
     }
 
-    public static Object namespaceCall(Environment namespaces, String ns, String fn, Object[] args) {
-        Object nsObj = namespaces.get(ns);
+    public static Object namespaceCall(Environment globals, String ns, String fn, Object[] args) {
+        Object nsObj = globals.get(ns);
         if (!(nsObj instanceof Namespace namespace)) {
             throw new RuntimeException("Not a namespace: " + ns);
         }

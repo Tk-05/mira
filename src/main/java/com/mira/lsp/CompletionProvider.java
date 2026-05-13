@@ -144,7 +144,7 @@ public class CompletionProvider {
                     }
                 }
                 case NATIVE -> {
-                } // runtime-only, skip
+                }
             }
         }
     }

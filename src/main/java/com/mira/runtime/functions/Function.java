@@ -35,6 +35,7 @@ public class Function implements Callable {
     }
 
     private final Environment environment;
+    private final Environment globalContext;
     private final List<Parameter> parameters;
     private final List<Node> body;
     private final int arity;
@@ -42,12 +43,13 @@ public class Function implements Callable {
     private final String variadicParam;
     private final boolean isAsync;
 
-    public Function(Environment environment, List<Node> body, List<Parameter> parameters, int arity, int maxArity, String variadicParam) {
-        this(environment, body, parameters, arity, maxArity, variadicParam, false);
+    public Function(Environment environment, List<Node> body, List<Parameter> parameters, int arity, int maxArity, String variadicParam, Environment globalContext) {
+        this(environment, body, parameters, arity, maxArity, variadicParam, false, globalContext);
     }
 
-    public Function(Environment environment, List<Node> body, List<Parameter> parameters, int arity, int maxArity, String variadicParam, boolean isAsync) {
+    public Function(Environment environment, List<Node> body, List<Parameter> parameters, int arity, int maxArity, String variadicParam, boolean isAsync, Environment globalContext) {
         this.environment = environment;
+        this.globalContext = globalContext;
         this.body = body;
         this.parameters = parameters;
         this.arity = arity;
@@ -89,6 +91,7 @@ public class Function implements Callable {
 
         if (isAsync) {
             Interpreter forked = interpreter.fork();
+            forked.setGlobalEnvironment(globalContext);
             CompletableFuture<Object> future = CompletableFuture.supplyAsync(() -> {
                 forked.setLocalEnvironment(localEnv);
                 try {
@@ -113,7 +116,9 @@ public class Function implements Callable {
         }
 
         Environment previous = interpreter.getLocalEnvironment();
+        Environment previousGlobal = interpreter.getGlobalEnvironment();
         interpreter.setLocalEnvironment(localEnv);
+        interpreter.setGlobalEnvironment(globalContext);
 
         try {
             for (Node node : body) {
@@ -131,6 +136,7 @@ public class Function implements Callable {
             return returnSignal.getValue();
         } finally {
             interpreter.setLocalEnvironment(previous);
+            interpreter.setGlobalEnvironment(previousGlobal);
         }
 
         return null;

@@ -141,13 +141,6 @@ public class Compiler {
                 "(L" + ENV + ";)V", false);
         mv.visitFieldInsn(PUTSTATIC, className, "GLOBALS", ENV_D);
 
-        mv.visitTypeInsn(NEW, ENV);
-        mv.visitInsn(DUP);
-        mv.visitInsn(org.objectweb.asm.Opcodes.ACONST_NULL);
-        mv.visitMethodInsn(INVOKESPECIAL, ENV, "<init>",
-                "(L" + ENV + ";)V", false);
-        mv.visitFieldInsn(PUTSTATIC, className, "NAMESPACES", ENV_D);
-
         mv.visitFieldInsn(org.objectweb.asm.Opcodes.GETSTATIC, className, "GLOBALS", ENV_D);
         mv.visitMethodInsn(INVOKESTATIC, IMPORT_RESOLVER, "loadInternal",
                 "(" + ENV_D + ")V", false);
@@ -159,8 +152,7 @@ public class Compiler {
                 }
                 String alias = ie.getNamespace();
                 boolean hasAlias = alias != null && !alias.isBlank();
-                String targetField = hasAlias ? "NAMESPACES" : "GLOBALS";
-                mv.visitFieldInsn(org.objectweb.asm.Opcodes.GETSTATIC, className, targetField, ENV_D);
+                mv.visitFieldInsn(org.objectweb.asm.Opcodes.GETSTATIC, className, "GLOBALS", ENV_D);
                 mv.visitLdcInsn(ie.getKind().name());
                 mv.visitLdcInsn(ie.getModule());
                 if (hasAlias) {
@@ -238,7 +230,7 @@ public class Compiler {
         for (Map.Entry<String, String> entry : compiledModules.entrySet()) {
             String alias = entry.getKey();
             String dotName = entry.getValue().replace('/', '.');
-            mv.visitFieldInsn(org.objectweb.asm.Opcodes.GETSTATIC, className, "NAMESPACES", ClassEmitter.ENV_DESC);
+            mv.visitFieldInsn(org.objectweb.asm.Opcodes.GETSTATIC, className, "GLOBALS", ClassEmitter.ENV_DESC);
             mv.visitLdcInsn(alias);
             mv.visitLdcInsn(dotName);
             mv.visitMethodInsn(INVOKESTATIC, RT, "loadCompiledModule",

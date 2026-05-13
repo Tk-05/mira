@@ -64,7 +64,7 @@ public class Tokenizer {
 
     private void scanToken() {
         tokenStartLine = line;
-        tokenStartColumn = column + 1; // advance() will bring column to this value
+        tokenStartColumn = column + 1;
         char c = advance();
 
         switch (c) {

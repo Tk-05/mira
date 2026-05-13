@@ -42,7 +42,10 @@ import com.mira.parser.nodes.Node;
 import com.mira.parser.nodes.expression.Expression;
 import com.mira.parser.nodes.expression.Expression.ImportExpression;
 import com.mira.parser.nodes.expression.Expression.ImportExpression.ImportKind;
+import com.mira.parser.nodes.statement.Statement.EnumDecl;
+import com.mira.parser.nodes.statement.Statement.FuncDecl;
 import com.mira.parser.nodes.statement.Statement.ModuleDecl;
+import com.mira.parser.nodes.statement.Statement.VarDecl;
 
 public class ImportResolver {
 
@@ -228,7 +231,6 @@ public class ImportResolver {
 
             String alias = importExpression.getNamespace();
             boolean hasAlias = alias != null && !alias.isBlank();
-            Environment targetEnv = hasAlias ? new Namespace(alias) : environment;
 
             List<ImportExpression> nestedImports = new ArrayList<>();
             List<Node> moduleBody = new ArrayList<>();
@@ -240,16 +242,40 @@ public class ImportResolver {
                 }
             }
 
-            resolveImports(nestedImports, targetEnv, interpreter, false);
+            Namespace modulePrivateEnv = new Namespace(hasAlias ? alias : "__mod__");
+            internal.loadLib(modulePrivateEnv);
+            resolveImports(nestedImports, modulePrivateEnv, interpreter, false);
+            Set<String> importedSymbols = new HashSet<>(modulePrivateEnv.keySet());
 
             for (Node ast : moduleBody) {
-                interpreter.loadASTIntoContext(ast, targetEnv);
+                switch (ast) {
+                    case FuncDecl fd ->
+                        interpreter.loadASTIntoContext(fd, modulePrivateEnv);
+                    case EnumDecl ed ->
+                        interpreter.loadASTIntoContext(ed, modulePrivateEnv);
+                    case VarDecl vd when vd.isConst() ->
+                        interpreter.loadASTIntoContext(vd, modulePrivateEnv);
+                    default -> {
+                    }
+                }
+            }
+
+            for (Node ast : moduleBody) {
+                if (ast instanceof FuncDecl || ast instanceof EnumDecl
+                        || (ast instanceof VarDecl vd && vd.isConst())) {
+                    continue;
+                }
+                interpreter.loadASTIntoContext(ast, modulePrivateEnv);
             }
 
             if (hasAlias) {
+                Namespace publicNamespace = new Namespace(alias);
+                modulePrivateEnv.copyDeclarationsTo(publicNamespace, importedSymbols);
                 synchronized (environment) {
-                    environment.define(alias, targetEnv);
+                    environment.define(alias, publicNamespace);
                 }
+            } else {
+                modulePrivateEnv.copyDeclarationsTo(environment, importedSymbols);
             }
 
             Flags.inputPath.set(previousFile);

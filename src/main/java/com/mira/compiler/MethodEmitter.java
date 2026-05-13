@@ -487,7 +487,7 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
 
     @Override
     public <T> T visitNamespaceCallExpr(NamespaceCallExpression expression) {
-        mv.visitFieldInsn(GETSTATIC, ctx.className, "NAMESPACES", ENV_D);
+        mv.visitFieldInsn(GETSTATIC, ctx.className, "GLOBALS", ENV_D);
         mv.visitLdcInsn(expression.getAlias());
         mv.visitLdcInsn(expression.getFunctionName());
         emitObjectArray(expression.getArguments());
@@ -668,10 +668,9 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
     }
 
     private void resolveIfStringName() {
-        mv.visitFieldInsn(GETSTATIC, ctx.className, "NAMESPACES", ENV_D);
         mv.visitFieldInsn(GETSTATIC, ctx.className, "GLOBALS", ENV_D);
         mv.visitMethodInsn(INVOKESTATIC, RT, "resolveIfNamespace",
-                "(" + OBJ_D + ENV_D + ENV_D + ")" + OBJ_D, false);
+                "(" + OBJ_D + ENV_D + ")" + OBJ_D, false);
     }
 
     @Override
@@ -910,7 +909,6 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
         mv.visitMethodInsn(INVOKESPECIAL, visibleClass, "<init>", "(I)V", false);
 
         if (ctx.isTopLevel) {
-            // Block-scoped fn at top level: hoist to GLOBALS like the interpreter does
             int tmp = ctx.slots.allocate("$$fn_" + stmt.getName());
             mv.visitVarInsn(ASTORE, tmp);
             emitRealGlobals();

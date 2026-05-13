@@ -224,7 +224,6 @@ public class Collection implements Lib {
             return list;
         }));
 
-        // ── Higher-order functions ────────────────────────────────────────────
         environment.define("map", new Callable() {
             @Override
             public int getArity() {
@@ -404,7 +403,6 @@ public class Collection implements Lib {
             }
         });
 
-        // ── Utility functions ─────────────────────────────────────────────────
         environment.define("sort", new NativeFunction(1, args -> {
             List<Expression> members = new ArrayList<>(toMembers(args.get(0)));
             members.sort((a, b) -> {

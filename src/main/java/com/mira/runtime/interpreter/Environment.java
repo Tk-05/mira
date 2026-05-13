@@ -193,4 +193,20 @@ public class Environment {
         return values.keySet();
     }
 
+    public void copyDeclarationsTo(Environment target, Set<String> exclude) {
+        for (String name : values.keySet()) {
+            if (exclude.contains(name)) {
+                continue;
+            }
+            Object value = values.get(name);
+            if (declaredFunctions.contains(name)) {
+                target.defineFunction(name, value);
+            } else if (constants.contains(name)) {
+                target.defineConst(name, value);
+            } else {
+                target.define(name, value);
+            }
+        }
+    }
+
 }
