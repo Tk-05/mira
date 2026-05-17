@@ -88,6 +88,8 @@ public class Main {
                         Flags.outputDir = Paths.get(args[i + 1]);
                         i++;
                     }
+                    case "-package" ->
+                        Flags.packageJar = true;
                     default ->
                         throw new RuntimeException(args[i] + " is not a known flag");
                 }
@@ -160,6 +162,10 @@ public class Main {
 
             if (Flags.exitBeforeInterpreter) {
                 return;
+            }
+
+            if (Flags.packageJar && !Flags.compile) {
+                System.err.println("Warning: -package has no effect without -compile");
             }
 
             if (Flags.compile) {

@@ -13,8 +13,9 @@
 9. [Built-in Functions](#built-in-functions)
 10. [Standard Libraries](#standard-libraries)
 11. [Multithreading](#multithreading)
-12. [IDE Integration (LSP)](#ide-integration-lsp)
-13. [Example Program](#example-program)
+12. [Compilation](#compilation)
+13. [IDE Integration (LSP)](#ide-integration-lsp)
+14. [Example Program](#example-program)
 
 ---
 
@@ -1628,6 +1629,64 @@ The process exits with code `1` when any test fails, making it suitable for CI p
 - Tests run sequentially in the order they are registered.
 - Any uncaught exception inside a test body counts as a failure. The error message is shown next to `FAIL`.
 - `assert` is a built-in function available in all contexts, not only inside tests.
+
+---
+
+## Compilation
+
+Mira scripts can be compiled to JVM bytecode instead of interpreted. The compiler produces standard `.class` files that run on any JVM without the Mira interpreter.
+
+### Compile to `.class` files
+
+```bash
+java -jar mira-RELEASE.jar script.mira -compile
+```
+
+Writes `.class` files next to the source file. Use `-o <dir>` to write them to a different directory:
+
+```bash
+java -jar mira-RELEASE.jar script.mira -compile -o out/
+```
+
+Run the compiled output directly with the JVM (Mira runtime required on the classpath):
+
+```bash
+java -cp mira-RELEASE.jar:out/ com.mira.compiled.Script
+```
+
+### Package into a standalone JAR
+
+The `-package` flag (used together with `-compile`) bundles the compiled classes and the entire Mira runtime into a single self-contained fat JAR:
+
+```bash
+java -jar mira-RELEASE.jar script.mira -compile -package
+```
+
+The JAR is placed next to the source file (or in the `-o` directory if specified) and named after the script:
+
+```bash
+java -jar Script.jar
+```
+
+No classpath setup is needed — the fat JAR is fully standalone and can be distributed as a single file.
+
+### Compile and run in memory
+
+`-compile-run` compiles the script and immediately executes it without writing any files to disk:
+
+```bash
+java -jar mira-RELEASE.jar script.mira -compile-run
+```
+
+### Compilation flags summary
+
+| Flag              | Description                                                               |
+| ----------------- | ------------------------------------------------------------------------- |
+| `-compile`        | Compile to JVM bytecode and write `.class` files                          |
+| `-package`        | Bundle `.class` files and the Mira runtime into a standalone fat JAR      |
+| `-compile-run`    | Compile and immediately run in memory (no files written)                  |
+| `-o <dir>`        | Output directory for `.class` files and JAR (default: source directory)   |
+| `-b`              | Dump disassembled bytecode of compiled classes to stdout                  |
 
 ---
 

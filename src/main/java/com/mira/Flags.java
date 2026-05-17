@@ -24,4 +24,5 @@ public class Flags {
     public static boolean compileAndRun = false;
     public static boolean dumpByteCode = false;
     public static Path outputDir = null;
+    public static boolean packageJar = false;
 }
