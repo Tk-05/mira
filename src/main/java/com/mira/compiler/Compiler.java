@@ -5,6 +5,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -40,7 +41,7 @@ import com.mira.parser.nodes.statement.Statement.ModuleDecl;
 
 public class Compiler {
 
-    public record CompileResult(byte[] mainClass, Map<String, byte[]> lambdaClasses, String className) {
+    public record CompileResult(byte[] mainClass, Map<String, byte[]> lambdaClasses, String className, Map<String, byte[]> nativeJars) {
 
     }
 
@@ -68,7 +69,29 @@ public class Compiler {
         }
 
         Map<String, byte[]> extras = new HashMap<>();
-        Map<String, String> compiledModules = compileModuleImports(ast, extras);
+        Map<String, byte[]> nativeJars = new LinkedHashMap<>();
+        Map<String, String> compiledModules = compileModuleImports(ast, extras, nativeJars);
+
+        Path ip = Flags.inputPath.get();
+        if (ip != null) {
+            Path inputDir = ip.toAbsolutePath().getParent();
+            for (Node node : ast) {
+                if (node instanceof ImportExpression ie && ie.getKind() == ImportExpression.ImportKind.NATIVE) {
+                    String rawPath = ie.getModule().replace("\"", "");
+                    Path candidate = Path.of(rawPath);
+                    Path jarPath = candidate.isAbsolute()
+                            ? candidate.normalize()
+                            : inputDir.resolve(candidate).normalize();
+                    if (Files.exists(jarPath)) {
+                        try {
+                            nativeJars.putIfAbsent(rawPath, Files.readAllBytes(jarPath));
+                        } catch (IOException e) {
+                            throw new RuntimeException("Cannot read native JAR: " + jarPath, e);
+                        }
+                    }
+                }
+            }
+        }
 
         emitStaticInit(ce, className, ast, pureFunctions);
         emitMain(ce, className, knownFunctions, lambdaCounter, ast, compiledModules);
@@ -81,10 +104,10 @@ public class Compiler {
 
         byte[] mainBytes = ce.finish();
         extras.putAll(ce.getExtraClasses());
-        return new CompileResult(mainBytes, extras, className);
+        return new CompileResult(mainBytes, extras, className, nativeJars);
     }
 
-    private Map<String, String> compileModuleImports(List<Node> ast, Map<String, byte[]> extras) {
+    private Map<String, String> compileModuleImports(List<Node> ast, Map<String, byte[]> extras, Map<String, byte[]> nativeJars) {
         Map<String, String> result = new HashMap<>();
         for (Node node : ast) {
             if (!(node instanceof ImportExpression ie)) {
@@ -123,6 +146,7 @@ public class Compiler {
                 Flags.inputPath.set(prev);
                 extras.put(r.className(), r.mainClass());
                 extras.putAll(r.lambdaClasses());
+                nativeJars.putAll(r.nativeJars());
                 result.put(alias, r.className());
             } catch (IOException e) {
                 throw new RuntimeException("Cannot read module: " + modulePath, e);
