@@ -103,9 +103,21 @@ mylib.jar
 ### Variable Declaration
 
 ```
-var <name>;                  // Uninitialized (implicitly null)
-var <name> : <expression>;   // With initial value
-const <name> : <expression>; // Immutable
+var <name>;                                    // Uninitialized (implicitly null)
+var <name> : <expression>;                     // With initial value
+var <name1>, <name2>, ...;                     // Multiple variables at once
+var <name1> : <expr1>, <name2> : <expr2>, ...; // Multiple with individual initializers
+const <name> : <expression>;                   // Immutable
+const <name1> : <expr1>, <name2> : <expr2>;    // Multiple constants
+```
+
+Multiple variables can be declared in a single statement, each with its own optional initializer (like C):
+
+```
+var x, y;            // x = null, y = null
+var x : 5, y;        // x = 5,    y = null
+var x, y : 10;       // x = null, y = 10
+var x : 5, y : 10;   // x = 5,    y = 10
 ```
 
 ### Destructuring
@@ -150,6 +162,18 @@ Assignment:
 ```
 $<name> : <expression>;
 $<obj>.<field> : <expression>;
+```
+
+Field access also works directly on any expression — including function call results and inline structs — without assigning to a variable first:
+
+```
+fn tets() {
+    return { var a : 42; };
+}
+
+tets().a          // => 42
+tets().a.b        // Chained field access
+tets()?.a         // Optional chaining on call result
 ```
 
 ### Compound Assignment
@@ -310,6 +334,13 @@ Combine with `??` to provide a fallback:
 
 ```
 $user?.name ?? "anonymous"
+```
+
+Both `.` and `?.` work on any expression, not just variables:
+
+```
+getUser().name          // field access on call result
+getUser()?.address?.city
 ```
 
 ### Grouping
@@ -1249,56 +1280,56 @@ Always available without any import.
 
 ### `string`
 
-| Function                  | Description                              |
-| ------------------------- | ---------------------------------------- |
-| `charAt(str, index)`      | Returns the character at the given index        |
-| `indexOf(str, char)`      | Returns the first index of a character          |
-| `trim(str)`               | Removes leading and trailing whitespace         |
-| `split(str, delimiter)`   | Splits string into an array                     |
-| `substr(str, start, end)` | Returns a substring                             |
-| `strEqual(str1, str2)`    | Returns true if both strings are equal          |
-| `replace(str, from, to)`  | Replaces all occurrences of a character         |
-| `upper(str)`              | Returns `str` converted to uppercase            |
-| `lower(str)`              | Returns `str` converted to lowercase            |
-| `startsWith(str, prefix)` | Returns true if `str` starts with `prefix`      |
-| `endsWith(str, suffix)`   | Returns true if `str` ends with `suffix`        |
-| `contains(str, sub)`      | Returns true if `str` contains `sub`            |
-| `repeat(str, n)`          | Returns `str` repeated `n` times               |
-| `toNumber(str)`           | Parses `str` as a number                        |
-| `padLeft(str, width)`     | Left-pads `str` with spaces to `width`          |
-| `padRight(str, width)`    | Right-pads `str` with spaces to `width`         |
-| `isNumeric(str)`          | Returns true if `str` is a valid number         |
+| Function                  | Description                                |
+| ------------------------- | ------------------------------------------ |
+| `charAt(str, index)`      | Returns the character at the given index   |
+| `indexOf(str, char)`      | Returns the first index of a character     |
+| `trim(str)`               | Removes leading and trailing whitespace    |
+| `split(str, delimiter)`   | Splits string into an array                |
+| `substr(str, start, end)` | Returns a substring                        |
+| `strEqual(str1, str2)`    | Returns true if both strings are equal     |
+| `replace(str, from, to)`  | Replaces all occurrences of a character    |
+| `upper(str)`              | Returns `str` converted to uppercase       |
+| `lower(str)`              | Returns `str` converted to lowercase       |
+| `startsWith(str, prefix)` | Returns true if `str` starts with `prefix` |
+| `endsWith(str, suffix)`   | Returns true if `str` ends with `suffix`   |
+| `contains(str, sub)`      | Returns true if `str` contains `sub`       |
+| `repeat(str, n)`          | Returns `str` repeated `n` times           |
+| `toNumber(str)`           | Parses `str` as a number                   |
+| `padLeft(str, width)`     | Left-pads `str` with spaces to `width`     |
+| `padRight(str, width)`    | Right-pads `str` with spaces to `width`    |
+| `isNumeric(str)`          | Returns true if `str` is a valid number    |
 
 ### `collection`
 
 Works with lists and arrays unless noted otherwise.
 
-| Function                | Description                                                   |
-| ----------------------- | ------------------------------------------------------------- |
-| `size(col)`             | Returns the number of elements                                |
-| `push(list, value)`     | Appends a value to the end (mutates) — lists only             |
-| `pop(list)`             | Removes the last element (mutates) — lists only               |
-| `remove(list, index)`   | Removes the element at the given index (mutates) — lists only |
-| `first(col)`            | Returns the first element                                     |
-| `last(col)`             | Returns the last element                                      |
-| `contains(col, value)`  | Returns true if the value is in the collection                |
-| `indexOf(col, value)`   | Returns the index of a value, or `-1`                         |
-| `slice(col, from, to)`  | Returns a sub-list                                            |
-| `reverse(col)`          | Returns a reversed copy as a list                             |
-| `concat(col1, col2)`    | Concatenates two collections into a new list                  |
-| `flatten(col)`          | Flattens one level of nested lists/arrays                     |
-| `join(col, separator)`  | Joins elements into a string                                  |
-| `newList()`             | Creates an empty mutable list                                 |
-| `sort(col)`             | Sorts numerically, falls back to string comparison            |
-| `unique(col)`           | Removes duplicates, preserves insertion order                 |
-| `sum(col)`              | Returns the sum of all numeric elements                       |
-| `avg(col)`              | Returns the average (throws if empty)                         |
-| `min(col)`              | Returns the smallest numeric element                          |
-| `max(col)`              | Returns the largest numeric element                           |
-| `take(col, n)`          | Returns the first `n` elements                                |
-| `drop(col, n)`          | Returns all elements except the first `n`                     |
-| `zip(col1, col2)`       | Returns a list of `[a, b]` pairs                              |
-| `fill(n, val)`          | Creates a list of `n` copies of `val`                         |
+| Function               | Description                                                   |
+| ---------------------- | ------------------------------------------------------------- |
+| `size(col)`            | Returns the number of elements                                |
+| `push(list, value)`    | Appends a value to the end (mutates) — lists only             |
+| `pop(list)`            | Removes the last element (mutates) — lists only               |
+| `remove(list, index)`  | Removes the element at the given index (mutates) — lists only |
+| `first(col)`           | Returns the first element                                     |
+| `last(col)`            | Returns the last element                                      |
+| `contains(col, value)` | Returns true if the value is in the collection                |
+| `indexOf(col, value)`  | Returns the index of a value, or `-1`                         |
+| `slice(col, from, to)` | Returns a sub-list                                            |
+| `reverse(col)`         | Returns a reversed copy as a list                             |
+| `concat(col1, col2)`   | Concatenates two collections into a new list                  |
+| `flatten(col)`         | Flattens one level of nested lists/arrays                     |
+| `join(col, separator)` | Joins elements into a string                                  |
+| `newList()`            | Creates an empty mutable list                                 |
+| `sort(col)`            | Sorts numerically, falls back to string comparison            |
+| `unique(col)`          | Removes duplicates, preserves insertion order                 |
+| `sum(col)`             | Returns the sum of all numeric elements                       |
+| `avg(col)`             | Returns the average (throws if empty)                         |
+| `min(col)`             | Returns the smallest numeric element                          |
+| `max(col)`             | Returns the largest numeric element                           |
+| `take(col, n)`         | Returns the first `n` elements                                |
+| `drop(col, n)`         | Returns all elements except the first `n`                     |
+| `zip(col1, col2)`      | Returns a list of `[a, b]` pairs                              |
+| `fill(n, val)`         | Creates a list of `n` copies of `val`                         |
 
 #### Higher-Order Functions
 
@@ -1312,32 +1343,32 @@ var evens   : col.filter({1,2,3,4}, fn(x) { return eval($x % 2 == 0); }); // [2,
 var total   : col.reduce({1,2,3}, fn(acc, x) { return eval($acc + $x); }, 0); // 6
 ```
 
-| `map(col, fn)`          | Applies `fn` to each element, returns a new list              |
-| `filter(col, fn)`       | Keeps elements where `fn(element)` is truthy                  |
-| `reduce(col, fn, init)` | Fold-left: `fn(accumulator, element)`, starting with `init`   |
-| `any(col, fn)`          | True if at least one element satisfies `fn`                   |
-| `all(col, fn)`          | True if all elements satisfy `fn`                             |
-| `count(col, fn)`        | Counts elements where `fn(element)` is truthy                 |
-| `sortBy(col, fn)`       | Sorts by key extracted with `fn`                              |
-| `findFirst(col, fn)`    | Returns the first element where `fn(element)` is truthy       |
-| `chunk(col, size)`      | Splits into sub-lists of `size`                               |
-| `groupBy(col, fn)`      | Groups into a map: key = `fn(element)`, value = list          |
+| `map(col, fn)` | Applies `fn` to each element, returns a new list |
+| `filter(col, fn)` | Keeps elements where `fn(element)` is truthy |
+| `reduce(col, fn, init)` | Fold-left: `fn(accumulator, element)`, starting with `init` |
+| `any(col, fn)` | True if at least one element satisfies `fn` |
+| `all(col, fn)` | True if all elements satisfy `fn` |
+| `count(col, fn)` | Counts elements where `fn(element)` is truthy |
+| `sortBy(col, fn)` | Sorts by key extracted with `fn` |
+| `findFirst(col, fn)` | Returns the first element where `fn(element)` is truthy |
+| `chunk(col, size)` | Splits into sub-lists of `size` |
+| `groupBy(col, fn)` | Groups into a map: key = `fn(element)`, value = list |
 
 ### `map`
 
-| Function              | Description                           |
-| --------------------- | ------------------------------------- |
-| `newMap()`                    | Creates an empty mutable map                                       |
-| `mapSize(map)`                | Returns the number of entries                                      |
-| `mapHas(map, key)`            | Returns true if the key exists                                     |
-| `mapRemove(map, key)`         | Removes the entry and returns the map                              |
-| `mapKeys(map)`                | Returns a list of all keys                                         |
-| `mapValues(map)`              | Returns a list of all values                                       |
-| `mapSet(map, key, value)`     | Sets `key` to `value`, returns the map                             |
-| `mapGet(map, key)`            | Returns the value for `key`, or null if not found                  |
-| `mapEntries(map)`             | Returns a list of `[key, value]` pairs                             |
-| `mapMerge(map1, map2)`        | Merges two maps; `map2` values overwrite `map1` on conflict        |
-| `mapFromLists(keys, values)`  | Creates a map from two parallel lists                              |
+| Function                     | Description                                                 |
+| ---------------------------- | ----------------------------------------------------------- |
+| `newMap()`                   | Creates an empty mutable map                                |
+| `mapSize(map)`               | Returns the number of entries                               |
+| `mapHas(map, key)`           | Returns true if the key exists                              |
+| `mapRemove(map, key)`        | Removes the entry and returns the map                       |
+| `mapKeys(map)`               | Returns a list of all keys                                  |
+| `mapValues(map)`             | Returns a list of all values                                |
+| `mapSet(map, key, value)`    | Sets `key` to `value`, returns the map                      |
+| `mapGet(map, key)`           | Returns the value for `key`, or null if not found           |
+| `mapEntries(map)`            | Returns a list of `[key, value]` pairs                      |
+| `mapMerge(map1, map2)`       | Merges two maps; `map2` values overwrite `map1` on conflict |
+| `mapFromLists(keys, values)` | Creates a map from two parallel lists                       |
 
 ### `math`
 
@@ -1380,65 +1411,65 @@ Constants: `pi`, `e`, `inf`, `nan`
 
 ### `io`
 
-| Function                   | Description                                               |
-| -------------------------- | --------------------------------------------------------- |
-| `readFile(path)`           | Reads a file and returns its content as a string          |
-| `writeFile(path, content)` | Writes a string to a file, creating directories if needed |
-| `fileExists(path)`         | Returns true if the file exists                           |
-| `appendFile(path, content)`| Appends content to a file (creates it if needed)          |
-| `listDir(path)`            | Returns an array of file names in the directory           |
-| `mkdir(path)`              | Creates a directory including all parents                 |
-| `deleteFile(path)`         | Deletes the file at `path`                                |
+| Function                    | Description                                               |
+| --------------------------- | --------------------------------------------------------- |
+| `readFile(path)`            | Reads a file and returns its content as a string          |
+| `writeFile(path, content)`  | Writes a string to a file, creating directories if needed |
+| `fileExists(path)`          | Returns true if the file exists                           |
+| `appendFile(path, content)` | Appends content to a file (creates it if needed)          |
+| `listDir(path)`             | Returns an array of file names in the directory           |
+| `mkdir(path)`               | Creates a directory including all parents                 |
+| `deleteFile(path)`          | Deletes the file at `path`                                |
 
 ### `net`
 
-| Function                           | Description                        |
-| ---------------------------------- | ---------------------------------- |
-| `httpGet(url)`                     | Sends a GET request, returns body         |
-| `httpPost(url, body, contentType)` | Sends a POST request, returns body        |
-| `httpPut(url, body, contentType)`  | Sends a PUT request, returns body         |
-| `httpDelete(url)`                  | Sends a DELETE request, returns body      |
-| `httpStatus(url)`                  | Returns the HTTP status code              |
-| `httpHeader(url, header)`          | Returns a response header value           |
-| `httpDownload(url, path)`          | Downloads a file to the given path        |
-| `urlEncode(str)`                   | URL-encodes a string                      |
-| `urlDecode(str)`                   | URL-decodes a string                      |
+| Function                           | Description                          |
+| ---------------------------------- | ------------------------------------ |
+| `httpGet(url)`                     | Sends a GET request, returns body    |
+| `httpPost(url, body, contentType)` | Sends a POST request, returns body   |
+| `httpPut(url, body, contentType)`  | Sends a PUT request, returns body    |
+| `httpDelete(url)`                  | Sends a DELETE request, returns body |
+| `httpStatus(url)`                  | Returns the HTTP status code         |
+| `httpHeader(url, header)`          | Returns a response header value      |
+| `httpDownload(url, path)`          | Downloads a file to the given path   |
+| `urlEncode(str)`                   | URL-encodes a string                 |
+| `urlDecode(str)`                   | URL-decodes a string                 |
 
 ### `dateTime`
 
-| Function                | Description                                        |
-| ----------------------- | -------------------------------------------------- |
-| `now()`                 | Current date-time as ISO string                    |
-| `timestamp()`           | Current Unix timestamp in seconds                  |
-| `timestampMs()`         | Current Unix timestamp in milliseconds             |
-| `dateFormat(date, fmt)` | Formats a date string with a pattern               |
-| `year()`                | Current year                                       |
-| `month()`               | Current month (1–12)                               |
-| `day()`                 | Current day of month                               |
-| `hour()`                | Current hour (0–23)                                |
-| `minute()`              | Current minute                                     |
-| `second()`              | Current second                                     |
-| `dayOfWeek()`           | Day name e.g. `"MONDAY"`                           |
-| `dayOfYear()`           | Day of year (1–366)                                |
-| `secondsSince(date)`    | Seconds elapsed since the given date string        |
-| `fromEpoch(seconds)`    | Converts a Unix timestamp (seconds) to date string |
-| `addDays(date, n)`      | Returns a new date `n` days after `date`           |
-| `dateDiff(date1, date2)`| Returns the number of days between two dates       |
-| `isLeapYear(year)`      | True if `year` is a leap year                      |
+| Function                 | Description                                        |
+| ------------------------ | -------------------------------------------------- |
+| `now()`                  | Current date-time as ISO string                    |
+| `timestamp()`            | Current Unix timestamp in seconds                  |
+| `timestampMs()`          | Current Unix timestamp in milliseconds             |
+| `dateFormat(date, fmt)`  | Formats a date string with a pattern               |
+| `year()`                 | Current year                                       |
+| `month()`                | Current month (1–12)                               |
+| `day()`                  | Current day of month                               |
+| `hour()`                 | Current hour (0–23)                                |
+| `minute()`               | Current minute                                     |
+| `second()`               | Current second                                     |
+| `dayOfWeek()`            | Day name e.g. `"MONDAY"`                           |
+| `dayOfYear()`            | Day of year (1–366)                                |
+| `secondsSince(date)`     | Seconds elapsed since the given date string        |
+| `fromEpoch(seconds)`     | Converts a Unix timestamp (seconds) to date string |
+| `addDays(date, n)`       | Returns a new date `n` days after `date`           |
+| `dateDiff(date1, date2)` | Returns the number of days between two dates       |
+| `isLeapYear(year)`       | True if `year` is a leap year                      |
 
 ### `json`
 
-| Function                        | Description                                          |
-| ------------------------------- | ---------------------------------------------------- |
-| `jsonGet(json, key)`            | Gets a scalar value by key                              |
-| `jsonHas(json, key)`            | Returns true if the key exists                          |
-| `jsonArray(json, key)`          | Returns a top-level array as a list                     |
-| `jsonNested(json, parent, key)` | Returns a nested array by parent key and array key      |
-| `jsonBuild(keys, values)`       | Builds a JSON string from two lists                     |
-| `jsonFormat(json)`              | Pretty-prints a JSON string                             |
-| `jsonIndexOf(list, value)`      | Returns the index of a value in a JSON list, or `-1`    |
-| `jsonKeys(json)`                | Returns an array of top-level keys                      |
-| `jsonSize(json)`                | Returns the number of top-level keys/elements           |
+| Function                        | Description                                                |
+| ------------------------------- | ---------------------------------------------------------- |
+| `jsonGet(json, key)`            | Gets a scalar value by key                                 |
+| `jsonHas(json, key)`            | Returns true if the key exists                             |
+| `jsonArray(json, key)`          | Returns a top-level array as a list                        |
+| `jsonNested(json, parent, key)` | Returns a nested array by parent key and array key         |
+| `jsonBuild(keys, values)`       | Builds a JSON string from two lists                        |
+| `jsonFormat(json)`              | Pretty-prints a JSON string                                |
+| `jsonIndexOf(list, value)`      | Returns the index of a value in a JSON list, or `-1`       |
+| `jsonKeys(json)`                | Returns an array of top-level keys                         |
+| `jsonSize(json)`                | Returns the number of top-level keys/elements              |
 | `jsonSet(json, key, value)`     | Sets `key` to `value` in a JSON object, returns new string |
 
 ### `regex`
@@ -1680,13 +1711,13 @@ java -jar mira-RELEASE.jar script.mira -compile-run
 
 ### Compilation flags summary
 
-| Flag              | Description                                                               |
-| ----------------- | ------------------------------------------------------------------------- |
-| `-compile`        | Compile to JVM bytecode and write `.class` files                          |
-| `-package`        | Bundle `.class` files and the Mira runtime into a standalone fat JAR      |
-| `-compile-run`    | Compile and immediately run in memory (no files written)                  |
-| `-o <dir>`        | Output directory for `.class` files and JAR (default: source directory)   |
-| `-b`              | Dump disassembled bytecode of compiled classes to stdout                  |
+| Flag           | Description                                                             |
+| -------------- | ----------------------------------------------------------------------- |
+| `-compile`     | Compile to JVM bytecode and write `.class` files                        |
+| `-package`     | Bundle `.class` files and the Mira runtime into a standalone fat JAR    |
+| `-compile-run` | Compile and immediately run in memory (no files written)                |
+| `-o <dir>`     | Output directory for `.class` files and JAR (default: source directory) |
+| `-b`           | Dump disassembled bytecode of compiled classes to stdout                |
 
 ---
 

@@ -70,7 +70,7 @@ public class Parser {
         List<Node> asts = new ArrayList<>();
 
         while (peek().getTokenType() != TokenType.EOF) {
-            asts.add(parseStatement(true));
+            asts.addAll(parseStatement(true));
         }
 
         return asts;
@@ -401,6 +401,7 @@ public class Parser {
             expr = maybeParseFieldAccess(expr);
         }
 
+        expr = maybeParseFieldAccess(expr);
         expr = maybeParseAccess(expr);
         expr = maybeParseCallOnExpr(expr);
         expr = parsePostfix(expr);
@@ -544,9 +545,10 @@ public class Parser {
                 methods.add(method);
             } else {
                 boolean isConst = peek().getLexeme().equals("const");
-                VarDecl field = (VarDecl) parseVarDecl(isConst);
+                for (Node n : parseVarDecl(isConst)) {
+                    fields.add((VarDecl) n);
+                }
                 matchLexeme(";");
-                fields.add(field);
             }
         }
 
@@ -784,7 +786,7 @@ public class Parser {
         return new ImportExpression(libExpr, libAlias, ImportKind.STDLIB, selected);
     }
 
-    private Node parseStatement(boolean expectSemicolon) {
+    private List<Node> parseStatement(boolean expectSemicolon) {
         int line = peek().getLine();
         Node node;
 
@@ -799,21 +801,33 @@ public class Parser {
             if (node instanceof Statement stmt) {
                 stmt.line = line;
             }
-            return node;
+            return List.of(node);
         }
 
         switch (peek().getLexeme()) {
             case "var" -> {
-                node = parseVarDecl(false);
+                List<Node> decls = parseVarDecl(false);
                 if (expectSemicolon) {
                     matchLexeme(";");
                 }
+                for (Node n : decls) {
+                    if (n instanceof Statement s) {
+                        s.line = line;
+                    }
+                }
+                return decls;
             }
             case "const" -> {
-                node = parseVarDecl(true);
+                List<Node> decls = parseVarDecl(true);
                 if (expectSemicolon) {
                     matchLexeme(";");
                 }
+                for (Node n : decls) {
+                    if (n instanceof Statement s) {
+                        s.line = line;
+                    }
+                }
+                return decls;
             }
             case "fn" -> {
                 increaseDepth();
@@ -908,7 +922,7 @@ public class Parser {
         if (node instanceof Statement stmt) {
             stmt.line = line;
         }
-        return node;
+        return List.of(node);
     }
 
     private Node parseModuleDecl() {
@@ -918,7 +932,7 @@ public class Parser {
         return new ModuleDecl(name);
     }
 
-    private Node parseVarDecl(boolean isConst) {
+    private List<Node> parseVarDecl(boolean isConst) {
         consume();
         if (peek().getLexeme().equals("(")) {
             consume();
@@ -932,28 +946,29 @@ public class Parser {
             matchLexeme(")");
             matchLexeme(":");
             Expression initializer = parseExpression();
-            return new VarDestructure(names, initializer);
+            return List.of(new VarDestructure(names, initializer));
         }
-        String identifier = consume().getLexeme();
-        switch (peek().getLexeme()) {
-            case ":" -> {
+        List<Node> decls = new ArrayList<>();
+        while (true) {
+            String identifier = consume().getLexeme();
+            Expression initializer = null;
+            if (peek().getLexeme().equals(":")) {
                 consume();
-                Expression expr = parseExpression();
-                return new VarDecl(identifier, expr, isConst);
-            }
-            case ";" -> {
-                if (isConst) {
-                    throw new UnexpectedToken(peek(), "const '" + identifier + "' must have an initializer");
-                }
-                return new VarDecl(identifier, null, false);
-            }
-            case "in" -> {
-                return new VarDecl(identifier, null, false);
-            }
-            default -> {
+                initializer = parseExpression();
+            } else if (isConst) {
+                throw new UnexpectedToken(peek(), "const '" + identifier + "' must have an initializer");
+            } else if (!peek().getLexeme().equals(";") && !peek().getLexeme().equals("in")
+                    && !peek().getLexeme().equals(")") && !peek().getLexeme().equals(",")) {
                 throw new UnexpectedToken(peek(), "Unexpected token");
             }
+            decls.add(new VarDecl(identifier, initializer, isConst));
+            if (peek().getLexeme().equals(",") && !peekOffset(1).getLexeme().equals("var")) {
+                consume();
+            } else {
+                break;
+            }
         }
+        return decls;
     }
 
     private List<Parameter> parseParameterList(String variadicParamHolder[]) {
@@ -1115,7 +1130,7 @@ public class Parser {
                 }
                 default -> {
                     if (!isStructuralDelimiter(peek())) {
-                        varDecls.add(parseVarDecl(false));
+                        varDecls.addAll(parseVarDecl(false));
                     } else {
                         loop = false;
                     }
@@ -1132,7 +1147,7 @@ public class Parser {
 
             List<Node> postExpressions = new ArrayList<>();
             while (!peek().getLexeme().equals(")")) {
-                postExpressions.add(parseStatement(false));
+                postExpressions.addAll(parseStatement(false));
             }
             matchLexeme(")");
 
@@ -1176,7 +1191,7 @@ public class Parser {
     private Node parseForeach() {
         matchLexeme("foreach");
         matchLexeme("(");
-        VarDecl iterator = (VarDecl) parseVarDecl(false);
+        VarDecl iterator = (VarDecl) parseVarDecl(false).getFirst();
         matchLexeme("in");
 
         Expression collection = peek().getLexeme().equals("<")
@@ -1222,7 +1237,7 @@ public class Parser {
         matchLexeme("{");
         List<Node> body = new ArrayList<>();
         while (!peek().getLexeme().equals("}")) {
-            body.add(parseStatement(true));
+            body.addAll(parseStatement(true));
         }
         matchLexeme("}");
         return new Statement.Lock(mutex, body);
@@ -1233,7 +1248,7 @@ public class Parser {
         matchLexeme("{");
         List<Node> tryBody = new ArrayList<>();
         while (!peek().getLexeme().equals("}")) {
-            tryBody.add(parseStatement(true));
+            tryBody.addAll(parseStatement(true));
         }
         matchLexeme("}");
 
@@ -1261,7 +1276,7 @@ public class Parser {
             matchLexeme("{");
             List<Node> catchBody = new ArrayList<>();
             while (!peek().getLexeme().equals("}")) {
-                catchBody.add(parseStatement(true));
+                catchBody.addAll(parseStatement(true));
             }
             matchLexeme("}");
 
@@ -1273,7 +1288,7 @@ public class Parser {
             matchLexeme("finally");
             matchLexeme("{");
             while (!peek().getLexeme().equals("}")) {
-                finallyBody.add(parseStatement(true));
+                finallyBody.addAll(parseStatement(true));
             }
             matchLexeme("}");
         }
@@ -1288,7 +1303,7 @@ public class Parser {
                 throw new LexemeMismatchError(peek(),
                         "Expected '}' to close block opened at line " + open.getLine() + ", column " + open.getColumn());
             }
-            body.add(parseStatement(true));
+            body.addAll(parseStatement(true));
         }
         matchLexeme("}");
         return body;
@@ -1311,7 +1326,7 @@ public class Parser {
         if (peek().getTokenType() == TokenType.KEYWORD) {
             return switch (lex) {
                 case "var", "const", "return", "break", "continue", "throw" ->
-                    parseStatement(true);
+                    parseStatement(true).getFirst();
                 case "if" ->
                     parseIf();
                 case "while" ->
@@ -1386,7 +1401,7 @@ public class Parser {
                     } else {
                         matchLexeme("{");
                         while (!peek().getLexeme().equals("}")) {
-                            body.add(parseStatement(true));
+                            body.addAll(parseStatement(true));
                         }
                         matchLexeme("}");
                     }
@@ -1401,7 +1416,7 @@ public class Parser {
                     } else {
                         matchLexeme("{");
                         while (!peek().getLexeme().equals("}")) {
-                            defaultBody.add(parseStatement(true));
+                            defaultBody.addAll(parseStatement(true));
                         }
                         matchLexeme("}");
                     }

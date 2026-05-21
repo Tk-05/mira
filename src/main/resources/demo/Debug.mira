@@ -44,6 +44,10 @@ var square : {
     }
 };
 
+fn inlineStruct(square) {
+    return $square;
+}
+
 fn short(arg) {
     print($arg "\n");
     return false;
@@ -61,6 +65,9 @@ fn function(body) {
 }
 
 fn main() {
+    println(inlineStruct($square).width);
+
+    var x,y;
     var dir : $direction.EAST;
     var label : switch($dir) {
         case ($direction.NORTH) -> "N"

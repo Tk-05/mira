@@ -18,8 +18,8 @@ public class HoverProvider {
 
     private static final Map<String, String> KEYWORD_DOCS = Map.ofEntries(
             Map.entry("fn", "**fn** — Function declaration"),
-            Map.entry("var", "**var** — Mutable variable declaration"),
-            Map.entry("const", "**const** — Immutable constant declaration"),
+            Map.entry("var", "**var** — Mutable variable declaration\n\n`var x;` · `var x : 5;` · `var x : 5, y, z : 10;`"),
+            Map.entry("const", "**const** — Immutable constant declaration\n\n`const x : 5;` · `const x : 1, y : 2;`"),
             Map.entry("pure", "**pure fn** — Pure function (result is cached for same arguments)"),
             Map.entry("async", "**async fn** — Asynchronous function"),
             Map.entry("spawn", "**spawn(fn)** — Starts an async task, returns a `Promise`"),
@@ -202,9 +202,19 @@ public class HoverProvider {
 
     public static Hover provide(List<Node> ast, String content, Position pos) {
         String word = wordAt(content, pos);
-        if (word == null || word.isBlank()) return null;
+        if (word == null || word.isBlank()) {
+            return null;
+        }
 
         String stripped = word.startsWith("$") ? word.substring(1) : word;
+
+        if (isFieldAccess(content, pos)) {
+            Hover fieldHover = hoverForField(ast, stripped);
+            if (fieldHover != null) {
+                return fieldHover;
+            }
+            return hover("**." + stripped + "** — field access");
+        }
 
         for (Node n : ast) {
             if (n instanceof Statement.FuncDecl f && f.getName().equals(stripped)) {
@@ -234,21 +244,80 @@ public class HoverProvider {
         return null;
     }
 
+    private static boolean isFieldAccess(String content, Position pos) {
+        String[] lines = content.split("\n", -1);
+        if (pos.getLine() >= lines.length) {
+            return false;
+        }
+        String line = lines[pos.getLine()];
+        int col = Math.min(pos.getCharacter(), line.length());
+        int start = col;
+        while (start > 0 && isWordChar(line.charAt(start - 1))) {
+            start--;
+        }
+        return start > 0 && (line.charAt(start - 1) == '.' || line.charAt(start - 1) == '?');
+    }
+
+    private static Hover hoverForField(List<Node> ast, String fieldName) {
+        for (Node n : ast) {
+            Hover h = searchNodeForField(n, fieldName);
+            if (h != null) {
+                return h;
+            }
+        }
+        return null;
+    }
+
+    private static Hover searchNodeForField(Node n, String fieldName) {
+        if (n instanceof com.mira.parser.nodes.expression.Expression.ObjectExpression obj) {
+            for (Statement.VarDecl f : obj.getVarDecls()) {
+                if (f.getName().equals(fieldName)) {
+                    String kind = f.isConst() ? "const" : "var";
+                    return hover("```mira\n" + kind + " " + f.getName() + "\n```\n*object field*");
+                }
+            }
+            for (Statement.FuncDecl m : obj.getMethods()) {
+                if (m.getName().equals(fieldName)) {
+                    String params = m.getParameters().stream()
+                            .map(Parameter::name)
+                            .collect(Collectors.joining(", "));
+                    return hover("```mira\nfn " + m.getName() + "(" + params + ")\n```\n*object method*");
+                }
+            }
+        }
+        if (n instanceof Statement.VarDecl vd && vd.getInitializer() != null) {
+            return searchNodeForField(vd.getInitializer(), fieldName);
+        }
+        return null;
+    }
+
     static String wordAt(String content, Position pos) {
         String[] lines = content.split("\n", -1);
-        if (pos.getLine() >= lines.length) return null;
+        if (pos.getLine() >= lines.length) {
+            return null;
+        }
         String line = lines[pos.getLine()];
         int col = pos.getCharacter();
-        if (col > line.length()) col = line.length();
+        if (col > line.length()) {
+            col = line.length();
+        }
 
         int start = col;
-        while (start > 0 && isWordChar(line.charAt(start - 1))) start--;
-        if (start > 0 && line.charAt(start - 1) == '$') start--;
+        while (start > 0 && isWordChar(line.charAt(start - 1))) {
+            start--;
+        }
+        if (start > 0 && line.charAt(start - 1) == '$') {
+            start--;
+        }
 
         int end = col;
-        while (end < line.length() && isWordChar(line.charAt(end))) end++;
+        while (end < line.length() && isWordChar(line.charAt(end))) {
+            end++;
+        }
 
-        if (start >= end) return null;
+        if (start >= end) {
+            return null;
+        }
         return line.substring(start, end);
     }
 
