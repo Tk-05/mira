@@ -490,11 +490,27 @@ for (; <condition>; <update>) { }
 for (;;) { }              // Infinite loop
 ```
 
-Range-based for:
+Range-based for with iterator:
 
 ```
 for (var <name> in <range>) {
     <body>
+}
+```
+
+Range-based for without iterator:
+
+```
+for (<range>) {
+    <body>
+}
+```
+
+Iterates over the range without binding the value to a variable. Useful when only the number of iterations matters:
+
+```
+for (<0..10>) {
+    println("hello");
 }
 ```
 

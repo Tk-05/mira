@@ -65,6 +65,10 @@ fn function(body) {
 }
 
 fn main() {
+    for(<0..10>) {
+        println("Hello World");
+    }
+
     println(inlineStruct($square).width);
 
     var x,y;

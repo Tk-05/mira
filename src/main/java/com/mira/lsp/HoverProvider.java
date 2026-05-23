@@ -29,7 +29,7 @@ public class HoverProvider {
             Map.entry("if", "**if** — Conditional statement"),
             Map.entry("else", "**else** — Alternative branch of an if statement"),
             Map.entry("while", "**while** — Loop while condition is true"),
-            Map.entry("for", "**for** — C-style loop"),
+            Map.entry("for", "**for** — C-style or range loop\n\n`for (var i in <0..10>)` — range with iterator\n`for (<0..10>)` — range without iterator\n`for (init; cond; update)` — C-style"),
             Map.entry("foreach", "**foreach** — Iterate over a collection"),
             Map.entry("in", "**in** — Used in foreach to iterate over a collection"),
             Map.entry("break", "**break** — Exit the current loop"),

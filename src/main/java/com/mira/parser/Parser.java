@@ -1100,6 +1100,14 @@ public class Parser {
         matchLexeme("for");
         matchLexeme("(");
 
+        if (peek().getLexeme().equals("<")) {
+            Expression range = parseRangeExpression();
+            matchLexeme(")");
+            Token forOpen = matchLexeme("{");
+            List<Node> body = parseBlockBody(forOpen);
+            return new Foreach(new VarDecl("_", null, false), range, body);
+        }
+
         if (peek().getLexeme().equals("var")
                 && peekOffset(2).getLexeme().equals("in")
                 && peekOffset(3).getLexeme().equals("<")) {
