@@ -800,7 +800,7 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
     }
 
     @Override
-    public <T> T visitThrownExpection(ThrownException expression) {
+    public <T> T visitThrownException(ThrownException expression) {
         if (expression.getValue() != null) {
             expression.getValue().accept(this);
         } else {

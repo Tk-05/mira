@@ -23,8 +23,10 @@ import com.mira.parser.nodes.expression.Expression.MethodCallExpression;
 import com.mira.parser.nodes.expression.Expression.NamespaceCallExpression;
 import com.mira.parser.nodes.expression.Expression.ObjectExpression;
 import com.mira.parser.nodes.expression.Expression.RangeExpression;
+import com.mira.parser.nodes.expression.Expression.AwaitExpression;
 import com.mira.parser.nodes.expression.Expression.SwitchExpression;
 import com.mira.parser.nodes.expression.Expression.TernaryExpression;
+import com.mira.parser.nodes.expression.Expression.ThrownException;
 import com.mira.parser.nodes.expression.Expression.TypeofExpression;
 import com.mira.parser.nodes.expression.Expression.UnaryExpression;
 import com.mira.parser.nodes.statement.Statement.Assign;
@@ -237,6 +239,13 @@ public class Linter {
                 e.getArguments().forEach(this::lintExpr);
             case ImportExpression e ->
                 preDeclareImport(e);
+            case AwaitExpression e ->
+                lintExpr(e.getExpr());
+            case ThrownException e -> {
+                if (e.getValue() != null) {
+                    lintExpr(e.getValue());
+                }
+            }
             default -> {
             }
         }

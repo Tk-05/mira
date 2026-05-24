@@ -55,7 +55,7 @@ public interface ExprVisitor<T> {
 
     public <T> T visitTernaryExpr(TernaryExpression expression);
 
-    public <T> T visitThrownExpection(ThrownException expression);
+    public <T> T visitThrownException(ThrownException expression);
 
     public <T> T visitAwaitExpr(AwaitExpression expression);
 

@@ -10,6 +10,7 @@ import com.mira.error.runtime.RuntimeError.NotANamespaceError;
 import com.mira.error.runtime.RuntimeError.NotCallableError;
 import com.mira.error.runtime.RuntimeError.RangeStepZeroError;
 import com.mira.error.runtime.RuntimeError.TypeConversionError;
+import com.mira.error.runtime.RuntimeError.UnknownOperatorError;
 import com.mira.parser.nodes.expression.Expression;
 import com.mira.parser.nodes.expression.Expression.ArrayExpression;
 import com.mira.parser.nodes.expression.Expression.DumbExpression;
@@ -315,7 +316,7 @@ public final class Runtime {
                 case ">=" ->
                     l >= r;
                 default ->
-                    throw new RuntimeException("Unknown op: " + op);
+                    throw new UnknownOperatorError(op);
             };
         }
         if (left instanceof Boolean lb && right instanceof Boolean rb) {
@@ -325,7 +326,7 @@ public final class Runtime {
                 case "!=" ->
                     !lb.equals(rb);
                 default ->
-                    throw new RuntimeException("Cannot compare booleans with: " + op);
+                    throw new UnknownOperatorError(op);
             };
         }
         if ((left instanceof NullValue || left == null) || (right instanceof NullValue || right == null)) {
@@ -356,7 +357,7 @@ public final class Runtime {
                 case ">=" ->
                     ld >= rd;
                 default ->
-                    throw new RuntimeException("Unknown op: " + op);
+                    throw new UnknownOperatorError(op);
             };
         } catch (NumberFormatException e) {
             return switch (op) {
@@ -373,7 +374,7 @@ public final class Runtime {
                 case ">=" ->
                     l.compareTo(r) >= 0;
                 default ->
-                    throw new RuntimeException("Unknown op: " + op);
+                    throw new UnknownOperatorError(op);
             };
         }
     }
@@ -525,7 +526,7 @@ public final class Runtime {
                 String key = String.valueOf(index);
                 Expression val = map.getEntries().get(key);
                 if (val == null) {
-                    throw new RuntimeException("Map key not found: " + key);
+                    throw new FieldAccessError(key, "map");
                 }
                 yield evalExpr(val);
             }

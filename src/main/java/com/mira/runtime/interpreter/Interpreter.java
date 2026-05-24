@@ -829,7 +829,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                     String key = String.valueOf(object);
                     Expression val = map.getEntries().get(key);
                     if (val == null) {
-                        throw new RuntimeException("Map key not found: " + key);
+                        throw new FieldAccessError(key, "map");
                     }
                     accessedObject = val.accept(this);
                 }
@@ -982,7 +982,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         List<Expression> members = new ArrayList<>();
         if (startN instanceof Long ls && endN instanceof Long le && stepN instanceof Long lStep) {
             if (lStep == 0) {
-                throw new RuntimeException("Range stepsize cannot be zero");
+                throw new RangeStepZeroError();
             }
             for (long i = ls; lStep > 0 ? i < le : i > le; i += lStep) {
                 members.add(new DumbExpression(new Token(TokenType.EXPRESSION, String.valueOf(i), 0, 0)));
@@ -990,7 +990,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         } else {
             double start = startN.doubleValue(), end = endN.doubleValue(), step = stepN.doubleValue();
             if (step == 0) {
-                throw new RuntimeException("Range stepsize cannot be zero");
+                throw new RangeStepZeroError();
             }
             for (double i = start; step > 0 ? i < end : i > end; i += step) {
                 members.add(new DumbExpression(new Token(TokenType.EXPRESSION, String.valueOf(i), 0, 0)));
@@ -1415,7 +1415,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             case ArrayExpression a ->
                 a.getMembers();
             default ->
-                throw new RuntimeException("Cannot destructure value of type: " + value.getClass().getSimpleName());
+                throw new NotIterableError();
         };
         Environment env = localEnvironment == null ? globalEnvironment : localEnvironment;
         List<String> names = stmt.getNames();
@@ -1791,7 +1791,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
     }
 
     @Override
-    public Object visitThrownExpection(ThrownException expression) {
+    public Object visitThrownException(ThrownException expression) {
         return expression.getValue().accept(this);
     }
 

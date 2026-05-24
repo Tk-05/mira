@@ -84,10 +84,6 @@ public class Parser {
         return tokens.get(index);
     }
 
-    private Token peekNext() {
-        return tokens.get(index + 1);
-    }
-
     private Token peekNextSafe() {
         if (index + 1 >= tokens.size()) {
             return tokens.get(tokens.size() - 1);
@@ -373,7 +369,7 @@ public class Parser {
 
         } else if (current.getLexeme().equals("async")
                 && current.getTokenType() == TokenType.KEYWORD
-                && peekNext().getLexeme().equals("fn")) {
+                && peekNextSafe().getLexeme().equals("fn")) {
             consume();
             expr = parseLambdaExpression(true);
 
@@ -737,7 +733,7 @@ public class Parser {
 
     private Node parseImportExpression() {
         if (parsingDepth != 0) {
-            throw new AssertionError("Imports must be declared in global context!");
+            throw new UnexpectedToken(peek(), "Imports must be declared at the top level, not inside functions or blocks");
         }
         matchLexeme("import");
 

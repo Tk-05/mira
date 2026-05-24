@@ -745,7 +745,7 @@ public abstract class Expression implements Node {
 
         @Override
         public <T> T accept(ExprVisitor<T> visitor) {
-            return visitor.visitThrownExpection(this);
+            return visitor.visitThrownException(this);
         }
 
         @Override

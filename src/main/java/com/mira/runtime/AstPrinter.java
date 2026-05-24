@@ -404,7 +404,7 @@ public class AstPrinter implements ExprVisitor<String>, StmtVisitor<String> {
     }
 
     @Override
-    public String visitThrownExpection(ThrownException thrownException) {
+    public String visitThrownException(ThrownException thrownException) {
         return pad() + "Exception Literal [" + thrownException.getIdentifier() + "]";
     }
 
