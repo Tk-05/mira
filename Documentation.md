@@ -167,13 +167,13 @@ $<obj>.<field> : <expression>;
 Field access also works directly on any expression — including function call results and inline structs — without assigning to a variable first:
 
 ```
-fn tets() {
+fn test() {
     return { var a : 42; };
 }
 
-tets().a          // => 42
-tets().a.b        // Chained field access
-tets()?.a         // Optional chaining on call result
+test().a          // => 42
+test().a.b        // Chained field access
+test()?.a         // Optional chaining on call result
 ```
 
 ### Compound Assignment
