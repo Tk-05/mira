@@ -82,9 +82,8 @@ public class Environment {
     }
 
     public Object get(String name) {
-        Object value = values.get(name);
-        if (value != null || values.containsKey(name)) {
-            return value;
+        if (values.containsKey(name)) {
+            return values.get(name);
         }
         if (parent != null) {
             return parent.get(name);
@@ -136,9 +135,8 @@ public class Environment {
     }
 
     public Object getOrNull(String name) {
-        Object value = values.get(name);
-        if (value != null || values.containsKey(name)) {
-            return value;
+        if (values.containsKey(name)) {
+            return values.get(name);
         }
         if (parent != null) {
             return parent.getOrNull(name);

@@ -4,7 +4,7 @@ import java.io.PrintStream;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -104,7 +104,13 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
     private Environment globalEnvironment = new Environment();
     private Environment localEnvironment;
-    private final Map<CacheKey, Object> callCache = new HashMap<>();
+    private static final int PURE_CACHE_MAX = 512;
+    private final Map<CacheKey, Object> callCache = new LinkedHashMap<>(16, 0.75f, true) {
+        @Override
+        protected boolean removeEldestEntry(Map.Entry<CacheKey, Object> eldest) {
+            return size() > PURE_CACHE_MAX;
+        }
+    };
     private Set<String> pureFunctions = Set.of();
     private final Deque<String> miraCallStack = new ArrayDeque<>();
     private DebugHook debugHook;
@@ -426,7 +432,13 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         }
         if (expression.getTokenType() == TokenType.EXPRESSION
                 && !value.isEmpty() && Character.isDigit(value.charAt(0))) {
-            return (T) parseNumber(value);
+            Object cached = expression.getCachedValue();
+            if (cached != null) {
+                return (T) cached;
+            }
+            Number parsed = parseNumber(value);
+            expression.setCachedValue(parsed);
+            return (T) parsed;
         }
         return (T) value;
     }
@@ -546,7 +558,9 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
         switch (operator) {
             case "$" -> {
-                String name = (String) expression.getRight().accept(this);
+                String name = expression.getRight() instanceof DumbExpression d
+                        ? d.getValue()
+                        : (String) expression.getRight().accept(this);
 
                 if (localEnvironment != null) {
                     Object val = localEnvironment.getOrNull(name);
@@ -1068,10 +1082,11 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
     }
 
     private Number parseNumber(String s) {
-        if (s.startsWith("0x") || s.startsWith("0X")) {
-            return Long.parseLong(s.substring(2), 16);
+        if (s.length() > 1 && s.charAt(0) == '0'
+                && (s.charAt(1) == 'x' || s.charAt(1) == 'X')) {
+            return Long.parseLong(s, 2, s.length(), 16);
         }
-        if (s.contains(".")) {
+        if (s.indexOf('.') >= 0 || s.indexOf('e') >= 0 || s.indexOf('E') >= 0) {
             return Double.parseDouble(s);
         }
         try {
@@ -1082,6 +1097,9 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
     }
 
     private Object numericAdd(Object a, Object b) {
+        if (a instanceof Double da && b instanceof Double db) {
+            return da + db;
+        }
         if (a instanceof Long la && b instanceof Long lb) {
             try {
                 return Math.addExact(la, lb);
@@ -1093,6 +1111,9 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
     }
 
     private Object numericSub(Object a, Object b) {
+        if (a instanceof Double da && b instanceof Double db) {
+            return da - db;
+        }
         if (a instanceof Long la && b instanceof Long lb) {
             try {
                 return Math.subtractExact(la, lb);
@@ -1104,6 +1125,9 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
     }
 
     private Object numericMul(Object a, Object b) {
+        if (a instanceof Double da && b instanceof Double db) {
+            return da * db;
+        }
         if (a instanceof Long la && b instanceof Long lb) {
             try {
                 return Math.multiplyExact(la, lb);
@@ -1717,9 +1741,9 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                     }
                 }
                 case String string -> {
-                    for (int i = 0; i < string.length(); i++) {
+                    for (char c : string.toCharArray()) {
                         try {
-                            runBodyWithIterator(iteratorName, String.valueOf(string.charAt(i)), stmt.getBody());
+                            runBodyWithIterator(iteratorName, String.valueOf(c), stmt.getBody());
                         } catch (ContinueSignal continueSignal) {
                         }
                     }

@@ -28,9 +28,18 @@ public abstract class Expression implements Node {
     public static class DumbExpression extends Expression {
 
         private final Token token;
+        private Object cachedValue;
 
         public DumbExpression(Token token) {
             this.token = token;
+        }
+
+        public Object getCachedValue() {
+            return cachedValue;
+        }
+
+        public void setCachedValue(Object v) {
+            cachedValue = v;
         }
 
         public String getValue() {
