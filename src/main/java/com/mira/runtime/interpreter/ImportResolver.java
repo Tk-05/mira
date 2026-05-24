@@ -1,11 +1,13 @@
 package com.mira.runtime.interpreter;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.FileTime;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -20,6 +22,8 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 
 import com.mira.Flags;
+import com.mira.error.MiraError;
+import com.mira.error.runtime.RuntimeError;
 import com.mira.error.runtime.RuntimeError.LibImportConflictError;
 import com.mira.error.runtime.RuntimeError.NativeLibLoadError;
 import com.mira.error.runtime.RuntimeError.NativeLibNoImplementationError;
@@ -41,7 +45,11 @@ import com.mira.parser.Parser;
 import com.mira.parser.nodes.Node;
 import com.mira.parser.nodes.expression.Expression;
 import com.mira.parser.nodes.expression.Expression.ImportExpression;
+import com.mira.parser.nodes.expression.Expression.ImportExpression.ImportKind;
+import com.mira.parser.nodes.statement.Statement.EnumDecl;
+import com.mira.parser.nodes.statement.Statement.FuncDecl;
 import com.mira.parser.nodes.statement.Statement.ModuleDecl;
+import com.mira.parser.nodes.statement.Statement.VarDecl;
 
 public class ImportResolver {
 
@@ -54,8 +62,9 @@ public class ImportResolver {
     private static final ConcurrentHashMap<String, CompletableFuture<Void>> moduleLoadFutures = new ConcurrentHashMap<>();
     private static final Set<String> loadedLibs = new HashSet<>();
     private static final Map<String, String> globalLibNames = new HashMap<>();
-    private static final Map<String, Lib> loadedNativeLibs = new HashMap<>();
+    private static final ConcurrentHashMap<String, Lib> loadedNativeLibs = new ConcurrentHashMap<>();
     private static final List<URLClassLoader> nativeClassLoaders = new ArrayList<>();
+    private static final ConcurrentHashMap<String, Namespace> resolvedModules = new ConcurrentHashMap<>();
     private static final Map<String, Lib> libs = new HashMap<String, Lib>() {
         {
             put("math", new Math());
@@ -69,6 +78,7 @@ public class ImportResolver {
             put("process", new com.mira.lib.std.Process());
             put("regex", new Regex());
             put("map", new com.mira.lib.std.Map());
+            put("thread", new com.mira.lib.std.ThreadLib());
         }
     };
 
@@ -77,7 +87,7 @@ public class ImportResolver {
     }
 
     public static void loadForCompiled(Environment env, String kindStr, String module, String alias) {
-        ImportExpression.ImportKind kind = ImportExpression.ImportKind.valueOf(kindStr);
+        ImportKind kind = ImportKind.valueOf(kindStr);
         Expression moduleExpr = new Expression() {
             @Override
             public <T> T accept(com.mira.runtime.visitors.ExprVisitor<T> v) {
@@ -102,6 +112,7 @@ public class ImportResolver {
 
     public static void reset() {
         moduleLoadFutures.clear();
+        resolvedModules.clear();
         loadedLibs.clear();
         loadedNativeLibs.clear();
         globalLibNames.clear();
@@ -123,7 +134,7 @@ public class ImportResolver {
 
         Path parentInputPath = Flags.inputPath.get();
         List<ImportExpression> aliasedModules = imports.stream()
-                .filter(e -> e.getKind() == ImportExpression.ImportKind.MODULE
+                .filter(e -> e.getKind() == ImportKind.MODULE
                 && e.getNamespace() != null && !e.getNamespace().isBlank())
                 .toList();
 
@@ -162,7 +173,13 @@ public class ImportResolver {
                     case STDLIB ->
                         resolveStdlibImport(expr, environment);
                 }
-            } catch (com.mira.error.MiraError e) {
+            } catch (MiraError e) {
+                if (!e.getImportChain().isEmpty()) {
+                    Path ip = Flags.inputPath.get();
+                    if (ip != null) {
+                        e.addImportChain(ip.getFileName().toString());
+                    }
+                }
                 throw e;
             } catch (RuntimeException e) {
                 throw new RuntimeException("Import '" + expr.getModule() + "' could not be resolved", e);
@@ -170,6 +187,17 @@ public class ImportResolver {
         }
 
         if (Flags.libInfo && entryPoint) {
+            if (imports.isEmpty()) {
+                System.out.println("No imports");
+            } else {
+                for (ImportExpression expr : imports) {
+                    String name = expr.getModule().replace("\"", "");
+                    String ns = expr.getNamespace();
+                    String kind = expr.getKind().name().toLowerCase();
+                    String label = (ns != null && !ns.isBlank()) ? name + " as " + ns : name;
+                    System.out.println("[" + kind + "] " + label);
+                }
+            }
             System.out.println("Resolving of imports took " + (System.currentTimeMillis() - start) + " ms");
         }
     }
@@ -199,6 +227,17 @@ public class ImportResolver {
                 }
                 throw new RuntimeException(cause);
             }
+            String earlyAlias = importExpression.getNamespace();
+            if (earlyAlias != null && !earlyAlias.isBlank()) {
+                Namespace resolved = resolvedModules.get(moduleKey);
+                if (resolved != null) {
+                    synchronized (environment) {
+                        if (!environment.exists(earlyAlias)) {
+                            environment.define(earlyAlias, resolved);
+                        }
+                    }
+                }
+            }
             return;
         }
 
@@ -222,39 +261,65 @@ public class ImportResolver {
             Path previousFile = Flags.inputPath.get();
             Flags.inputPath.set(modulePath);
 
-            String declaredModuleName = validateModuleDeclaration(asts, importExpression);
-            String fileName = modulePath.getFileName().toString();
-            String expectedModuleName = fileName.replace(".mira", "");
-
-            if (!declaredModuleName.equals(expectedModuleName)) {
-                throw new com.mira.error.runtime.RuntimeError.ModuleNameMismatchError(
-                        fileName, expectedModuleName, declaredModuleName);
-            }
+            validateModuleDeclaration(asts, importExpression);
 
             String alias = importExpression.getNamespace();
             boolean hasAlias = alias != null && !alias.isBlank();
-            Environment targetEnv = hasAlias ? new Namespace(alias) : environment;
 
             List<ImportExpression> nestedImports = new ArrayList<>();
+            List<Node> moduleBody = new ArrayList<>();
             for (Node ast : asts) {
                 if (ast instanceof ImportExpression expr) {
                     nestedImports.add(expr);
                 } else if (!(ast instanceof ModuleDecl)) {
-                    interpreter.loadASTIntoContext(ast, targetEnv);
+                    moduleBody.add(ast);
                 }
             }
 
-            resolveImports(nestedImports, targetEnv, interpreter, false);
+            Namespace modulePrivateEnv = new Namespace(hasAlias ? alias : "__mod__");
+            internal.loadLib(modulePrivateEnv);
+            resolveImports(nestedImports, modulePrivateEnv, interpreter, false);
+            Set<String> importedSymbols = new HashSet<>(modulePrivateEnv.keySet());
+
+            for (Node ast : moduleBody) {
+                switch (ast) {
+                    case FuncDecl fd ->
+                        interpreter.loadASTIntoContext(fd, modulePrivateEnv);
+                    case EnumDecl ed ->
+                        interpreter.loadASTIntoContext(ed, modulePrivateEnv);
+                    case VarDecl vd when vd.isConst() ->
+                        interpreter.loadASTIntoContext(vd, modulePrivateEnv);
+                    default -> {
+                    }
+                }
+            }
+
+            for (Node ast : moduleBody) {
+                if (ast instanceof FuncDecl || ast instanceof EnumDecl
+                        || (ast instanceof VarDecl vd && vd.isConst())) {
+                    continue;
+                }
+                interpreter.loadASTIntoContext(ast, modulePrivateEnv);
+            }
 
             if (hasAlias) {
+                Namespace publicNamespace = new Namespace(alias);
+                modulePrivateEnv.copyDeclarationsTo(publicNamespace, importedSymbols);
+                resolvedModules.put(moduleKey, publicNamespace);
                 synchronized (environment) {
-                    environment.define(alias, targetEnv);
+                    environment.define(alias, publicNamespace);
                 }
+            } else {
+                modulePrivateEnv.copyDeclarationsTo(environment, importedSymbols);
             }
 
             Flags.inputPath.set(previousFile);
             loadFuture.complete(null);
 
+        } catch (MiraError e) {
+            e.addImportChain(modulePath.getFileName().toString());
+            loadFuture.completeExceptionally(e);
+            throw e;
         } catch (IOException | RuntimeException e) {
             loadFuture.completeExceptionally(e);
             if (e instanceof RuntimeException re) {
@@ -266,7 +331,7 @@ public class ImportResolver {
 
     private static String validateModuleDeclaration(List<Node> asts, ImportExpression expr) {
         if (!(asts.getFirst() instanceof ModuleDecl moduleDecl)) {
-            throw new com.mira.error.runtime.RuntimeError.ModuleMissingDeclarationError(expr.getModule());
+            throw new RuntimeError.ModuleMissingDeclarationError(expr.getModule());
         }
         return moduleDecl.getModuleName();
     }
@@ -321,7 +386,12 @@ public class ImportResolver {
             conflicts.retainAll(globalLibNames.keySet());
             if (!conflicts.isEmpty()) {
                 String conflictingLib = globalLibNames.get(conflicts.iterator().next());
-                throw new LibImportConflictError(conflictingLib, libName, conflicts);
+                LibImportConflictError err = new LibImportConflictError(conflictingLib, libName, conflicts);
+                Path ip = Flags.inputPath.get();
+                if (ip != null) {
+                    err.withSourceFile(ip.getFileName().toString());
+                }
+                throw err;
             }
             for (String name : toLoad) {
                 environment.define(name, temp.get(name));
@@ -334,44 +404,88 @@ public class ImportResolver {
         String rawPath = expr.getModule();
         String alias = expr.getNamespace();
 
-        Path currentFile = Flags.inputPath.get().toAbsolutePath();
-        Path candidate = Paths.get(rawPath);
-        Path jarPath = candidate.isAbsolute()
-                ? candidate.normalize()
-                : currentFile.getParent().resolve(candidate).normalize();
+        Path ipRef = Flags.inputPath.get();
+        String importingFile = ipRef != null ? ipRef.getFileName().toString() : null;
 
-        String cacheKey = jarPath.toAbsolutePath() + "#" + alias;
+        String basename = Path.of(rawPath).getFileName().toString();
 
-        if (loadedNativeLibs.containsKey(cacheKey)) {
-            Namespace ns = new Namespace(alias);
-            loadedNativeLibs.get(cacheKey).loadLib(ns);
-            environment.define(alias, ns);
-            return;
+        try (InputStream propsStream = ImportResolver.class.getClassLoader()
+                .getResourceAsStream("mira-native-libs.properties")) {
+            if (propsStream != null) {
+                java.util.Properties props = new java.util.Properties();
+                props.load(propsStream);
+                String libClassName = props.getProperty(basename);
+                if (libClassName != null) {
+                    Lib lib = loadedNativeLibs.computeIfAbsent(libClassName, k -> {
+                        try {
+                            Class<?> cls = Class.forName(libClassName,
+                                    true, ImportResolver.class.getClassLoader());
+                            return (Lib) cls.getDeclaredConstructor().newInstance();
+                        } catch (Exception ex) {
+                            throw new NativeLibLoadError(basename, ex);
+                        }
+                    });
+                    Namespace ns = new Namespace(alias);
+                    lib.loadLib(ns);
+                    environment.define(alias, ns);
+                    return;
+                }
+            }
+        } catch (IOException e) {
+            throw new NativeLibLoadError(rawPath, e).withSourceFile(importingFile);
         }
 
-        if (!Files.exists(jarPath)) {
-            throw new NativeLibNotFoundError(jarPath.toString());
+        Path jarPath;
+        try (InputStream bundled = ImportResolver.class.getClassLoader()
+                .getResourceAsStream("mira-native/" + basename)) {
+            if (bundled != null) {
+                Path tempJar = Files.createTempFile("mira-native-", "-" + basename);
+                tempJar.toFile().deleteOnExit();
+                Files.copy(bundled, tempJar, StandardCopyOption.REPLACE_EXISTING);
+                jarPath = tempJar;
+            } else {
+                Path currentFile = ipRef != null ? ipRef.toAbsolutePath() : Path.of("").toAbsolutePath();
+                Path candidate = Paths.get(rawPath);
+                jarPath = candidate.isAbsolute()
+                        ? candidate.normalize()
+                        : currentFile.getParent().resolve(candidate).normalize();
+                if (!Files.exists(jarPath)) {
+                    throw new NativeLibNotFoundError(jarPath.toString()).withSourceFile(importingFile);
+                }
+            }
+        } catch (NativeLibNotFoundError e) {
+            throw e;
+        } catch (IOException e) {
+            throw new NativeLibLoadError(rawPath, e).withSourceFile(importingFile);
         }
 
+        String libKey = jarPath.toAbsolutePath().toString();
         Lib lib;
         try {
-            URL jarUrl = jarPath.toUri().toURL();
-            URLClassLoader loader = new URLClassLoader(
-                    new URL[]{jarUrl},
-                    ImportResolver.class.getClassLoader());
-            nativeClassLoaders.add(loader);
-            ServiceLoader<Lib> serviceLoader = ServiceLoader.load(Lib.class, loader);
-            lib = serviceLoader.findFirst().orElse(null);
-            if (lib == null) {
-                throw new NativeLibNoImplementationError(jarPath.toString());
-            }
-        } catch (NativeLibNoImplementationError | NativeLibNotFoundError e) {
+            lib = loadedNativeLibs.computeIfAbsent(libKey, k -> {
+                try {
+                    URL jarUrl = jarPath.toUri().toURL();
+                    URLClassLoader loader = new URLClassLoader(
+                            new URL[]{jarUrl},
+                            ImportResolver.class.getClassLoader());
+                    nativeClassLoaders.add(loader);
+                    ServiceLoader<Lib> serviceLoader = ServiceLoader.load(Lib.class, loader);
+                    Lib l = serviceLoader.findFirst().orElse(null);
+                    if (l == null) {
+                        throw new NativeLibNoImplementationError(jarPath.toString());
+                    }
+                    return l;
+                } catch (NativeLibNoImplementationError | NativeLibNotFoundError e) {
+                    throw e;
+                } catch (Exception e) {
+                    throw new NativeLibLoadError(jarPath.toString(), e);
+                }
+            });
+        } catch (MiraError e) {
+            e.withSourceFile(importingFile);
             throw e;
-        } catch (Exception e) {
-            throw new NativeLibLoadError(jarPath.toString(), e);
         }
 
-        loadedNativeLibs.put(cacheKey, lib);
         Namespace ns = new Namespace(alias);
         lib.loadLib(ns);
         environment.define(alias, ns);

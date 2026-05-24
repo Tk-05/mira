@@ -5,6 +5,11 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 
+import com.mira.error.runtime.RuntimeError.FieldAccessError;
+import com.mira.error.runtime.RuntimeError.NotANamespaceError;
+import com.mira.error.runtime.RuntimeError.NotCallableError;
+import com.mira.error.runtime.RuntimeError.RangeStepZeroError;
+import com.mira.error.runtime.RuntimeError.TypeConversionError;
 import com.mira.parser.nodes.expression.Expression;
 import com.mira.parser.nodes.expression.Expression.ArrayExpression;
 import com.mira.parser.nodes.expression.Expression.DumbExpression;
@@ -16,31 +21,62 @@ import com.mira.runtime.functions.ThrowSignal;
 import com.mira.runtime.interpreter.Environment;
 import com.mira.runtime.interpreter.Interpreter;
 import com.mira.runtime.interpreter.Namespace;
-import com.mira.runtime.interpreter.NullValue;
+import com.mira.runtime.values.NullValue;
 
 public final class Runtime {
 
     public static final ThreadLocal<Environment> METHOD_ENV = new ThreadLocal<>();
 
-    public static void loadCompiledModule(Environment namespaces, String alias, String dotClassName) {
+    public static final Object CACHE_MISS = new Object();
+
+    private static final java.util.concurrent.ConcurrentHashMap<String, java.util.Set<String>> moduleMainAdditions
+            = new java.util.concurrent.ConcurrentHashMap<>();
+
+    public static Object cacheGet(java.util.concurrent.ConcurrentHashMap<java.util.List<Object>, Object> cache, Object[] args) {
+        return cache.getOrDefault(java.util.Arrays.asList(args), CACHE_MISS);
+    }
+
+    public static void cachePut(java.util.concurrent.ConcurrentHashMap<java.util.List<Object>, Object> cache, Object[] args, Object value) {
+        cache.put(java.util.Arrays.asList(args), value);
+    }
+
+    public static void loadCompiledModule(Environment globals, String alias, String dotClassName) {
         try {
             ClassLoader cl = Thread.currentThread().getContextClassLoader();
             if (cl == null) {
                 cl = Runtime.class.getClassLoader();
             }
             Class<?> cls = Class.forName(dotClassName, true, cl);
-            try {
-                java.lang.reflect.Method mainMethod = cls.getMethod("main", String[].class);
-                mainMethod.invoke(null, (Object) new String[0]);
-            } catch (java.lang.reflect.InvocationTargetException ite) {
-                Throwable cause = ite.getCause();
-                if (cause instanceof RuntimeException re) {
-                    throw re;
+
+            java.lang.reflect.Field globalsField = cls.getDeclaredField("GLOBALS");
+            globalsField.setAccessible(true);
+            Environment moduleGlobals = (Environment) globalsField.get(null);
+
+            java.util.Set<String> mainAdditions = moduleMainAdditions.get(dotClassName);
+            if (mainAdditions == null) {
+                java.util.Set<String> beforeMain = new java.util.HashSet<>(moduleGlobals.keySet());
+                try {
+                    java.lang.reflect.Method mainMethod = cls.getMethod("main", String[].class);
+                    mainMethod.invoke(null, (Object) new String[0]);
+                } catch (java.lang.reflect.InvocationTargetException ite) {
+                    Throwable cause = ite.getCause();
+                    if (cause instanceof RuntimeException re) {
+                        throw re;
+                    }
+                    throw new RuntimeException(cause);
+                } catch (NoSuchMethodException | IllegalAccessException e) {
+                    throw new RuntimeException("Failed to initialize module: " + dotClassName, e);
                 }
-                throw new RuntimeException(cause);
-            } catch (NoSuchMethodException | IllegalAccessException e) {
-                throw new RuntimeException("Failed to initialize module: " + dotClassName, e);
+                java.util.Set<String> delta = new java.util.HashSet<>();
+                for (String key : moduleGlobals.keySet()) {
+                    if (!beforeMain.contains(key) && !key.equals("args")) {
+                        delta.add(key);
+                    }
+                }
+                moduleMainAdditions.put(dotClassName, delta);
+                mainAdditions = delta;
             }
+
             Namespace ns = new Namespace(alias);
             for (java.lang.reflect.Method m : cls.getDeclaredMethods()) {
                 if (!m.getName().startsWith("mira$")) {
@@ -77,8 +113,13 @@ public final class Runtime {
                     }
                 });
             }
-            namespaces.forceDefine(alias, ns);
-        } catch (ClassNotFoundException e) {
+
+            for (String name : mainAdditions) {
+                ns.forceDefine(name, moduleGlobals.get(name));
+            }
+
+            globals.forceDefine(alias, ns);
+        } catch (ClassNotFoundException | NoSuchFieldException | IllegalAccessException e) {
             throw new RuntimeException("Compiled module not found: " + dotClassName, e);
         }
     }
@@ -137,7 +178,7 @@ public final class Runtime {
         if (value instanceof String s) {
             return Double.parseDouble(s);
         }
-        throw new RuntimeException("Cannot convert to number: " + value);
+        throw new TypeConversionError(value);
     }
 
     public static Object add(Object a, Object b) {
@@ -426,7 +467,7 @@ public final class Runtime {
         long e = ((Number) end).longValue();
         long st = step != null ? ((Number) step).longValue() : 1L;
         if (st == 0) {
-            throw new RuntimeException("Range stepsize cannot be zero");
+            throw new RangeStepZeroError();
         }
         List<Expression> members = new ArrayList<>();
         for (long i = s; st > 0 ? i < e : i > e; i += st) {
@@ -497,7 +538,7 @@ public final class Runtime {
                 yield evalExpr(list.getMembers().get(i));
             }
             default ->
-                throw new RuntimeException("Not indexable: " + container);
+                throw new com.mira.error.runtime.RuntimeError.NotIterableError();
         };
     }
 
@@ -518,18 +559,13 @@ public final class Runtime {
             case MapExpression map ->
                 map.getEntries().put(String.valueOf(index), wrapExpr(value));
             default ->
-                throw new RuntimeException("Not indexable: " + container);
+                throw new com.mira.error.runtime.RuntimeError.NotIterableError();
         }
     }
 
-    public static Object resolveIfNamespace(Object val, Environment namespaces, Environment globals) {
-        if (val instanceof String name) {
-            if (namespaces.exists(name)) {
-                return namespaces.get(name);
-            }
-            if (globals != null && globals.exists(name)) {
-                return globals.get(name);
-            }
+    public static Object resolveIfNamespace(Object val, Environment globals) {
+        if (val instanceof String name && globals.exists(name)) {
+            return globals.get(name);
         }
         return val;
     }
@@ -539,7 +575,7 @@ public final class Runtime {
             throw new RuntimeException("Field access on string name - use $ to look up: " + name);
         }
         if (!(obj instanceof Environment env)) {
-            throw new RuntimeException("Field access on non-object: " + obj);
+            throw new FieldAccessError(field, String.valueOf(typeofVal(obj)));
         }
         return env.get(field);
     }
@@ -553,18 +589,18 @@ public final class Runtime {
 
     public static void fieldSet(Object obj, String field, Object value) {
         if (!(obj instanceof Environment env)) {
-            throw new RuntimeException("Field assign on non-object");
+            throw new FieldAccessError(field, String.valueOf(typeofVal(obj)));
         }
         env.assign(field, value);
     }
 
     public static Object methodCall(Object obj, String method, Object[] args) {
         if (!(obj instanceof Environment env)) {
-            throw new RuntimeException("Method call on non-object: " + obj);
+            throw new FieldAccessError(method, String.valueOf(typeofVal(obj)));
         }
         Object fn = env.get(method);
         if (!(fn instanceof Callable callable)) {
-            throw new RuntimeException("Not callable: " + method);
+            throw new NotCallableError(method + " (got: " + typeofVal(fn) + ")");
         }
         Environment prev = METHOD_ENV.get();
         METHOD_ENV.set(env);
@@ -589,26 +625,26 @@ public final class Runtime {
     public static Object callNamed(Environment globals, String name, Object[] args) {
         Object callee = globals.get(name);
         if (!(callee instanceof Callable callable)) {
-            throw new RuntimeException("Not callable: " + name);
+            throw new NotCallableError(name + " (got: " + typeofVal(callee) + ")");
         }
         return callable.call(null, Arrays.asList(args));
     }
 
-    public static Object namespaceCall(Environment namespaces, String ns, String fn, Object[] args) {
-        Object nsObj = namespaces.get(ns);
+    public static Object namespaceCall(Environment globals, String ns, String fn, Object[] args) {
+        Object nsObj = globals.get(ns);
         if (!(nsObj instanceof Namespace namespace)) {
-            throw new RuntimeException("Not a namespace: " + ns);
+            throw new NotANamespaceError(ns);
         }
         Object callee = namespace.get(fn);
         if (!(callee instanceof Callable callable)) {
-            throw new RuntimeException("Not callable: " + ns + "." + fn);
+            throw new NotCallableError(ns + "." + fn + " (got: " + typeofVal(callee) + ")");
         }
         return callable.call(null, Arrays.asList(args));
     }
 
     public static Object dynamicCall(Object callee, Object[] args) {
         if (!(callee instanceof Callable callable)) {
-            throw new RuntimeException("Not callable: " + callee);
+            throw new NotCallableError(String.valueOf(typeofVal(callee)));
         }
         return callable.call(null, Arrays.asList(args));
     }

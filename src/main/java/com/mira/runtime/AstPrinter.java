@@ -37,7 +37,7 @@ import com.mira.parser.nodes.statement.Statement.For;
 import com.mira.parser.nodes.statement.Statement.Foreach;
 import com.mira.parser.nodes.statement.Statement.FuncDecl;
 import com.mira.parser.nodes.statement.Statement.If;
-import com.mira.parser.nodes.statement.Statement.Overwrite;
+import com.mira.parser.nodes.statement.Statement.Lock;
 import com.mira.parser.nodes.statement.Statement.Return;
 import com.mira.parser.nodes.statement.Statement.Switch;
 import com.mira.parser.nodes.statement.Statement.SwitchCase;
@@ -270,15 +270,16 @@ public class AstPrinter implements ExprVisitor<String>, StmtVisitor<String> {
     }
 
     @Override
+    public String visitLock(Lock stmt) {
+        return pad() + "Lock(" + node(stmt.getMutex()) + ")"
+                + body(stmt.getBody());
+    }
+
+    @Override
     public String visitAssign(Assign stmt) {
         return pad() + "Assign"
                 + child(stmt.getReference())
                 + child(stmt.getExpression());
-    }
-
-    @Override
-    public String visitOverwrite(Overwrite stmt) {
-        return pad() + "Overwrite [" + stmt.getStmt() + "]";
     }
 
     @Override

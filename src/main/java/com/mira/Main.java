@@ -8,16 +8,20 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import com.mira.compiler.CompileRunner;
 import com.mira.debugger.Debugger;
 import com.mira.error.DiagnosticFormatter;
+import com.mira.error.runtime.RuntimeError.ModuleNameMismatchError;
 import com.mira.lexer.Tokenizer;
 import com.mira.lexer.token.Token;
 import com.mira.linter.Linter;
+import com.mira.lsp.Launcher;
 import com.mira.parser.Parser;
 import com.mira.parser.nodes.Node;
+import com.mira.parser.nodes.statement.Statement.ModuleDecl;
 import com.mira.repl.Repl;
 import com.mira.runtime.AstPrinter;
 import com.mira.runtime.HotReloader;
 import com.mira.runtime.functions.ReturnSignal;
 import com.mira.runtime.interpreter.Interpreter;
+import com.mira.testing.TestRunner;
 import com.mira.utils.FileLoader;
 import com.mira.warning.WarningCollector;
 
@@ -25,6 +29,15 @@ public class Main {
 
     public static void main(String[] args) {
         if (args.length > 0) {
+
+            if (args[0].equals("--lsp")) {
+                try {
+                    Launcher.launch();
+                } catch (Exception e) {
+                    System.err.println("LSP server error: " + e.getMessage());
+                }
+                return;
+            }
 
             if (args[0].equals("-h") || args[0].equals("-help")) {
                 System.out.println(Help.getHelp());
@@ -55,6 +68,12 @@ public class Main {
                         Flags.hotReload = true;
                     case "-crash" ->
                         Flags.crashDump = true;
+                    case "-crashFull" -> {
+                        Flags.crashDump = true;
+                        Flags.crashDumpFull = true;
+                    }
+                    case "-test" ->
+                        Flags.testMode = true;
                     case "-ast" ->
                         Flags.printAsts = true;
                     case "-compile" ->
@@ -69,6 +88,8 @@ public class Main {
                         Flags.outputDir = Paths.get(args[i + 1]);
                         i++;
                     }
+                    case "-package" ->
+                        Flags.packageJar = true;
                     default ->
                         throw new RuntimeException(args[i] + " is not a known flag");
                 }
@@ -123,6 +144,13 @@ public class Main {
             Parser parser = new Parser();
             List<Node> asts = parser.parseTokens(tokens);
 
+            if (!asts.isEmpty() && asts.getFirst() instanceof ModuleDecl moduleDecl) {
+                String expectedName = Flags.fileName.replace(".mira", "");
+                if (!moduleDecl.getModuleName().equals(expectedName)) {
+                    throw new ModuleNameMismatchError(Flags.fileName, expectedName, moduleDecl.getModuleName());
+                }
+            }
+
             if (Flags.printAsts) {
                 System.out.println(new AstPrinter().print(asts));
             }
@@ -134,6 +162,10 @@ public class Main {
 
             if (Flags.exitBeforeInterpreter) {
                 return;
+            }
+
+            if (Flags.packageJar && !Flags.compile) {
+                System.err.println("Warning: -package has no effect without -compile");
             }
 
             if (Flags.compile) {
@@ -152,6 +184,15 @@ public class Main {
                     System.out.println("Program exited with value: " + returnSignal.getValue() + " in " + (System.currentTimeMillis() - start) + " ms");
                 } finally {
                     WarningCollector.flush();
+                }
+            }
+
+            if (Flags.testMode) {
+                TestRunner.printSummary(System.out);
+                boolean failed = TestRunner.hasFailures();
+                TestRunner.reset();
+                if (failed) {
+                    System.exit(1);
                 }
             }
 

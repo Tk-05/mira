@@ -293,4 +293,52 @@ public class JsonLibTest {
     void testJsonIndexOfNonListThrows() {
         assertThrows(RuntimeException.class, () -> call("jsonIndexOf", "notAList", "val"));
     }
+
+    @Test
+    void testJsonKeysReturnsAllKeys() {
+        ListExpression keys = (ListExpression) call("jsonKeys", FLAT_JSON);
+        assertEquals(5, keys.getMembers().size());
+    }
+
+    @Test
+    void testJsonKeysEmptyObject() {
+        ListExpression keys = (ListExpression) call("jsonKeys", "{}");
+        assertEquals(0, keys.getMembers().size());
+    }
+
+    @Test
+    void testJsonSizeObject() {
+        double size = (double) call("jsonSize", FLAT_JSON);
+        assertEquals(5.0, size);
+    }
+
+    @Test
+    void testJsonSizeEmptyObject() {
+        double size = (double) call("jsonSize", "{}");
+        assertEquals(0.0, size);
+    }
+
+    @Test
+    void testJsonSizeArray() {
+        double size = (double) call("jsonSize", "[1,2,3]");
+        assertEquals(3.0, size);
+    }
+
+    @Test
+    void testJsonSetExistingKey() {
+        String result = (String) call("jsonSet", "{\"name\":\"Alice\"}", "name", "Bob");
+        assertTrue(result.contains("\"Bob\""));
+    }
+
+    @Test
+    void testJsonSetNewKey() {
+        String result = (String) call("jsonSet", "{\"a\":1}", "b", "2");
+        assertTrue(result.contains("\"b\""));
+    }
+
+    @Test
+    void testJsonSetNumberValue() {
+        String result = (String) call("jsonSet", "{\"x\":1}", "x", 42.0);
+        assertTrue(result.contains("42"));
+    }
 }

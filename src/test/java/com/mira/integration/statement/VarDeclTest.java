@@ -8,8 +8,8 @@ import org.junit.jupiter.api.Test;
 
 import com.mira.error.runtime.RuntimeError.ReferenceIsImmutableError;
 import com.mira.runtime.functions.ReturnSignal;
+import com.mira.runtime.values.NullValue;
 import com.mira.integration.InterpreterTestBase;
-import com.mira.runtime.interpreter.NullValue;
 
 public class VarDeclTest extends InterpreterTestBase {
 

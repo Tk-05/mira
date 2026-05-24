@@ -28,7 +28,6 @@ import com.mira.parser.nodes.statement.Statement.EnumDecl;
 import com.mira.parser.nodes.statement.Statement.For;
 import com.mira.parser.nodes.statement.Statement.Foreach;
 import com.mira.parser.nodes.statement.Statement.ModuleDecl;
-import com.mira.parser.nodes.statement.Statement.Overwrite;
 import com.mira.parser.nodes.statement.Statement.Switch;
 import com.mira.parser.nodes.statement.Statement.Throw;
 import com.mira.parser.nodes.statement.Statement.TryCatch;
@@ -313,16 +312,6 @@ public class ParserTest {
         List<Node> ast = parser.parseTokens(tokenizer.tokenize(importStmt, false));
         assertEquals(1, ast.size());
         assertInstanceOf(ImportExpression.class, ast.getFirst());
-    }
-
-    @Test
-    void parseOverwrite() {
-        String overwriteStmt = """
-                overwrite(1);
-                """;
-        List<Node> ast = parser.parseTokens(tokenizer.tokenize(overwriteStmt, false));
-        assertEquals(1, ast.size());
-        assertInstanceOf(Overwrite.class, ast.getFirst());
     }
 
     @Test

@@ -42,11 +42,15 @@ public class ClassEmitter {
         this.cw = new ClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS);
         cw.visit(V21, ACC_PUBLIC | ACC_FINAL, internalName, null, "java/lang/Object", null);
         cw.visitField(ACC_PRIVATE | ACC_STATIC | ACC_FINAL, "GLOBALS", ENV_DESC, null, null).visitEnd();
-        cw.visitField(ACC_PRIVATE | ACC_STATIC | ACC_FINAL, "NAMESPACES", ENV_DESC, null, null).visitEnd();
     }
 
     public String getInternalName() {
         return internalName;
+    }
+
+    public void declareCacheField(String funcName) {
+        cw.visitField(ACC_PRIVATE | ACC_STATIC, "CACHE$" + funcName,
+                "Ljava/util/concurrent/ConcurrentHashMap;", null, null).visitEnd();
     }
 
     public MethodVisitor openStaticInit() {

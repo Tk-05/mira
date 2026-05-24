@@ -7,13 +7,16 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
+import com.mira.Flags;
 import com.mira.error.runtime.RuntimeError.ArgMismatchError;
 import com.mira.error.runtime.RuntimeError.AssertionFailedError;
 import com.mira.error.runtime.RuntimeError.InvalidArgumentError;
+import com.mira.error.runtime.RuntimeError.TypeConversionError;
 import com.mira.lexer.Tokenizer;
 import com.mira.lib.Lib;
 import com.mira.parser.Parser;
 import com.mira.parser.nodes.Node;
+import com.mira.parser.nodes.expression.Expression;
 import com.mira.parser.nodes.expression.Expression.ArrayExpression;
 import com.mira.parser.nodes.expression.Expression.ListExpression;
 import com.mira.runtime.functions.Callable;
@@ -22,7 +25,8 @@ import com.mira.runtime.functions.Promise;
 import com.mira.runtime.interpreter.Environment;
 import com.mira.runtime.interpreter.Evaluator;
 import com.mira.runtime.interpreter.Interpreter;
-import com.mira.runtime.interpreter.NullValue;
+import com.mira.runtime.values.NullValue;
+import com.mira.testing.TestRunner;
 
 public class Internal implements Lib {
 
@@ -168,6 +172,156 @@ public class Internal implements Lib {
             return null;
         }));
 
+        environment.define("toNum", new NativeFunction(1, args -> {
+            Object val = args.get(0);
+            return switch (val) {
+                case Number n ->
+                    n;
+                case Boolean b ->
+                    b ? 1L : 0L;
+                case NullValue ignored ->
+                    0L;
+                case String s -> {
+                    try {
+                        yield Long.valueOf(s);
+                    } catch (NumberFormatException ignored) {
+                    }
+                    try {
+                        yield Double.parseDouble(s);
+                    } catch (NumberFormatException ignored) {
+                        throw new TypeConversionError(val);
+                    }
+                }
+                default ->
+                    throw new TypeConversionError(val);
+            };
+        }));
+
+        environment.define("toInt", new NativeFunction(1, args -> {
+            Object val = args.get(0);
+            return switch (val) {
+                case Long l ->
+                    l;
+                case Number n ->
+                    n.longValue();
+                case Boolean b ->
+                    b ? 1L : 0L;
+                case NullValue ignored ->
+                    0L;
+                case String s -> {
+                    try {
+                        yield Long.parseLong(s.trim());
+                    } catch (NumberFormatException ignored) {
+                    }
+                    try {
+                        yield (long) Double.parseDouble(s.trim());
+                    } catch (NumberFormatException ignored) {
+                        throw new TypeConversionError(val);
+                    }
+                }
+                default ->
+                    throw new TypeConversionError(val);
+            };
+        }));
+
+        environment.define("toFloat", new NativeFunction(1, args -> {
+            Object val = args.get(0);
+            return switch (val) {
+                case Double d ->
+                    d;
+                case Number n ->
+                    n.doubleValue();
+                case Boolean b ->
+                    b ? 1.0 : 0.0;
+                case NullValue ignored ->
+                    0.0;
+                case String s -> {
+                    try {
+                        yield Double.parseDouble(s.trim());
+                    } catch (NumberFormatException ignored) {
+                        throw new TypeConversionError(val);
+                    }
+                }
+                default ->
+                    throw new TypeConversionError(val);
+            };
+        }));
+
+        environment.define("toStr", new NativeFunction(1, args -> {
+            Object val = args.get(0);
+            if (val == null || val instanceof NullValue) {
+                return "null";
+            }
+            return String.valueOf(val);
+        }));
+
+        environment.define("toBool", new NativeFunction(1, args -> {
+            Object val = args.get(0);
+            return switch (val) {
+                case Boolean b ->
+                    b;
+                case NullValue ignored ->
+                    false;
+                case null ->
+                    false;
+                case Number n ->
+                    n.doubleValue() != 0;
+                case String s -> {
+                    if (s.equalsIgnoreCase("true")) {
+                        yield true;
+                    }
+                    if (s.equalsIgnoreCase("false")) {
+                        yield false;
+                    }
+                    try {
+                        yield Double.parseDouble(s) != 0;
+                    } catch (NumberFormatException ignored) {
+                        yield !s.isEmpty();
+                    }
+                }
+                default ->
+                    true;
+            };
+        }));
+
+        environment.define("chars", new NativeFunction(1, args -> {
+            Object val = args.get(0);
+            if (!(val instanceof String s)) {
+                throw new InvalidArgumentError("chars", "expected a string, got " + com.mira.compiler.Runtime.typeofVal(val));
+            }
+            List<Expression> members = new java.util.ArrayList<>(s.length());
+            for (char c : s.toCharArray()) {
+                String ch = String.valueOf(c);
+                members.add(new com.mira.parser.nodes.expression.Expression.DumbExpression(
+                        new com.mira.lexer.token.Token(com.mira.lexer.token.TokenType.STRING_LITERAL, ch, 0, 0)));
+            }
+            return new ListExpression(members);
+        }));
+
+        environment.define("toList", new NativeFunction(1, args -> {
+            Object val = args.get(0);
+            return switch (val) {
+                case ListExpression l ->
+                    l;
+                case ArrayExpression a ->
+                    new ListExpression(new java.util.ArrayList<>(a.getMembers()));
+                default ->
+                    throw new InvalidArgumentError("toList", "expected an array or list, got " + com.mira.compiler.Runtime.typeofVal(val));
+            };
+        }));
+
+        environment.define("toArray", new NativeFunction(1, args -> {
+            Object val = args.get(0);
+            return switch (val) {
+                case ArrayExpression a ->
+                    a;
+                case ListExpression l ->
+                    new ArrayExpression(new java.util.ArrayList<>(l.getMembers()));
+                default ->
+                    throw new InvalidArgumentError("toArray", "expected a list or array, got " + com.mira.compiler.Runtime.typeofVal(val));
+            };
+        }));
+
         environment.define("spawn", new Callable() {
             @Override
             public int getArity() {
@@ -184,5 +338,24 @@ public class Internal implements Lib {
                 return new Promise(future);
             }
         });
+
+        if (Flags.testMode) {
+            environment.define("test", new Callable() {
+                @Override
+                public int getArity() {
+                    return 2;
+                }
+
+                @Override
+                public Object call(Interpreter interpreter, List<Object> arguments) {
+                    String name = String.valueOf(arguments.get(0));
+                    if (!(arguments.get(1) instanceof Callable fn)) {
+                        throw new RuntimeException("test() second argument must be a function");
+                    }
+                    TestRunner.register(name, fn, interpreter);
+                    return NullValue.INSTANCE;
+                }
+            });
+        }
     }
 }

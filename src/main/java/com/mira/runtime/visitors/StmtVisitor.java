@@ -9,12 +9,12 @@ import com.mira.parser.nodes.statement.Statement.For;
 import com.mira.parser.nodes.statement.Statement.Foreach;
 import com.mira.parser.nodes.statement.Statement.FuncDecl;
 import com.mira.parser.nodes.statement.Statement.If;
-import com.mira.parser.nodes.statement.Statement.Overwrite;
 import com.mira.parser.nodes.statement.Statement.Return;
 import com.mira.parser.nodes.statement.Statement.Switch;
 import com.mira.parser.nodes.statement.Statement.Throw;
 import com.mira.parser.nodes.statement.Statement.TryCatch;
 import com.mira.parser.nodes.statement.Statement.VarDecl;
+import com.mira.parser.nodes.statement.Statement.Lock;
 import com.mira.parser.nodes.statement.Statement.VarDestructure;
 import com.mira.parser.nodes.statement.Statement.While;
 
@@ -40,8 +40,6 @@ public interface StmtVisitor<T> {
 
     public T visitBlock(Block stmt);
 
-    public T visitOverwrite(Overwrite stmt);
-
     public T visitForeach(Foreach stmt);
 
     public T visitSwitch(Switch stmt);
@@ -53,4 +51,6 @@ public interface StmtVisitor<T> {
     public T visitTryCatch(TryCatch stmt);
 
     public T visitVarDestructure(VarDestructure stmt);
+
+    public T visitLock(Lock stmt);
 }

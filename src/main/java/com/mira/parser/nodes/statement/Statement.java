@@ -52,23 +52,34 @@ public abstract class Statement implements Node {
         private final List<Node> body;
         private final String variadicParam;
         private final boolean isAsync;
+        private final boolean isPure;
 
         public FuncDecl(String name, List<Parameter> parameters,
                 List<Node> body, String variadicParam) {
-            this(name, parameters, body, variadicParam, false);
+            this(name, parameters, body, variadicParam, false, false);
         }
 
         public FuncDecl(String name, List<Parameter> parameters,
                 List<Node> body, String variadicParam, boolean isAsync) {
+            this(name, parameters, body, variadicParam, isAsync, false);
+        }
+
+        public FuncDecl(String name, List<Parameter> parameters,
+                List<Node> body, String variadicParam, boolean isAsync, boolean isPure) {
             this.name = name;
             this.parameters = parameters;
             this.body = body;
             this.variadicParam = variadicParam;
             this.isAsync = isAsync;
+            this.isPure = isPure;
         }
 
         public boolean isAsync() {
             return isAsync;
+        }
+
+        public boolean isPure() {
+            return isPure;
         }
 
         public String getName() {
@@ -276,24 +287,6 @@ public abstract class Statement implements Node {
         }
     }
 
-    public static class Overwrite extends Statement {
-
-        private final String stmt;
-
-        public Overwrite(String stmt) {
-            this.stmt = stmt;
-        }
-
-        @Override
-        public <T> T accept(StmtVisitor<T> visitor) {
-            return visitor.visitOverwrite(this);
-        }
-
-        public String getStmt() {
-            return stmt;
-        }
-    }
-
     public static class Foreach extends Statement {
 
         private final VarDecl iterator;
@@ -485,6 +478,30 @@ public abstract class Statement implements Node {
 
         public String getIdentifier() {
             return identifier;
+        }
+    }
+
+    public static class Lock extends Statement {
+
+        private final Expression mutex;
+        private final List<Node> body;
+
+        public Lock(Expression mutex, List<Node> body) {
+            this.mutex = mutex;
+            this.body = body;
+        }
+
+        public Expression getMutex() {
+            return mutex;
+        }
+
+        public List<Node> getBody() {
+            return body;
+        }
+
+        @Override
+        public <T> T accept(StmtVisitor<T> visitor) {
+            return visitor.visitLock(this);
         }
     }
 

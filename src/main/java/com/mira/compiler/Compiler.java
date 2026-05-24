@@ -5,6 +5,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -15,8 +16,10 @@ import static org.objectweb.asm.Opcodes.ALOAD;
 import static org.objectweb.asm.Opcodes.ARETURN;
 import static org.objectweb.asm.Opcodes.ASTORE;
 import static org.objectweb.asm.Opcodes.DUP;
+import static org.objectweb.asm.Opcodes.GETSTATIC;
 import static org.objectweb.asm.Opcodes.GOTO;
 import static org.objectweb.asm.Opcodes.ICONST_0;
+import static org.objectweb.asm.Opcodes.IF_ACMPEQ;
 import static org.objectweb.asm.Opcodes.INVOKESPECIAL;
 import static org.objectweb.asm.Opcodes.INVOKESTATIC;
 import static org.objectweb.asm.Opcodes.INVOKEVIRTUAL;
@@ -26,19 +29,19 @@ import static org.objectweb.asm.Opcodes.RETURN;
 
 import com.mira.Flags;
 import com.mira.error.runtime.RuntimeError.ModuleMissingDeclarationError;
-import com.mira.error.runtime.RuntimeError.ModuleNameMismatchError;
 import com.mira.lexer.Tokenizer;
 import com.mira.parser.Parser;
 import com.mira.parser.nodes.Node;
 import com.mira.parser.nodes.Parameter;
 import com.mira.parser.nodes.expression.Expression;
 import com.mira.parser.nodes.expression.Expression.ImportExpression;
+import com.mira.parser.nodes.statement.Statement.EnumDecl;
 import com.mira.parser.nodes.statement.Statement.FuncDecl;
 import com.mira.parser.nodes.statement.Statement.ModuleDecl;
 
 public class Compiler {
 
-    public record CompileResult(byte[] mainClass, Map<String, byte[]> lambdaClasses, String className) {
+    public record CompileResult(byte[] mainClass, Map<String, byte[]> lambdaClasses, String className, Map<String, byte[]> nativeJars) {
 
     }
 
@@ -54,30 +57,57 @@ public class Compiler {
         int[] lambdaCounter = {0};
 
         Set<String> knownFunctions = new HashSet<>();
+        Set<String> pureFunctions = new HashSet<>();
         for (Node node : ast) {
             if (node instanceof FuncDecl fd && !fd.isAsync()) {
                 knownFunctions.add(fd.getName());
+                if (fd.isPure()) {
+                    pureFunctions.add(fd.getName());
+                    ce.declareCacheField(fd.getName());
+                }
             }
         }
 
         Map<String, byte[]> extras = new HashMap<>();
-        Map<String, String> compiledModules = compileModuleImports(ast, extras);
+        Map<String, byte[]> nativeJars = new LinkedHashMap<>();
+        Map<String, String> compiledModules = compileModuleImports(ast, extras, nativeJars);
 
-        emitStaticInit(ce, className, ast);
+        Path ip = Flags.inputPath.get();
+        if (ip != null) {
+            Path inputDir = ip.toAbsolutePath().getParent();
+            for (Node node : ast) {
+                if (node instanceof ImportExpression ie && ie.getKind() == ImportExpression.ImportKind.NATIVE) {
+                    String rawPath = ie.getModule().replace("\"", "");
+                    Path candidate = Path.of(rawPath);
+                    Path jarPath = candidate.isAbsolute()
+                            ? candidate.normalize()
+                            : inputDir.resolve(candidate).normalize();
+                    if (Files.exists(jarPath)) {
+                        try {
+                            nativeJars.putIfAbsent(rawPath, Files.readAllBytes(jarPath));
+                        } catch (IOException e) {
+                            throw new RuntimeException("Cannot read native JAR: " + jarPath, e);
+                        }
+                    }
+                }
+            }
+        }
+
+        emitStaticInit(ce, className, ast, pureFunctions);
         emitMain(ce, className, knownFunctions, lambdaCounter, ast, compiledModules);
 
         for (Node node : ast) {
             if (node instanceof FuncDecl fd) {
-                emitTopLevelFunction(ce, className, knownFunctions, lambdaCounter, fd);
+                emitTopLevelFunction(ce, className, knownFunctions, lambdaCounter, fd, pureFunctions);
             }
         }
 
         byte[] mainBytes = ce.finish();
         extras.putAll(ce.getExtraClasses());
-        return new CompileResult(mainBytes, extras, className);
+        return new CompileResult(mainBytes, extras, className, nativeJars);
     }
 
-    private Map<String, String> compileModuleImports(List<Node> ast, Map<String, byte[]> extras) {
+    private Map<String, String> compileModuleImports(List<Node> ast, Map<String, byte[]> extras, Map<String, byte[]> nativeJars) {
         Map<String, String> result = new HashMap<>();
         for (Node node : ast) {
             if (!(node instanceof ImportExpression ie)) {
@@ -105,12 +135,8 @@ public class Compiler {
                         new Tokenizer().tokenize(source, false));
 
                 String fileName = modulePath.getFileName().toString();
-                String expectedModuleName = fileName.replace(".mira", "");
-                if (moduleAst.isEmpty() || !(moduleAst.getFirst() instanceof ModuleDecl moduleDecl)) {
+                if (moduleAst.isEmpty() || !(moduleAst.getFirst() instanceof ModuleDecl)) {
                     throw new ModuleMissingDeclarationError(fileName);
-                }
-                if (!moduleDecl.getModuleName().equals(expectedModuleName)) {
-                    throw new ModuleNameMismatchError(fileName, expectedModuleName, moduleDecl.getModuleName());
                 }
 
                 Path prev = Flags.inputPath.get();
@@ -120,6 +146,7 @@ public class Compiler {
                 Flags.inputPath.set(prev);
                 extras.put(r.className(), r.mainClass());
                 extras.putAll(r.lambdaClasses());
+                nativeJars.putAll(r.nativeJars());
                 result.put(alias, r.className());
             } catch (IOException e) {
                 throw new RuntimeException("Cannot read module: " + modulePath, e);
@@ -128,7 +155,7 @@ public class Compiler {
         return result;
     }
 
-    private void emitStaticInit(ClassEmitter ce, String className, List<Node> ast) {
+    private void emitStaticInit(ClassEmitter ce, String className, List<Node> ast, Set<String> pureFunctions) {
         MethodVisitor mv = ce.openStaticInit();
         mv.visitCode();
 
@@ -138,13 +165,6 @@ public class Compiler {
         mv.visitMethodInsn(INVOKESPECIAL, ENV, "<init>",
                 "(L" + ENV + ";)V", false);
         mv.visitFieldInsn(PUTSTATIC, className, "GLOBALS", ENV_D);
-
-        mv.visitTypeInsn(NEW, ENV);
-        mv.visitInsn(DUP);
-        mv.visitInsn(org.objectweb.asm.Opcodes.ACONST_NULL);
-        mv.visitMethodInsn(INVOKESPECIAL, ENV, "<init>",
-                "(L" + ENV + ";)V", false);
-        mv.visitFieldInsn(PUTSTATIC, className, "NAMESPACES", ENV_D);
 
         mv.visitFieldInsn(org.objectweb.asm.Opcodes.GETSTATIC, className, "GLOBALS", ENV_D);
         mv.visitMethodInsn(INVOKESTATIC, IMPORT_RESOLVER, "loadInternal",
@@ -157,8 +177,7 @@ public class Compiler {
                 }
                 String alias = ie.getNamespace();
                 boolean hasAlias = alias != null && !alias.isBlank();
-                String targetField = hasAlias ? "NAMESPACES" : "GLOBALS";
-                mv.visitFieldInsn(org.objectweb.asm.Opcodes.GETSTATIC, className, targetField, ENV_D);
+                mv.visitFieldInsn(org.objectweb.asm.Opcodes.GETSTATIC, className, "GLOBALS", ENV_D);
                 mv.visitLdcInsn(ie.getKind().name());
                 mv.visitLdcInsn(ie.getModule());
                 if (hasAlias) {
@@ -169,6 +188,13 @@ public class Compiler {
                 mv.visitMethodInsn(INVOKESTATIC, IMPORT_RESOLVER, "loadForCompiled",
                         "(" + ENV_D + "Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V", false);
             }
+        }
+
+        for (String fnName : pureFunctions) {
+            mv.visitTypeInsn(NEW, "java/util/concurrent/ConcurrentHashMap");
+            mv.visitInsn(DUP);
+            mv.visitMethodInsn(INVOKESPECIAL, "java/util/concurrent/ConcurrentHashMap", "<init>", "()V", false);
+            mv.visitFieldInsn(PUTSTATIC, className, "CACHE$" + fnName, "Ljava/util/concurrent/ConcurrentHashMap;");
         }
 
         for (Node node : ast) {
@@ -219,21 +245,27 @@ public class Compiler {
                 "(Ljava/lang/String;Ljava/lang/Object;)V", false);
 
         for (Node node : ast) {
-            if (node instanceof FuncDecl || node instanceof ModuleDecl
-                    || node instanceof Expression.ImportExpression) {
-                continue;
+            if (node instanceof EnumDecl) {
+                emitter.emitNode(node);
             }
-            emitter.emitNode(node);
         }
 
         for (Map.Entry<String, String> entry : compiledModules.entrySet()) {
             String alias = entry.getKey();
             String dotName = entry.getValue().replace('/', '.');
-            mv.visitFieldInsn(org.objectweb.asm.Opcodes.GETSTATIC, className, "NAMESPACES", ClassEmitter.ENV_DESC);
+            mv.visitFieldInsn(org.objectweb.asm.Opcodes.GETSTATIC, className, "GLOBALS", ClassEmitter.ENV_DESC);
             mv.visitLdcInsn(alias);
             mv.visitLdcInsn(dotName);
             mv.visitMethodInsn(INVOKESTATIC, RT, "loadCompiledModule",
                     "(" + ClassEmitter.ENV_DESC + "Ljava/lang/String;Ljava/lang/String;)V", false);
+        }
+
+        for (Node node : ast) {
+            if (node instanceof FuncDecl || node instanceof ModuleDecl
+                    || node instanceof Expression.ImportExpression || node instanceof EnumDecl) {
+                continue;
+            }
+            emitter.emitNode(node);
         }
 
         if (Flags.mainFunction && knownFunctions.contains("main")) {
@@ -288,9 +320,11 @@ public class Compiler {
     }
 
     private void emitTopLevelFunction(ClassEmitter ce, String className,
-            Set<String> knownFunctions, int[] lambdaCounter, FuncDecl fd) {
-        String mName = "mira$" + fd.getName();
-        MethodVisitor mv = ce.openFunction(mName);
+            Set<String> knownFunctions, int[] lambdaCounter, FuncDecl fd, Set<String> pureFunctions) {
+        boolean isPure = pureFunctions.contains(fd.getName()) && !fd.isAsync();
+        String implName = isPure ? "mira$" + fd.getName() + "$impl" : "mira$" + fd.getName();
+
+        MethodVisitor mv = ce.openFunction(implName);
         mv.visitCode();
 
         LocalSlotTable slots = new LocalSlotTable(1);
@@ -339,6 +373,48 @@ public class Compiler {
         emitter.emitBody(fd.getBody());
 
         mv.visitMethodInsn(INVOKESTATIC, RT, "nullVal", "()" + OBJ_D, false);
+        mv.visitInsn(ARETURN);
+        mv.visitMaxs(0, 0);
+        mv.visitEnd();
+
+        if (isPure) {
+            emitPureFunctionWrapper(ce, className, fd.getName());
+        }
+    }
+
+    private static final String CACHE_DESC = "Ljava/util/concurrent/ConcurrentHashMap;";
+
+    private void emitPureFunctionWrapper(ClassEmitter ce, String className, String funcName) {
+        MethodVisitor mv = ce.openFunction("mira$" + funcName);
+        mv.visitCode();
+
+        Label missLabel = new Label();
+
+        mv.visitFieldInsn(GETSTATIC, className, "CACHE$" + funcName, CACHE_DESC);
+        mv.visitVarInsn(ALOAD, 0);
+        mv.visitMethodInsn(INVOKESTATIC, RT, "cacheGet",
+                "(" + CACHE_DESC + "[Ljava/lang/Object;)Ljava/lang/Object;", false);
+        mv.visitVarInsn(ASTORE, 1);
+
+        mv.visitVarInsn(ALOAD, 1);
+        mv.visitFieldInsn(GETSTATIC, RT, "CACHE_MISS", OBJ_D);
+        mv.visitJumpInsn(IF_ACMPEQ, missLabel);
+        mv.visitVarInsn(ALOAD, 1);
+        mv.visitInsn(ARETURN);
+
+        mv.visitLabel(missLabel);
+        mv.visitVarInsn(ALOAD, 0);
+        mv.visitMethodInsn(INVOKESTATIC, className, "mira$" + funcName + "$impl",
+                "([Ljava/lang/Object;)Ljava/lang/Object;", false);
+        mv.visitVarInsn(ASTORE, 2);
+
+        mv.visitFieldInsn(GETSTATIC, className, "CACHE$" + funcName, CACHE_DESC);
+        mv.visitVarInsn(ALOAD, 0);
+        mv.visitVarInsn(ALOAD, 2);
+        mv.visitMethodInsn(INVOKESTATIC, RT, "cachePut",
+                "(" + CACHE_DESC + "[Ljava/lang/Object;Ljava/lang/Object;)V", false);
+
+        mv.visitVarInsn(ALOAD, 2);
         mv.visitInsn(ARETURN);
         mv.visitMaxs(0, 0);
         mv.visitEnd();

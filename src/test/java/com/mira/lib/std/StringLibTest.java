@@ -6,6 +6,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
+import com.mira.parser.nodes.expression.Expression.DumbExpression;
+import com.mira.parser.nodes.expression.Expression.ListExpression;
 import com.mira.runtime.functions.NativeFunction;
 import com.mira.runtime.interpreter.Environment;
 import com.mira.runtime.interpreter.Interpreter;
@@ -48,9 +50,9 @@ public class StringLibTest {
     @Test
     void testSplit() {
         if (environment.get("split") instanceof NativeFunction nativeFunction) {
-            String[] split = (String[]) nativeFunction.call(interpreter, List.of("ABC ABC", " "));
-            assertEquals("ABC", split[0]);
-            assertEquals("ABC", split[1]);
+            ListExpression split = (ListExpression) nativeFunction.call(interpreter, List.of("ABC ABC", " "));
+            assertEquals("ABC", ((DumbExpression) split.getMembers().get(0)).getValue());
+            assertEquals("ABC", ((DumbExpression) split.getMembers().get(1)).getValue());
         }
     }
 
@@ -76,5 +78,75 @@ public class StringLibTest {
             String result = (String) nativeFunction.call(interpreter, List.of("hello", 'l', 'r'));
             assertEquals("herro", result);
         }
+    }
+
+    @Test
+    void testUpper() {
+        NativeFunction fn = (NativeFunction) environment.get("upper");
+        assertEquals("HELLO", fn.call(interpreter, List.of("hello")));
+    }
+
+    @Test
+    void testLower() {
+        NativeFunction fn = (NativeFunction) environment.get("lower");
+        assertEquals("hello", fn.call(interpreter, List.of("HELLO")));
+    }
+
+    @Test
+    void testStartsWith() {
+        NativeFunction fn = (NativeFunction) environment.get("startsWith");
+        assertEquals(true, fn.call(interpreter, List.of("hello", "he")));
+        assertEquals(false, fn.call(interpreter, List.of("hello", "lo")));
+    }
+
+    @Test
+    void testEndsWith() {
+        NativeFunction fn = (NativeFunction) environment.get("endsWith");
+        assertEquals(true, fn.call(interpreter, List.of("hello", "lo")));
+        assertEquals(false, fn.call(interpreter, List.of("hello", "he")));
+    }
+
+    @Test
+    void testContains() {
+        NativeFunction fn = (NativeFunction) environment.get("contains");
+        assertEquals(true, fn.call(interpreter, List.of("hello world", "world")));
+        assertEquals(false, fn.call(interpreter, List.of("hello", "xyz")));
+    }
+
+    @Test
+    void testRepeat() {
+        NativeFunction fn = (NativeFunction) environment.get("repeat");
+        assertEquals("abcabc", fn.call(interpreter, List.of("abc", "2")));
+        assertEquals("", fn.call(interpreter, List.of("abc", "0")));
+    }
+
+    @Test
+    void testToNumber() {
+        NativeFunction fn = (NativeFunction) environment.get("toNumber");
+        assertEquals(42.0, fn.call(interpreter, List.of("42")));
+        assertEquals(3.14, fn.call(interpreter, List.of("3.14")));
+    }
+
+    @Test
+    void testPadLeft() {
+        NativeFunction fn = (NativeFunction) environment.get("padLeft");
+        assertEquals("  hi", fn.call(interpreter, List.of("hi", "4")));
+        assertEquals("hi", fn.call(interpreter, List.of("hi", "1")));
+    }
+
+    @Test
+    void testPadRight() {
+        NativeFunction fn = (NativeFunction) environment.get("padRight");
+        assertEquals("hi  ", fn.call(interpreter, List.of("hi", "4")));
+        assertEquals("hi", fn.call(interpreter, List.of("hi", "1")));
+    }
+
+    @Test
+    void testIsNumeric() {
+        NativeFunction fn = (NativeFunction) environment.get("isNumeric");
+        assertEquals(true, fn.call(interpreter, List.of("42")));
+        assertEquals(true, fn.call(interpreter, List.of("3.14")));
+        assertEquals(false, fn.call(interpreter, List.of("abc")));
+        assertEquals(false, fn.call(interpreter, List.of("")));
     }
 }

@@ -26,6 +26,8 @@ import static org.objectweb.asm.Opcodes.INVOKESTATIC;
 import static org.objectweb.asm.Opcodes.INVOKEVIRTUAL;
 import static org.objectweb.asm.Opcodes.ISTORE;
 import static org.objectweb.asm.Opcodes.IXOR;
+import static org.objectweb.asm.Opcodes.MONITORENTER;
+import static org.objectweb.asm.Opcodes.MONITOREXIT;
 import static org.objectweb.asm.Opcodes.NEW;
 import static org.objectweb.asm.Opcodes.POP;
 import static org.objectweb.asm.Opcodes.SIPUSH;
@@ -38,8 +40,6 @@ import com.mira.parser.nodes.expression.Expression;
 import com.mira.parser.nodes.expression.Expression.AccessExpression;
 import com.mira.parser.nodes.expression.Expression.ArrayExpression;
 import com.mira.parser.nodes.expression.Expression.AwaitExpression;
-import com.mira.parser.nodes.expression.Expression.SwitchExpression;
-import com.mira.parser.nodes.expression.Expression.TypeofExpression;
 import com.mira.parser.nodes.expression.Expression.BinaryExpression;
 import com.mira.parser.nodes.expression.Expression.CallExpression;
 import com.mira.parser.nodes.expression.Expression.ComplexExpression;
@@ -52,8 +52,10 @@ import com.mira.parser.nodes.expression.Expression.MethodCallExpression;
 import com.mira.parser.nodes.expression.Expression.NamespaceCallExpression;
 import com.mira.parser.nodes.expression.Expression.ObjectExpression;
 import com.mira.parser.nodes.expression.Expression.RangeExpression;
+import com.mira.parser.nodes.expression.Expression.SwitchExpression;
 import com.mira.parser.nodes.expression.Expression.TernaryExpression;
 import com.mira.parser.nodes.expression.Expression.ThrownException;
+import com.mira.parser.nodes.expression.Expression.TypeofExpression;
 import com.mira.parser.nodes.expression.Expression.UnaryExpression;
 import com.mira.parser.nodes.statement.Statement;
 import com.mira.parser.nodes.statement.Statement.Assign;
@@ -65,7 +67,7 @@ import com.mira.parser.nodes.statement.Statement.For;
 import com.mira.parser.nodes.statement.Statement.Foreach;
 import com.mira.parser.nodes.statement.Statement.FuncDecl;
 import com.mira.parser.nodes.statement.Statement.If;
-import com.mira.parser.nodes.statement.Statement.Overwrite;
+import com.mira.parser.nodes.statement.Statement.Lock;
 import com.mira.parser.nodes.statement.Statement.Return;
 import com.mira.parser.nodes.statement.Statement.Switch;
 import com.mira.parser.nodes.statement.Statement.Throw;
@@ -485,7 +487,7 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
 
     @Override
     public <T> T visitNamespaceCallExpr(NamespaceCallExpression expression) {
-        mv.visitFieldInsn(GETSTATIC, ctx.className, "NAMESPACES", ENV_D);
+        mv.visitFieldInsn(GETSTATIC, ctx.className, "GLOBALS", ENV_D);
         mv.visitLdcInsn(expression.getAlias());
         mv.visitLdcInsn(expression.getFunctionName());
         emitObjectArray(expression.getArguments());
@@ -666,10 +668,9 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
     }
 
     private void resolveIfStringName() {
-        mv.visitFieldInsn(GETSTATIC, ctx.className, "NAMESPACES", ENV_D);
         mv.visitFieldInsn(GETSTATIC, ctx.className, "GLOBALS", ENV_D);
         mv.visitMethodInsn(INVOKESTATIC, RT, "resolveIfNamespace",
-                "(" + OBJ_D + ENV_D + ENV_D + ")" + OBJ_D, false);
+                "(" + OBJ_D + ENV_D + ")" + OBJ_D, false);
     }
 
     @Override
@@ -867,10 +868,9 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
 
     @Override
     public Void visitFuncDecl(FuncDecl stmt) {
-        if (ctx.isTopLevel) {
+        if (ctx.isTopLevel && ctx.blockDepth == 0) {
             return null;
         }
-        ctx.localFunctions.add(stmt.getName());
         int n = ctx.lambdaCounter[0]++;
         String mName = "mira$lambda$" + n;
         String lClass = ctx.className + "$Lambda$" + n;
@@ -907,7 +907,19 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
         mv.visitInsn(DUP);
         emitIntConst(stmt.getArity());
         mv.visitMethodInsn(INVOKESPECIAL, visibleClass, "<init>", "(I)V", false);
-        emitVarStore(stmt.getName(), true);
+
+        if (ctx.isTopLevel) {
+            int tmp = ctx.slots.allocate("$$fn_" + stmt.getName());
+            mv.visitVarInsn(ASTORE, tmp);
+            emitRealGlobals();
+            mv.visitLdcInsn(stmt.getName());
+            mv.visitVarInsn(ALOAD, tmp);
+            mv.visitMethodInsn(INVOKEVIRTUAL, ENV, "defineFunction",
+                    "(Ljava/lang/String;" + OBJ_D + ")V", false);
+        } else {
+            ctx.localFunctions.add(stmt.getName());
+            emitVarStore(stmt.getName(), true);
+        }
         return null;
     }
 
@@ -1348,7 +1360,34 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
     }
 
     @Override
-    public Void visitOverwrite(Overwrite stmt) {
-        throw new UnsupportedOperationException("overwrite is not supported in compiled mode");
+    public Void visitLock(Lock stmt) {
+        stmt.getMutex().accept(this);
+        int monSlot = ctx.slots.allocate("$$lock");
+        mv.visitVarInsn(ASTORE, monSlot);
+        mv.visitVarInsn(ALOAD, monSlot);
+        mv.visitInsn(MONITORENTER);
+
+        Label start = new Label();
+        Label end = new Label();
+        Label handler = new Label();
+        mv.visitLabel(start);
+
+        for (Node n : stmt.getBody()) {
+            emitNode(n);
+        }
+
+        mv.visitVarInsn(ALOAD, monSlot);
+        mv.visitInsn(MONITOREXIT);
+        mv.visitJumpInsn(GOTO, end);
+
+        mv.visitLabel(handler);
+        mv.visitVarInsn(ALOAD, monSlot);
+        mv.visitInsn(MONITOREXIT);
+        mv.visitInsn(ATHROW);
+
+        mv.visitLabel(end);
+        mv.visitTryCatchBlock(start, handler, handler, null);
+        return null;
     }
+
 }

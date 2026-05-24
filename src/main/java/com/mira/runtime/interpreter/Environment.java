@@ -16,7 +16,6 @@ public class Environment {
     private final Map<String, Object> values;
     private final Set<String> constants = new HashSet<>();
     private final Set<String> declaredFunctions = new HashSet<>();
-    private static final ThreadLocal<Boolean> overwriteMode = ThreadLocal.withInitial(() -> false);
 
     public Environment() {
         this.parent = null;
@@ -34,7 +33,7 @@ public class Environment {
     }
 
     public void define(String name, Object value) {
-        if (overwriteMode.get() || !exists(name)) {
+        if (!exists(name)) {
             values.put(name, value);
         } else {
             throw new ObjectAlreadyDefinedInScope(name);
@@ -47,7 +46,9 @@ public class Environment {
     }
 
     public boolean isDeclaredFunction(String name) {
-        if (declaredFunctions.contains(name)) return true;
+        if (declaredFunctions.contains(name)) {
+            return true;
+        }
         return parent != null && parent.isDeclaredFunction(name);
     }
 
@@ -57,7 +58,7 @@ public class Environment {
     }
 
     public void defineConst(String name, Object value) {
-        if (overwriteMode.get() || !exists(name)) {
+        if (!exists(name)) {
             values.put(name, value);
             constants.add(name);
         } else {
@@ -67,7 +68,7 @@ public class Environment {
 
     public void assign(String name, Object value) {
         if (values.containsKey(name)) {
-            if (!overwriteMode.get() && constants.contains(name)) {
+            if (constants.contains(name)) {
                 throw new ReferenceIsImmutableError(name);
             }
             values.put(name, value);
@@ -88,7 +89,50 @@ public class Environment {
         if (parent != null) {
             return parent.get(name);
         }
-        throw new UndefinedReferenceError(name);
+        String suggestion = findSimilar(name);
+        String hint = suggestion != null
+                ? "Did you mean '" + suggestion + "'?"
+                : "Make sure '" + name + "' is imported or declared before use";
+        throw new UndefinedReferenceError(name, hint);
+    }
+
+    private String findSimilar(String name) {
+        String best = null;
+        int bestDist = 3;
+        Environment env = this;
+        while (env != null) {
+            for (String key : env.values.keySet()) {
+                int dist = editDistance(name.toLowerCase(), key.toLowerCase());
+                if (dist < bestDist) {
+                    bestDist = dist;
+                    best = key;
+                }
+            }
+            env = env.parent;
+        }
+        return best;
+    }
+
+    private static int editDistance(String a, String b) {
+        int la = a.length(), lb = b.length();
+        if (Math.abs(la - lb) >= 3) {
+            return 99;
+        }
+        int[] prev = new int[lb + 1];
+        for (int j = 0; j <= lb; j++) {
+            prev[j] = j;
+        }
+        for (int i = 1; i <= la; i++) {
+            int[] curr = new int[lb + 1];
+            curr[0] = i;
+            for (int j = 1; j <= lb; j++) {
+                curr[j] = a.charAt(i - 1) == b.charAt(j - 1)
+                        ? prev[j - 1]
+                        : 1 + Math.min(prev[j - 1], Math.min(prev[j], curr[j - 1]));
+            }
+            prev = curr;
+        }
+        return prev[lb];
     }
 
     public Object getOrNull(String name) {
@@ -149,11 +193,20 @@ public class Environment {
         return values.keySet();
     }
 
-    public static void setOverwriteMode(boolean value) {
-        overwriteMode.set(value);
+    public void copyDeclarationsTo(Environment target, Set<String> exclude) {
+        for (String name : values.keySet()) {
+            if (exclude.contains(name)) {
+                continue;
+            }
+            Object value = values.get(name);
+            if (declaredFunctions.contains(name)) {
+                target.defineFunction(name, value);
+            } else if (constants.contains(name)) {
+                target.defineConst(name, value);
+            } else {
+                target.define(name, value);
+            }
+        }
     }
 
-    public static boolean getOverwriteMode() {
-        return overwriteMode.get();
-    }
 }

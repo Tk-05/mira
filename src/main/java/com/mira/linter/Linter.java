@@ -29,16 +29,16 @@ import com.mira.parser.nodes.expression.Expression.TypeofExpression;
 import com.mira.parser.nodes.expression.Expression.UnaryExpression;
 import com.mira.parser.nodes.statement.Statement.Assign;
 import com.mira.parser.nodes.statement.Statement.Block;
+import com.mira.parser.nodes.statement.Statement.CatchClause;
 import com.mira.parser.nodes.statement.Statement.EnumDecl;
 import com.mira.parser.nodes.statement.Statement.For;
 import com.mira.parser.nodes.statement.Statement.Foreach;
 import com.mira.parser.nodes.statement.Statement.FuncDecl;
 import com.mira.parser.nodes.statement.Statement.If;
-import com.mira.parser.nodes.statement.Statement.Overwrite;
+import com.mira.parser.nodes.statement.Statement.Lock;
 import com.mira.parser.nodes.statement.Statement.Return;
 import com.mira.parser.nodes.statement.Statement.Switch;
 import com.mira.parser.nodes.statement.Statement.Throw;
-import com.mira.parser.nodes.statement.Statement.CatchClause;
 import com.mira.parser.nodes.statement.Statement.TryCatch;
 import com.mira.parser.nodes.statement.Statement.VarDecl;
 import com.mira.parser.nodes.statement.Statement.VarDestructure;
@@ -99,8 +99,6 @@ public class Linter {
                 lintFuncDecl(stmt);
             case Assign stmt ->
                 lintAssign(stmt);
-            case Overwrite stmt ->
-                lintOverwrite(stmt);
             case Return stmt ->
                 lintReturn(stmt);
             case If stmt ->
@@ -123,6 +121,8 @@ public class Linter {
                 lintEnum(stmt);
             case VarDestructure stmt ->
                 lintVarDestructure(stmt);
+            case Lock stmt ->
+                lintLock(stmt);
             case CallExpression e ->
                 lintCallExpression(e);
             default ->
@@ -311,6 +311,13 @@ public class Linter {
         checkUnused(scope.pop());
     }
 
+    private void lintLock(Lock stmt) {
+        lintExpr(stmt.getMutex());
+        for (Node n : stmt.getBody()) {
+            lintNode(n);
+        }
+    }
+
     private void lintVarDestructure(VarDestructure stmt) {
         lintExpr(stmt.getInitializer());
         for (String name : stmt.getNames()) {
@@ -321,16 +328,6 @@ public class Linter {
     private void lintAssign(Assign stmt) {
         lintExpr(stmt.getReference());
         lintExpr(stmt.getExpression());
-    }
-
-    private void lintOverwrite(Overwrite stmt) {
-        String name = stmt.getStmt();
-        if (scope.isConst(name)) {
-            warn("Cannot reassign const '" + name + "'", stmt.line, 0);
-        }
-        if (!scope.isDeclared(name)) {
-            warn("Assignment to undeclared variable '" + name + "'", stmt.line, 0);
-        }
     }
 
     private void lintReturn(Return stmt) {
@@ -488,8 +485,6 @@ public class Linter {
             case Throw s ->
                 s.line;
             case Assign s ->
-                s.line;
-            case Overwrite s ->
                 s.line;
             case CallExpression e when e.getCallee() instanceof DumbExpression d ->
                 d.getLine();

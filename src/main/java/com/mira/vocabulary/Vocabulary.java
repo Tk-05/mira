@@ -16,7 +16,6 @@ public class Vocabulary {
             "while",
             "break",
             "import",
-            "overwrite",
             "foreach",
             "in",
             "module",
@@ -38,7 +37,9 @@ public class Vocabulary {
             "do",
             "await",
             "async",
-            "typeof"
+            "typeof",
+            "lock",
+            "pure"
     );
 
     public static final Set<String> COMPARISON_OPERATORS = Set.of("==", "!=", "<", ">", "<=", ">=");
