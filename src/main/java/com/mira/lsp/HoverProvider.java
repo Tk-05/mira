@@ -46,9 +46,13 @@ public class HoverProvider {
             Map.entry("as", "**as** — Alias for an import"),
             Map.entry("enum", "**enum** — Declare an enumeration"),
             Map.entry("typeof", "**typeof(value)** — Returns the type of a value as a string"),
+            Map.entry("do", "**do { } while(cond)** — Executes the body at least once before checking the condition"),
+            Map.entry("native", "**native** — Used in `import native` to load an external JAR extension"),
             Map.entry("true", "**true** — Boolean literal"),
             Map.entry("false", "**false** — Boolean literal"),
-            Map.entry("null", "**null** — Null value")
+            Map.entry("null", "**null** — Null value"),
+            Map.entry("exec", "**exec { }** — Executes a block and returns its `return` value\n\n`exec { ... }` — has access to the enclosing local scope\n\n`exec isolated { ... }` — restricted to global scope only\n\nVariables declared inside do not leak out."),
+            Map.entry("isolated", "**isolated** — Modifier for `exec isolated { }` — restricts the block to global scope only")
     );
 
     private static final Map<String, String> STDLIB_DOCS;

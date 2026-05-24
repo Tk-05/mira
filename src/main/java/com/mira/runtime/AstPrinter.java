@@ -25,6 +25,7 @@ import com.mira.parser.nodes.expression.Expression.NamespaceCallExpression;
 import com.mira.parser.nodes.expression.Expression.ObjectExpression;
 import com.mira.parser.nodes.expression.Expression.RangeExpression;
 import com.mira.parser.nodes.expression.Expression.TernaryExpression;
+import com.mira.parser.nodes.expression.Expression.ExecBlock;
 import com.mira.parser.nodes.expression.Expression.ThrownException;
 import com.mira.parser.nodes.expression.Expression.UnaryExpression;
 import com.mira.parser.nodes.statement.Statement.Assign;
@@ -406,6 +407,12 @@ public class AstPrinter implements ExprVisitor<String>, StmtVisitor<String> {
     @Override
     public String visitThrownException(ThrownException thrownException) {
         return pad() + "Exception Literal [" + thrownException.getIdentifier() + "]";
+    }
+
+    @Override
+    public <T> T visitExecBlock(ExecBlock expression) {
+        return (T) (pad() + "ExecBlock [isolated=" + expression.isIsolated() + "]"
+                + body(expression.getBody()));
     }
 
     @Override

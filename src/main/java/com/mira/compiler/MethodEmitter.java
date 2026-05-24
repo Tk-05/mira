@@ -54,6 +54,7 @@ import com.mira.parser.nodes.expression.Expression.ObjectExpression;
 import com.mira.parser.nodes.expression.Expression.RangeExpression;
 import com.mira.parser.nodes.expression.Expression.SwitchExpression;
 import com.mira.parser.nodes.expression.Expression.TernaryExpression;
+import com.mira.parser.nodes.expression.Expression.ExecBlock;
 import com.mira.parser.nodes.expression.Expression.ThrownException;
 import com.mira.parser.nodes.expression.Expression.TypeofExpression;
 import com.mira.parser.nodes.expression.Expression.UnaryExpression;
@@ -852,6 +853,16 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
             emitNullVal();
         }
         mv.visitLabel(switchEnd);
+        return null;
+    }
+
+    @Override
+    public <T> T visitExecBlock(ExecBlock expression) {
+        LambdaExpression synthetic = new LambdaExpression(List.of(), expression.getBody(), null, false);
+        synthetic.accept(this);
+        emitObjectArray(List.of());
+        mv.visitMethodInsn(INVOKESTATIC, RT, "dynamicCall",
+                "(" + OBJ_D + "[" + OBJ_D + ")" + OBJ_D, false);
         return null;
     }
 

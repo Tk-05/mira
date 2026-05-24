@@ -25,12 +25,13 @@ public class CompletionProvider {
             "var", "const", "fn", "return", "if", "else", "while", "for", "foreach",
             "in", "break", "continue", "switch", "case", "default", "do",
             "try", "catch", "finally", "throw", "import", "module", "as",
-            "enum", "async", "await", "typeof", "spawn", "pure", "true", "false", "null"
+            "enum", "async", "await", "typeof", "spawn", "pure", "lock", "true", "false", "null",
+            "exec", "exec isolated"
     );
 
     private static final List<String> GLOBALS = List.of(
             "print", "println", "scan", "eval", "length", "assert", "exit",
-            "exec", "readFile", "writeFile", "args"
+            "readFile", "writeFile", "args"
     );
 
     private static final Map<String, List<String>> STDLIB = Map.ofEntries(

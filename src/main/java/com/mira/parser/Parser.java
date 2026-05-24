@@ -20,6 +20,7 @@ import com.mira.parser.nodes.expression.Expression.BinaryExpression;
 import com.mira.parser.nodes.expression.Expression.CallExpression;
 import com.mira.parser.nodes.expression.Expression.ComplexExpression;
 import com.mira.parser.nodes.expression.Expression.DumbExpression;
+import com.mira.parser.nodes.expression.Expression.ExecBlock;
 import com.mira.parser.nodes.expression.Expression.FieldAccessExpression;
 import com.mira.parser.nodes.expression.Expression.ImportExpression;
 import com.mira.parser.nodes.expression.Expression.ImportExpression.ImportKind;
@@ -240,7 +241,11 @@ public class Parser {
                 consume();
                 continue;
             }
-            items.add(parsePratt(0));
+            Expression item = parsePratt(0);
+            items.add(item);
+            if (item instanceof ExecBlock) {
+                break;
+            }
         }
 
         if (items.isEmpty()) {
@@ -380,6 +385,20 @@ public class Parser {
         } else if ((current.getLexeme().equals("true") || current.getLexeme().equals("false"))
                 && current.getTokenType() == TokenType.KEYWORD) {
             expr = new DumbExpression(consume());
+
+        } else if (isExpressionToken(current)
+                && current.getLexeme().equals("exec")
+                && (peekNextSafe().getLexeme().equals("{")
+                || peekNextSafe().getLexeme().equals("isolated"))) {
+            consume();
+            boolean isolated = false;
+            if (peek().getLexeme().equals("isolated")) {
+                consume();
+                isolated = true;
+            }
+            Token open = matchLexeme("{");
+            List<Node> body = parseBlockBody(open);
+            expr = new ExecBlock(body, isolated);
 
         } else if (isExpressionToken(current)
                 && peekNextSafe().getLexeme().equals("(")

@@ -65,6 +65,12 @@ fn function(body) {
 }
 
 fn main() {
+    var z : exec {
+        return 69;
+    };
+
+    assert($z == 69);
+
     for(<0..10>) {
         println("Hello World");
     }

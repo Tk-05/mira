@@ -734,6 +734,35 @@ public abstract class Expression implements Node {
         }
     }
 
+    public static class ExecBlock extends Expression {
+
+        private final List<Node> body;
+        private final boolean isolated;
+
+        public ExecBlock(List<Node> body, boolean isolated) {
+            this.body = body;
+            this.isolated = isolated;
+        }
+
+        public List<Node> getBody() {
+            return body;
+        }
+
+        public boolean isIsolated() {
+            return isolated;
+        }
+
+        @Override
+        public <T> T accept(ExprVisitor<T> visitor) {
+            return visitor.visitExecBlock(this);
+        }
+
+        @Override
+        public String toString() {
+            return "exec" + (isolated ? " isolated" : "") + "{...}";
+        }
+    }
+
     public static class ThrownException extends Expression {
 
         private final String identifier;

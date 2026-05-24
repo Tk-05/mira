@@ -6,7 +6,7 @@
 2. [Values](#values) — Variables, Destructuring, Literals
 3. [Expressions](#expressions) — Operators, `??`, `?.`, Ternary, Pipe
 4. [Data Structures](#data-structures) — List, Array, Object, Map, Range
-5. [Control Flow](#control-flow)
+5. [Control Flow](#control-flow) — If, While, For, Foreach, Switch, `exec { }`
 6. [Functions](#functions) — Default Parameters, Variadic, Inner Functions, Lambdas, Async/Await, spawn, Pure Functions
 7. [Objects with Methods](#objects-with-methods)
 8. [Enums](#enums)
@@ -617,6 +617,78 @@ var label : switch($dir) {
     case ($Direction.WEST)  -> "W"
 };
 ```
+
+### exec Block
+
+`exec { }` executes a block of statements as an isolated expression and returns the value of its `return` statement. Variables declared inside the block do not leak into the surrounding scope.
+
+```
+exec {
+    <body>
+}
+
+exec isolated {
+    <body>
+}
+```
+
+- **`exec { }`** — runs with access to the enclosing local scope (reads and writes outer variables).
+- **`exec isolated { }`** — runs with access to the global scope only; local variables of the enclosing function are not visible.
+
+Without a `return` statement, the block yields `null`.
+
+**As an expression (variable initializer):**
+
+```
+var label : exec {
+    if ($score > 90) { return "A"; }
+    if ($score > 75) { return "B"; }
+    return "C";
+};
+```
+
+**Scope isolation — temporary variables are discarded:**
+
+```
+var checksum : exec {
+    var buf : readFile("data.bin");
+    var hash : computeHash($buf);
+    return $hash;
+};
+// $buf and $hash are not accessible here
+```
+
+**Reading and writing outer variables:**
+
+```
+var x : 10;
+exec { $x : 99; };
+// $x is now 99
+```
+
+**`exec isolated` inside a function:**
+
+```
+var config : { var token : "abc"; };
+
+fn processRequest(userId) {
+    var token : exec isolated {
+        return $config.token;   // sees globals, not $userId
+    };
+}
+```
+
+**`return` in an exec block only exits the block, not the enclosing function:**
+
+```
+fn test() {
+    var r : exec { return 1; };   // returns 1 from exec, not from test()
+    return 100;
+}
+test();   // => 100
+```
+
+> **Note:** `exec(string)` (the built-in function) continues to work for dynamically constructed code strings. `exec { }` is the static block form — it does not accept a string.
 
 ### Break / Continue
 
@@ -1279,16 +1351,18 @@ var message : switch($code) {
 
 Always available without any import.
 
-| Function                    | Parameters             | Description                                               |
-| --------------------------- | ---------------------- | --------------------------------------------------------- |
-| `print(<value>)`            | Any value              | Prints the value to stdout without a newline              |
-| `scan()`                    | —                      | Reads a line from stdin and returns it as a string        |
-| `eval(<expr>)`              | Arithmetic expression  | Evaluates an arithmetic expression and returns the result |
-| `exec(<code>)`              | String                 | Parses and executes a string of Mira code at runtime      |
-| `length(<value>)`           | String, List, or Array | Returns the number of characters / elements               |
-| `exit(<code>)`              | Number                 | Exits the program with the given exit code                |
-| `assert(<cond>)`            | Boolean expression     | Throws a runtime error if the condition is false          |
-| `assert(<cond>, <message>)` | Boolean, String        | Throws with a custom message if condition is false        |
+| Function                    | Parameters             | Description                                                                     |
+| --------------------------- | ---------------------- | ------------------------------------------------------------------------------- |
+| `print(<value>)`            | Any value              | Prints the value to stdout without a newline                                    |
+| `scan()`                    | —                      | Reads a line from stdin and returns it as a string                              |
+| `eval(<expr>)`              | Arithmetic expression  | Evaluates an arithmetic expression and returns the result                       |
+| `exec(<code>)`              | String                 | Parses and executes a string of Mira code at runtime                            |
+| `exec { <body> }`           | Block                  | Executes a block and returns its `return` value (see [exec Block](#exec-block)) |
+| `exec isolated { <body> }`  | Block                  | Same as `exec { }` but restricted to global scope only                          |
+| `length(<value>)`           | String, List, or Array | Returns the number of characters / elements                                     |
+| `exit(<code>)`              | Number                 | Exits the program with the given exit code                                      |
+| `assert(<cond>)`            | Boolean expression     | Throws a runtime error if the condition is false                                |
+| `assert(<cond>, <message>)` | Boolean, String        | Throws with a custom message if condition is false                              |
 
 ---
 

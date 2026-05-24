@@ -48,6 +48,7 @@ import com.mira.parser.nodes.expression.Expression.ObjectExpression;
 import com.mira.parser.nodes.expression.Expression.RangeExpression;
 import com.mira.parser.nodes.expression.Expression.SwitchExpression;
 import com.mira.parser.nodes.expression.Expression.TernaryExpression;
+import com.mira.parser.nodes.expression.Expression.ExecBlock;
 import com.mira.parser.nodes.expression.Expression.ThrownException;
 import com.mira.parser.nodes.expression.Expression.TypeofExpression;
 import com.mira.parser.nodes.expression.Expression.UnaryExpression;
@@ -2002,6 +2003,24 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             }
         }
         return (T) value;
+    }
+
+    @Override
+    public <T> T visitExecBlock(ExecBlock expression) {
+        Environment parent = expression.isIsolated()
+                ? globalEnvironment
+                : (localEnvironment != null ? localEnvironment : globalEnvironment);
+        Environment blockEnv = new Environment(parent);
+        Environment prevLocal = localEnvironment;
+        localEnvironment = blockEnv;
+        try {
+            runBody(expression.getBody());
+            return (T) NullValue.INSTANCE;
+        } catch (ReturnSignal signal) {
+            return (T) signal.getValue();
+        } finally {
+            localEnvironment = prevLocal;
+        }
     }
 
     public Environment getLocalEnvironment() {
