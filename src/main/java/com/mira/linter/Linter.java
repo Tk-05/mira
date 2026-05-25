@@ -157,7 +157,7 @@ public class Linter {
                     String name = d.getValue();
                     if (!scope.isDeclared(name)) {
                         hint("Use of undeclared variable '$" + name + "'",
-                                d.getLine(), d.getColumn());
+                                d.getLine(), d.getColumn(), name.length());
                     }
                     scope.markUsed(name);
                 } else if (e.getRight() != null) {
@@ -287,7 +287,7 @@ public class Linter {
         if (actual != expectedArity) {
             warn("'" + name + "' expects " + expectedArity
                     + " argument(s) but was called with " + actual,
-                    callee.getLine(), callee.getColumn());
+                    callee.getLine(), callee.getColumn(), name.length());
         }
     }
 
@@ -305,14 +305,14 @@ public class Linter {
 
         if (scope.isDeclared(stmt.getName()) && !scope.isDeclaredInCurrentScope(stmt.getName())
                 && !scope.isDeclaredInOutermostScope(stmt.getName())) {
-            warn("Variable '" + stmt.getName() + "' shadows an outer declaration", stmt.line, 0);
+            warn("Variable '" + stmt.getName() + "' shadows an outer declaration", stmt.line, stmt.nameColumn, stmt.getName().length());
         }
 
         if (stmt.isConst() && stmt.getInitializer() == null) {
-            warn("Const '" + stmt.getName() + "' declared without an initializer", stmt.line, 0);
+            warn("Const '" + stmt.getName() + "' declared without an initializer", stmt.line, stmt.nameColumn, stmt.getName().length());
         }
 
-        scope.declare(stmt.getName(), stmt.line, 0, stmt.isConst());
+        scope.declare(stmt.getName(), stmt.line, stmt.nameColumn, stmt.isConst());
     }
 
     private void lintFuncDecl(FuncDecl stmt) {
@@ -394,7 +394,8 @@ public class Linter {
     private void lintForeach(Foreach stmt) {
         lintExpr(stmt.getCollection());
         scope.push();
-        scope.declare(stmt.getIterator().getName(), stmt.line, 0, false);
+        VarDecl iter = stmt.getIterator();
+        scope.declare(iter.getName(), iter.line > 0 ? iter.line : stmt.line, iter.nameColumn, false);
         lintBodyWithDeadCodeCheck(stmt.getBody());
         checkUnused(scope.pop());
     }
@@ -473,7 +474,7 @@ public class Linter {
             String name = entry.getKey();
             VarInfo info = entry.getValue();
             if (!info.used() && !name.startsWith("_")) {
-                hint("'" + name + "' is declared but never used", info.line(), info.column());
+                hint("'" + name + "' is declared but never used", info.line(), info.column(), name.length());
             }
         }
     }
@@ -523,7 +524,15 @@ public class Linter {
         WarningCollector.emit(WarningLevel.WARNING, message, line, column);
     }
 
+    private static void warn(String message, int line, int column, int span) {
+        WarningCollector.emit(WarningLevel.WARNING, message, line, column, span);
+    }
+
     private static void hint(String message, int line, int column) {
         WarningCollector.emit(WarningLevel.HINT, message, line, column);
+    }
+
+    private static void hint(String message, int line, int column, int span) {
+        WarningCollector.emit(WarningLevel.HINT, message, line, column, span);
     }
 }

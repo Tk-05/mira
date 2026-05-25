@@ -26,6 +26,7 @@ import org.eclipse.lsp4j.jsonrpc.messages.Either;
 import org.eclipse.lsp4j.services.TextDocumentService;
 
 import com.mira.error.MiraError;
+import com.mira.error.parser.MultipleParserErrors;
 import com.mira.lexer.Tokenizer;
 import com.mira.lexer.token.Token;
 import com.mira.parser.Parser;
@@ -112,7 +113,7 @@ public class DocumentService implements TextDocumentService {
             List<Token> tokens = new Tokenizer().tokenize(content, false);
             List<Node> ast = new Parser().parseTokens(tokens);
             astCache.put(uri, ast);
-        } catch (MiraError ignored) {
+        } catch (MiraError | MultipleParserErrors ignored) {
         }
     }
 

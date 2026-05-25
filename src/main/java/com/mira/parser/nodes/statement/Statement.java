@@ -20,6 +20,7 @@ public abstract class Statement implements Node {
         private final String name;
         private final Expression initializer;
         private final boolean isConst;
+        public int nameColumn = 0;
 
         public VarDecl(String name, Expression initializer, boolean isConst) {
             this.name = name;
