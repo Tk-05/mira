@@ -16,15 +16,15 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import com.mira.Flags;
-import com.mira.error.parser.ParserError.LexemeMismatchError;
+import com.mira.error.parser.MultipleParserErrors;
 import com.mira.error.runtime.RuntimeError.NativeLibNoImplementationError;
 import com.mira.error.runtime.RuntimeError.NativeLibNotFoundError;
 import com.mira.error.runtime.RuntimeError.ObjectAlreadyDefinedInScope;
+import com.mira.integration.InterpreterTestBase;
 import com.mira.lib.Lib;
 import com.mira.runtime.functions.NativeFunction;
 import com.mira.runtime.interpreter.Environment;
 import com.mira.runtime.interpreter.ImportResolver;
-import com.mira.integration.InterpreterTestBase;
 
 public class NativeImportTest extends InterpreterTestBase {
 
@@ -82,7 +82,7 @@ public class NativeImportTest extends InterpreterTestBase {
 
     @Test
     void nativeImportWithoutAliasThrowsParserError() {
-        assertThrows(LexemeMismatchError.class, ()
+        assertThrows(MultipleParserErrors.class, ()
                 -> run("import native \"/some/lib.jar\";"));
     }
 
@@ -114,7 +114,7 @@ public class NativeImportTest extends InterpreterTestBase {
     @Test
     void duplicateNativeImportWithSameAliasIsIdempotent() {
         String path = escaped(greetJar);
-        assertThrows(ObjectAlreadyDefinedInScope.class,() -> run("""
+        assertThrows(ObjectAlreadyDefinedInScope.class, () -> run("""
                 import native "%s" as ext;
                 import native "%s" as ext;
                 ext.greet("world");

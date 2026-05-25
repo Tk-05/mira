@@ -9,6 +9,7 @@ import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.Range;
 
 import com.mira.error.MiraError;
+import com.mira.error.parser.MultipleParserErrors;
 import com.mira.lexer.Tokenizer;
 import com.mira.lexer.token.Token;
 import com.mira.linter.Linter;
@@ -31,6 +32,8 @@ public class DiagnosticCollector {
             } catch (MiraError e) {
                 result.add(fromError(e, DiagnosticSeverity.Error));
             }
+        } catch (MultipleParserErrors mpe) {
+            mpe.getErrors().forEach(e -> result.add(fromError(e, DiagnosticSeverity.Error)));
         } catch (MiraError e) {
             result.add(fromError(e, DiagnosticSeverity.Error));
         }

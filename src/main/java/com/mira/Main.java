@@ -8,6 +8,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import com.mira.compiler.CompileRunner;
 import com.mira.debugger.Debugger;
 import com.mira.error.DiagnosticFormatter;
+import com.mira.error.parser.MultipleParserErrors;
 import com.mira.error.runtime.RuntimeError.ModuleNameMismatchError;
 import com.mira.lexer.Tokenizer;
 import com.mira.lexer.token.Token;
@@ -196,6 +197,12 @@ public class Main {
                 }
             }
 
+        } catch (MultipleParserErrors mpe) {
+            WarningCollector.clear();
+            if (stopping.get() || Thread.currentThread().isInterrupted()) {
+                return;
+            }
+            mpe.getErrors().forEach(e -> System.err.println(DiagnosticFormatter.format(e)));
         } catch (Exception e) {
             WarningCollector.clear();
             if (stopping.get() || Thread.currentThread().isInterrupted()) {

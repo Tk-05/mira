@@ -5,6 +5,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.mira.error.MiraError;
+import com.mira.error.parser.MultipleParserErrors;
+import com.mira.error.parser.ParserError;
 import com.mira.error.parser.ParserError.LexemeMismatchError;
 import com.mira.error.parser.ParserError.TypeMismatchError;
 import com.mira.error.parser.ParserError.UnexpectedToken;
@@ -63,6 +66,7 @@ public class Parser {
     private List<Token> tokens;
     private int index;
     private int parsingDepth = 0;
+    private final List<MiraError> errors = new ArrayList<>();
 
     public List<Node> parseTokens(List<Token> tokens) {
         reset();
@@ -71,10 +75,45 @@ public class Parser {
         List<Node> asts = new ArrayList<>();
 
         while (peek().getTokenType() != TokenType.EOF) {
-            asts.addAll(parseStatement(true));
+            try {
+                asts.addAll(parseStatement(true));
+            } catch (ParserError e) {
+                errors.add(e);
+                synchronize();
+            }
+        }
+
+        if (!errors.isEmpty()) {
+            throw new MultipleParserErrors(errors);
         }
 
         return asts;
+    }
+
+    private void synchronize() {
+        while (peek().getTokenType() != TokenType.EOF) {
+            Token t = peek();
+            if (t.getTokenType() == TokenType.DELIMITER) {
+                if (t.getLexeme().equals(";")) {
+                    consume();
+                    return;
+                }
+                if (t.getLexeme().equals("}")) {
+                    consume();
+                    return;
+                }
+            }
+            if (t.getTokenType() == TokenType.KEYWORD) {
+                String lex = t.getLexeme();
+                if (lex.equals("var") || lex.equals("fn") || lex.equals("if")
+                        || lex.equals("for") || lex.equals("while") || lex.equals("return")
+                        || lex.equals("import") || lex.equals("export") || lex.equals("class")
+                        || lex.equals("type") || lex.equals("async") || lex.equals("pure")) {
+                    return;
+                }
+            }
+            consume();
+        }
     }
 
     private Token consume() {
@@ -215,6 +254,7 @@ public class Parser {
 
     private void reset() {
         index = 0;
+        errors.clear();
     }
 
     private void increaseDepth() {
