@@ -140,7 +140,8 @@ public class HotReloader {
                     files.add(p);
                 }
             }
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            System.err.println("[watch] Failed to collect watched files: " + e.getMessage());
         }
         return files;
     }

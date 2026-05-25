@@ -162,7 +162,8 @@ public class CompletionProvider {
                     items.add(namespaceItem(alias, f.getName(), params, f.isPure()));
                 }
             }
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            System.err.println("[LSP] Failed to parse module '" + modulePath + "': " + e.getMessage());
         }
     }
 

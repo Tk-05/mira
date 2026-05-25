@@ -50,6 +50,7 @@ import com.mira.parser.nodes.statement.Statement.While;
 import com.mira.runtime.visitors.ExprVisitor;
 import com.mira.runtime.visitors.StmtVisitor;
 
+@SuppressWarnings("unchecked")
 public class AstPrinter implements ExprVisitor<String>, StmtVisitor<String> {
 
     private int depth = 0;

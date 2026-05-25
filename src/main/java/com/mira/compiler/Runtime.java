@@ -23,6 +23,7 @@ import com.mira.runtime.interpreter.Environment;
 import com.mira.runtime.interpreter.Interpreter;
 import com.mira.runtime.interpreter.Namespace;
 import com.mira.runtime.values.NullValue;
+import com.mira.runtime.visitors.ExprVisitor;
 
 public final class Runtime {
 
@@ -428,7 +429,8 @@ public final class Runtime {
         final Object captured = val;
         return new Expression() {
             @Override
-            public <T> T accept(com.mira.runtime.visitors.ExprVisitor<T> v) {
+            @SuppressWarnings("unchecked")
+            public <T> T accept(ExprVisitor<T> v) {
                 return (T) captured;
             }
 
@@ -475,6 +477,7 @@ public final class Runtime {
             long finalI = i;
             members.add(new Expression() {
                 @Override
+                @SuppressWarnings("unchecked")
                 public <T> T accept(com.mira.runtime.visitors.ExprVisitor<T> v) {
                     return (T) (Object) finalI;
                 }

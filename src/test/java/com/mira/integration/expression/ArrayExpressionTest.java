@@ -4,13 +4,14 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import org.junit.jupiter.api.Test;
 
+import com.mira.error.runtime.RuntimeError.IndexOutOfBoundsError;
 import com.mira.integration.InterpreterTestBase;
 
 public class ArrayExpressionTest extends InterpreterTestBase {
 
     @Test
     void emptyArrayAccessThrows() {
-        assertThrows(IndexOutOfBoundsException.class, () -> run("var arr : []; $arr[0];"));
+        assertThrows(IndexOutOfBoundsError.class, () -> run("var arr : []; $arr[0];"));
     }
 
     @Test

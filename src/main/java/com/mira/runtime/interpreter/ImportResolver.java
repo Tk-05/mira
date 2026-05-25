@@ -90,6 +90,7 @@ public class ImportResolver {
         ImportKind kind = ImportKind.valueOf(kindStr);
         Expression moduleExpr = new Expression() {
             @Override
+            @SuppressWarnings("null")
             public <T> T accept(com.mira.runtime.visitors.ExprVisitor<T> v) {
                 return (T) null;
             }

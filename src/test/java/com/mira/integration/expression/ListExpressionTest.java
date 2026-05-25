@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import org.junit.jupiter.api.Test;
 
+import com.mira.error.runtime.RuntimeError.IndexOutOfBoundsError;
 import com.mira.integration.InterpreterTestBase;
 
 public class ListExpressionTest extends InterpreterTestBase {
@@ -56,7 +57,7 @@ public class ListExpressionTest extends InterpreterTestBase {
 
     @Test
     void indexOutOfBounds() {
-        assertThrows(IndexOutOfBoundsException.class, () -> run("var list : {1, 2, 3}; $list[5];"));
+        assertThrows(IndexOutOfBoundsError.class, () -> run("var list : {1, 2, 3}; $list[5];"));
     }
 
     @Test

@@ -12,6 +12,7 @@ import com.mira.parser.nodes.statement.Statement;
 import com.mira.runtime.interpreter.Environment;
 import com.mira.runtime.interpreter.Interpreter;
 import com.mira.runtime.values.NullValue;
+import com.mira.runtime.visitors.ExprVisitor;
 
 public class Function implements Callable {
 
@@ -24,7 +25,8 @@ public class Function implements Callable {
         }
 
         @Override
-        public <T> T accept(com.mira.runtime.visitors.ExprVisitor<T> visitor) {
+        @SuppressWarnings("unchecked")
+        public <T> T accept(ExprVisitor<T> visitor) {
             return (T) value;
         }
 

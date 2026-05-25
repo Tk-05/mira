@@ -282,4 +282,22 @@ public class RuntimeError extends MiraError {
                     "Use $" + name + "() to call a variable");
         }
     }
+
+    public static class DivisionByZeroError extends RuntimeError {
+
+        public DivisionByZeroError() {
+            super("E228",
+                    "Division by zero",
+                    "Check that the divisor is not zero before dividing");
+        }
+    }
+
+    public static class IndexOutOfBoundsError extends RuntimeError {
+
+        public IndexOutOfBoundsError(int index, int size) {
+            super("E229",
+                    "Index " + index + " is out of bounds (size: " + size + ")",
+                    "Use an index between 0 and " + (size - 1));
+        }
+    }
 }

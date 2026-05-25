@@ -19,6 +19,7 @@ import com.mira.runtime.functions.NativeFunction;
 import com.mira.runtime.interpreter.Environment;
 import com.mira.runtime.interpreter.Interpreter;
 import com.mira.runtime.values.NullValue;
+import com.mira.runtime.visitors.ExprVisitor;
 
 public class Collection implements Lib {
 
@@ -77,7 +78,8 @@ public class Collection implements Lib {
         final Object captured = val;
         return new Expression() {
             @Override
-            public <T> T accept(com.mira.runtime.visitors.ExprVisitor<T> visitor) {
+            @SuppressWarnings("unchecked")
+            public <T> T accept(ExprVisitor<T> visitor) {
                 return (T) captured;
             }
 

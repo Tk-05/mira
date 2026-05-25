@@ -12,8 +12,10 @@ import java.util.concurrent.ExecutionException;
 
 import com.mira.Flags;
 import com.mira.error.runtime.RuntimeError.ArgMismatchError;
+import com.mira.error.runtime.RuntimeError.DivisionByZeroError;
 import com.mira.error.runtime.RuntimeError.FieldAccessError;
 import com.mira.error.runtime.RuntimeError.ImmutableCollectionError;
+import com.mira.error.runtime.RuntimeError.IndexOutOfBoundsError;
 import com.mira.error.runtime.RuntimeError.LocalCallableError;
 import com.mira.error.runtime.RuntimeError.NoModuleDeclarationError;
 import com.mira.error.runtime.RuntimeError.NotANamespaceError;
@@ -36,6 +38,7 @@ import com.mira.parser.nodes.expression.Expression.BinaryExpression;
 import com.mira.parser.nodes.expression.Expression.CallExpression;
 import com.mira.parser.nodes.expression.Expression.ComplexExpression;
 import com.mira.parser.nodes.expression.Expression.DumbExpression;
+import com.mira.parser.nodes.expression.Expression.ExecBlock;
 import com.mira.parser.nodes.expression.Expression.FieldAccessExpression;
 import com.mira.parser.nodes.expression.Expression.ImportExpression;
 import com.mira.parser.nodes.expression.Expression.LambdaExpression;
@@ -48,7 +51,6 @@ import com.mira.parser.nodes.expression.Expression.ObjectExpression;
 import com.mira.parser.nodes.expression.Expression.RangeExpression;
 import com.mira.parser.nodes.expression.Expression.SwitchExpression;
 import com.mira.parser.nodes.expression.Expression.TernaryExpression;
-import com.mira.parser.nodes.expression.Expression.ExecBlock;
 import com.mira.parser.nodes.expression.Expression.ThrownException;
 import com.mira.parser.nodes.expression.Expression.TypeofExpression;
 import com.mira.parser.nodes.expression.Expression.UnaryExpression;
@@ -89,6 +91,7 @@ import com.mira.vocabulary.Vocabulary;
 import com.mira.warning.WarningCollector;
 import com.mira.warning.WarningLevel;
 
+@SuppressWarnings("unchecked")
 public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
     private static Interpreter instance;
@@ -96,6 +99,10 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
     private record CacheKey(String name, List<Object> args) {
 
+        CacheKey(String name, List<Object> args) {
+            this.name = name;
+            this.args = List.copyOf(args);
+        }
     }
 
     public interface DebugHook {
@@ -860,12 +867,34 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                     }
                     switch (accessedObject) {
                         case ArrayExpression array -> {
-                            Expression ae = array.getMembers().get(i);
-                            accessedObject = ae instanceof ArrayExpression inner ? inner.accept(this) : ae.accept(this);
+                            var members = array.getMembers();
+                            int size = members.size();
+                            if (i < 0 || i >= size) {
+                                throw new IndexOutOfBoundsError(i, size);
+                            }
+                            Expression ae = members.get(i);
+                            if (ae instanceof ArrayExpression inner) {
+                                accessedObject = inner.accept(this);
+                            } else if (ae != null) {
+                                accessedObject = ae.accept(this);
+                            } else {
+                                accessedObject = NullValue.INSTANCE;
+                            }
                         }
                         case ListExpression list -> {
-                            Expression le = list.getMembers().get(i);
-                            accessedObject = le instanceof ListExpression inner ? inner.accept(this) : le.accept(this);
+                            var members = list.getMembers();
+                            int size = members.size();
+                            if (i < 0 || i >= size) {
+                                throw new IndexOutOfBoundsError(i, size);
+                            }
+                            Expression le = members.get(i);
+                            if (le instanceof ListExpression inner) {
+                                accessedObject = inner.accept(this);
+                            } else if (le != null) {
+                                accessedObject = le.accept(this);
+                            } else {
+                                accessedObject = NullValue.INSTANCE;
+                            }
                         }
                         default ->
                             throw new NotIterableError();
@@ -1200,8 +1229,13 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                 (Number) numericMul(left, right);
             case "**" ->
                 Math.pow(toNumber(left), toNumber(right));
-            case "/" ->
-                toNumber(left) / toNumber(right);
+            case "/" -> {
+                double divisor = toNumber(right);
+                if (divisor == 0) {
+                    throw new DivisionByZeroError();
+                }
+                yield toNumber(left) / divisor;
+            }
             case "%" -> {
                 if (left instanceof Long la && right instanceof Long lb) {
                     yield la % lb;
@@ -1487,22 +1521,32 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
                     switch (referencedObject) {
                         case ArrayExpression array -> {
-                            referencedObject = array.getMembers().get(i);
-                            if (referencedObject instanceof ArrayExpression innerArray) {
-                                referencedObject = innerArray.accept(this);
-                            } else if (referencedObject instanceof ListExpression innerList) {
-                                referencedObject = innerList.accept(this);
-                            } else {
-                                throw new ImmutableCollectionError();
+                            var members = array.getMembers();
+                            int size = members.size();
+                            if (i < 0 || i >= size) {
+                                throw new IndexOutOfBoundsError(i, size);
                             }
+                            referencedObject = switch (members.get(i)) {
+                                case ArrayExpression innerArray ->
+                                    innerArray.accept(this);
+                                case ListExpression innerList ->
+                                    innerList.accept(this);
+                                default ->
+                                    throw new ImmutableCollectionError();
+                            };
                         }
                         case ListExpression list -> {
-                            referencedObject = list.getMembers().get(i);
-                            if (referencedObject instanceof ListExpression innerList) {
-                                referencedObject = innerList.accept(this);
-                            } else {
-                                throw new ImmutableCollectionError();
+                            var members = list.getMembers();
+                            int size = members.size();
+                            if (i < 0 || i >= size) {
+                                throw new IndexOutOfBoundsError(i, size);
                             }
+                            referencedObject = switch (members.get(i)) {
+                                case ListExpression innerList ->
+                                    innerList.accept(this);
+                                default ->
+                                    throw new ImmutableCollectionError();
+                            };
                         }
                         default ->
                             throw new AssertionError("Reference is not a type of collection!");
@@ -1921,22 +1965,6 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         return ast instanceof FuncDecl
                 || ast instanceof EnumDecl
                 || (ast instanceof VarDecl vd && vd.isConst());
-    }
-
-    private void assignIterator(String name, Object value) {
-        if (localEnvironment != null) {
-            if (localEnvironment.exists(name)) {
-                localEnvironment.assign(name, value);
-            } else {
-                throw new AssertionError();
-            }
-        } else {
-            if (globalEnvironment.exists(name)) {
-                globalEnvironment.assign(name, value);
-            } else {
-                throw new AssertionError();
-            }
-        }
     }
 
     @Override
