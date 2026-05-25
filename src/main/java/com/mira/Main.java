@@ -203,7 +203,11 @@ public class Main {
             }
             System.err.println(DiagnosticFormatter.format(e));
             if (Flags.crashDump) {
-                interpreter.dumpState(e, System.err);
+                if (Flags.compile && !com.mira.compiler.Runtime.getCallStack().isEmpty()) {
+                    com.mira.compiler.Runtime.dumpCallStack(e, System.err);
+                } else {
+                    interpreter.dumpState(e, System.err);
+                }
             }
         }
     }

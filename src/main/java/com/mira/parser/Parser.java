@@ -530,7 +530,9 @@ public class Parser {
     }
 
     private Expression parseNamespaceCallExpression() {
-        String alias = matchExpression().getLexeme();
+        var aliasToken = matchExpression();
+        String alias = aliasToken.getLexeme();
+        int callLine = aliasToken.getLine();
         matchLexeme(".");
         String functionName = matchExpression().getLexeme();
         matchLexeme("(");
@@ -546,7 +548,7 @@ public class Parser {
         }
 
         matchLexeme(")");
-        return new NamespaceCallExpression(alias, functionName, args);
+        return new NamespaceCallExpression(alias, functionName, args, callLine);
     }
 
     private Expression parseObjectExpression() {

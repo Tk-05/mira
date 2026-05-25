@@ -97,6 +97,10 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
     private static Interpreter instance;
     private static final ThreadLocal<Interpreter> activeInterpreter = new ThreadLocal<>();
 
+    private record StackFrame(String name, int line) {
+
+    }
+
     private record CacheKey(String name, List<Object> args) {
 
         CacheKey(String name, List<Object> args) {
@@ -120,7 +124,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         }
     };
     private Set<String> pureFunctions = Set.of();
-    private final Deque<String> miraCallStack = new ArrayDeque<>();
+    private final Deque<StackFrame> miraCallStack = new ArrayDeque<>();
     private DebugHook debugHook;
 
     public Interpreter() {
@@ -397,8 +401,9 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         if (miraCallStack.isEmpty()) {
             out.println("  <top level>");
         } else {
-            for (String frame : miraCallStack) {
-                out.println("  at " + frame + "()");
+            for (StackFrame frame : miraCallStack) {
+                String loc = frame.line() > 0 ? " (line " + frame.line() + ")" : "";
+                out.println("  at " + frame.name() + "()" + loc);
             }
         }
         out.println();
@@ -753,7 +758,8 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             throw amErr;
         }
 
-        miraCallStack.push(calleeName);
+        miraCallStack.push(new StackFrame(calleeName, calleeLine));
+        boolean threw = false;
         try {
             if (pureFunctions.contains(calleeName)) {
                 CacheKey cacheKey = new CacheKey(calleeName, arguments);
@@ -765,8 +771,13 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                 return (T) result;
             }
             return (T) callable.call(this, arguments);
+        } catch (Throwable t) {
+            threw = true;
+            throw t;
         } finally {
-            miraCallStack.poll();
+            if (!threw) {
+                miraCallStack.poll();
+            }
         }
     }
 
@@ -798,7 +809,19 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             throw new ArgMismatchError(expression.getFunctionName(), callable.getArity(), arguments.size());
         }
 
-        return (T) callable.call(this, arguments);
+        String nsFrame = expression.getAlias() + "." + expression.getFunctionName();
+        miraCallStack.push(new StackFrame(nsFrame, expression.getLine()));
+        boolean threw = false;
+        try {
+            return (T) callable.call(this, arguments);
+        } catch (Throwable t) {
+            threw = true;
+            throw t;
+        } finally {
+            if (!threw) {
+                miraCallStack.poll();
+            }
+        }
     }
 
     @Override
@@ -1867,6 +1890,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
     @Override
     public Object visitTryCatch(TryCatch stmt) {
         notifyDebugger(stmt);
+        int stackDepthBeforeTry = miraCallStack.size();
         try {
             runBodyInFreshScope(stmt.getTryBody());
         } catch (ThrowSignal signal) {
@@ -1875,6 +1899,9 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                 String filter = clause.getTypeFilter();
                 if (filter == null || filter.equals(signal.getExceptionType())) {
                     caught = true;
+                    while (miraCallStack.size() > stackDepthBeforeTry) {
+                        miraCallStack.poll();
+                    }
                     Environment previous = localEnvironment;
                     localEnvironment = new Environment(previous != null ? previous : globalEnvironment);
                     if (clause.getParamName() != null) {

@@ -345,11 +345,13 @@ public abstract class Expression implements Node {
         private final String alias;
         private final String functionName;
         private final List<Expression> arguments;
+        private final int line;
 
-        public NamespaceCallExpression(String alias, String functionName, List<Expression> arguments) {
+        public NamespaceCallExpression(String alias, String functionName, List<Expression> arguments, int line) {
             this.alias = alias;
             this.functionName = functionName;
             this.arguments = arguments;
+            this.line = line;
         }
 
         public String getAlias() {
@@ -362,6 +364,10 @@ public abstract class Expression implements Node {
 
         public List<Expression> getArguments() {
             return arguments;
+        }
+
+        public int getLine() {
+            return line;
         }
 
         @Override

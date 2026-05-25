@@ -1,7 +1,10 @@
 package com.mira.compiler;
 
+import java.io.PrintStream;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Deque;
 import java.util.LinkedHashMap;
 import java.util.List;
 
@@ -28,6 +31,43 @@ import com.mira.runtime.visitors.ExprVisitor;
 public final class Runtime {
 
     public static final ThreadLocal<Environment> METHOD_ENV = new ThreadLocal<>();
+
+    private record StackFrame(String name, int line) {}
+
+    private static final ThreadLocal<Deque<StackFrame>> CALL_STACK =
+            ThreadLocal.withInitial(ArrayDeque::new);
+
+    public static void pushCallStack(String name, int line) {
+        CALL_STACK.get().push(new StackFrame(name, line));
+    }
+
+    public static void popCallStack() {
+        Deque<StackFrame> stack = CALL_STACK.get();
+        if (!stack.isEmpty()) {
+            stack.poll();
+        }
+    }
+
+    public static Deque<StackFrame> getCallStack() {
+        return CALL_STACK.get();
+    }
+
+    public static void dumpCallStack(Throwable cause, PrintStream out) {
+        out.println("\n=== MIRA CRASH DUMP (compiled) ===");
+        out.println("Cause: " + cause);
+        out.println();
+        out.println("--- Mira Call Stack ---");
+        Deque<StackFrame> stack = CALL_STACK.get();
+        if (stack.isEmpty()) {
+            out.println("  <top level>");
+        } else {
+            for (StackFrame frame : stack) {
+                String loc = frame.line() > 0 ? " (line " + frame.line() + ")" : "";
+                out.println("  at " + frame.name() + "()" + loc);
+            }
+        }
+        out.println();
+    }
 
     public static final Object CACHE_MISS = new Object();
 
