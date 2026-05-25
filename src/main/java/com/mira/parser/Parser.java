@@ -56,6 +56,7 @@ import com.mira.parser.nodes.statement.Statement.Switch;
 import com.mira.parser.nodes.statement.Statement.SwitchCase;
 import com.mira.parser.nodes.statement.Statement.Throw;
 import com.mira.parser.nodes.statement.Statement.TryCatch;
+import com.mira.parser.nodes.statement.Statement.ComptimeBlock;
 import com.mira.parser.nodes.statement.Statement.VarDecl;
 import com.mira.parser.nodes.statement.Statement.VarDestructure;
 import com.mira.parser.nodes.statement.Statement.While;
@@ -847,6 +848,19 @@ public class Parser {
         int line = peek().getLine();
         Node node;
 
+        if (peek().getLexeme().equals("comptime") && peek().getTokenType() == TokenType.KEYWORD) {
+            Token comptimeToken = peek();
+            consume();
+            if (parsingDepth > 0) {
+                throw new UnexpectedToken(comptimeToken, "'comptime' is only allowed at the top level", "Move this block outside of any function or block body");
+            }
+            Token open = matchLexeme("{");
+            List<Node> body = parseBlockBody(open);
+            ComptimeBlock comptimeBlock = new ComptimeBlock(body);
+            comptimeBlock.line = line;
+            return List.of(comptimeBlock);
+        }
+
         if (peek().getLexeme().equals("pure") && peek().getTokenType() == com.mira.lexer.token.TokenType.KEYWORD) {
             consume();
             if (!peek().getLexeme().equals("fn")) {
@@ -1369,10 +1383,41 @@ public class Parser {
                 throw new LexemeMismatchError(peek(),
                         "Expected '}' to close block opened at line " + open.getLine() + ", column " + open.getColumn());
             }
-            body.addAll(parseStatement(true));
+            try {
+                body.addAll(parseStatement(true));
+            } catch (ParserError e) {
+                errors.add(e);
+                synchronizeInBlock();
+            }
         }
         matchLexeme("}");
         return body;
+    }
+
+    private void synchronizeInBlock() {
+        while (peek().getTokenType() != TokenType.EOF) {
+            Token t = peek();
+            if (t.getTokenType() == TokenType.DELIMITER) {
+                if (t.getLexeme().equals(";")) {
+                    consume();
+                    return;
+                }
+                if (t.getLexeme().equals("}")) {
+                    return;
+                }
+            }
+            if (t.getTokenType() == TokenType.KEYWORD) {
+                String lex = t.getLexeme();
+                if (lex.equals("var") || lex.equals("const") || lex.equals("fn")
+                        || lex.equals("if") || lex.equals("for") || lex.equals("foreach")
+                        || lex.equals("while") || lex.equals("return") || lex.equals("switch")
+                        || lex.equals("try") || lex.equals("throw") || lex.equals("break")
+                        || lex.equals("continue") || lex.equals("async") || lex.equals("lock")) {
+                    return;
+                }
+            }
+            consume();
+        }
     }
 
     private Node parseBlock() {

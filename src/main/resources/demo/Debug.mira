@@ -64,6 +64,10 @@ fn function(body) {
     $body();
 }
 
+comptime {
+    println("Hello from comptime");
+}
+
 fn main() {
     var z : exec {
         return 69;

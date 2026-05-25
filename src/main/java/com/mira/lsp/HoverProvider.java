@@ -13,6 +13,7 @@ import org.eclipse.lsp4j.Position;
 import com.mira.parser.nodes.Node;
 import com.mira.parser.nodes.Parameter;
 import com.mira.parser.nodes.statement.Statement;
+import com.mira.parser.nodes.statement.Statement.ComptimeBlock;
 
 public class HoverProvider {
 
@@ -52,7 +53,8 @@ public class HoverProvider {
             Map.entry("false", "**false** — Boolean literal"),
             Map.entry("null", "**null** — Null value"),
             Map.entry("exec", "**exec { }** — Executes a block and returns its `return` value\n\n`exec { ... }` — has access to the enclosing local scope\n\n`exec isolated { ... }` — restricted to global scope only\n\nVariables declared inside do not leak out."),
-            Map.entry("isolated", "**isolated** — Modifier for `exec isolated { }` — restricts the block to global scope only")
+            Map.entry("isolated", "**isolated** — Modifier for `exec isolated { }` — restricts the block to global scope only"),
+            Map.entry("comptime", "**comptime { }** — Compile-time block\n\nExecutes before the program starts. Variables declared inside become immutable constants available throughout the program. Other statements (e.g. `println`) run as build-time side effects.\n\n```mira\ncomptime {\n    var MAX : eval(64 * 1024);\n    println(\"build!\");\n}\n```\n\nOnly allowed at the top level — not inside functions or blocks.")
     );
 
     private static final Map<String, String> STDLIB_DOCS;
@@ -232,6 +234,13 @@ public class HoverProvider {
             if (n instanceof Statement.VarDecl v && v.getName().equals(stripped)) {
                 String kind = v.isConst() ? "const" : "var";
                 return hover("```mira\n" + kind + " $" + v.getName() + "\n```");
+            }
+            if (n instanceof ComptimeBlock comptime) {
+                for (Node bodyNode : comptime.getBody()) {
+                    if (bodyNode instanceof Statement.VarDecl v && v.getName().equals(stripped)) {
+                        return hover("```mira\ncomptime const $" + v.getName() + "\n```\n*compile-time constant*");
+                    }
+                }
             }
         }
 

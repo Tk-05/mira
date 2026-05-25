@@ -28,6 +28,7 @@ import static org.objectweb.asm.Opcodes.PUTSTATIC;
 import static org.objectweb.asm.Opcodes.RETURN;
 
 import com.mira.Flags;
+import com.mira.runtime.ComptimeExecutor;
 import com.mira.error.runtime.RuntimeError.ModuleMissingDeclarationError;
 import com.mira.lexer.Tokenizer;
 import com.mira.parser.Parser;
@@ -52,6 +53,7 @@ public class Compiler {
     private static final String IMPORT_RESOLVER = "com/mira/runtime/interpreter/ImportResolver";
 
     public CompileResult compile(List<Node> ast, String scriptName) {
+        new ComptimeExecutor().execute(ast);
         String className = toClassName(scriptName);
         ClassEmitter ce = new ClassEmitter(className);
         int[] lambdaCounter = {0};

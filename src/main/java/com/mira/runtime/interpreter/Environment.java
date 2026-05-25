@@ -1,5 +1,6 @@
 package com.mira.runtime.interpreter;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -189,6 +190,10 @@ public class Environment {
 
     public Set<String> keySet() {
         return values.keySet();
+    }
+
+    public Map<String, Object> getLocalValues() {
+        return Collections.unmodifiableMap(values);
     }
 
     public void copyDeclarationsTo(Environment target, Set<String> exclude) {

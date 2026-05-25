@@ -2,6 +2,7 @@ package com.mira.runtime.visitors;
 
 import com.mira.parser.nodes.statement.Statement.Assign;
 import com.mira.parser.nodes.statement.Statement.Block;
+import com.mira.parser.nodes.statement.Statement.ComptimeBlock;
 import com.mira.parser.nodes.statement.Statement.Break;
 import com.mira.parser.nodes.statement.Statement.Continue;
 import com.mira.parser.nodes.statement.Statement.EnumDecl;
@@ -53,4 +54,8 @@ public interface StmtVisitor<T> {
     public T visitVarDestructure(VarDestructure stmt);
 
     public T visitLock(Lock stmt);
+
+    default T visitComptimeBlock(ComptimeBlock stmt) {
+        return null;
+    }
 }

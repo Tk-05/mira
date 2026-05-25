@@ -18,6 +18,7 @@ import com.mira.parser.nodes.Node;
 import com.mira.parser.nodes.Parameter;
 import com.mira.parser.nodes.expression.Expression;
 import com.mira.parser.nodes.statement.Statement;
+import com.mira.parser.nodes.statement.Statement.ComptimeBlock;
 
 public class CompletionProvider {
 
@@ -26,7 +27,7 @@ public class CompletionProvider {
             "in", "break", "continue", "switch", "case", "default", "do",
             "try", "catch", "finally", "throw", "import", "module", "as",
             "enum", "async", "await", "typeof", "spawn", "pure", "lock", "true", "false", "null",
-            "exec", "exec isolated"
+            "exec", "exec isolated", "comptime"
     );
 
     private static final List<String> GLOBALS = List.of(
@@ -105,6 +106,15 @@ public class CompletionProvider {
                                 .collect(Collectors.joining(", ")) + ")");
                 items.add(item);
                 collectFromNodes(f.getBody(), items);
+            } else if (node instanceof ComptimeBlock comptime) {
+                for (Node bodyNode : comptime.getBody()) {
+                    if (bodyNode instanceof Statement.VarDecl v) {
+                        CompletionItem item = new CompletionItem("$" + v.getName());
+                        item.setKind(CompletionItemKind.Constant);
+                        item.setDetail("comptime const " + v.getName());
+                        items.add(item);
+                    }
+                }
             }
         }
     }

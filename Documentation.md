@@ -8,14 +8,15 @@
 4. [Data Structures](#data-structures) — List, Array, Object, Map, Range
 5. [Control Flow](#control-flow) — If, While, For, Foreach, Switch, `exec { }`
 6. [Functions](#functions) — Default Parameters, Variadic, Inner Functions, Lambdas, Async/Await, spawn, Pure Functions
-7. [Objects with Methods](#objects-with-methods)
-8. [Enums](#enums)
-9. [Built-in Functions](#built-in-functions)
-10. [Standard Libraries](#standard-libraries)
-11. [Multithreading](#multithreading)
-12. [Compilation](#compilation)
-13. [IDE Integration (LSP)](#ide-integration-lsp)
-14. [Example Program](#example-program)
+7. [Comptime](#comptime) — Compile-Time Code Execution
+8. [Objects with Methods](#objects-with-methods)
+9. [Enums](#enums)
+10. [Built-in Functions](#built-in-functions)
+11. [Standard Libraries](#standard-libraries)
+12. [Multithreading](#multithreading)
+13. [Compilation](#compilation)
+14. [IDE Integration (LSP)](#ide-integration-lsp)
+15. [Example Program](#example-program)
 
 ---
 
@@ -1167,6 +1168,91 @@ fib(30)   // returned from cache instantly
 
 ---
 
+## Comptime
+
+`comptime` blocks execute code **before** the program starts — at what Mira calls "compile time". They are useful for computing constants that are expensive or verbose to write as literals, and for running build-time assertions or diagnostics.
+
+### Syntax
+
+```
+comptime {
+    <body>
+}
+```
+
+The block body is a normal sequence of statements. Any variable declared inside becomes an **immutable constant** available throughout the rest of the program. Other statements (e.g. `println`) run immediately as a side effect during startup, before any other code executes.
+
+### Example
+
+```
+comptime {
+    var MAX_SIZE : eval(64 * 1024);
+    var APP_NAME : "MyApp";
+    println("Build: constants initialized");
+}
+
+fn main() {
+    println($APP_NAME);          // => "MyApp"
+    println($MAX_SIZE);          // => 65536
+}
+```
+
+Output when running:
+
+```
+Build: constants initialized
+MyApp
+65536
+```
+
+### Multiple comptime Blocks
+
+Multiple `comptime` blocks are allowed in the same file. They are all executed in order before the main program begins:
+
+```
+comptime {
+    var BASE : 100;
+}
+
+comptime {
+    var LIMIT : eval($BASE * 10);
+}
+```
+
+### Immutability
+
+Variables declared in a `comptime` block are constants — assigning to them later is an error:
+
+```
+comptime {
+    var PI : 3.14159;
+}
+
+$PI : 3.0;   // error E205: ReferenceIsImmutableError
+```
+
+### Execution Model
+
+- **Interpreter path:** All `comptime` blocks run in an isolated interpreter instance during the pre-pass phase (before `loadGlobalContext` finishes). Their results are injected into the global environment as constants.
+- **Compiler path (`-compile`):** The same pre-pass runs before JVM bytecode is generated. Side effects (e.g. `println`) execute during compilation; constants are available to the compiled program.
+- **Errors** inside a `comptime` block are reported like any other runtime error and abort the program before it starts.
+
+### What Can Be Used Inside comptime
+
+All built-in functions, standard library functions (if imported), arithmetic, string operations, and control flow are available:
+
+```
+comptime {
+    import math as m;
+    var SQRT2 : m.sqrt(2.0);
+    var MSG : "version-" "1.0";
+}
+```
+
+Recursive functions, loops, and `if` statements work too — the comptime block is ordinary Mira code, just executed at a different point in time.
+
+---
+
 ## Objects with Methods
 
 Objects can contain `fn` declarations alongside `var` fields. Methods are called via dot notation and have implicit access to all fields of the same object.
@@ -1882,7 +1968,7 @@ Diagnostics are cleared automatically when the file is closed.
 
 Completions trigger automatically as you type. The following are always available:
 
-- All Mira **keywords** (`var`, `fn`, `if`, `foreach`, `switch`, `return`, …)
+- All Mira **keywords** (`var`, `fn`, `if`, `foreach`, `switch`, `return`, `comptime`, …)
 - All **built-in globals** (`print`, `scan`, `eval`, `length`, `assert`, …)
 
 Additionally, for each open file the server provides:

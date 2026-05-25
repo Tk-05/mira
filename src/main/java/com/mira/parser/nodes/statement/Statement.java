@@ -528,4 +528,22 @@ public abstract class Statement implements Node {
             return visitor.visitVarDestructure(this);
         }
     }
+
+    public static class ComptimeBlock extends Statement {
+
+        private final List<Node> body;
+
+        public ComptimeBlock(List<Node> body) {
+            this.body = body;
+        }
+
+        public List<Node> getBody() {
+            return body;
+        }
+
+        @Override
+        public <T> T accept(StmtVisitor<T> visitor) {
+            return visitor.visitComptimeBlock(this);
+        }
+    }
 }

@@ -54,11 +54,11 @@
     },
     "keywords-declaration": {
       "name": "keyword.declaration.mira",
-      "match": "\\b(fn|var|const|async|pure|module|import|enum|native|as)\\b"
+      "match": "\\b(fn|var|const|async|pure|module|import|enum|native|as|comptime)\\b"
     },
     "keywords-operator": {
       "name": "keyword.operator.word.mira",
-      "match": "\\b(typeof|await|spawn|eval|assert|length|scan|print|println|httpGet|now|dateFormat|replace|jsonNested|jsonIndexOf)\\b"
+      "match": "\\b(typeof|await|spawn|eval|assert|length|scan|print|println|exit)\\b"
     },
     "constants-language": {
       "name": "constant.language.mira",
