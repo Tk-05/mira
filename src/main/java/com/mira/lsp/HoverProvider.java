@@ -17,45 +17,6 @@ import com.mira.parser.nodes.statement.Statement.ComptimeBlock;
 
 public class HoverProvider {
 
-    private static final Map<String, String> KEYWORD_DOCS = Map.ofEntries(
-            Map.entry("fn", "**fn** — Function declaration"),
-            Map.entry("var", "**var** — Mutable variable declaration\n\n`var x;` · `var x : 5;` · `var x : 5, y, z : 10;`"),
-            Map.entry("const", "**const** — Immutable constant declaration\n\n`const x : 5;` · `const x : 1, y : 2;`"),
-            Map.entry("pure", "**pure fn** — Pure function (result is cached for same arguments)"),
-            Map.entry("async", "**async fn** — Asynchronous function"),
-            Map.entry("spawn", "**spawn(fn)** — Starts an async task, returns a `Promise`"),
-            Map.entry("await", "**await(promise)** — Waits for the result of an async task"),
-            Map.entry("lock", "**lock(mutex) { ... }** — Exclusive access via mutex"),
-            Map.entry("return", "**return** — Returns a value from a function"),
-            Map.entry("if", "**if** — Conditional statement"),
-            Map.entry("else", "**else** — Alternative branch of an if statement"),
-            Map.entry("while", "**while** — Loop while condition is true"),
-            Map.entry("for", "**for** — C-style or range loop\n\n`for (var i in <0..10>)` — range with iterator\n`for (<0..10>)` — range without iterator\n`for (init; cond; update)` — C-style"),
-            Map.entry("foreach", "**foreach** — Iterate over a collection"),
-            Map.entry("in", "**in** — Used in foreach to iterate over a collection"),
-            Map.entry("break", "**break** — Exit the current loop"),
-            Map.entry("continue", "**continue** — Skip to the next loop iteration"),
-            Map.entry("switch", "**switch** — Pattern matching on a value"),
-            Map.entry("case", "**case** — A branch in a switch statement"),
-            Map.entry("default", "**default** — Default branch in a switch statement"),
-            Map.entry("try", "**try** — Try block for error handling"),
-            Map.entry("catch", "**catch** — Catch block for error handling"),
-            Map.entry("finally", "**finally** — Always-executed block after try/catch"),
-            Map.entry("throw", "**throw** — Throw an exception"),
-            Map.entry("import", "**import** — Import a module or stdlib"),
-            Map.entry("module", "**module** — Declare the module name for this file"),
-            Map.entry("as", "**as** — Alias for an import"),
-            Map.entry("enum", "**enum** — Declare an enumeration"),
-            Map.entry("typeof", "**typeof(value)** — Returns the type of a value as a string"),
-            Map.entry("do", "**do { } while(cond)** — Executes the body at least once before checking the condition"),
-            Map.entry("native", "**native** — Used in `import native` to load an external JAR extension"),
-            Map.entry("true", "**true** — Boolean literal"),
-            Map.entry("false", "**false** — Boolean literal"),
-            Map.entry("null", "**null** — Null value"),
-            Map.entry("exec", "**exec { }** — Executes a block and returns its `return` value\n\n`exec { ... }` — has access to the enclosing local scope\n\n`exec isolated { ... }` — restricted to global scope only\n\nVariables declared inside do not leak out."),
-            Map.entry("isolated", "**isolated** — Modifier for `exec isolated { }` — restricts the block to global scope only"),
-            Map.entry("comptime", "**comptime { }** — Compile-time block\n\nExecutes before the program starts. Variables declared inside become immutable constants available throughout the program. Other statements (e.g. `println`) run as build-time side effects.\n\n```mira\ncomptime {\n    var MAX : eval(64 * 1024);\n    println(\"build!\");\n}\n```\n\nOnly allowed at the top level — not inside functions or blocks.")
-    );
 
     private static final Map<String, String> STDLIB_DOCS;
 
@@ -233,6 +194,22 @@ public class HoverProvider {
             }
             if (n instanceof Statement.VarDecl v && v.getName().equals(stripped)) {
                 String kind = v.isConst() ? "const" : "var";
+                if (v.getInitializer() instanceof com.mira.parser.nodes.expression.Expression.ObjectExpression obj) {
+                    StringBuilder sb = new StringBuilder("```mira\n")
+                            .append(kind).append(" $").append(v.getName()).append(" {\n");
+                    for (Statement.VarDecl f : obj.getVarDecls()) {
+                        sb.append("    ").append(f.isConst() ? "const" : "var")
+                          .append(" ").append(f.getName()).append("\n");
+                    }
+                    for (Statement.FuncDecl m : obj.getMethods()) {
+                        String params = m.getParameters().stream()
+                                .map(Parameter::name).collect(Collectors.joining(", "));
+                        sb.append("    fn ").append(m.getName())
+                          .append("(").append(params).append(")\n");
+                    }
+                    sb.append("}\n```");
+                    return hover(sb.toString());
+                }
                 return hover("```mira\n" + kind + " $" + v.getName() + "\n```");
             }
             if (n instanceof ComptimeBlock comptime) {
@@ -247,11 +224,6 @@ public class HoverProvider {
         String stdlibDoc = STDLIB_DOCS.get(word);
         if (stdlibDoc != null) {
             return hover(stdlibDoc);
-        }
-
-        String kwDoc = KEYWORD_DOCS.get(word);
-        if (kwDoc != null) {
-            return hover(kwDoc);
         }
 
         return null;
@@ -300,6 +272,12 @@ public class HoverProvider {
         }
         if (n instanceof Statement.VarDecl vd && vd.getInitializer() != null) {
             return searchNodeForField(vd.getInitializer(), fieldName);
+        }
+        if (n instanceof Statement.FuncDecl f) {
+            for (Node bodyNode : f.getBody()) {
+                Hover h = searchNodeForField(bodyNode, fieldName);
+                if (h != null) return h;
+            }
         }
         return null;
     }

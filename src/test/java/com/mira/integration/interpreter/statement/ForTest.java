@@ -12,10 +12,14 @@ public class ForTest extends AbstractForTests {
     private final InterpreterRunner backend = new InterpreterRunner();
 
     @BeforeEach
-    void setup() { backend.reset(); }
+    void setup() {
+        backend.reset();
+    }
 
     @Override
-    protected String runForOutput(String source) { return backend.run(source); }
+    protected String runForOutput(String source) {
+        return backend.run(source);
+    }
 
     @Test
     void forWithoutInitializer() {
@@ -27,7 +31,6 @@ public class ForTest extends AbstractForTests {
 
     @Test
     void forWithMultipleInitializers() {
-        // uses print inside, result is null at top level
         assertNull(backend.runAndGetValue("""
                 for (var i : 0, var j : 0; $i < 10 && $j == 0; $i : eval($i + 1)) {
                     print($i);

@@ -405,7 +405,6 @@ public class LexerTest {
 
     @Test
     void testTokenCount() {
-        // var x : 10; → var, x, :, 10, ; → 5 tokens + EOF = 6
         List<Token> tokens = tokenizer.tokenize("var x : 10;", false);
         assertEquals(6, tokens.size());
     }
