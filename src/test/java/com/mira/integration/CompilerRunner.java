@@ -1,4 +1,4 @@
-package com.mira.compiler;
+package com.mira.integration;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
@@ -8,21 +8,18 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-
+import com.mira.compiler.CompiledClassLoader;
+import com.mira.compiler.Compiler;
 import com.mira.lexer.Tokenizer;
 import com.mira.parser.Parser;
 import com.mira.parser.nodes.Node;
 import com.mira.runtime.interpreter.ImportResolver;
 
-public abstract class CompilerTestBase {
+public class CompilerRunner {
 
-    private final Tokenizer tokenizer = new Tokenizer();
-    private final Parser parser = new Parser();
-
-    protected String run(String source) {
+    public String run(String source) {
         ImportResolver.reset();
-        List<Node> ast = parser.parseTokens(tokenizer.tokenize(source, false));
+        List<Node> ast = new Parser().parseTokens(new Tokenizer().tokenize(source, false));
         Compiler compiler = new Compiler();
         Compiler.CompileResult result = compiler.compile(ast, "test.mira");
 
@@ -50,18 +47,5 @@ public abstract class CompilerTestBase {
             ImportResolver.reset();
         }
         return out.toString().trim();
-    }
-
-    protected void assertOutput(String expected, String source) {
-        assertEquals(expected, run(source));
-    }
-
-    protected void assertNumericOutput(double expected, String source) {
-        String raw = run(source);
-        try {
-            assertEquals(expected, Double.parseDouble(raw), 1e-9);
-        } catch (NumberFormatException e) {
-            assertEquals(String.valueOf(expected), raw);
-        }
     }
 }
