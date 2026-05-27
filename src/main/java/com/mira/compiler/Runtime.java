@@ -32,10 +32,12 @@ public final class Runtime {
 
     public static final ThreadLocal<Environment> METHOD_ENV = new ThreadLocal<>();
 
-    private record StackFrame(String name, int line) {}
+    private record StackFrame(String name, int line) {
 
-    private static final ThreadLocal<Deque<StackFrame>> CALL_STACK =
-            ThreadLocal.withInitial(ArrayDeque::new);
+    }
+
+    private static final ThreadLocal<Deque<StackFrame>> CALL_STACK
+            = ThreadLocal.withInitial(ArrayDeque::new);
 
     public static void pushCallStack(String name, int line) {
         CALL_STACK.get().push(new StackFrame(name, line));
@@ -221,6 +223,10 @@ public final class Runtime {
             return Double.parseDouble(s);
         }
         throw new TypeConversionError(value);
+    }
+
+    public static String concat(Object a, Object b) {
+        return String.valueOf(a) + String.valueOf(b);
     }
 
     public static Object add(Object a, Object b) {

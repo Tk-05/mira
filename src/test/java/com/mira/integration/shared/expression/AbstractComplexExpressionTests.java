@@ -36,4 +36,29 @@ public abstract class AbstractComplexExpressionTests {
     void operatorPrecedence() {
         assertEquals("7", runForOutput("print(eval(1 + 2 * 3));"));
     }
+
+    @Test
+    void stringNumberJuxtaposition() {
+        assertEquals("53", runForOutput("print(\"5\" 3);"));
+    }
+
+    @Test
+    void numberStringJuxtaposition() {
+        assertEquals("35", runForOutput("print(3 \"5\");"));
+    }
+
+    @Test
+    void numberNumberJuxtaposition() {
+        assertEquals("53", runForOutput("print(5 3);"));
+    }
+
+    @Test
+    void multiplePartsJuxtaposition() {
+        assertEquals("Hello World", runForOutput("print(\"Hello\" \" \" \"World\");"));
+    }
+
+    @Test
+    void variableStringJuxtaposition() {
+        assertEquals("Hello World", runForOutput("var x : \"Hello\"; print($x \" World\");"));
+    }
 }

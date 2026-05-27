@@ -823,8 +823,8 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
         parts.get(0).accept(this);
         for (int i = 1; i < parts.size(); i++) {
             parts.get(i).accept(this);
-            mv.visitMethodInsn(INVOKESTATIC, RT, "add",
-                    "(" + OBJ_D + OBJ_D + ")" + OBJ_D, false);
+            mv.visitMethodInsn(INVOKESTATIC, RT, "concat",
+                    "(" + OBJ_D + OBJ_D + ")Ljava/lang/String;", false);
         }
         return null;
     }
