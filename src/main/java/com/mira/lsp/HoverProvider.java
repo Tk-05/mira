@@ -165,6 +165,15 @@ public class HoverProvider {
         STDLIB_DOCS.put("jsonSet", "**json.jsonSet(json, key, value)** — Sets `key` to `value` in a JSON object string");
         // thread
         STDLIB_DOCS.put("newMutex", "**thread.newMutex()** — Creates a new mutex for use with `lock`");
+        // bytes
+        STDLIB_DOCS.put("newBytes", "**bytes.newBytes(size)** — Creates a zero-filled byte array of the given size");
+        STDLIB_DOCS.put("fromString", "**bytes.fromString(str)** — Encodes a string to bytes (UTF-8)");
+        STDLIB_DOCS.put("fromList", "**bytes.fromList(list)** — Creates a byte array from a list of numbers (0–255)");
+        STDLIB_DOCS.put("fromHex", "**bytes.fromHex(hex)** — Parses a hex string into a byte array");
+        STDLIB_DOCS.put("fromBase64", "**bytes.fromBase64(str)** — Decodes a Base64 string into a byte array");
+        STDLIB_DOCS.put("toList", "**bytes.toList(b)** — Converts a byte array to a list of numbers (0–255)");
+        STDLIB_DOCS.put("toHex", "**bytes.toHex(b)** — Returns the byte array as a lowercase hex string");
+        STDLIB_DOCS.put("toBase64", "**bytes.toBase64(b)** — Encodes a byte array as a Base64 string");
     }
 
     public static Hover provide(List<Node> ast, String content, Position pos) {

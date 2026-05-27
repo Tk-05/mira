@@ -43,6 +43,6 @@ public final class LibIndex {
             .collect(Collectors.toUnmodifiableMap(GlobalFunction::name, GlobalFunction::arity));
 
     public static final Set<String> IMPURE_NAMESPACES = Set.of(
-            "io", "shell", "net", "process", "dateTime", "collection"
+            "io", "shell", "net", "process", "dateTime", "collection", "bytes"
     );
 }

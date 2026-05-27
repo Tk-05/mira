@@ -217,7 +217,16 @@ public class CompletionProvider {
             Map.entry("processInfo", "pid"),
             Map.entry("sleep", "ms"),
             // thread
-            Map.entry("newMutex", "")
+            Map.entry("newMutex", ""),
+            // bytes (only entries not already covered above)
+            Map.entry("newBytes", "size"),
+            Map.entry("fromString", "str"),
+            Map.entry("fromList", "list"),
+            Map.entry("fromHex", "hex"),
+            Map.entry("fromBase64", "str"),
+            Map.entry("toList", "b"),
+            Map.entry("toHex", "b"),
+            Map.entry("toBase64", "b")
     );
 
     private static final Map<String, List<String>> STDLIB = Map.ofEntries(
@@ -252,7 +261,10 @@ public class CompletionProvider {
             Map.entry("process", List.of("processStart", "processAlive", "processWait", "processKill",
                     "processOutput", "processExitCode", "pid", "listProcesses",
                     "processInfo", "sleep")),
-            Map.entry("thread", List.of("newMutex"))
+            Map.entry("thread", List.of("newMutex")),
+            Map.entry("bytes", List.of("newBytes", "fromString", "fromList", "fromHex", "fromBase64",
+                    "size", "get", "set", "slice", "concat", "copy", "fill",
+                    "toString", "toList", "toHex", "toBase64", "readFile", "writeFile"))
     );
 
     public static List<CompletionItem> provide(List<Node> ast, String documentUri) {
@@ -340,9 +352,6 @@ public class CompletionProvider {
                 continue;
             }
             String alias = imp.getNamespace();
-            if (alias == null || alias.isBlank()) {
-                continue;
-            }
 
             switch (imp.getKind()) {
                 case STDLIB -> {
@@ -351,7 +360,14 @@ public class CompletionProvider {
                     if (fns != null) {
                         for (String fn : fns) {
                             String params = STDLIB_PARAMS.getOrDefault(fn, "");
-                            items.add(namespaceItem(alias, fn, params, false));
+                            if (alias == null || alias.isBlank()) {
+                                CompletionItem item = new CompletionItem(fn);
+                                item.setKind(CompletionItemKind.Function);
+                                item.setDetail("fn " + fn + "(" + params + ")");
+                                items.add(item);
+                            } else {
+                                items.add(namespaceItem(alias, fn, params, false));
+                            }
                         }
                     }
                 }

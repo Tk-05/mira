@@ -79,6 +79,7 @@ public class ImportResolver {
             put("regex", new Regex());
             put("map", new com.mira.lib.std.Map());
             put("thread", new com.mira.lib.std.ThreadLib());
+            put("bytes", new com.mira.lib.std.Bytes());
         }
     };
 

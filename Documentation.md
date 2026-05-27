@@ -1693,6 +1693,29 @@ Constants: `pi`, `e`, `inf`, `nan`
 | `processInfo(pid)`    | Returns the command of a process by PID               |
 | `sleep(ms)`           | Pauses execution for the given number of milliseconds |
 
+### `bytes`
+
+| Function                      | Description                                              |
+| ----------------------------- | -------------------------------------------------------- |
+| `newBytes(size)`              | Creates a zero-filled byte array                         |
+| `fromString(str)`             | UTF-8 encodes a string into bytes                        |
+| `fromList(list)`              | Creates bytes from a list of numbers (0–255)             |
+| `fromHex(hex)`                | Parses a lowercase hex string into bytes                 |
+| `fromBase64(str)`             | Decodes a Base64 string into bytes                       |
+| `size(b)`                     | Returns the length of the byte array                     |
+| `get(b, index)`               | Returns the byte at `index` as a number (0–255)          |
+| `set(b, index, value)`        | Returns a new byte array with one byte replaced          |
+| `slice(b, start, end)`        | Returns a sub-array from `start` to `end` (exclusive)   |
+| `concat(b1, b2)`              | Concatenates two byte arrays                             |
+| `copy(b)`                     | Returns an independent copy                              |
+| `fill(b, value)`              | Returns a new byte array with all bytes set to `value`   |
+| `toString(b)`                 | UTF-8 decodes bytes into a string                        |
+| `toList(b)`                   | Converts bytes to a list of numbers (0–255)              |
+| `toHex(b)`                    | Returns the bytes as a lowercase hex string              |
+| `toBase64(b)`                 | Encodes bytes as a Base64 string                         |
+| `readFile(path)`              | Reads a file as raw bytes                                |
+| `writeFile(path, b)`          | Writes raw bytes to a file                               |
+
 ---
 
 ## Multithreading
