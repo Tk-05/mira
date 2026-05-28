@@ -12,19 +12,23 @@ public class ObjectExpressionTest extends AbstractObjectExpressionTests {
     private final InterpreterRunner backend = new InterpreterRunner();
 
     @BeforeEach
-    void setup() { backend.reset(); }
+    void setup() {
+        backend.reset();
+    }
 
     @Override
-    protected String runForOutput(String source) { return backend.run(source); }
+    protected String runForOutput(String source) {
+        return backend.run(source);
+    }
 
     @Test
     void objectWithUninitializedField() {
         assertNull(backend.runAndGetValue("""
                 var obj : {
-                    var test : 0;
-                    var test2;
+                    var field : 0;
+                    var field2;
                 };
-                $obj.test2;
+                $obj.field2;
                 """));
     }
 

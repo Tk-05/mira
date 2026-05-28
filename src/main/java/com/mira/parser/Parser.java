@@ -184,6 +184,16 @@ public class Parser {
         throw new TypeMismatchError(peek(), "Expected an expression");
     }
 
+    private Token matchIdentifier() {
+        Token token = consume();
+        if (token.getTokenType() == TokenType.KEYWORD) {
+            throw new UnexpectedToken(token,
+                    "'" + token.getLexeme() + "' is a reserved keyword and cannot be used as an identifier",
+                    "Choose a different name");
+        }
+        return token;
+    }
+
     private boolean isExpressionToken(Token token) {
         return token.getTokenType() == TokenType.EXPRESSION
                 || token.getTokenType() == TokenType.STRING_LITERAL
@@ -1049,7 +1059,7 @@ public class Parser {
         }
         List<Node> decls = new ArrayList<>();
         while (true) {
-            Token nameToken = consume();
+            Token nameToken = matchIdentifier();
             String identifier = nameToken.getLexeme();
             Expression initializer = null;
             if (peek().getLexeme().equals(":")) {
