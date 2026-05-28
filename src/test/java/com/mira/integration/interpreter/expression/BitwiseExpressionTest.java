@@ -4,19 +4,23 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import com.mira.runtime.interpreter.Evaluator;
 import com.mira.integration.InterpreterRunner;
 import com.mira.integration.shared.expression.AbstractBitwiseExpressionTests;
+import com.mira.runtime.interpreter.Evaluator;
 
 public class BitwiseExpressionTest extends AbstractBitwiseExpressionTests {
 
     private final InterpreterRunner backend = new InterpreterRunner();
 
     @BeforeEach
-    void setup() { backend.reset(); }
+    void setup() {
+        backend.reset();
+    }
 
     @Override
-    protected String runForOutput(String source) { return backend.run(source); }
+    protected String runForOutput(String source) {
+        return backend.run(source);
+    }
 
     private static double eval(String expr) {
         return ((Number) Evaluator.evaluate(expr, false)).doubleValue();
@@ -59,7 +63,7 @@ public class BitwiseExpressionTest extends AbstractBitwiseExpressionTests {
 
     @Test
     void bitwiseXorCompoundAssign() {
-        assertEquals(10.0, InterpreterRunner.normNum(backend.runAndGetValue("var x : 12; $x ^= 6; eval($x);")));
+        assertEquals(10.0, InterpreterRunner.normNum(backend.runAndGetValue("var x : 12; $x ^: 6; eval($x);")));
     }
 
     @Test

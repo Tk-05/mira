@@ -67,10 +67,10 @@ public class LexerTest {
         assertEquals(TokenType.OPERATION, tokenizer.tokenize("$", false).getFirst().getTokenType());
         assertEquals(TokenType.OPERATION, tokenizer.tokenize(":", false).getFirst().getTokenType());
         assertEquals(TokenType.OPERATION, tokenizer.tokenize("!", false).getFirst().getTokenType());
-        assertEquals(TokenType.OPERATION, tokenizer.tokenize("+=", false).getFirst().getTokenType());
-        assertEquals(TokenType.OPERATION, tokenizer.tokenize("-=", false).getFirst().getTokenType());
-        assertEquals(TokenType.OPERATION, tokenizer.tokenize("*=", false).getFirst().getTokenType());
-        assertEquals(TokenType.OPERATION, tokenizer.tokenize("/=", false).getFirst().getTokenType());
+        assertEquals(TokenType.OPERATION, tokenizer.tokenize("+:", false).getFirst().getTokenType());
+        assertEquals(TokenType.OPERATION, tokenizer.tokenize("-:", false).getFirst().getTokenType());
+        assertEquals(TokenType.OPERATION, tokenizer.tokenize("*:", false).getFirst().getTokenType());
+        assertEquals(TokenType.OPERATION, tokenizer.tokenize("/:", false).getFirst().getTokenType());
     }
 
     @Test

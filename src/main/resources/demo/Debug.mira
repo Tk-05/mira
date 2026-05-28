@@ -101,8 +101,8 @@ fn main() {
     println(typeof 1);
     println(outer());
     var i : 10;
-    $i\%= 5;
-    $i**=2;
+    $i\%: 5;
+    $i**:2;
 
     switch($i) {
         case (1) {

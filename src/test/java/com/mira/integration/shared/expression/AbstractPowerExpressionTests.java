@@ -29,6 +29,6 @@ public abstract class AbstractPowerExpressionTests {
 
     @Test
     void powerAssignment() {
-        assertEquals("8.0", runForOutput("var x : 2; $x **= 3; print($x);"));
+        assertEquals("8.0", runForOutput("var x : 2; $x **: 3; print($x);"));
     }
 }

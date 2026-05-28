@@ -180,16 +180,16 @@ test()?.a         // Optional chaining on call result
 ### Compound Assignment
 
 ```
-$<name> += <expression>;
-$<name> -= <expression>;
-$<name> *= <expression>;
-$<name> /= <expression>;
-$<name> %= <expression>;
-$<name> **= <expression>;
-$<name> \%= <expression>;
-$<name> &= <expression>;
-$<name> |= <expression>;
-$<name> ^= <expression>;
+$<name> +: <expression>;
+$<name> -: <expression>;
+$<name> *: <expression>;
+$<name> /: <expression>;
+$<name> %: <expression>;
+$<name> **: <expression>;
+$<name> \%: <expression>;
+$<name> &: <expression>;
+$<name> |: <expression>;
+$<name> ^: <expression>;
 ```
 
 ### Literals
@@ -1105,7 +1105,7 @@ Example — parallel heavy computations:
 ```
 fn heavy(n) {
     var s : 0;
-    for (var i : 0; $i < $n; $i++) { $s += $i; }
+    for (var i : 0; $i < $n; $i++) { $s +: $i; }
     return $s;
 }
 
@@ -1282,7 +1282,7 @@ Fields are accessible directly by name inside methods:
 var counter : {
     var count : 0;
     fn increment() {
-        $count += 1;
+        $count +: 1;
     }
     fn get() {
         return $count;

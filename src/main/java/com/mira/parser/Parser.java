@@ -44,6 +44,7 @@ import com.mira.parser.nodes.statement.Statement.Assign;
 import com.mira.parser.nodes.statement.Statement.Block;
 import com.mira.parser.nodes.statement.Statement.Break;
 import com.mira.parser.nodes.statement.Statement.CatchClause;
+import com.mira.parser.nodes.statement.Statement.ComptimeBlock;
 import com.mira.parser.nodes.statement.Statement.Continue;
 import com.mira.parser.nodes.statement.Statement.EnumDecl;
 import com.mira.parser.nodes.statement.Statement.For;
@@ -54,10 +55,9 @@ import com.mira.parser.nodes.statement.Statement.ModuleDecl;
 import com.mira.parser.nodes.statement.Statement.Return;
 import com.mira.parser.nodes.statement.Statement.Switch;
 import com.mira.parser.nodes.statement.Statement.SwitchCase;
+import com.mira.parser.nodes.statement.Statement.TestCall;
 import com.mira.parser.nodes.statement.Statement.Throw;
 import com.mira.parser.nodes.statement.Statement.TryCatch;
-import com.mira.parser.nodes.statement.Statement.ComptimeBlock;
-import com.mira.parser.nodes.statement.Statement.TestCall;
 import com.mira.parser.nodes.statement.Statement.VarDecl;
 import com.mira.parser.nodes.statement.Statement.VarDestructure;
 import com.mira.parser.nodes.statement.Statement.While;
@@ -265,9 +265,9 @@ public class Parser {
         }
 
         String lex = peekOffset(offset).getLexeme();
-        return lex.equals(":") || lex.equals("+=") || lex.equals("-=") || lex.equals("*=") || lex.equals("/=")
-                || lex.equals("%=") || lex.equals("&=") || lex.equals("|=") || lex.equals("^=")
-                || lex.equals("**=") || lex.equals("\\%=");
+        return lex.equals(":") || lex.equals("+:") || lex.equals("-:") || lex.equals("*:") || lex.equals("/:")
+                || lex.equals("%:") || lex.equals("&:") || lex.equals("|:") || lex.equals("^:")
+                || lex.equals("**:") || lex.equals("\\%:");
     }
 
     private void reset() {
@@ -1172,9 +1172,9 @@ public class Parser {
         }
 
         String op = peek().getLexeme();
-        if (op.equals("+=") || op.equals("-=") || op.equals("*=") || op.equals("/=")
-                || op.equals("%=") || op.equals("&=") || op.equals("|=") || op.equals("^=")
-                || op.equals("**=") || op.equals("\\%=")) {
+        if (op.equals("+:") || op.equals("-:") || op.equals("*:") || op.equals("/:")
+                || op.equals("%:") || op.equals("&:") || op.equals("|:") || op.equals("^:")
+                || op.equals("**:") || op.equals("\\%:")) {
             consume();
             Expression rhs = parseExpression();
             Token arithOp = new Token(TokenType.OPERATION, op.substring(0, op.length() - 1), 0, 0);
@@ -1638,5 +1638,4 @@ public class Parser {
 
         return new EnumDecl(values, identifier);
     }
-
 }

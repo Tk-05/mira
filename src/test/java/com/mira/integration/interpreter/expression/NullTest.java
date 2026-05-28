@@ -14,10 +14,14 @@ public class NullTest extends AbstractNullTests {
     private final InterpreterRunner backend = new InterpreterRunner();
 
     @BeforeEach
-    void setup() { backend.reset(); }
+    void setup() {
+        backend.reset();
+    }
 
     @Override
-    protected String runForOutput(String source) { return backend.run(source); }
+    protected String runForOutput(String source) {
+        return backend.run(source);
+    }
 
     @Test
     void nullLiteralReturnsNullValue() {
@@ -60,7 +64,7 @@ public class NullTest extends AbstractNullTests {
                 var count : 0;
                 var cond : null;
                 while ($cond) {
-                    $count += 1;
+                    $count +: 1;
                 }
                 eval($count);
                 """)));

@@ -24,6 +24,6 @@ public abstract class AbstractModuloExpressionTests {
 
     @Test
     void moduloCompoundAssign() {
-        assertEquals("2", runForOutput("var x : 8; $x %= 3; print($x);"));
+        assertEquals("2", runForOutput("var x : 8; $x %: 3; print($x);"));
     }
 }

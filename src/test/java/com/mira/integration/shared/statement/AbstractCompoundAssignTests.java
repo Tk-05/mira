@@ -9,22 +9,22 @@ public abstract class AbstractCompoundAssignTests {
 
     @Test
     void addAssign() {
-        assertEquals("15", runForOutput("var x : 10; $x += 5; print($x);"));
+        assertEquals("15", runForOutput("var x : 10; $x +: 5; print($x);"));
     }
 
     @Test
     void subtractAssign() {
-        assertEquals("5", runForOutput("var x : 10; $x -= 5; print($x);"));
+        assertEquals("5", runForOutput("var x : 10; $x -: 5; print($x);"));
     }
 
     @Test
     void multiplyAssign() {
-        assertEquals("20", runForOutput("var x : 4; $x *= 5; print($x);"));
+        assertEquals("20", runForOutput("var x : 4; $x *: 5; print($x);"));
     }
 
     @Test
     void divideAssign() {
-        assertEquals("2.5", runForOutput("var x : 5; $x /= 2; print($x);"));
+        assertEquals("2.5", runForOutput("var x : 5; $x /: 2; print($x);"));
     }
 
     @Test
@@ -32,7 +32,7 @@ public abstract class AbstractCompoundAssignTests {
         assertEquals("10", runForOutput("""
                 var sum : 0;
                 for(var i : 1; $i <= 4; $i : eval($i + 1)) {
-                    $sum += $i;
+                    $sum +: $i;
                 }
                 print($sum);
                 """));

@@ -34,11 +34,11 @@ public abstract class AbstractBitwiseExpressionTests {
 
     @Test
     void bitwiseAndCompoundAssign() {
-        assertEquals("1", runForOutput("var x : 3; $x &= 1; print($x);"));
+        assertEquals("1", runForOutput("var x : 3; $x &: 1; print($x);"));
     }
 
     @Test
     void bitwiseOrCompoundAssign() {
-        assertEquals("7", runForOutput("var x : 5; $x |= 3; print($x);"));
+        assertEquals("7", runForOutput("var x : 5; $x |: 3; print($x);"));
     }
 }

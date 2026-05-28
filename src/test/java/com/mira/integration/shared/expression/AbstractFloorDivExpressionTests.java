@@ -29,6 +29,6 @@ public abstract class AbstractFloorDivExpressionTests {
 
     @Test
     void floorDivAssignment() {
-        assertEquals("3", runForOutput("var x : 10; $x \\%= 3; print($x);"));
+        assertEquals("3", runForOutput("var x : 10; $x \\%: 3; print($x);"));
     }
 }
