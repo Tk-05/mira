@@ -149,6 +149,10 @@ public class Environment {
         return values.containsKey(name);
     }
 
+    public Set<String> getDefinedNames() {
+        return Collections.unmodifiableSet(values.keySet());
+    }
+
     public boolean existsInChain(String name) {
         if (values.containsKey(name)) {
             return true;

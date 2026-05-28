@@ -31,16 +31,8 @@ import com.mira.error.runtime.RuntimeError.NativeLibNotFoundError;
 import com.mira.lexer.Tokenizer;
 import com.mira.lexer.token.Token;
 import com.mira.lib.Lib;
+import com.mira.lib.LibIndex;
 import com.mira.lib.internal.Internal;
-import com.mira.lib.std.Collection;
-import com.mira.lib.std.DateTime;
-import com.mira.lib.std.IO;
-import com.mira.lib.std.Json;
-import com.mira.lib.std.Math;
-import com.mira.lib.std.Net;
-import com.mira.lib.std.Regex;
-import com.mira.lib.std.Shell;
-import com.mira.lib.std.Strings;
 import com.mira.parser.Parser;
 import com.mira.parser.nodes.Node;
 import com.mira.parser.nodes.expression.Expression;
@@ -65,23 +57,6 @@ public class ImportResolver {
     private static final ConcurrentHashMap<String, Lib> loadedNativeLibs = new ConcurrentHashMap<>();
     private static final List<URLClassLoader> nativeClassLoaders = new ArrayList<>();
     private static final ConcurrentHashMap<String, Namespace> resolvedModules = new ConcurrentHashMap<>();
-    private static final Map<String, Lib> libs = new HashMap<String, Lib>() {
-        {
-            put("math", new Math());
-            put("string", new Strings());
-            put("io", new IO());
-            put("shell", new Shell());
-            put("dateTime", new DateTime());
-            put("collection", new Collection());
-            put("json", new Json());
-            put("net", new Net());
-            put("process", new com.mira.lib.std.Process());
-            put("regex", new Regex());
-            put("map", new com.mira.lib.std.Map());
-            put("thread", new com.mira.lib.std.ThreadLib());
-            put("bytes", new com.mira.lib.std.Bytes());
-        }
-    };
 
     public static void loadInternal(Environment environment) {
         internal.loadLib(environment);
@@ -349,7 +324,7 @@ public class ImportResolver {
             return;
         }
 
-        Lib lib = libs.get(libName);
+        Lib lib = LibIndex.STDLIB_LIBS.get(libName);
         if (lib == null) {
             throw new RuntimeException("Import '" + libName + "' could not be resolved");
         }

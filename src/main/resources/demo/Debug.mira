@@ -70,6 +70,7 @@ comptime {
 }
 
 fn main() {
+    function(1,2);
     var data : bytes.fromString("Hello");
     println($data);
     $data : bytes.toString($data);

@@ -1,0 +1,424 @@
+package com.mira.resolver;
+
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
+import com.mira.error.MiraError;
+import com.mira.error.resolver.MultipleResolverErrors;
+import com.mira.error.resolver.ResolverError.UndeclaredVariableError;
+import com.mira.error.resolver.ResolverError.UndefinedFunctionError;
+import com.mira.error.resolver.ResolverError.UnknownNamespaceError;
+import com.mira.lexer.token.TokenType;
+import com.mira.lib.LibIndex;
+import com.mira.linter.LintScope;
+import com.mira.parser.nodes.Node;
+import com.mira.parser.nodes.expression.Expression.AccessExpression;
+import com.mira.parser.nodes.expression.Expression.ArrayExpression;
+import com.mira.parser.nodes.expression.Expression.AwaitExpression;
+import com.mira.parser.nodes.expression.Expression.BinaryExpression;
+import com.mira.parser.nodes.expression.Expression.CallExpression;
+import com.mira.parser.nodes.expression.Expression.ComplexExpression;
+import com.mira.parser.nodes.expression.Expression.DumbExpression;
+import com.mira.parser.nodes.expression.Expression.ExecBlock;
+import com.mira.parser.nodes.expression.Expression.FieldAccessExpression;
+import com.mira.parser.nodes.expression.Expression.ImportExpression;
+import com.mira.parser.nodes.expression.Expression.LambdaExpression;
+import com.mira.parser.nodes.expression.Expression.ListExpression;
+import com.mira.parser.nodes.expression.Expression.MapExpression;
+import com.mira.parser.nodes.expression.Expression.MethodCallExpression;
+import com.mira.parser.nodes.expression.Expression.NamespaceCallExpression;
+import com.mira.parser.nodes.expression.Expression.ObjectExpression;
+import com.mira.parser.nodes.expression.Expression.RangeExpression;
+import com.mira.parser.nodes.expression.Expression.SwitchExpression;
+import com.mira.parser.nodes.expression.Expression.TernaryExpression;
+import com.mira.parser.nodes.expression.Expression.ThrownException;
+import com.mira.parser.nodes.expression.Expression.TypeofExpression;
+import com.mira.parser.nodes.expression.Expression.UnaryExpression;
+import com.mira.parser.nodes.statement.Statement.Assign;
+import com.mira.parser.nodes.statement.Statement.Block;
+import com.mira.parser.nodes.statement.Statement.CatchClause;
+import com.mira.parser.nodes.statement.Statement.ComptimeBlock;
+import com.mira.parser.nodes.statement.Statement.EnumDecl;
+import com.mira.parser.nodes.statement.Statement.For;
+import com.mira.parser.nodes.statement.Statement.Foreach;
+import com.mira.parser.nodes.statement.Statement.FuncDecl;
+import com.mira.parser.nodes.statement.Statement.If;
+import com.mira.parser.nodes.statement.Statement.Lock;
+import com.mira.parser.nodes.statement.Statement.Return;
+import com.mira.parser.nodes.statement.Statement.Switch;
+import com.mira.parser.nodes.statement.Statement.Throw;
+import com.mira.parser.nodes.statement.Statement.TryCatch;
+import com.mira.parser.nodes.statement.Statement.VarDecl;
+import com.mira.parser.nodes.statement.Statement.VarDestructure;
+import com.mira.parser.nodes.statement.Statement.While;
+
+public class Resolver {
+
+    private final LintScope scope = new LintScope();
+    private final Set<String> knownFunctions = new HashSet<>(LibIndex.GLOBAL_NAMES);
+    private final Set<String> knownNamespaces = new HashSet<>();
+    private final List<MiraError> errors = new ArrayList<>();
+
+    public void resolve(List<Node> ast) {
+        scope.push();
+
+        for (String builtin : LibIndex.GLOBAL_NAMES) {
+            scope.declare(builtin, 0, 0, false);
+        }
+
+        for (Node node : ast) {
+            switch (node) {
+                case FuncDecl f -> {
+                    scope.declare(f.getName(), f.line, 0, false);
+                    knownFunctions.add(f.getName());
+                }
+                case VarDecl v ->
+                    scope.declare(v.getName(), v.line, 0, v.isConst());
+                case EnumDecl e ->
+                    scope.declare(e.getIdentifier(), e.line, 0, true);
+                case ImportExpression imp ->
+                    preDeclareImport(imp);
+                default -> {
+                }
+            }
+        }
+
+        resolveNodes(ast);
+        scope.pop();
+
+        if (!errors.isEmpty()) {
+            throw new MultipleResolverErrors(errors);
+        }
+    }
+
+    private void resolveNodes(List<Node> nodes) {
+        for (Node node : nodes) {
+            resolveNode(node);
+        }
+    }
+
+    private void resolveNode(Node node) {
+        switch (node) {
+            case VarDecl stmt ->
+                resolveVarDecl(stmt);
+            case FuncDecl stmt ->
+                resolveFuncDecl(stmt);
+            case Assign stmt ->
+                resolveAssign(stmt);
+            case Return stmt -> {
+                if (stmt.getValue() != null) {
+                    resolveExpr(stmt.getValue());
+                }
+            }
+            case If stmt ->
+                resolveIf(stmt);
+            case For stmt ->
+                resolveFor(stmt);
+            case While stmt ->
+                resolveWhile(stmt);
+            case Foreach stmt ->
+                resolveForeach(stmt);
+            case Block stmt ->
+                resolveBlock(stmt);
+            case Switch stmt ->
+                resolveSwitch(stmt);
+            case TryCatch stmt ->
+                resolveTryCatch(stmt);
+            case Throw stmt ->
+                resolveExpr(stmt.getValue());
+            case EnumDecl stmt -> {
+            }
+            case VarDestructure stmt ->
+                resolveVarDestructure(stmt);
+            case Lock stmt -> {
+                resolveExpr(stmt.getMutex());
+                resolveNodes(stmt.getBody());
+            }
+            case ComptimeBlock stmt ->
+                resolveNodes(stmt.getBody());
+            case CallExpression e ->
+                resolveCallExpression(e);
+            default ->
+                resolveExpr(node);
+        }
+    }
+
+    private void resolveExpr(Node node) {
+        switch (node) {
+            case UnaryExpression e when "$".equals(e.getOperation().getLexeme()) -> {
+                if (e.getRight() instanceof DumbExpression d && isIdentifier(d)) {
+                    String name = d.getValue();
+                    if (!scope.isDeclared(name)) {
+                        errors.add(new UndeclaredVariableError(name, d.getLine(), d.getColumn()));
+                    }
+                } else if (e.getRight() != null) {
+                    resolveExpr(e.getRight());
+                }
+            }
+            case UnaryExpression e -> {
+                if (e.getRight() != null) {
+                    resolveExpr(e.getRight());
+                }
+            }
+            case BinaryExpression e when "|>".equals(e.getOperator().getLexeme()) -> {
+                resolveExpr(e.getLeft());
+                if (e.getRight() instanceof CallExpression call) {
+                    resolveCallExpression(call);
+                } else {
+                    resolveExpr(e.getRight());
+                }
+            }
+            case BinaryExpression e -> {
+                resolveExpr(e.getLeft());
+                resolveExpr(e.getRight());
+            }
+            case CallExpression e ->
+                resolveCallExpression(e);
+            case NamespaceCallExpression e -> {
+                String alias = e.getAlias();
+                if (!knownNamespaces.contains(alias)) {
+                    errors.add(new UnknownNamespaceError(alias, e.getLine(), 0));
+                }
+                e.getArguments().forEach(this::resolveExpr);
+            }
+            case AccessExpression e -> {
+                resolveExpr(e.getReference());
+                e.getIndecies().forEach(this::resolveExpr);
+            }
+            case FieldAccessExpression e ->
+                resolveExpr(e.getObject());
+            case MethodCallExpression e -> {
+                resolveExpr(e.getObject());
+                e.getArguments().forEach(this::resolveExpr);
+            }
+            case ArrayExpression e ->
+                e.getMembers().forEach(this::resolveExpr);
+            case ListExpression e ->
+                e.getMembers().forEach(this::resolveExpr);
+            case MapExpression e ->
+                e.getEntries().values().forEach(this::resolveExpr);
+            case ObjectExpression e -> {
+                e.getVarDecls().stream()
+                        .filter(v -> v.getInitializer() != null)
+                        .forEach(v -> resolveExpr(v.getInitializer()));
+                for (var method : e.getMethods()) {
+                    scope.push();
+                    method.getParameters().forEach(p -> scope.declare(p.name(), 0, 0, false));
+                    if (method.getVariadicParam() != null) {
+                        scope.declare(method.getVariadicParam(), 0, 0, false);
+                    }
+                    scope.declare("this", 0, 0, false);
+                    e.getVarDecls().forEach(f -> scope.declare(f.getName(), 0, 0, false));
+                    resolveNodes(method.getBody());
+                    scope.pop();
+                }
+            }
+            case LambdaExpression e -> {
+                scope.push();
+                e.getParameters().forEach(p -> scope.declare(p.name(), 0, 0, false));
+                if (e.getVariadicParam() != null) {
+                    scope.declare(e.getVariadicParam(), 0, 0, false);
+                }
+                resolveNodes(e.getBody());
+                scope.pop();
+            }
+            case TernaryExpression e -> {
+                resolveExpr(e.getCondition());
+                resolveExpr(e.getThenExpr());
+                resolveExpr(e.getElseExpr());
+            }
+            case ComplexExpression e ->
+                e.getExpressions().forEach(this::resolveExpr);
+            case TypeofExpression e ->
+                resolveExpr(e.getExpr());
+            case SwitchExpression e -> {
+                resolveExpr(e.getSubject());
+                for (var c : e.getCases()) {
+                    resolveExpr(c.value());
+                    resolveExpr(c.result());
+                }
+                if (e.getDefaultExpr() != null) {
+                    resolveExpr(e.getDefaultExpr());
+                }
+            }
+            case RangeExpression e -> {
+                if (e.getStart() != null) {
+                    resolveExpr(e.getStart());
+                }
+                if (e.getEnd() != null) {
+                    resolveExpr(e.getEnd());
+                }
+                if (e.getStepsize() != null) {
+                    resolveExpr(e.getStepsize());
+                }
+            }
+            case ImportExpression e ->
+                preDeclareImport(e);
+            case AwaitExpression e ->
+                resolveExpr(e.getExpr());
+            case ThrownException e -> {
+                if (e.getValue() != null) {
+                    resolveExpr(e.getValue());
+                }
+            }
+            case ExecBlock e -> {
+                scope.push();
+                resolveNodes(e.getBody());
+                scope.pop();
+            }
+            default -> {
+            }
+        }
+    }
+
+    private void resolveCallExpression(CallExpression expr) {
+        if (expr.getCallee() instanceof DumbExpression callee && isIdentifier(callee)) {
+            String name = callee.getValue();
+            boolean callable = knownFunctions.contains(name)
+                    || (scope.isDeclared(name) && !knownNamespaces.contains(name));
+            if (!callable) {
+                errors.add(new UndefinedFunctionError(name, callee.getLine(), callee.getColumn()));
+            }
+        } else {
+            resolveExpr(expr.getCallee());
+        }
+        expr.getArguments().forEach(this::resolveExpr);
+    }
+
+    private void resolveVarDecl(VarDecl stmt) {
+        if (stmt.getInitializer() != null) {
+            resolveExpr(stmt.getInitializer());
+        }
+        scope.declare(stmt.getName(), stmt.line, stmt.nameColumn, stmt.isConst());
+    }
+
+    private void resolveFuncDecl(FuncDecl stmt) {
+        knownFunctions.add(stmt.getName());
+        scope.push();
+        stmt.getParameters().forEach(p -> scope.declare(p.name(), stmt.line, 0, false));
+        if (stmt.getVariadicParam() != null) {
+            scope.declare(stmt.getVariadicParam(), stmt.line, 0, false);
+        }
+        resolveNodes(stmt.getBody());
+        scope.pop();
+    }
+
+    private void resolveAssign(Assign stmt) {
+        if (stmt.getReference() instanceof UnaryExpression u
+                && "$".equals(u.getOperation().getLexeme())
+                && u.getRight() instanceof DumbExpression d
+                && isIdentifier(d)) {
+            String name = d.getValue();
+            if (!scope.isDeclared(name)) {
+                errors.add(new UndeclaredVariableError(name, d.getLine(), d.getColumn()));
+            }
+        } else {
+            resolveExpr(stmt.getReference());
+        }
+        resolveExpr(stmt.getExpression());
+    }
+
+    private void resolveIf(If stmt) {
+        resolveExpr(stmt.getCondition());
+        scope.push();
+        resolveNodes(stmt.getThenBody());
+        scope.pop();
+        if (stmt.getElseBody() != null) {
+            scope.push();
+            resolveNodes(stmt.getElseBody());
+            scope.pop();
+        }
+    }
+
+    private void resolveFor(For stmt) {
+        scope.push();
+        resolveNodes(stmt.getVarDecls());
+        if (stmt.getCondition() != null) {
+            resolveExpr(stmt.getCondition());
+        }
+        stmt.getPostExpressions().forEach(this::resolveNode);
+        resolveNodes(stmt.getBody());
+        scope.pop();
+    }
+
+    private void resolveWhile(While stmt) {
+        resolveExpr(stmt.getCondition());
+        scope.push();
+        resolveNodes(stmt.getBody());
+        scope.pop();
+    }
+
+    private void resolveForeach(Foreach stmt) {
+        resolveExpr(stmt.getCollection());
+        scope.push();
+        VarDecl iter = stmt.getIterator();
+        scope.declare(iter.getName(), iter.line > 0 ? iter.line : stmt.line, iter.nameColumn, false);
+        resolveNodes(stmt.getBody());
+        scope.pop();
+    }
+
+    private void resolveBlock(Block stmt) {
+        scope.push();
+        resolveNodes(stmt.getBody());
+        scope.pop();
+    }
+
+    private void resolveSwitch(Switch stmt) {
+        resolveExpr(stmt.getSubject());
+        for (var c : stmt.getCases()) {
+            scope.push();
+            resolveNodes(c.getBody());
+            scope.pop();
+        }
+        if (stmt.getDefaultBody() != null) {
+            scope.push();
+            resolveNodes(stmt.getDefaultBody());
+            scope.pop();
+        }
+    }
+
+    private void resolveTryCatch(TryCatch stmt) {
+        scope.push();
+        resolveNodes(stmt.getTryBody());
+        scope.pop();
+        for (CatchClause clause : stmt.getCatchClauses()) {
+            scope.push();
+            if (clause.getParamName() != null) {
+                scope.declare(clause.getParamName(), stmt.line, 0, false);
+            }
+            resolveNodes(clause.getBody());
+            scope.pop();
+        }
+    }
+
+    private void resolveVarDestructure(VarDestructure stmt) {
+        resolveExpr(stmt.getInitializer());
+        for (String name : stmt.getNames()) {
+            scope.declare(name, stmt.line, 0, false);
+        }
+    }
+
+    private void preDeclareImport(ImportExpression expr) {
+        if (expr.isSelective()) {
+            for (String fn : expr.getSelectedFunctions()) {
+                scope.declare(fn, 0, 0, false);
+                knownFunctions.add(fn);
+            }
+        } else if (expr.getNamespace() != null) {
+            scope.declare(expr.getNamespace(), 0, 0, false);
+            knownNamespaces.add(expr.getNamespace());
+        } else {
+            knownFunctions.addAll(LibIndex.getFunctionNames(expr.getModule().replace("\"", "")));
+        }
+    }
+
+    private static boolean isIdentifier(DumbExpression expr) {
+        if (expr.getTokenType() != TokenType.EXPRESSION) {
+            return false;
+        }
+        char first = expr.getValue().charAt(0);
+        return Character.isLetter(first) || first == '_';
+    }
+}

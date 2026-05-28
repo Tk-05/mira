@@ -1,9 +1,22 @@
 package com.mira.lib;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+
+import com.mira.lib.std.Bytes;
+import com.mira.lib.std.Collection;
+import com.mira.lib.std.DateTime;
+import com.mira.lib.std.IO;
+import com.mira.lib.std.Json;
+import com.mira.lib.std.Net;
+import com.mira.lib.std.Regex;
+import com.mira.lib.std.Shell;
+import com.mira.lib.std.Strings;
+import com.mira.lib.std.ThreadLib;
+import com.mira.runtime.interpreter.Environment;
 
 public final class LibIndex {
 
@@ -45,4 +58,32 @@ public final class LibIndex {
     public static final Set<String> IMPURE_NAMESPACES = Set.of(
             "io", "shell", "net", "process", "dateTime", "collection", "bytes"
     );
+
+    public static final Map<String, Lib> STDLIB_LIBS = new HashMap<>() {
+        {
+            put("math", new com.mira.lib.std.Math());
+            put("string", new Strings());
+            put("io", new IO());
+            put("shell", new Shell());
+            put("dateTime", new DateTime());
+            put("collection", new Collection());
+            put("json", new Json());
+            put("net", new Net());
+            put("process", new com.mira.lib.std.Process());
+            put("regex", new Regex());
+            put("map", new com.mira.lib.std.Map());
+            put("thread", new ThreadLib());
+            put("bytes", new Bytes());
+        }
+    };
+
+    public static Set<String> getFunctionNames(String libName) {
+        Lib lib = STDLIB_LIBS.get(libName);
+        if (lib == null) {
+            return Set.of();
+        }
+        Environment env = new Environment();
+        lib.loadLib(env);
+        return env.getDefinedNames();
+    }
 }
