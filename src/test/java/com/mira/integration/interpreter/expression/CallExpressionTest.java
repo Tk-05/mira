@@ -21,7 +21,7 @@ public class CallExpressionTest extends AbstractCallExpressionTests {
 
     @Test
     void callVoidFunction() {
-        assertNull(backend.runAndGetValue("fn test() {} test();"));
+        assertNull(backend.runAndGetValue("fn foo() {} foo();"));
     }
 
     @Test

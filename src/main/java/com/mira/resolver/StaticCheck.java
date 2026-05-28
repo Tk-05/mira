@@ -7,7 +7,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import com.mira.Flags;
 import com.mira.error.MiraError;
 import com.mira.error.resolver.MultipleStaticCheckErrors;
 import com.mira.error.resolver.StaticCheckError.ArityMismatchError;
@@ -61,6 +60,7 @@ import com.mira.parser.nodes.statement.Statement.Switch;
 import com.mira.parser.nodes.statement.Statement.Throw;
 import com.mira.parser.nodes.statement.Statement.TryCatch;
 import com.mira.parser.nodes.statement.Statement.VarDecl;
+import com.mira.parser.nodes.statement.Statement.TestCall;
 import com.mira.parser.nodes.statement.Statement.VarDestructure;
 import com.mira.parser.nodes.statement.Statement.While;
 
@@ -160,6 +160,10 @@ public class StaticCheck {
             }
             case ComptimeBlock stmt ->
                 resolveNodes(stmt.getBody());
+            case TestCall stmt -> {
+                resolveExpr(stmt.getName());
+                resolveExpr(stmt.getTestFn());
+            }
             case Break stmt -> {
                 if (loopDepth == 0) {
                     errors.add(new BreakOutsideLoopError(stmt.line));
@@ -312,10 +316,6 @@ public class StaticCheck {
     private void resolveCallExpression(CallExpression expr, int implicitArgs) {
         if (expr.getCallee() instanceof DumbExpression callee && isIdentifier(callee)) {
             String name = callee.getValue();
-
-            if (Flags.testMode && name.equals("test")) {
-                return;
-            }
 
             boolean callable = knownFunctions.contains(name)
                     || (scope.isDeclared(name) && !knownNamespaces.contains(name));

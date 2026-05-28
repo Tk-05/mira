@@ -50,11 +50,11 @@ public class DestructuringTest extends AbstractDestructuringTests {
     void destructuresInLocalScope() {
         backend.runAndGetValue("""
                 var result : 0;
-                fn test() {
+                fn myFunc() {
                     var (a, b) : {3, 7};
                     $result : eval($a + $b);
                 }
-                test();
+                myFunc();
                 """);
         assertEquals(10.0, InterpreterRunner.normNum(backend.getInterpreter().getGlobalEnvironment().get("result")));
     }

@@ -547,4 +547,28 @@ public abstract class Statement implements Node {
             return visitor.visitComptimeBlock(this);
         }
     }
+
+    public static class TestCall extends Statement {
+
+        private final Expression name;
+        private final Expression testFn;
+
+        public TestCall(Expression name, Expression testFn) {
+            this.name = name;
+            this.testFn = testFn;
+        }
+
+        public Expression getName() {
+            return name;
+        }
+
+        public Expression getTestFn() {
+            return testFn;
+        }
+
+        @Override
+        public <T> T accept(StmtVisitor<T> visitor) {
+            return visitor.visitTestCall(this);
+        }
+    }
 }

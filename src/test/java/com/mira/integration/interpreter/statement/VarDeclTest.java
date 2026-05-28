@@ -60,7 +60,7 @@ public class VarDeclTest extends AbstractVarDeclTests {
     @Test
     void constDeclarationReassignThrows() {
         assertThrows(ReferenceIsImmutableError.class,
-                () -> backend.runAndGetValue("const test : 0; $test : 1;"));
+                () -> backend.runAndGetValue("const x : 0; $x : 1;"));
     }
 
     @Test

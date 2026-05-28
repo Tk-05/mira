@@ -40,7 +40,8 @@ public class Vocabulary {
             "typeof",
             "lock",
             "pure",
-            "comptime"
+            "comptime",
+            "test"
     );
 
     public static final Set<String> COMPARISON_OPERATORS = Set.of("==", "!=", "<", ">", "<=", ">=");

@@ -73,9 +73,11 @@ import com.mira.parser.nodes.statement.Statement.SwitchCase;
 import com.mira.parser.nodes.statement.Statement.Throw;
 import com.mira.parser.nodes.statement.Statement.TryCatch;
 import com.mira.parser.nodes.statement.Statement.ComptimeBlock;
+import com.mira.parser.nodes.statement.Statement.TestCall;
 import com.mira.parser.nodes.statement.Statement.VarDecl;
 import com.mira.parser.nodes.statement.Statement.VarDestructure;
 import com.mira.parser.nodes.statement.Statement.While;
+import com.mira.testing.TestRunner;
 import com.mira.runtime.ComptimeExecutor;
 import com.mira.runtime.functions.BreakSignal;
 import com.mira.runtime.functions.Callable;
@@ -1532,6 +1534,20 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
     @Override
     public Object visitComptimeBlock(ComptimeBlock stmt) {
+        return null;
+    }
+
+    @Override
+    public Object visitTestCall(TestCall stmt) {
+        if (!Flags.testMode) {
+            return null;
+        }
+        String name = String.valueOf(stmt.getName().accept(this));
+        Object fn = stmt.getTestFn().accept(this);
+        if (!(fn instanceof Callable callable)) {
+            throw new RuntimeException("test() second argument must be a function");
+        }
+        TestRunner.register(name, callable, this);
         return null;
     }
 

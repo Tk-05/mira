@@ -32,6 +32,7 @@ import com.mira.parser.nodes.expression.Expression.TypeofExpression;
 import com.mira.parser.nodes.expression.Expression.UnaryExpression;
 import com.mira.parser.nodes.statement.Statement.Assign;
 import com.mira.parser.nodes.statement.Statement.ComptimeBlock;
+import com.mira.parser.nodes.statement.Statement.TestCall;
 import com.mira.parser.nodes.statement.Statement.Block;
 import com.mira.parser.nodes.statement.Statement.CatchClause;
 import com.mira.parser.nodes.statement.Statement.EnumDecl;
@@ -129,6 +130,10 @@ public class Linter {
                 lintLock(stmt);
             case ComptimeBlock stmt ->
                 lintNodes(stmt.getBody());
+            case TestCall stmt -> {
+                lintExpr(stmt.getName());
+                lintExpr(stmt.getTestFn());
+            }
             case CallExpression e ->
                 lintCallExpression(e);
             default ->

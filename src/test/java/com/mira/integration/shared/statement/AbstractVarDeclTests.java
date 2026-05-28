@@ -38,6 +38,6 @@ public abstract class AbstractVarDeclTests {
 
     @Test
     void constDeclaration() {
-        assertEquals("0", runForOutput("const test : 0; print($test);"));
+        assertEquals("0", runForOutput("const x : 0; print($x);"));
     }
 }

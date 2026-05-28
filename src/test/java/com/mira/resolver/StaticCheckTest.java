@@ -124,7 +124,7 @@ public class StaticCheckTest {
 
     @Test
     void undefinedFunctionInsideFunction() {
-        List<MiraError> errors = errorsFor("fn main() { test(); }");
+        List<MiraError> errors = errorsFor("fn main() { foo(); }");
         assertTrue(hasCode(errors, "E302"));
     }
 

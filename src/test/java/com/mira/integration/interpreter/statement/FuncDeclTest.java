@@ -21,12 +21,12 @@ public class FuncDeclTest extends AbstractFuncDeclTests {
 
     @Test
     void simpleFunctionDeclaration() {
-        assertNull(backend.runAndGetValue("fn test() {}"));
+        assertNull(backend.runAndGetValue("fn foo() {}"));
     }
 
     @Test
     void voidFunctionCallReturnsNull() {
-        assertNull(backend.runAndGetValue("fn test() {} test();"));
+        assertNull(backend.runAndGetValue("fn foo() {} foo();"));
     }
 
     @Test

@@ -46,33 +46,33 @@ public class UnaryExpressionTest extends AbstractUnaryExpressionTests {
 
     @Test
     void postIncrementAndDecrement() {
-        assertEquals(10.0, InterpreterRunner.normNum(backend.runAndGetValue("var test : 10; $test++; $test--;")));
+        assertEquals(10.0, InterpreterRunner.normNum(backend.runAndGetValue("var num : 10; $num++; $num--;")));
     }
 
     @Test
     void postUnaryInExpression() {
         assertEquals(12.0, InterpreterRunner.normNum(backend.runAndGetValue("""
-                var test : 10;
-                $test : $test+++1;
-                eval($test);
+                var num : 10;
+                $num : $num+++1;
+                eval($num);
                 """)));
     }
 
     @Test
     void multiplePostUnaryInExpression() {
         assertEquals(20.0, InterpreterRunner.normNum(backend.runAndGetValue("""
-                var test : 5;
-                $test : $test+++$test+++$test;
-                eval($test);
+                var num : 5;
+                $num : $num+++$num+++$num;
+                eval($num);
                 """)));
     }
 
     @Test
     void nestedPostUnary() {
         assertEquals(3.0, InterpreterRunner.normNum(backend.runAndGetValue("""
-                var test : 0;
-                $test : (($test++) + 1) + $test;
-                eval($test);
+                var num : 0;
+                $num : (($num++) + 1) + $num;
+                eval($num);
                 """)));
     }
 

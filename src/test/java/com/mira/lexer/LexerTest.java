@@ -47,6 +47,7 @@ public class LexerTest {
         assertEquals(TokenType.KEYWORD, tokenizer.tokenize("async", false).getFirst().getTokenType());
         assertEquals(TokenType.KEYWORD, tokenizer.tokenize("typeof", false).getFirst().getTokenType());
         assertEquals(TokenType.KEYWORD, tokenizer.tokenize("pure", false).getFirst().getTokenType());
+        assertEquals(TokenType.KEYWORD, tokenizer.tokenize("test", false).getFirst().getTokenType());
     }
 
     @Test
@@ -107,10 +108,10 @@ public class LexerTest {
 
     @Test
     void testFunctionDeclaration() {
-        String functionDeclaration = "fn test() {print}";
+        String functionDeclaration = "fn foo() {print}";
         List<Token> tokens = tokenizer.tokenize(functionDeclaration, false);
         assertEquals(tokens.get(0).getLexeme(), "fn");
-        assertEquals(tokens.get(1).getLexeme(), "test");
+        assertEquals(tokens.get(1).getLexeme(), "foo");
         assertEquals(tokens.get(2).getLexeme(), "(");
         assertEquals(tokens.get(3).getLexeme(), ")");
         assertEquals(tokens.get(4).getLexeme(), "{");
@@ -120,9 +121,9 @@ public class LexerTest {
 
     @Test
     void testFunctionCall() {
-        String functionCall = "test()";
+        String functionCall = "foo()";
         List<Token> tokens = tokenizer.tokenize(functionCall, false);
-        assertEquals(tokens.get(0).getLexeme(), "test");
+        assertEquals(tokens.get(0).getLexeme(), "foo");
         assertEquals(tokens.get(1).getLexeme(), "(");
         assertEquals(tokens.get(2).getLexeme(), ")");
     }

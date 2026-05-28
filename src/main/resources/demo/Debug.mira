@@ -231,3 +231,7 @@ fn main() {
         print("Dead code");
     }
 }
+
+test("test", fn (){
+    assert(true);
+});

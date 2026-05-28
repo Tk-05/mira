@@ -87,11 +87,11 @@ public class ExecBlockTest extends AbstractExecBlockTests {
     @Test
     void isolatedCannotAccessLocalVariable() {
         assertThrows(UndefinedReferenceError.class, () -> backend.runAndGetValue("""
-                fn test() {
+                fn myFunc() {
                     var localVar : 42;
                     return exec isolated { return eval($localVar); };
                 }
-                eval(test());
+                eval(myFunc());
                 """));
     }
 
@@ -99,22 +99,22 @@ public class ExecBlockTest extends AbstractExecBlockTests {
     void isolatedCanAccessGlobalVariable() {
         assertEquals(55.0, InterpreterRunner.normNum(backend.runAndGetValue("""
                 var globalVar : 55;
-                fn test() {
+                fn myFunc() {
                     var localVar : 42;
                     return exec isolated { return eval($globalVar); };
                 }
-                eval(test());
+                eval(myFunc());
                 """)));
     }
 
     @Test
     void returnInExecDoesNotReturnFromOuterFunction() {
         assertEquals(100.0, InterpreterRunner.normNum(backend.runAndGetValue("""
-                fn test() {
+                fn myFunc() {
                     var r : exec { return 1; };
                     return 100;
                 }
-                eval(test());
+                eval(myFunc());
                 """)));
     }
 }

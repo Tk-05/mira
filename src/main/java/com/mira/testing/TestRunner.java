@@ -7,12 +7,11 @@ import java.util.List;
 
 import com.mira.Flags;
 import com.mira.parser.nodes.Node;
-import com.mira.parser.nodes.expression.Expression.CallExpression;
-import com.mira.parser.nodes.expression.Expression.DumbExpression;
 import com.mira.parser.nodes.expression.Expression.ImportExpression;
 import com.mira.parser.nodes.statement.Statement.EnumDecl;
 import com.mira.parser.nodes.statement.Statement.FuncDecl;
 import com.mira.parser.nodes.statement.Statement.ModuleDecl;
+import com.mira.parser.nodes.statement.Statement.TestCall;
 import com.mira.parser.nodes.statement.Statement.VarDecl;
 import com.mira.runtime.functions.Callable;
 import com.mira.runtime.functions.ReturnSignal;
@@ -100,8 +99,6 @@ public class TestRunner {
     }
 
     private static boolean isTestCall(Node n) {
-        return n instanceof CallExpression call
-                && call.getCallee() instanceof DumbExpression d
-                && "test".equals(d.getValue());
+        return n instanceof TestCall;
     }
 }

@@ -57,6 +57,7 @@ import com.mira.parser.nodes.statement.Statement.SwitchCase;
 import com.mira.parser.nodes.statement.Statement.Throw;
 import com.mira.parser.nodes.statement.Statement.TryCatch;
 import com.mira.parser.nodes.statement.Statement.ComptimeBlock;
+import com.mira.parser.nodes.statement.Statement.TestCall;
 import com.mira.parser.nodes.statement.Statement.VarDecl;
 import com.mira.parser.nodes.statement.Statement.VarDestructure;
 import com.mira.parser.nodes.statement.Statement.While;
@@ -989,6 +990,12 @@ public class Parser {
             case "lock" -> {
                 node = parseLock();
             }
+            case "test" -> {
+                node = parseTestCall();
+                if (expectSemicolon) {
+                    matchLexeme(";");
+                }
+            }
             default -> {
                 node = parseExpression();
                 if (expectSemicolon) {
@@ -1001,6 +1008,20 @@ public class Parser {
             stmt.line = line;
         }
         return List.of(node);
+    }
+
+    private Node parseTestCall() {
+        Token testToken = peek();
+        matchLexeme("test");
+        if (parsingDepth > 0) {
+            throw new UnexpectedToken(testToken, "'test' is only allowed at the top level", "Move this test block outside of any function or block body");
+        }
+        matchLexeme("(");
+        Expression name = parseExpression();
+        matchLexeme(",");
+        Expression testFn = parseExpression();
+        matchLexeme(")");
+        return new TestCall(name, testFn);
     }
 
     private Node parseModuleDecl() {

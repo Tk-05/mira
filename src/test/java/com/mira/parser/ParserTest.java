@@ -182,7 +182,7 @@ public class ParserTest {
     @Test
     void parseFuncDecl() {
         String funcDecl = """
-                fn test() {}
+                fn foo() {}
                 """;
         List<Node> ast = parser.parseTokens(tokenizer.tokenize(funcDecl, false));
         assertEquals(1, ast.size());
@@ -232,7 +232,7 @@ public class ParserTest {
     @Test
     void parseEmptyCall() {
         String callExpression = """
-                test();
+                foo();
                 """;
         List<Node> ast = parser.parseTokens(tokenizer.tokenize(callExpression, false));
         assertEquals(1, ast.size());
@@ -242,7 +242,7 @@ public class ParserTest {
     @Test
     void parseCall() {
         String callExpression = """
-                test("test");
+                foo("bar");
                 """;
         List<Node> ast = parser.parseTokens(tokenizer.tokenize(callExpression, false));
         assertEquals(1, ast.size());
@@ -324,7 +324,7 @@ public class ParserTest {
     @Test
     void parseModule() {
         String moduleStmt = """
-                module test;
+                module foo;
                 """;
         List<Node> ast = parser.parseTokens(tokenizer.tokenize(moduleStmt, false));
         assertEquals(1, ast.size());
@@ -334,7 +334,7 @@ public class ParserTest {
     @Test
     void parseForeach() {
         String foreachStmt = """
-                foreach(var i in $test) {} 
+                foreach(var i in $arr) {}
                 """;
         List<Node> ast = parser.parseTokens(tokenizer.tokenize(foreachStmt, false));
         assertEquals(1, ast.size());
@@ -364,7 +364,7 @@ public class ParserTest {
     @Test
     void parseNamespaceCallExpression() {
         String callExpression = """
-                Test.test();
+                Test.foo();
                 """;
         List<Node> ast = parser.parseTokens(tokenizer.tokenize(callExpression, false));
         assertEquals(1, ast.size());
@@ -374,7 +374,7 @@ public class ParserTest {
     @Test
     void parseConstVar() {
         String callExpression = """
-                const test : 0;
+                const foo : 0;
                 """;
         List<Node> ast = parser.parseTokens(tokenizer.tokenize(callExpression, false));
         assertEquals(1, ast.size());

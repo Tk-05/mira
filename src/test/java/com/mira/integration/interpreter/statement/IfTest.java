@@ -34,8 +34,8 @@ public class IfTest extends AbstractIfTests {
             ImportResolver.reset();
             backend.getInterpreter().run(parser.parseTokens(tokenizer.tokenize("""
                     import string;
-                    var test : "\n";
-                    if(charAt($test, 0) == "\n") {
+                    var str : "\n";
+                    if(charAt($str, 0) == "\n") {
                         return;
                     }
                     """, false)), false);
@@ -50,8 +50,8 @@ public class IfTest extends AbstractIfTests {
             Parser parser = new Parser();
             backend.getInterpreter().run(parser.parseTokens(tokenizer.tokenize("""
                     import string as s;
-                    var test : "}";
-                    if(s.charAt($test, 0) == "}") {
+                    var str : "}";
+                    if(s.charAt($str, 0) == "}") {
                         return;
                     }
                     """, false)), false);
