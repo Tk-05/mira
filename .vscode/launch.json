@@ -1,97 +1,87 @@
 {
-    "version": "0.2.0",
-    "configurations": [
-        {
-            "type": "java",
-            "name": "Run main with debugger",
-            "request": "launch",
-            "mainClass": "com.mira.Main",
-            "projectName": "mira",
-            "args": [
-                    "src/main/resources/demo/Debug.mira",
-                    "-m",
-                    "-li",
-                    "-debug"
-                ]
-        },
-        {
-            "type": "java",
-            "name": "Compile and run",
-            "request": "launch",
-            "mainClass": "com.mira.Main",
-            "projectName": "mira",
-            "args": [
-                    "src/main/resources/demo/Debug.mira",
-                    "-m",
-                    "-li",
-                    "-lint",
-                    "-crash",
-                    "-compile-run"
-                ]
-        },
-        {
-            "type": "java",
-            "name": "Run main with hot reload",
-            "request": "launch",
-            "mainClass": "com.mira.Main",
-            "projectName": "mira",
-            "args": [
-                    "src/main/resources/demo/Debug.mira",
-                    "-m",
-                    "-li",
-                    "-watch"
-                ]
-        },
-        {
-            "type": "java",
-            "name": "Lint main",
-            "request": "launch",
-            "mainClass": "com.mira.Main",
-            "projectName": "mira",
-            "args": [
-                    "src/main/resources/demo/Debug.mira",
-                    "-m",
-                    "-lint"
-                ]
-        },
-        {
-            "type": "java",
-            "name": "Run with main",
-            "request": "launch",
-            "mainClass": "com.mira.Main",
-            "projectName": "mira",
-            "args": [
-                    "src/main/resources/demo/Debug.mira",
-                    "-m",
-                    "-li",
-                    "-ast"
-                ]
-        },
-        {
-            "type": "java",
-            "name": "(Debug) Run without main",
-            "request": "launch",
-            "mainClass": "com.mira.Main",
-            "projectName": "mira",
-            "args": [
-                    "src/main/resources/demo/Debug.mira",
-                    "-t",
-                    "-li"
-                ]
-        },
-        {
-            "type": "java",
-            "name": "Run console",
-            "request": "launch",
-            "mainClass": "com.mira.Main",
-            "projectName": "mira",
-        },
-        {
-            "type": "java",
-            "name": "Run",
-            "request": "launch",
-            "mainClass": "com.mira.Main",
-            "projectName": "mira"
-        }
-    ]
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "java",
+      "name": "Run main with debugger",
+      "request": "launch",
+      "mainClass": "com.mira.Main",
+      "projectName": "mira",
+      "args": ["src/main/resources/demo/Debug.mira", "-m", "-li", "-debug"]
+    },
+    {
+      "type": "java",
+      "name": "Compile and run",
+      "request": "launch",
+      "mainClass": "com.mira.Main",
+      "projectName": "mira",
+      "args": [
+        "src/main/resources/demo/Debug.mira",
+        "-m",
+        "-li",
+        "-lint",
+        "-crash",
+        "-compile-run"
+      ]
+    },
+    {
+      "type": "java",
+      "name": "Run -test",
+      "request": "launch",
+      "mainClass": "com.mira.Main",
+      "projectName": "mira",
+      "args": [
+        "src/main/resources/demo/Debug.mira",
+        "-test",
+        "-crashFull",
+        "-li"
+      ]
+    },
+    {
+      "type": "java",
+      "name": "Run main with hot reload",
+      "request": "launch",
+      "mainClass": "com.mira.Main",
+      "projectName": "mira",
+      "args": ["src/main/resources/demo/Debug.mira", "-m", "-li", "-watch"]
+    },
+    {
+      "type": "java",
+      "name": "Lint main",
+      "request": "launch",
+      "mainClass": "com.mira.Main",
+      "projectName": "mira",
+      "args": ["src/main/resources/demo/Debug.mira", "-m", "-lint"]
+    },
+    {
+      "type": "java",
+      "name": "Run with main",
+      "request": "launch",
+      "mainClass": "com.mira.Main",
+      "projectName": "mira",
+      "args": ["src/main/resources/demo/Debug.mira", "-m", "-li", "-ast"]
+    },
+    {
+      "type": "java",
+      "name": "(Debug) Run without main",
+      "request": "launch",
+      "mainClass": "com.mira.Main",
+      "projectName": "mira",
+      "args": ["src/main/resources/demo/Debug.mira", "-t", "-li"]
+    },
+    {
+      "type": "java",
+      "name": "Run console",
+      "request": "launch",
+      "mainClass": "com.mira.Main",
+      "projectName": "mira"
+    },
+    {
+      "type": "java",
+      "name": "Run",
+      "request": "launch",
+      "mainClass": "com.mira.Main",
+      "projectName": "mira"
+    }
+  ]
 }

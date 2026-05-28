@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import com.mira.Flags;
 import com.mira.error.MiraError;
 import com.mira.error.resolver.MultipleStaticCheckErrors;
 import com.mira.error.resolver.StaticCheckError.ArityMismatchError;
@@ -70,7 +71,6 @@ public class StaticCheck {
     private final Set<String> knownNamespaces = new HashSet<>();
     private final List<MiraError> errors = new ArrayList<>();
     private int loopDepth = 0;
-    // {minArity, maxArity}, -1 = unlimited
     private final Map<String, int[]> knownArities = new HashMap<>();
 
     public StaticCheck() {
@@ -312,6 +312,11 @@ public class StaticCheck {
     private void resolveCallExpression(CallExpression expr, int implicitArgs) {
         if (expr.getCallee() instanceof DumbExpression callee && isIdentifier(callee)) {
             String name = callee.getValue();
+
+            if (Flags.testMode && name.equals("test")) {
+                return;
+            }
+
             boolean callable = knownFunctions.contains(name)
                     || (scope.isDeclared(name) && !knownNamespaces.contains(name));
             if (!callable) {

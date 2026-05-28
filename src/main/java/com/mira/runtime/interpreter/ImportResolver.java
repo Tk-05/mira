@@ -126,7 +126,7 @@ public class ImportResolver {
                 CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new)).join();
             } catch (CompletionException e) {
                 Throwable cause = e.getCause();
-                if (cause instanceof com.mira.error.MiraError me) {
+                if (cause instanceof MiraError me) {
                     throw me;
                 }
                 if (cause instanceof RuntimeException re) {
@@ -164,17 +164,6 @@ public class ImportResolver {
         }
 
         if (Flags.libInfo && entryPoint) {
-            if (imports.isEmpty()) {
-                System.out.println("No imports");
-            } else {
-                for (ImportExpression expr : imports) {
-                    String name = expr.getModule().replace("\"", "");
-                    String ns = expr.getNamespace();
-                    String kind = expr.getKind().name().toLowerCase();
-                    String label = (ns != null && !ns.isBlank()) ? name + " as " + ns : name;
-                    System.out.println("[" + kind + "] " + label);
-                }
-            }
             System.out.println("Resolving of imports took " + (System.currentTimeMillis() - start) + " ms");
         }
     }

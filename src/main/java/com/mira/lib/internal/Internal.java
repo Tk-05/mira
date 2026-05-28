@@ -348,6 +348,9 @@ public class Internal implements Lib {
 
                 @Override
                 public Object call(Interpreter interpreter, List<Object> arguments) {
+                    if (Flags.testsDone) {
+                        return NullValue.INSTANCE;
+                    }
                     String name = String.valueOf(arguments.get(0));
                     if (!(arguments.get(1) instanceof Callable fn)) {
                         throw new RuntimeException("test() second argument must be a function");

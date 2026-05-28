@@ -9,12 +9,14 @@ public class Flags {
     public static boolean exitBeforeInterpreter = false;
     public static boolean mainFunction = false;
     public static boolean libInfo = false;
+    public static boolean libInfoFull = false;
     public static boolean debug = false;
     public static boolean lint = false;
     public static boolean hotReload = false;
     public static boolean crashDump = false;
     public static boolean crashDumpFull = false;
     public static boolean testMode = false;
+    public static boolean testsDone = false;
     public static boolean printAsts = false;
     public static String[] args = null;
     public static String fileName = null;

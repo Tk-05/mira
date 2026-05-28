@@ -5,7 +5,17 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import com.mira.Flags;
+import com.mira.parser.nodes.Node;
+import com.mira.parser.nodes.expression.Expression.CallExpression;
+import com.mira.parser.nodes.expression.Expression.DumbExpression;
+import com.mira.parser.nodes.expression.Expression.ImportExpression;
+import com.mira.parser.nodes.statement.Statement.EnumDecl;
+import com.mira.parser.nodes.statement.Statement.FuncDecl;
+import com.mira.parser.nodes.statement.Statement.ModuleDecl;
+import com.mira.parser.nodes.statement.Statement.VarDecl;
 import com.mira.runtime.functions.Callable;
+import com.mira.runtime.functions.ReturnSignal;
 import com.mira.runtime.functions.ThrowSignal;
 import com.mira.runtime.interpreter.Interpreter;
 import com.mira.runtime.values.NullValue;
@@ -58,5 +68,40 @@ public class TestRunner {
 
     public static Object nullValue() {
         return NullValue.INSTANCE;
+    }
+
+    public static void runPrePass(List<Node> asts, String[] args) {
+        List<Node> prePassNodes = asts.stream()
+                .filter(n -> isDeclaration(n) || isTestCall(n))
+                .toList();
+
+        try {
+            new Interpreter().run(prePassNodes, args, true);
+        } catch (ReturnSignal ignored) {
+        }
+
+        printSummary(System.out);
+        boolean failed = hasFailures();
+        reset();
+
+        if (failed) {
+            System.exit(1);
+        }
+
+        Flags.testsDone = true;
+    }
+
+    private static boolean isDeclaration(Node n) {
+        return n instanceof FuncDecl
+                || n instanceof VarDecl
+                || n instanceof EnumDecl
+                || n instanceof ImportExpression
+                || n instanceof ModuleDecl;
+    }
+
+    private static boolean isTestCall(Node n) {
+        return n instanceof CallExpression call
+                && call.getCallee() instanceof DumbExpression d
+                && "test".equals(d.getValue());
     }
 }

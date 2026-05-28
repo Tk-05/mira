@@ -2,8 +2,11 @@ package com.mira;
 
 import java.io.IOException;
 import java.nio.file.Paths;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collectors;
 
 import com.mira.compiler.CompileRunner;
 import com.mira.debugger.Debugger;
@@ -13,10 +16,13 @@ import com.mira.error.resolver.MultipleStaticCheckErrors;
 import com.mira.error.runtime.RuntimeError.ModuleNameMismatchError;
 import com.mira.lexer.Tokenizer;
 import com.mira.lexer.token.Token;
+import com.mira.lib.LibIndex;
 import com.mira.linter.Linter;
 import com.mira.lsp.Launcher;
 import com.mira.parser.Parser;
 import com.mira.parser.nodes.Node;
+import com.mira.parser.nodes.expression.Expression.ImportExpression;
+import com.mira.parser.nodes.expression.Expression.ImportExpression.ImportKind;
 import com.mira.parser.nodes.statement.Statement.ModuleDecl;
 import com.mira.repl.Repl;
 import com.mira.resolver.StaticCheck;
@@ -45,6 +51,9 @@ public class Main {
             if (args[0].equals("-h") || args[0].equals("-help")) {
                 System.out.println(Help.getHelp());
                 System.exit(1);
+            } else if (args[0].startsWith("-")) {
+                System.err.println("No input file specified, -h for help. Usage: mira <file.mira> [flags]");
+                System.exit(1);
             } else {
                 Flags.inputPath.set(Paths.get((args[0])).toAbsolutePath().normalize());
             }
@@ -59,6 +68,10 @@ public class Main {
                         Flags.mainFunction = true;
                     case "-li" ->
                         Flags.libInfo = true;
+                    case "-liFull" -> {
+                        Flags.libInfo = true;
+                        Flags.libInfoFull = true;
+                    }
                     case "-args" -> {
                         Flags.args = args[i + 1].split(",");
                         i++;
@@ -115,6 +128,41 @@ public class Main {
         }
     }
 
+    private static void displayImportInfo(List<Node> asts) {
+        List<ImportExpression> imports = asts.stream()
+                .filter(n -> n instanceof ImportExpression)
+                .map(n -> (ImportExpression) n)
+                .toList();
+
+        if (imports.isEmpty()) {
+            System.out.println("No imports");
+            return;
+        }
+
+        for (ImportExpression expr : imports) {
+            String name = expr.getModule().replace("\"", "");
+            String ns = expr.getNamespace();
+            String kind = expr.getKind().name().toLowerCase();
+            String label = (ns != null && !ns.isBlank()) ? name + " as " + ns : name + " (global)";
+            System.out.println("[" + kind + "] " + label);
+
+            if (Flags.libInfoFull) {
+                Set<String> symbols;
+                if (expr.isSelective()) {
+                    symbols = new LinkedHashSet<>(expr.getSelectedFunctions());
+                } else if (expr.getKind() == ImportKind.STDLIB) {
+                    symbols = LibIndex.getFunctionNames(name);
+                } else {
+                    System.out.println("  → (symbols available at runtime)");
+                    continue;
+                }
+                if (!symbols.isEmpty()) {
+                    System.out.println("  → " + symbols.stream().sorted().collect(Collectors.joining(", ")));
+                }
+            }
+        }
+    }
+
     private static void runFile() {
         runFile(new AtomicBoolean(false));
     }
@@ -165,7 +213,16 @@ public class Main {
                 WarningCollector.flush();
             }
 
+            if (Flags.libInfo) {
+                displayImportInfo(asts);
+            }
+
             if (Flags.exitBeforeInterpreter) {
+                return;
+            }
+
+            if (Flags.testMode) {
+                TestRunner.runPrePass(asts, Flags.args);
                 return;
             }
 
@@ -192,7 +249,7 @@ public class Main {
                 }
             }
 
-            if (Flags.testMode) {
+            if (Flags.testMode && !Flags.testsDone) {
                 TestRunner.printSummary(System.out);
                 boolean failed = TestRunner.hasFailures();
                 TestRunner.reset();
