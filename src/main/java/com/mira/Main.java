@@ -9,7 +9,7 @@ import com.mira.compiler.CompileRunner;
 import com.mira.debugger.Debugger;
 import com.mira.error.DiagnosticFormatter;
 import com.mira.error.parser.MultipleParserErrors;
-import com.mira.error.resolver.MultipleResolverErrors;
+import com.mira.error.resolver.MultipleStaticCheckErrors;
 import com.mira.error.runtime.RuntimeError.ModuleNameMismatchError;
 import com.mira.lexer.Tokenizer;
 import com.mira.lexer.token.Token;
@@ -19,7 +19,7 @@ import com.mira.parser.Parser;
 import com.mira.parser.nodes.Node;
 import com.mira.parser.nodes.statement.Statement.ModuleDecl;
 import com.mira.repl.Repl;
-import com.mira.resolver.Resolver;
+import com.mira.resolver.StaticCheck;
 import com.mira.runtime.AstPrinter;
 import com.mira.runtime.HotReloader;
 import com.mira.runtime.functions.ReturnSignal;
@@ -158,7 +158,7 @@ public class Main {
                 System.out.println(new AstPrinter().print(asts));
             }
 
-            new Resolver().resolve(asts);
+            new StaticCheck().check(asts);
 
             if (Flags.lint) {
                 new Linter().lint(asts);
@@ -207,7 +207,7 @@ public class Main {
                 return;
             }
             mpe.getErrors().forEach(e -> System.err.println(DiagnosticFormatter.format(e)));
-        } catch (MultipleResolverErrors mre) {
+        } catch (MultipleStaticCheckErrors mre) {
             WarningCollector.clear();
             if (stopping.get() || Thread.currentThread().isInterrupted()) {
                 return;

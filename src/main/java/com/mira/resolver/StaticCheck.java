@@ -1,15 +1,22 @@
 package com.mira.resolver;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import com.mira.error.MiraError;
-import com.mira.error.resolver.MultipleResolverErrors;
-import com.mira.error.resolver.ResolverError.UndeclaredVariableError;
-import com.mira.error.resolver.ResolverError.UndefinedFunctionError;
-import com.mira.error.resolver.ResolverError.UnknownNamespaceError;
+import com.mira.error.resolver.MultipleStaticCheckErrors;
+import com.mira.error.resolver.StaticCheckError.ArityMismatchError;
+import com.mira.error.resolver.StaticCheckError.BreakOutsideLoopError;
+import com.mira.error.resolver.StaticCheckError.ConstReassignmentError;
+import com.mira.error.resolver.StaticCheckError.ContinueOutsideLoopError;
+import com.mira.error.resolver.StaticCheckError.DuplicateDeclarationError;
+import com.mira.error.resolver.StaticCheckError.UndeclaredVariableError;
+import com.mira.error.resolver.StaticCheckError.UndefinedFunctionError;
+import com.mira.error.resolver.StaticCheckError.UnknownNamespaceError;
 import com.mira.lexer.token.TokenType;
 import com.mira.lib.LibIndex;
 import com.mira.linter.LintScope;
@@ -38,8 +45,10 @@ import com.mira.parser.nodes.expression.Expression.TypeofExpression;
 import com.mira.parser.nodes.expression.Expression.UnaryExpression;
 import com.mira.parser.nodes.statement.Statement.Assign;
 import com.mira.parser.nodes.statement.Statement.Block;
+import com.mira.parser.nodes.statement.Statement.Break;
 import com.mira.parser.nodes.statement.Statement.CatchClause;
 import com.mira.parser.nodes.statement.Statement.ComptimeBlock;
+import com.mira.parser.nodes.statement.Statement.Continue;
 import com.mira.parser.nodes.statement.Statement.EnumDecl;
 import com.mira.parser.nodes.statement.Statement.For;
 import com.mira.parser.nodes.statement.Statement.Foreach;
@@ -54,14 +63,26 @@ import com.mira.parser.nodes.statement.Statement.VarDecl;
 import com.mira.parser.nodes.statement.Statement.VarDestructure;
 import com.mira.parser.nodes.statement.Statement.While;
 
-public class Resolver {
+public class StaticCheck {
 
     private final LintScope scope = new LintScope();
     private final Set<String> knownFunctions = new HashSet<>(LibIndex.GLOBAL_NAMES);
     private final Set<String> knownNamespaces = new HashSet<>();
     private final List<MiraError> errors = new ArrayList<>();
+    private int loopDepth = 0;
+    // {minArity, maxArity}, -1 = unlimited
+    private final Map<String, int[]> knownArities = new HashMap<>();
 
-    public void resolve(List<Node> ast) {
+    public StaticCheck() {
+        knownFunctions.addAll(LibIndex.INTERNAL_NAMES);
+        LibIndex.GLOBAL_ARITIES.forEach((name, arity) -> {
+            if (arity >= 0) {
+                knownArities.put(name, new int[]{arity, arity});
+            }
+        });
+    }
+
+    public void check(List<Node> ast) {
         scope.push();
 
         for (String builtin : LibIndex.GLOBAL_NAMES) {
@@ -73,9 +94,10 @@ public class Resolver {
                 case FuncDecl f -> {
                     scope.declare(f.getName(), f.line, 0, false);
                     knownFunctions.add(f.getName());
+                    if (f.getVariadicParam() == null) {
+                        knownArities.put(f.getName(), new int[]{f.getArity(), f.getMaxArity()});
+                    }
                 }
-                case VarDecl v ->
-                    scope.declare(v.getName(), v.line, 0, v.isConst());
                 case EnumDecl e ->
                     scope.declare(e.getIdentifier(), e.line, 0, true);
                 case ImportExpression imp ->
@@ -89,7 +111,7 @@ public class Resolver {
         scope.pop();
 
         if (!errors.isEmpty()) {
-            throw new MultipleResolverErrors(errors);
+            throw new MultipleStaticCheckErrors(errors);
         }
     }
 
@@ -138,6 +160,16 @@ public class Resolver {
             }
             case ComptimeBlock stmt ->
                 resolveNodes(stmt.getBody());
+            case Break stmt -> {
+                if (loopDepth == 0) {
+                    errors.add(new BreakOutsideLoopError(stmt.line));
+                }
+            }
+            case Continue stmt -> {
+                if (loopDepth == 0) {
+                    errors.add(new ContinueOutsideLoopError(stmt.line));
+                }
+            }
             case CallExpression e ->
                 resolveCallExpression(e);
             default ->
@@ -165,7 +197,7 @@ public class Resolver {
             case BinaryExpression e when "|>".equals(e.getOperator().getLexeme()) -> {
                 resolveExpr(e.getLeft());
                 if (e.getRight() instanceof CallExpression call) {
-                    resolveCallExpression(call);
+                    resolveCallExpression(call, 1);
                 } else {
                     resolveExpr(e.getRight());
                 }
@@ -274,12 +306,29 @@ public class Resolver {
     }
 
     private void resolveCallExpression(CallExpression expr) {
+        resolveCallExpression(expr, 0);
+    }
+
+    private void resolveCallExpression(CallExpression expr, int implicitArgs) {
         if (expr.getCallee() instanceof DumbExpression callee && isIdentifier(callee)) {
             String name = callee.getValue();
             boolean callable = knownFunctions.contains(name)
                     || (scope.isDeclared(name) && !knownNamespaces.contains(name));
             if (!callable) {
                 errors.add(new UndefinedFunctionError(name, callee.getLine(), callee.getColumn()));
+            } else {
+                int[] arity = knownArities.get(name);
+                if (arity != null) {
+                    int actual = expr.getArguments().size() + implicitArgs;
+                    int min = arity[0], max = arity[1];
+                    if (min == max && actual != min) {
+                        errors.add(new ArityMismatchError(name, min, actual,
+                                callee.getLine(), callee.getColumn()));
+                    } else if (min != max && (actual < min || (max >= 0 && actual > max))) {
+                        errors.add(new ArityMismatchError(name, min, max, actual,
+                                callee.getLine(), callee.getColumn()));
+                    }
+                }
             }
         } else {
             resolveExpr(expr.getCallee());
@@ -291,11 +340,17 @@ public class Resolver {
         if (stmt.getInitializer() != null) {
             resolveExpr(stmt.getInitializer());
         }
+        if (scope.isDeclaredInCurrentScope(stmt.getName())) {
+            errors.add(new DuplicateDeclarationError(stmt.getName(), stmt.line, stmt.nameColumn));
+        }
         scope.declare(stmt.getName(), stmt.line, stmt.nameColumn, stmt.isConst());
     }
 
     private void resolveFuncDecl(FuncDecl stmt) {
         knownFunctions.add(stmt.getName());
+        if (stmt.getVariadicParam() == null) {
+            knownArities.put(stmt.getName(), new int[]{stmt.getArity(), stmt.getMaxArity()});
+        }
         scope.push();
         stmt.getParameters().forEach(p -> scope.declare(p.name(), stmt.line, 0, false));
         if (stmt.getVariadicParam() != null) {
@@ -313,6 +368,8 @@ public class Resolver {
             String name = d.getValue();
             if (!scope.isDeclared(name)) {
                 errors.add(new UndeclaredVariableError(name, d.getLine(), d.getColumn()));
+            } else if (scope.isConst(name)) {
+                errors.add(new ConstReassignmentError(name, d.getLine(), d.getColumn()));
             }
         } else {
             resolveExpr(stmt.getReference());
@@ -334,28 +391,34 @@ public class Resolver {
 
     private void resolveFor(For stmt) {
         scope.push();
+        loopDepth++;
         resolveNodes(stmt.getVarDecls());
         if (stmt.getCondition() != null) {
             resolveExpr(stmt.getCondition());
         }
         stmt.getPostExpressions().forEach(this::resolveNode);
         resolveNodes(stmt.getBody());
+        loopDepth--;
         scope.pop();
     }
 
     private void resolveWhile(While stmt) {
         resolveExpr(stmt.getCondition());
         scope.push();
+        loopDepth++;
         resolveNodes(stmt.getBody());
+        loopDepth--;
         scope.pop();
     }
 
     private void resolveForeach(Foreach stmt) {
         resolveExpr(stmt.getCollection());
         scope.push();
+        loopDepth++;
         VarDecl iter = stmt.getIterator();
         scope.declare(iter.getName(), iter.line > 0 ? iter.line : stmt.line, iter.nameColumn, false);
         resolveNodes(stmt.getBody());
+        loopDepth--;
         scope.pop();
     }
 
@@ -410,7 +473,13 @@ public class Resolver {
             scope.declare(expr.getNamespace(), 0, 0, false);
             knownNamespaces.add(expr.getNamespace());
         } else {
-            knownFunctions.addAll(LibIndex.getFunctionNames(expr.getModule().replace("\"", "")));
+            String libName = expr.getModule().replace("\"", "");
+            knownFunctions.addAll(LibIndex.getFunctionNames(libName));
+            LibIndex.getFunctionArities(libName).forEach((name, arity) -> {
+                if (arity >= 0) {
+                    knownArities.put(name, new int[]{arity, arity});
+                }
+            });
         }
     }
 

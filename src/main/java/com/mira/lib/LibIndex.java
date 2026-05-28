@@ -6,6 +6,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import com.mira.runtime.functions.Callable;
+
 import com.mira.lib.std.Bytes;
 import com.mira.lib.std.Collection;
 import com.mira.lib.std.DateTime;
@@ -59,6 +61,11 @@ public final class LibIndex {
             "io", "shell", "net", "process", "dateTime", "collection", "bytes"
     );
 
+    public static final Set<String> INTERNAL_NAMES = Set.of(
+            "toNum", "toInt", "toFloat", "toStr", "toBool",
+            "chars", "toList", "toArray", "spawn", "readFile", "writeFile"
+    );
+
     public static final Map<String, Lib> STDLIB_LIBS = new HashMap<>() {
         {
             put("math", new com.mira.lib.std.Math());
@@ -85,5 +92,22 @@ public final class LibIndex {
         Environment env = new Environment();
         lib.loadLib(env);
         return env.getDefinedNames();
+    }
+
+    public static Map<String, Integer> getFunctionArities(String libName) {
+        Lib lib = STDLIB_LIBS.get(libName);
+        if (lib == null) {
+            return Map.of();
+        }
+        Environment env = new Environment();
+        lib.loadLib(env);
+        Map<String, Integer> arities = new HashMap<>();
+        for (String name : env.getDefinedNames()) {
+            Object val = env.getOrNull(name);
+            if (val instanceof Callable c) {
+                arities.put(name, c.getArity());
+            }
+        }
+        return arities;
     }
 }

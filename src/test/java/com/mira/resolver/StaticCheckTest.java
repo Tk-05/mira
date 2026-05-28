@@ -9,23 +9,23 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 
 import com.mira.error.MiraError;
-import com.mira.error.resolver.MultipleResolverErrors;
+import com.mira.error.resolver.MultipleStaticCheckErrors;
 import com.mira.lexer.Tokenizer;
 import com.mira.parser.Parser;
 import com.mira.parser.nodes.Node;
 
-public class ResolverTest {
+public class StaticCheckTest {
 
     private List<MiraError> errorsFor(String source) {
         List<Node> ast = new Parser().parseTokens(new Tokenizer().tokenize(source, false));
-        MultipleResolverErrors ex = assertThrows(MultipleResolverErrors.class,
-                () -> new Resolver().resolve(ast));
+        MultipleStaticCheckErrors ex = assertThrows(MultipleStaticCheckErrors.class,
+                () -> new StaticCheck().check(ast));
         return ex.getErrors();
     }
 
     private void assertClean(String source) {
         List<Node> ast = new Parser().parseTokens(new Tokenizer().tokenize(source, false));
-        assertDoesNotThrow(() -> new Resolver().resolve(ast));
+        assertDoesNotThrow(() -> new StaticCheck().check(ast));
     }
 
     private boolean hasCode(List<MiraError> errors, String code) {
@@ -73,6 +73,26 @@ public class ResolverTest {
     }
 
     @Test
+    void breakInsideLoopIsValid() {
+        assertClean("for(var i in <0..5>) { break; }");
+    }
+
+    @Test
+    void continueInsideLoopIsValid() {
+        assertClean("for(var i in <0..5>) { continue; }");
+    }
+
+    @Test
+    void duplicateDifferentScopes() {
+        assertClean("var x : 1; { var x : 2; }");
+    }
+
+    @Test
+    void arityMatchIsValid() {
+        assertClean("println(\"hi\");");
+    }
+
+    @Test
     void undeclaredVariable() {
         List<MiraError> errors = errorsFor("println($x);");
         assertTrue(hasCode(errors, "E301"));
@@ -115,21 +135,68 @@ public class ResolverTest {
     }
 
     @Test
+    void namespaceAliasCalledDirectlyIsE302() {
+        List<MiraError> errors = errorsFor("import math as m; sqrt(4);");
+        assertTrue(hasCode(errors, "E302"));
+    }
+
+    @Test
+    void namespaceNameCalledDirectlyIsE302() {
+        List<MiraError> errors = errorsFor("import math as m; m();");
+        assertTrue(hasCode(errors, "E302"));
+    }
+
+    @Test
     void unknownNamespace() {
         List<MiraError> errors = errorsFor("ns.sqrt(4);");
         assertTrue(hasCode(errors, "E303"));
     }
 
     @Test
-    void namespaceAliasCalledDirectlyIsE302() {
-        List<MiraError> errors = errorsFor("import math as m; sqrt(4);");
-        assertTrue(hasCode(errors, "E302"), "calling stdlib function without alias should be E302");
+    void constReassignment() {
+        List<MiraError> errors = errorsFor("const x : 1; $x : 5;");
+        assertTrue(hasCode(errors, "E304"));
     }
 
     @Test
-    void namespaceNameCalledDirectlyIsE302() {
-        List<MiraError> errors = errorsFor("import math as m; m();");
-        assertTrue(hasCode(errors, "E302"), "calling a namespace name directly should be E302");
+    void varReassignmentIsValid() {
+        assertClean("var x : 1; $x : 5;");
+    }
+
+    @Test
+    void breakOutsideLoop() {
+        List<MiraError> errors = errorsFor("break;");
+        assertTrue(hasCode(errors, "E305"));
+    }
+
+    @Test
+    void continueOutsideLoop() {
+        List<MiraError> errors = errorsFor("continue;");
+        assertTrue(hasCode(errors, "E305"));
+    }
+
+    @Test
+    void duplicateDeclaration() {
+        List<MiraError> errors = errorsFor("var x : 1; var x : 2;");
+        assertTrue(hasCode(errors, "E306"));
+    }
+
+    @Test
+    void arityMismatchTooMany() {
+        List<MiraError> errors = errorsFor("println(1, 2);");
+        assertTrue(hasCode(errors, "E307"));
+    }
+
+    @Test
+    void arityMismatchTooFew() {
+        List<MiraError> errors = errorsFor("println();");
+        assertTrue(hasCode(errors, "E307"));
+    }
+
+    @Test
+    void userFunctionArityMismatch() {
+        List<MiraError> errors = errorsFor("fn add(a, b) { return eval($a + $b); } add(1);");
+        assertTrue(hasCode(errors, "E307"));
     }
 
     @Test

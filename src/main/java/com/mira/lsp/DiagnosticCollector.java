@@ -10,13 +10,13 @@ import org.eclipse.lsp4j.Range;
 
 import com.mira.error.MiraError;
 import com.mira.error.parser.MultipleParserErrors;
-import com.mira.error.resolver.MultipleResolverErrors;
+import com.mira.error.resolver.MultipleStaticCheckErrors;
 import com.mira.lexer.Tokenizer;
 import com.mira.lexer.token.Token;
 import com.mira.linter.Linter;
 import com.mira.parser.Parser;
 import com.mira.parser.nodes.Node;
-import com.mira.resolver.Resolver;
+import com.mira.resolver.StaticCheck;
 import com.mira.warning.Warning;
 import com.mira.warning.WarningCollector;
 import com.mira.warning.WarningLevel;
@@ -30,8 +30,8 @@ public class DiagnosticCollector {
             List<Token> tokens = new Tokenizer().tokenize(source, false);
             List<Node> ast = new Parser().parseTokens(tokens);
             try {
-                new Resolver().resolve(ast);
-            } catch (MultipleResolverErrors mre) {
+                new StaticCheck().check(ast);
+            } catch (MultipleStaticCheckErrors mre) {
                 mre.getErrors().forEach(e -> result.add(fromError(e, DiagnosticSeverity.Error)));
             }
             try {
