@@ -1059,6 +1059,7 @@ public class Parser {
         }
         List<Node> decls = new ArrayList<>();
         while (true) {
+            skipWhitespaceTokens();
             Token nameToken = matchIdentifier();
             String identifier = nameToken.getLexeme();
             Expression initializer = null;

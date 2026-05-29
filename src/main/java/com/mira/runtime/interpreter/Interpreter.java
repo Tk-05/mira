@@ -311,7 +311,19 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             if (Flags.mainFunction) {
                 return (T) new CallExpression(new DumbExpression(new Token(null, "main", 0, 0)), new ArrayList<>()).accept(this);
             } else {
+                List<ImportExpression> imports = new ArrayList<>();
                 for (Node ast : asts) {
+                    if (ast instanceof ImportExpression imp) {
+                        imports.add(imp);
+                    }
+                }
+                if (!imports.isEmpty()) {
+                    ImportResolver.resolveImports(imports, globalEnvironment, this, false);
+                }
+                for (Node ast : asts) {
+                    if (ast instanceof ImportExpression) {
+                        continue;
+                    }
                     lastResult = switch (ast) {
                         case Expression expression ->
                             expression.accept(this);
@@ -2123,6 +2135,13 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
     public void setGlobalEnvironment(Environment globalEnvironment) {
         this.globalEnvironment = globalEnvironment;
+    }
+
+    public void reset() {
+        globalEnvironment = new Environment();
+        localEnvironment = null;
+        ImportResolver.reset();
+        ImportResolver.loadInternal(globalEnvironment);
     }
 
     private String formatValue(Object val) {
