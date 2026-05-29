@@ -87,6 +87,12 @@ public class ImportResolver {
         }
     }
 
+    public static void interruptNativeLibs() {
+        for (Lib lib : loadedNativeLibs.values()) {
+            lib.interrupt();
+        }
+    }
+
     public static void reset() {
         moduleLoadFutures.clear();
         resolvedModules.clear();

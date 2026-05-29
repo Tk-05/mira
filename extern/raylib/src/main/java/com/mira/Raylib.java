@@ -1,5 +1,7 @@
 package com.mira;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+
 import org.bytedeco.javacpp.FloatPointer;
 import org.bytedeco.javacpp.IntPointer;
 
@@ -27,6 +29,13 @@ import com.raylib.Raylib.Vector2;
 import com.raylib.Raylib.Vector3;
 
 public class Raylib implements Lib {
+
+    private final AtomicBoolean stopping = new AtomicBoolean(false);
+
+    @Override
+    public void interrupt() {
+        stopping.set(true);
+    }
 
     private static double toDouble(Object arg) {
         if (arg instanceof Double d) {
@@ -182,5 +191,8 @@ public class Raylib implements Lib {
         env.define("MOUSE_LEFT", 0.0);
         env.define("MOUSE_RIGHT", 1.0);
         env.define("MOUSE_MIDDLE", 2.0);
+
+        env.define("WindowShouldClose", new NativeFunction(0, args
+                -> stopping.get() || com.raylib.Raylib.WindowShouldClose()));
     }
 }

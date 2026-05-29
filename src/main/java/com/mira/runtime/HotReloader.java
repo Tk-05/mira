@@ -78,6 +78,7 @@ public class HotReloader {
 
                 if (changed) {
                     stopping.set(true);
+                    ImportResolver.interruptNativeLibs();
                     if (runner.isAlive()) {
                         runner.interrupt();
                         try {
