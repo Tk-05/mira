@@ -18,8 +18,11 @@ public record ProjectConfig(
         Path projectRoot
         ) {
 
-    public record BuildConfig(Path outputDir, BuildMode mode, boolean main, boolean lint, String[] args) {
+    public record BuildConfig(Path outputDir, BuildMode mode, BuildMode runMode, boolean main, boolean lint, String[] args) {
 
+        public BuildMode effectiveRunMode() {
+            return runMode != null ? runMode : mode;
+        }
     }
 
     public enum BuildMode {
@@ -38,7 +41,7 @@ public record ProjectConfig(
     public static ProjectConfig fromMap(Map<String, Object> map, Path projectRoot) {
         Map<String, Object> project = (Map<String, Object>) map.getOrDefault("project", Map.of());
         Map<String, Object> build = (Map<String, Object>) map.getOrDefault("build", Map.of());
-        Map<String, Object> test = (Map<String, Object>) map.getOrDefault("test", Map.of());
+        Map<String, Object> testRaw = (Map<String, Object>) map.get("test");
         Map<String, Object> deps = (Map<String, Object>) map.getOrDefault("dependencies", Map.of());
 
         String name = (String) project.getOrDefault("name", projectRoot.getFileName().toString());
@@ -52,14 +55,11 @@ public record ProjectConfig(
         List<String> authors = (List<String>) project.getOrDefault("authors", List.of());
 
         String modeStr = (String) build.getOrDefault("mode", "interpret");
-        BuildMode mode = switch (modeStr) {
-            case "compile" ->
-                BuildMode.COMPILE;
-            case "package" ->
-                BuildMode.PACKAGE;
-            default ->
-                BuildMode.INTERPRET;
-        };
+        BuildMode mode = parseMode(modeStr);
+
+        String runModeStr = (String) build.get("run-mode");
+        BuildMode runMode = runModeStr != null ? parseMode(runModeStr) : null;
+
         boolean mainFn = toBoolean(build.getOrDefault("main", false));
         boolean lint = toBoolean(build.getOrDefault("lint", false));
         String outputStr = (String) build.getOrDefault("output", "out");
@@ -67,8 +67,12 @@ public record ProjectConfig(
         List<String> argsList = (List<String>) build.getOrDefault("args", List.of());
         String[] argsArr = argsList.toArray(new String[0]);
 
-        String pattern = (String) test.getOrDefault("pattern", "**/*_test.mira");
-        List<String> extra = (List<String>) test.getOrDefault("extra", List.of());
+        TestConfig testConfig = null;
+        if (testRaw != null) {
+            String pattern = (String) testRaw.getOrDefault("pattern", "**/*_test.mira");
+            List<String> extra = (List<String>) testRaw.getOrDefault("extra", List.of());
+            testConfig = new TestConfig(pattern, new ArrayList<>(extra));
+        }
 
         Map<String, Dependency> dependencies = new LinkedHashMap<>();
         for (Map.Entry<String, Object> dep : deps.entrySet()) {
@@ -84,11 +88,22 @@ public record ProjectConfig(
 
         return new ProjectConfig(
                 name, version, entry, description, authors,
-                new BuildConfig(outputDir, mode, mainFn, lint, argsArr),
-                new TestConfig(pattern, new ArrayList<>(extra)),
+                new BuildConfig(outputDir, mode, runMode, mainFn, lint, argsArr),
+                testConfig,
                 dependencies,
                 projectRoot
         );
+    }
+
+    private static BuildMode parseMode(String s) {
+        return switch (s) {
+            case "compile" ->
+                BuildMode.COMPILE;
+            case "package" ->
+                BuildMode.PACKAGE;
+            default ->
+                BuildMode.INTERPRET;
+        };
     }
 
     private static boolean toBoolean(Object value) {

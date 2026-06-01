@@ -2,6 +2,8 @@ package com.mira.build;
 
 import java.util.Set;
 
+import com.mira.error.DiagnosticFormatter;
+
 public class BuildDispatcher {
 
     private static final Set<String> SUBCOMMANDS = Set.of("init", "build", "run", "test", "clean");
@@ -28,7 +30,7 @@ public class BuildDispatcher {
                     throw new BuildException("Unknown command: " + cmd);
             }
         } catch (BuildException e) {
-            System.err.println("error: " + e.getMessage());
+            System.err.println(DiagnosticFormatter.formatError(e.getMessage()));
             System.exit(1);
         }
     }

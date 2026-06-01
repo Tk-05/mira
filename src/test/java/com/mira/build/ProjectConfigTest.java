@@ -7,6 +7,8 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
@@ -89,7 +91,7 @@ public class ProjectConfigTest {
         assertFalse(cfg.build().lint());
         assertEquals(root.resolve("out").normalize(), cfg.build().outputDir());
         assertEquals(0, cfg.build().args().length);
-        assertEquals("**/*_test.mira", cfg.test().pattern());
+        assertNull(cfg.test());
         assertTrue(cfg.dependencies().isEmpty());
     }
 
@@ -137,6 +139,56 @@ public class ProjectConfigTest {
         Map<String, Object> map = Map.of("project", section("entry", "main.mira"));
         ProjectConfig cfg = ProjectConfig.fromMap(map, root);
         assertEquals(root, cfg.projectRoot());
+    }
+
+    @Test
+    void runModeExplicitlySet() {
+        Map<String, Object> map = Map.of(
+                "project", section("entry", "main.mira"),
+                "build", section("mode", "compile", "run-mode", "interpret")
+        );
+        ProjectConfig cfg = ProjectConfig.fromMap(map, root);
+        assertEquals(ProjectConfig.BuildMode.COMPILE, cfg.build().mode());
+        assertEquals(ProjectConfig.BuildMode.INTERPRET, cfg.build().effectiveRunMode());
+    }
+
+    @Test
+    void runModeFallsBackToBuildMode() {
+        Map<String, Object> map = Map.of(
+                "project", section("entry", "main.mira"),
+                "build", section("mode", "compile")
+        );
+        ProjectConfig cfg = ProjectConfig.fromMap(map, root);
+        assertEquals(ProjectConfig.BuildMode.COMPILE, cfg.build().effectiveRunMode());
+    }
+
+    @Test
+    void runModeIndependentOfBuildMode() {
+        Map<String, Object> map = Map.of(
+                "project", section("entry", "main.mira"),
+                "build", section("mode", "package", "run-mode", "compile")
+        );
+        ProjectConfig cfg = ProjectConfig.fromMap(map, root);
+        assertEquals(ProjectConfig.BuildMode.PACKAGE, cfg.build().mode());
+        assertEquals(ProjectConfig.BuildMode.COMPILE, cfg.build().effectiveRunMode());
+    }
+
+    @Test
+    void testSectionNullWhenNotInToml() {
+        Map<String, Object> map = Map.of("project", section("entry", "main.mira"));
+        ProjectConfig cfg = ProjectConfig.fromMap(map, root);
+        assertNull(cfg.test());
+    }
+
+    @Test
+    void testSectionPresentWhenDefined() {
+        Map<String, Object> map = Map.of(
+                "project", section("entry", "main.mira"),
+                "test", section("pattern", "tests/**/*.mira", "extra", List.of())
+        );
+        ProjectConfig cfg = ProjectConfig.fromMap(map, root);
+        assertNotNull(cfg.test());
+        assertEquals("tests/**/*.mira", cfg.test().pattern());
     }
 
     @Test

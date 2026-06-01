@@ -15,6 +15,8 @@ public final class DiagnosticFormatter {
     private static final String DIM = "\u001B[2m";
     private static final String RESET = "\u001B[0m";
 
+    private static final String GREEN = "[32m";
+
     private DiagnosticFormatter() {
     }
 
@@ -24,25 +26,38 @@ public final class DiagnosticFormatter {
         }
 
         String msg = t.getMessage();
-        return RED + BOLD + "internal error" + RESET + ": " + (msg != null ? msg : t.getClass().getSimpleName());
+        String label = msg != null && !msg.isBlank() ? msg : t.getClass().getName();
+        return RED + BOLD + "[internal error]" + RESET + ": " + label;
     }
 
     public static String formatError(String message) {
-        return RED + BOLD + "error" + RESET + ": " + message;
+        return RED + BOLD + "[error]" + RESET + ": " + message;
+    }
+
+    public static String formatInfo(String message) {
+        return CYAN + BOLD + "[info]" + RESET + ": " + message;
+    }
+
+    public static String formatPass(String message) {
+        return GREEN + BOLD + "[pass]" + RESET + " " + message;
+    }
+
+    public static String formatFail(String message) {
+        return RED + BOLD + "[fail]" + RESET + " " + message;
     }
 
     public static String formatFileError(Path path, IOException e) {
         boolean notFound = e instanceof NoSuchFileException || !Files.exists(path);
         if (notFound) {
-            return RED + BOLD + "error" + RESET + ": file not found: " + path;
+            return RED + BOLD + "[error]" + RESET + ": file not found: " + path;
         }
-        return RED + BOLD + "error" + RESET + ": cannot read file: " + path + " — " + e.getMessage();
+        return RED + BOLD + "[error]" + RESET + ": cannot read file: " + path + " — " + e.getMessage();
     }
 
     private static String formatMiraError(MiraError error) {
         StringBuilder sb = new StringBuilder();
 
-        sb.append(RED).append(BOLD).append("error");
+        sb.append(RED).append(BOLD).append("[error]");
         if (error.getErrorCode() != null) {
             sb.append("[").append(error.getErrorCode()).append("]");
         }

@@ -1892,11 +1892,13 @@ version = "0.1.0"
 entry   = "src/main.mira" # entry point (required, relative to mira.toml)
 
 [build]
-mode   = "interpret"      # interpret | compile | package
-main   = true             # call main() as entry point (equivalent to -m flag)
-lint   = false            # run linter before execution
-output = "out"            # output directory for compiled files (default: "out/")
-args   = []               # default program arguments
+mode     = "interpret"    # interpret | compile | package  — used by mira build
+run-mode = "interpret"    # interpret | compile            — used by mira run (optional, defaults to mode)
+                          # compile = equivalent to -compile-run: compiles to JVM bytecode in memory, no files written
+main     = true           # call main() as entry point (equivalent to -m flag)
+lint     = false          # run linter before execution
+output   = "out"          # output directory for compiled files (default: "out/")
+args     = []             # default program arguments
 
 [test]
 pattern = "**/*_test.mira" # glob for test files relative to project root
@@ -1910,25 +1912,49 @@ All paths in `mira.toml` are relative to the file itself.
 
 ### Commands
 
-| Command                                         | Description                                                             |
-| ----------------------------------------------- | ----------------------------------------------------------------------- |
-| `mira init [--name <n>]`                        | Create a new project in the current directory                           |
-| `mira build`                                    | Build the project using the mode defined in `mira.toml`                 |
-| `mira build --mode interpret\|compile\|package` | Override the build mode for this run                                    |
-| `mira build --watch`                            | Build and re-run on file changes                                        |
-| `mira run [-- <args>]`                          | Run the project in interpret mode; `--` passes arguments to the program |
-| `mira test`                                     | Discover and run all test files matching `test.pattern`                 |
-| `mira clean`                                    | Delete the output directory                                             |
+| Command                                            | Description                                                                                              |
+| -------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `mira init [--name <n>]`                           | Create a new project in the current directory                                                            |
+| `mira build`                                       | Build the project using the mode defined in `mira.toml`                                                  |
+| `mira build --mode interpret\|compile\|package`    | Override the build mode for this run                                                                     |
+| `mira build --watch`                               | Build and re-run on file changes                                                                         |
+| `mira run [--mode interpret\|compile] [-- <args>]` | Run the project; execution mode from `mira.toml` unless overridden; `--` passes arguments to the program |
+| `mira test`                                        | Discover and run all test files matching `test.pattern`                                                  |
+| `mira clean`                                       | Delete the output directory                                                                              |
 
 All commands (except `init`) require a `mira.toml` in the current directory or any parent directory. If none is found, an error is printed with a hint to run `mira init`.
 
 ### Build Modes
 
-| Mode        | What happens                                                 |
-| ----------- | ------------------------------------------------------------ |
-| `interpret` | Source is interpreted directly — no files are written        |
-| `compile`   | Source is compiled to `.class` files in the output directory |
-| `package`   | Source is compiled and bundled into a self-contained fat JAR |
+The two mode fields control build and run independently:
+
+| Field      | Used by      | Allowed values                    |
+| ---------- | ------------ | --------------------------------- |
+| `mode`     | `mira build` | `interpret`, `compile`, `package` |
+| `run-mode` | `mira run`   | `interpret`, `compile`            |
+
+If `run-mode` is not set, `mira run` falls back to `mode`.
+
+| Effective mode | `mira build`                                       | `mira run`                                                                                                                             |
+| -------------- | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `interpret`    | Interprets source directly — no files written      | Runs via tree-walk interpreter                                                                                                         |
+| `compile`      | Compiles to `.class` files in the output directory | Compiles to JVM bytecode **in memory** and executes immediately — no files written (equivalent to the single-file `-compile-run` flag) |
+| `package`      | Compiles and bundles into a self-contained fat JAR | Same as `compile` for run — executes in memory, no JAR written                                                                         |
+
+A typical setup: build produces a JAR, but `mira run` uses the faster interpreter during development:
+
+```toml
+[build]
+mode     = "package"    # mira build → standalone JAR
+run-mode = "interpret"  # mira run  → fast interpreter
+```
+
+You can override `run-mode` for a single invocation:
+
+```bash
+mira run --mode interpret   # force interpreter
+mira run --mode compile     # force in-memory compilation
+```
 
 ### Running Tests
 

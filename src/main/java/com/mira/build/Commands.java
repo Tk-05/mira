@@ -93,15 +93,30 @@ public class Commands {
     }
 
     public static void run(String[] args) {
+        ProjectConfig.BuildMode modeOverride = null;
         String[] programArgs = null;
         for (int i = 1; i < args.length; i++) {
-            if ("--".equals(args[i])) {
+            if ("--mode".equals(args[i]) && i + 1 < args.length) {
+                modeOverride = parseBuildMode(args[++i]);
+            } else if ("--".equals(args[i])) {
                 programArgs = Arrays.copyOfRange(args, i + 1, args.length);
                 break;
             }
         }
+
         BuildContext ctx = requireContext();
-        ctx.applyFlags(ProjectConfig.BuildMode.INTERPRET);
+        ProjectConfig.BuildMode effectiveMode = modeOverride != null
+                ? modeOverride
+                : ctx.config().build().effectiveRunMode();
+
+        ctx.applyFlags(effectiveMode);
+
+        if (effectiveMode == ProjectConfig.BuildMode.COMPILE
+                || effectiveMode == ProjectConfig.BuildMode.PACKAGE) {
+            Flags.compileAndRun = true;
+            Flags.packageJar = false;
+        }
+
         if (programArgs != null && programArgs.length > 0) {
             Flags.args = programArgs;
         }

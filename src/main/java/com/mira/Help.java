@@ -6,7 +6,7 @@ public class Help {
         Project commands (requires mira.toml):
           mira init [--name <n>]                   Create a new project in the current directory
           mira build [--mode interpret|compile|package] [--watch]  Build the project
-          mira run [-- <args>]                     Run the project (interpret mode)
+          mira run [--mode interpret|compile] [-- <args>]  Run the project (default: mode from mira.toml)
           mira test                                Run all test files matching test.pattern
           mira clean                               Delete the output directory
 

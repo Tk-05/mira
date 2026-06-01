@@ -6,6 +6,7 @@ import java.util.Collections;
 import java.util.List;
 
 import com.mira.Flags;
+import com.mira.error.DiagnosticFormatter;
 import com.mira.parser.nodes.Node;
 import com.mira.parser.nodes.expression.Expression.ImportExpression;
 import com.mira.parser.nodes.statement.Statement.EnumDecl;
@@ -31,15 +32,15 @@ public class TestRunner {
         try {
             fn.call(interpreter, List.of());
             results.add(new TestResult(name, true, null));
-            System.out.println("  PASS " + name);
+            System.out.println("  " + DiagnosticFormatter.formatPass(name));
         } catch (ThrowSignal ts) {
             String msg = ts.getValue() != null ? String.valueOf(ts.getValue()) : ts.getExceptionType();
             results.add(new TestResult(name, false, msg));
-            System.out.println("  FAIL " + name + " — " + msg);
+            System.out.println("  " + DiagnosticFormatter.formatFail(name + " — " + msg));
         } catch (Exception e) {
             String msg = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
             results.add(new TestResult(name, false, msg));
-            System.out.println("  FAIL " + name + " — " + msg);
+            System.out.println("  " + DiagnosticFormatter.formatFail(name + " — " + msg));
         }
     }
 
@@ -51,9 +52,9 @@ public class TestRunner {
         out.println("  Failed : " + failed);
         out.println("  Total  : " + results.size());
         if (failed > 0) {
-            out.println("  Status : FAILED");
+            out.println("  " + DiagnosticFormatter.formatFail("FAILED"));
         } else {
-            out.println("  Status : OK");
+            out.println("  " + DiagnosticFormatter.formatPass("OK"));
         }
     }
 

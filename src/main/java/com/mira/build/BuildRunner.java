@@ -13,6 +13,7 @@ import java.util.stream.Stream;
 
 import com.mira.Flags;
 import com.mira.Main;
+import com.mira.error.DiagnosticFormatter;
 import com.mira.runtime.HotReloader;
 
 public class BuildRunner {
@@ -23,12 +24,27 @@ public class BuildRunner {
             new HotReloader(Flags.inputPath.get()).run();
             return;
         }
+        long start = System.currentTimeMillis();
         Main.runFile(new AtomicBoolean(false));
+
+        if (Flags.compile) {
+            System.out.println(DiagnosticFormatter.formatInfo(
+                    "finished in " + (System.currentTimeMillis() - start) + " ms"));
+        }
     }
 
     public static void runTest(BuildContext ctx) {
         ProjectConfig config = ctx.config();
         Path projectRoot = config.projectRoot();
+
+        if (config.test() == null) {
+            throw new BuildException(
+                    "no [test] section defined in mira.toml\n"
+                    + "Add a [test] section to configure test discovery, e.g.:\n"
+                    + "\n"
+                    + "  [test]\n"
+                    + "  pattern = \"**/*_test.mira\"");
+        }
 
         ctx.applyFlags(ProjectConfig.BuildMode.INTERPRET);
         Flags.testMode = true;
@@ -44,17 +60,25 @@ public class BuildRunner {
         }
 
         if (testFiles.isEmpty()) {
-            System.out.println("No test files found matching: " + config.test().pattern());
+            System.out.println(DiagnosticFormatter.formatInfo(
+                    "no test files found matching: " + config.test().pattern()));
             return;
         }
 
-        System.out.println("Running tests for " + config.name() + "...");
+        System.out.println(DiagnosticFormatter.formatInfo("running tests for " + config.name() + "..."));
+        long totalStart = System.currentTimeMillis();
         for (Path testFile : testFiles) {
             System.out.println("\n--- " + projectRoot.relativize(testFile) + " ---");
             Flags.inputPath.set(testFile);
             Flags.testsDone = false;
+            long fileStart = System.currentTimeMillis();
             Main.runFile(new AtomicBoolean(false));
+            System.out.println(DiagnosticFormatter.formatInfo(
+                    projectRoot.relativize(testFile) + " finished in "
+                    + (System.currentTimeMillis() - fileStart) + " ms"));
         }
+        System.out.println(DiagnosticFormatter.formatInfo(
+                "all tests finished in " + (System.currentTimeMillis() - totalStart) + " ms"));
     }
 
     private static List<Path> findTestFiles(Path root, String pattern) {
