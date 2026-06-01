@@ -24,13 +24,14 @@ public class BuildRunner {
             new HotReloader(Flags.inputPath.get()).run();
             return;
         }
+        runHook(ctx, ctx.config().build().preBuild());
         long start = System.currentTimeMillis();
         Main.runFile(new AtomicBoolean(false));
-
         if (Flags.compile) {
             System.out.println(DiagnosticFormatter.formatInfo(
                     "finished in " + (System.currentTimeMillis() - start) + " ms"));
         }
+        runHook(ctx, ctx.config().build().postBuild());
     }
 
     public static void runTest(BuildContext ctx) {
@@ -65,6 +66,7 @@ public class BuildRunner {
             return;
         }
 
+        runHook(ctx, config.test().preTest());
         System.out.println(DiagnosticFormatter.formatInfo("running tests for " + config.name() + "..."));
         long totalStart = System.currentTimeMillis();
         for (Path testFile : testFiles) {
@@ -79,6 +81,18 @@ public class BuildRunner {
         }
         System.out.println(DiagnosticFormatter.formatInfo(
                 "all tests finished in " + (System.currentTimeMillis() - totalStart) + " ms"));
+        runHook(ctx, config.test().postTest());
+    }
+
+    static void runHook(BuildContext ctx, List<String> taskNames) {
+        if (taskNames == null) {
+            return;
+        }
+        for (String name : taskNames) {
+            if (name != null && !name.isBlank()) {
+                TaskRunner.runTask(ctx, name);
+            }
+        }
     }
 
     private static List<Path> findTestFiles(Path root, String pattern) {

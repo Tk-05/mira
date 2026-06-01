@@ -120,12 +120,34 @@ public class Commands {
         if (programArgs != null && programArgs.length > 0) {
             Flags.args = programArgs;
         }
+        BuildRunner.runHook(ctx, ctx.config().build().preRun());
         Main.runFile(new AtomicBoolean(false));
+        BuildRunner.runHook(ctx, ctx.config().build().postRun());
     }
 
     public static void test(String[] args) {
         BuildContext ctx = requireContext();
         BuildRunner.runTest(ctx);
+    }
+
+    public static void release(String[] args) {
+        BuildContext ctx = requireContext();
+        BuildRunner.runBuild(ctx, null, false);
+        if (ctx.config().test() != null) {
+            BuildRunner.runTest(ctx);
+        } else {
+            System.out.println(com.mira.error.DiagnosticFormatter.formatInfo(
+                    "no [test] section defined — skipping tests"));
+        }
+    }
+
+    public static void task(String[] args) {
+        BuildContext ctx = requireContext();
+        if (args.length < 2) {
+            TaskRunner.listTasks(ctx.config());
+            return;
+        }
+        TaskRunner.runTask(ctx, args[1]);
     }
 
     public static void clean(String[] args) {

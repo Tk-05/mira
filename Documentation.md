@@ -1892,17 +1892,23 @@ version = "0.1.0"
 entry   = "src/main.mira" # entry point (required, relative to mira.toml)
 
 [build]
-mode     = "interpret"    # interpret | compile | package  — used by mira build
-run-mode = "interpret"    # interpret | compile            — used by mira run (optional, defaults to mode)
-                          # compile = equivalent to -compile-run: compiles to JVM bytecode in memory, no files written
-main     = true           # call main() as entry point (equivalent to -m flag)
-lint     = false          # run linter before execution
-output   = "out"          # output directory for compiled files (default: "out/")
-args     = []             # default program arguments
+mode       = "interpret"   # interpret | compile | package  — used by mira build
+run-mode   = "interpret"   # interpret | compile            — used by mira run (optional, defaults to mode)
+                           # compile = equivalent to -compile-run: compiles to JVM bytecode in memory, no files written
+main       = true          # call main() as entry point (equivalent to -m flag)
+lint       = false         # run linter before execution
+output     = "out"         # output directory for compiled files (default: "out/")
+args       = []            # default program arguments
+pre-build  = "codegen"              # single task — or an array: ["codegen", "lint"]
+post-build = ["notify", "upload"]   # multiple tasks run in order
+pre-run    = "prepare"              # task to run before mira run   (optional)
+post-run   = "cleanup"              # task to run after  mira run   (optional)
 
 [test]
-pattern = "**/*_test.mira" # glob for test files relative to project root
-extra   = []               # additional test files
+pattern   = "**/*_test.mira" # glob for test files relative to project root
+extra     = []               # additional test files
+pre-test  = "seed-db"              # single task or array: ["seed-db", "migrate"]
+post-test = ["teardown", "report"] # multiple tasks run in order
 
 [dependencies]
 math-utils = { path = "../math-utils" }  # local path dependency
@@ -1921,8 +1927,51 @@ All paths in `mira.toml` are relative to the file itself.
 | `mira run [--mode interpret\|compile] [-- <args>]` | Run the project; execution mode from `mira.toml` unless overridden; `--` passes arguments to the program |
 | `mira test`                                        | Discover and run all test files matching `test.pattern`                                                  |
 | `mira clean`                                       | Delete the output directory                                                                              |
+| `mira release`                                     | Full pipeline: pre-build → build → post-build → pre-test → tests → post-test                             |
+| `mira task`                                        | List all tasks defined in `mira.toml`                                                                    |
+| `mira task <name>`                                 | Run the task named `<name>`                                                                              |
 
 All commands (except `init`) require a `mira.toml` in the current directory or any parent directory. If none is found, an error is printed with a hint to run `mira init`.
+
+### Release Pipeline
+
+`mira release` runs the full project lifecycle in a fixed order:
+
+```
+pre-build hooks
+    ↓
+mira build  (uses mode from mira.toml)
+    ↓
+post-build hooks
+    ↓
+pre-test hooks      ─┐
+mira test            ├─ skipped with [info] message if [test] is not defined
+post-test hooks     ─┘
+```
+
+A typical release setup:
+
+```toml
+[tasks.codegen]
+cmd = "python scripts/gen.py"
+
+[tasks.package-docs]
+cmd = "mkdocs build"
+
+[tasks.notify]
+cmd = "curl -s https://hooks.example.com/released"
+
+[build]
+mode       = "package"
+pre-build  = "codegen"
+post-build = "package-docs"
+
+[test]
+pattern   = "**/*_test.mira"
+post-test = "notify"
+```
+
+Running `mira release` with this config: generates code → builds a fat JAR → packages docs → runs all tests → sends a notification.
 
 ### Build Modes
 
@@ -1998,6 +2047,74 @@ utils = { path = "../utils" }
 ```
 # in src/main.mira
 import module "./utils/strings.mira" as str;   # resolved in the utils project
+```
+
+### Tasks
+
+Tasks are named automation steps defined in `mira.toml` under `[tasks]`. Each task runs either a shell command (`cmd`) or a Mira script (`script`) — not both.
+
+```toml
+[tasks.format]
+cmd         = "prettier --write src/"
+description = "Format source files"
+
+[tasks.codegen]
+script      = "scripts/codegen.mira"
+description = "Generate code from schema"
+```
+
+Shorthand using a plain string — the type is inferred automatically:
+
+- Ends with `.mira` → treated as `script`
+- Anything else → treated as `cmd`
+
+```toml
+[tasks]
+clean = "rm -rf out/"      # cmd  — shell command
+demo  = "scripts/demo.mira" # script — Mira file
+```
+
+| Command            | Description                                    |
+| ------------------ | ---------------------------------------------- |
+| `mira task`        | List all defined tasks with their descriptions |
+| `mira task <name>` | Run the task named `<name>`                    |
+
+**Rules:**
+
+- Exactly one of `cmd` or `script` must be set — specifying both or neither is an error
+- `description` is optional
+- `cmd` is executed via the system shell (`cmd.exe /c` on Windows, `sh -c` on Unix)
+- `script` is resolved relative to `mira.toml` and executed as a Mira file
+- A non-zero exit code from `cmd` results in a `[fail]` error
+
+#### Hooks
+
+Tasks can be wired as automatic pre/post hooks for the built-in commands via fields in `[build]` and `[test]`. Every hook value is the name of a task defined in `[tasks]`.
+
+| Field        | Runs before/after |
+| ------------ | ----------------- |
+| `pre-build`  | `mira build`      |
+| `post-build` | `mira build`      |
+| `pre-run`    | `mira run`        |
+| `post-run`   | `mira run`        |
+| `pre-test`   | `mira test`       |
+| `post-test`  | `mira test`       |
+
+Example — generate code before every build and send a notification afterwards:
+
+```toml
+[tasks.codegen]
+cmd         = "python scripts/gen.py"
+description = "Generate code from schema"
+
+[tasks.notify]
+cmd         = "curl -s https://hooks.example.com/build-done"
+description = "Notify external service"
+
+[build]
+mode       = "compile"
+pre-build  = "codegen"
+post-build = "notify"
 ```
 
 ---

@@ -205,4 +205,156 @@ public class ProjectConfigTest {
         );
         assertThrows(BuildException.class, () -> ProjectConfig.fromMap(map, root));
     }
+
+    @Test
+    void noTasksWhenSectionAbsent() {
+        Map<String, Object> map = Map.of("project", section("entry", "main.mira"));
+        ProjectConfig cfg = ProjectConfig.fromMap(map, root);
+        assertTrue(cfg.tasks().isEmpty());
+    }
+
+    @Test
+    void taskShorthandParsedAsCmd() {
+        Map<String, Object> map = Map.of(
+                "project", section("entry", "main.mira"),
+                "tasks", section("clean", "rm -rf out/")
+        );
+        ProjectConfig cfg = ProjectConfig.fromMap(map, root);
+        TaskConfig task = cfg.tasks().get("clean");
+        assertNotNull(task);
+        assertEquals("rm -rf out/", task.cmd());
+        assertNull(task.script());
+        assertTrue(task.isCmd());
+    }
+
+    @Test
+    void taskShorthandMiraExtensionParsedAsScript() {
+        Map<String, Object> map = Map.of(
+                "project", section("entry", "main.mira"),
+                "tasks", section("demo", "scripts/demo.mira")
+        );
+        ProjectConfig cfg = ProjectConfig.fromMap(map, root);
+        TaskConfig task = cfg.tasks().get("demo");
+        assertNotNull(task);
+        assertNull(task.cmd());
+        assertEquals("scripts/demo.mira", task.script());
+        assertFalse(task.isCmd());
+    }
+
+    @Test
+    void taskWithInlineTable() {
+        Map<String, Object> map = Map.of(
+                "project", section("entry", "main.mira"),
+                "tasks", section(
+                        "codegen", section("script", "scripts/gen.mira", "description", "Generate code")
+                )
+        );
+        ProjectConfig cfg = ProjectConfig.fromMap(map, root);
+        TaskConfig task = cfg.tasks().get("codegen");
+        assertNotNull(task);
+        assertNull(task.cmd());
+        assertEquals("scripts/gen.mira", task.script());
+        assertEquals("Generate code", task.description());
+        assertFalse(task.isCmd());
+    }
+
+    @Test
+    void taskWithBothCmdAndScriptThrows() {
+        Map<String, Object> map = Map.of(
+                "project", section("entry", "main.mira"),
+                "tasks", section("bad", section("cmd", "echo hi", "script", "x.mira"))
+        );
+        assertThrows(BuildException.class, () -> ProjectConfig.fromMap(map, root));
+    }
+
+    @Test
+    void taskWithNeitherCmdNorScriptThrows() {
+        Map<String, Object> map = Map.of(
+                "project", section("entry", "main.mira"),
+                "tasks", section("bad", section("description", "missing action"))
+        );
+        assertThrows(BuildException.class, () -> ProjectConfig.fromMap(map, root));
+    }
+
+    @Test
+    void multipleTasksParsed() {
+        Map<String, Object> map = Map.of(
+                "project", section("entry", "main.mira"),
+                "tasks", section(
+                        "clean", "rm -rf out/",
+                        "build", section("cmd", "gradle build", "description", "Build native")
+                )
+        );
+        ProjectConfig cfg = ProjectConfig.fromMap(map, root);
+        assertEquals(2, cfg.tasks().size());
+        assertTrue(cfg.tasks().containsKey("clean"));
+        assertTrue(cfg.tasks().containsKey("build"));
+    }
+
+    @Test
+    void buildHooksSingleString() {
+        Map<String, Object> map = Map.of(
+                "project", section("entry", "main.mira"),
+                "build", section("mode", "interpret", "pre-build", "codegen", "post-build", "notify")
+        );
+        ProjectConfig cfg = ProjectConfig.fromMap(map, root);
+        assertEquals(List.of("codegen"), cfg.build().preBuild());
+        assertEquals(List.of("notify"), cfg.build().postBuild());
+    }
+
+    @Test
+    void buildHooksArray() {
+        Map<String, Object> map = Map.of(
+                "project", section("entry", "main.mira"),
+                "build", section(
+                        "pre-build", List.of("codegen", "lint"),
+                        "post-build", List.of("notify", "upload")
+                )
+        );
+        ProjectConfig cfg = ProjectConfig.fromMap(map, root);
+        assertEquals(List.of("codegen", "lint"), cfg.build().preBuild());
+        assertEquals(List.of("notify", "upload"), cfg.build().postBuild());
+    }
+
+    @Test
+    void runHooksParsed() {
+        Map<String, Object> map = Map.of(
+                "project", section("entry", "main.mira"),
+                "build", section("pre-run", "prepare", "post-run", "cleanup")
+        );
+        ProjectConfig cfg = ProjectConfig.fromMap(map, root);
+        assertEquals(List.of("prepare"), cfg.build().preRun());
+        assertEquals(List.of("cleanup"), cfg.build().postRun());
+    }
+
+    @Test
+    void testHooksParsed() {
+        Map<String, Object> map = Map.of(
+                "project", section("entry", "main.mira"),
+                "test", section(
+                        "pattern", "**/*_test.mira", "extra", List.of(),
+                        "pre-test", "seed-db", "post-test", "teardown"
+                )
+        );
+        ProjectConfig cfg = ProjectConfig.fromMap(map, root);
+        assertNotNull(cfg.test());
+        assertEquals(List.of("seed-db"), cfg.test().preTest());
+        assertEquals(List.of("teardown"), cfg.test().postTest());
+    }
+
+    @Test
+    void hooksEmptyWhenNotSet() {
+        Map<String, Object> map = Map.of(
+                "project", section("entry", "main.mira"),
+                "build", section("mode", "interpret"),
+                "test", section("pattern", "**/*_test.mira", "extra", List.of())
+        );
+        ProjectConfig cfg = ProjectConfig.fromMap(map, root);
+        assertTrue(cfg.build().preBuild().isEmpty());
+        assertTrue(cfg.build().postBuild().isEmpty());
+        assertTrue(cfg.build().preRun().isEmpty());
+        assertTrue(cfg.build().postRun().isEmpty());
+        assertTrue(cfg.test().preTest().isEmpty());
+        assertTrue(cfg.test().postTest().isEmpty());
+    }
 }

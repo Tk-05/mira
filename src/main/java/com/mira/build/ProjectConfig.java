@@ -15,10 +15,15 @@ public record ProjectConfig(
         BuildConfig build,
         TestConfig test,
         Map<String, Dependency> dependencies,
+        Map<String, TaskConfig> tasks,
         Path projectRoot
         ) {
 
-    public record BuildConfig(Path outputDir, BuildMode mode, BuildMode runMode, boolean main, boolean lint, String[] args) {
+    public record BuildConfig(
+            Path outputDir, BuildMode mode, BuildMode runMode,
+            boolean main, boolean lint, String[] args,
+            List<String> preBuild, List<String> postBuild,
+            List<String> preRun, List<String> postRun) {
 
         public BuildMode effectiveRunMode() {
             return runMode != null ? runMode : mode;
@@ -33,7 +38,7 @@ public record ProjectConfig(
 
     }
 
-    public record TestConfig(String pattern, List<String> extra) {
+    public record TestConfig(String pattern, List<String> extra, List<String> preTest, List<String> postTest) {
 
     }
 
@@ -67,11 +72,18 @@ public record ProjectConfig(
         List<String> argsList = (List<String>) build.getOrDefault("args", List.of());
         String[] argsArr = argsList.toArray(new String[0]);
 
+        List<String> preBuild = parseHookList(build.get("pre-build"));
+        List<String> postBuild = parseHookList(build.get("post-build"));
+        List<String> preRun = parseHookList(build.get("pre-run"));
+        List<String> postRun = parseHookList(build.get("post-run"));
+
         TestConfig testConfig = null;
         if (testRaw != null) {
             String pattern = (String) testRaw.getOrDefault("pattern", "**/*_test.mira");
             List<String> extra = (List<String>) testRaw.getOrDefault("extra", List.of());
-            testConfig = new TestConfig(pattern, new ArrayList<>(extra));
+            testConfig = new TestConfig(pattern, new ArrayList<>(extra),
+                    parseHookList(testRaw.get("pre-test")),
+                    parseHookList(testRaw.get("post-test")));
         }
 
         Map<String, Dependency> dependencies = new LinkedHashMap<>();
@@ -86,13 +98,51 @@ public record ProjectConfig(
             }
         }
 
+        Map<String, Object> tasksRaw = (Map<String, Object>) map.getOrDefault("tasks", Map.of());
+        Map<String, TaskConfig> tasks = new LinkedHashMap<>();
+        for (Map.Entry<String, Object> t : tasksRaw.entrySet()) {
+            String taskName = t.getKey();
+            switch (t.getValue()) {
+                case String shorthand -> {
+                    if (shorthand.endsWith(".mira")) {
+                        tasks.put(taskName, new TaskConfig(taskName, null, shorthand, null));
+                    } else {
+                        tasks.put(taskName, new TaskConfig(taskName, shorthand, null, null));
+                    }
+                }
+                case Map<?, ?> taskMap -> {
+                    String cmd = (String) ((Map<?, ?>) taskMap).get("cmd");
+                    String script = (String) ((Map<?, ?>) taskMap).get("script");
+                    String taskDesc = (String) ((Map<?, ?>) taskMap).get("description");
+                    tasks.put(taskName, new TaskConfig(taskName, cmd, script, taskDesc));
+                }
+                default -> {
+                }
+            }
+        }
+
         return new ProjectConfig(
                 name, version, entry, description, authors,
-                new BuildConfig(outputDir, mode, runMode, mainFn, lint, argsArr),
+                new BuildConfig(outputDir, mode, runMode, mainFn, lint, argsArr, preBuild, postBuild, preRun, postRun),
                 testConfig,
                 dependencies,
+                tasks,
                 projectRoot
         );
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<String> parseHookList(Object value) {
+        if (value == null) {
+            return List.of();
+        }
+        if (value instanceof List) {
+            return List.copyOf((List<String>) value);
+        }
+        if (value instanceof String s) {
+            return s.isBlank() ? List.of() : List.of(s);
+        }
+        return List.of();
     }
 
     private static BuildMode parseMode(String s) {

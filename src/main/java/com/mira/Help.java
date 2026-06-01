@@ -9,6 +9,9 @@ public class Help {
           mira run [--mode interpret|compile] [-- <args>]  Run the project (default: mode from mira.toml)
           mira test                                Run all test files matching test.pattern
           mira clean                               Delete the output directory
+          mira release                             Full pipeline: build → post-build → test
+          mira task                                List all tasks defined in mira.toml
+          mira task <name>                         Run the task named <name>
 
         Single-file usage:
           mira <file.mira> [flags]
