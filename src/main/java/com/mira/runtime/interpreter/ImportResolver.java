@@ -185,6 +185,17 @@ public class ImportResolver {
         Path modulePath = candidate.isAbsolute()
                 ? candidate.normalize()
                 : currentFile.getParent().resolve(candidate).normalize();
+
+        if (!Files.exists(modulePath) && !Flags.dependencyRoots.isEmpty()) {
+            for (Path depRoot : Flags.dependencyRoots) {
+                Path depCandidate = depRoot.resolve(candidate).normalize();
+                if (Files.exists(depCandidate)) {
+                    modulePath = depCandidate;
+                    break;
+                }
+            }
+        }
+
         String moduleKey = modulePath.toAbsolutePath().toString();
 
         CompletableFuture<Void> loadFuture = new CompletableFuture<>();

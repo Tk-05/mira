@@ -8,6 +8,7 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
+import com.mira.build.BuildDispatcher;
 import com.mira.compiler.CompileRunner;
 import com.mira.debugger.Debugger;
 import com.mira.error.DiagnosticFormatter;
@@ -48,11 +49,17 @@ public class Main {
                 return;
             }
 
+            if (BuildDispatcher.isSubcommand(args[0])) {
+                BuildDispatcher.dispatch(args);
+                return;
+            }
+
             if (args[0].equals("-h") || args[0].equals("-help")) {
                 System.out.println(Help.getHelp());
                 System.exit(1);
             } else if (args[0].startsWith("-")) {
-                System.err.println("No input file specified, -h for help. Usage: mira <file.mira> [flags]");
+                System.err.println(DiagnosticFormatter.formatError("no input file specified"));
+                System.err.println("Usage: mira <file.mira> [flags]  |  Use -h for help.");
                 System.exit(1);
             } else {
                 Flags.inputPath.set(Paths.get((args[0])).toAbsolutePath().normalize());
@@ -106,8 +113,11 @@ public class Main {
                     }
                     case "-package" ->
                         Flags.packageJar = true;
-                    default ->
-                        throw new RuntimeException(args[i] + " is not a known flag");
+                    default -> {
+                        System.err.println(DiagnosticFormatter.formatError("'" + args[i] + "' is not a known flag"));
+                        System.err.println("Use -h for help.");
+                        System.exit(1);
+                    }
                 }
             }
 
@@ -175,7 +185,7 @@ public class Main {
             readFile = FileLoader.readFileFromPath(Flags.inputPath.get().toString());
         } catch (IOException e) {
             if (!stopping.get()) {
-                System.err.println(DiagnosticFormatter.format(e));
+                System.err.println(DiagnosticFormatter.formatFileError(Flags.inputPath.get(), e));
             }
             return;
         }

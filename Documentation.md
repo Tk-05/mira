@@ -14,9 +14,10 @@
 10. [Built-in Functions](#built-in-functions)
 11. [Standard Libraries](#standard-libraries)
 12. [Multithreading](#multithreading)
-13. [Compilation](#compilation)
-14. [IDE Integration (LSP)](#ide-integration-lsp)
-15. [Example Program](#example-program)
+13. [Build System](#build-system) — Projects, `mira.toml`, Commands, Dependencies
+14. [Compilation](#compilation)
+15. [IDE Integration (LSP)](#ide-integration-lsp)
+16. [Example Program](#example-program)
 
 ---
 
@@ -1695,26 +1696,26 @@ Constants: `pi`, `e`, `inf`, `nan`
 
 ### `bytes`
 
-| Function                      | Description                                              |
-| ----------------------------- | -------------------------------------------------------- |
-| `newBytes(size)`              | Creates a zero-filled byte array                         |
-| `fromString(str)`             | UTF-8 encodes a string into bytes                        |
-| `fromList(list)`              | Creates bytes from a list of numbers (0–255)             |
-| `fromHex(hex)`                | Parses a lowercase hex string into bytes                 |
-| `fromBase64(str)`             | Decodes a Base64 string into bytes                       |
-| `size(b)`                     | Returns the length of the byte array                     |
-| `get(b, index)`               | Returns the byte at `index` as a number (0–255)          |
-| `set(b, index, value)`        | Returns a new byte array with one byte replaced          |
-| `slice(b, start, end)`        | Returns a sub-array from `start` to `end` (exclusive)   |
-| `concat(b1, b2)`              | Concatenates two byte arrays                             |
-| `copy(b)`                     | Returns an independent copy                              |
-| `fill(b, value)`              | Returns a new byte array with all bytes set to `value`   |
-| `toString(b)`                 | UTF-8 decodes bytes into a string                        |
-| `toList(b)`                   | Converts bytes to a list of numbers (0–255)              |
-| `toHex(b)`                    | Returns the bytes as a lowercase hex string              |
-| `toBase64(b)`                 | Encodes bytes as a Base64 string                         |
-| `readFile(path)`              | Reads a file as raw bytes                                |
-| `writeFile(path, b)`          | Writes raw bytes to a file                               |
+| Function               | Description                                            |
+| ---------------------- | ------------------------------------------------------ |
+| `newBytes(size)`       | Creates a zero-filled byte array                       |
+| `fromString(str)`      | UTF-8 encodes a string into bytes                      |
+| `fromList(list)`       | Creates bytes from a list of numbers (0–255)           |
+| `fromHex(hex)`         | Parses a lowercase hex string into bytes               |
+| `fromBase64(str)`      | Decodes a Base64 string into bytes                     |
+| `size(b)`              | Returns the length of the byte array                   |
+| `get(b, index)`        | Returns the byte at `index` as a number (0–255)        |
+| `set(b, index, value)` | Returns a new byte array with one byte replaced        |
+| `slice(b, start, end)` | Returns a sub-array from `start` to `end` (exclusive)  |
+| `concat(b1, b2)`       | Concatenates two byte arrays                           |
+| `copy(b)`              | Returns an independent copy                            |
+| `fill(b, value)`       | Returns a new byte array with all bytes set to `value` |
+| `toString(b)`          | UTF-8 decodes bytes into a string                      |
+| `toList(b)`            | Converts bytes to a list of numbers (0–255)            |
+| `toHex(b)`             | Returns the bytes as a lowercase hex string            |
+| `toBase64(b)`          | Encodes bytes as a Base64 string                       |
+| `readFile(path)`       | Reads a file as raw bytes                              |
+| `writeFile(path, b)`   | Writes raw bytes to a file                             |
 
 ---
 
@@ -1859,6 +1860,119 @@ The process exits with code `1` when any test fails, making it suitable for CI p
 - Tests run sequentially in the order they are registered.
 - Any uncaught exception inside a test body counts as a failure. The error message is shown next to `FAIL`.
 - `assert` is a built-in function available in all contexts, not only inside tests.
+
+---
+
+## Build System
+
+The Mira build system lets you manage a multi-file project with a single configuration file (`mira.toml`) and a set of subcommands. Single-file usage (`mira <file.mira> [flags]`) continues to work unchanged.
+
+### Creating a Project
+
+```bash
+mira init                  # use current directory name as project name
+mira init --name my-app    # explicit project name
+```
+
+Creates two files in the current directory:
+
+```
+my-app/
+├── mira.toml        ← project configuration
+└── src/
+    └── main.mira    ← entry point skeleton
+```
+
+### `mira.toml` — Project Configuration
+
+```toml
+[project]
+name    = "my-app"        # project name
+version = "0.1.0"
+entry   = "src/main.mira" # entry point (required, relative to mira.toml)
+
+[build]
+mode   = "interpret"      # interpret | compile | package
+main   = true             # call main() as entry point (equivalent to -m flag)
+lint   = false            # run linter before execution
+output = "out"            # output directory for compiled files (default: "out/")
+args   = []               # default program arguments
+
+[test]
+pattern = "**/*_test.mira" # glob for test files relative to project root
+extra   = []               # additional test files
+
+[dependencies]
+math-utils = { path = "../math-utils" }  # local path dependency
+```
+
+All paths in `mira.toml` are relative to the file itself.
+
+### Commands
+
+| Command                                         | Description                                                             |
+| ----------------------------------------------- | ----------------------------------------------------------------------- |
+| `mira init [--name <n>]`                        | Create a new project in the current directory                           |
+| `mira build`                                    | Build the project using the mode defined in `mira.toml`                 |
+| `mira build --mode interpret\|compile\|package` | Override the build mode for this run                                    |
+| `mira build --watch`                            | Build and re-run on file changes                                        |
+| `mira run [-- <args>]`                          | Run the project in interpret mode; `--` passes arguments to the program |
+| `mira test`                                     | Discover and run all test files matching `test.pattern`                 |
+| `mira clean`                                    | Delete the output directory                                             |
+
+All commands (except `init`) require a `mira.toml` in the current directory or any parent directory. If none is found, an error is printed with a hint to run `mira init`.
+
+### Build Modes
+
+| Mode        | What happens                                                 |
+| ----------- | ------------------------------------------------------------ |
+| `interpret` | Source is interpreted directly — no files are written        |
+| `compile`   | Source is compiled to `.class` files in the output directory |
+| `package`   | Source is compiled and bundled into a self-contained fat JAR |
+
+### Running Tests
+
+`mira test` discovers every `.mira` file matching the `test.pattern` glob (default `**/*_test.mira`), runs each file with test mode enabled, and prints a pass/fail summary per file. The process exits with code `1` if any test fails.
+
+```bash
+mira test
+# Running tests for my-app...
+#
+# --- src/math_test.mira ---
+#   PASS addition
+#   PASS multiplication
+# ─── Test Summary ───
+#   Passed : 2
+#   Failed : 0
+#   Total  : 2
+#   Status : OK
+```
+
+Test files use the built-in `test()` and `assert()` functions:
+
+```
+module math_test;
+
+import math as m;
+
+test("square root", fn() {
+    assert(m.sqrt(9) == 3);
+});
+```
+
+### Local Dependencies
+
+A dependency declared under `[dependencies]` must point to a directory that itself contains a `mira.toml`. The dependency's source files are added as import roots, so module imports that are not found relative to the current file are also searched in each dependency's root directory.
+
+```toml
+[dependencies]
+utils = { path = "../utils" }
+```
+
+```
+# in src/main.mira
+import module "./utils/strings.mira" as str;   # resolved in the utils project
+```
 
 ---
 

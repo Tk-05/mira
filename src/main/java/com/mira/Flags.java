@@ -1,6 +1,8 @@
 package com.mira;
 
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 
 public class Flags {
 
@@ -27,4 +29,6 @@ public class Flags {
     public static boolean dumpByteCode = false;
     public static Path outputDir = null;
     public static boolean packageJar = false;
+
+    public static List<Path> dependencyRoots = new ArrayList<>();
 }
