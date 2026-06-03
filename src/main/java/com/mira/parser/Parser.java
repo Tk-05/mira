@@ -1116,7 +1116,8 @@ public class Parser {
     private Node parseFuncDecl(boolean isAsync, boolean isPure) {
         Token kwToken = matchLexeme("fn");
         requireNotIncomplete(kwToken, "name(params) { body }");
-        String name = matchExpression().getLexeme();
+        Token nameToken = matchExpression();
+        String name = nameToken.getLexeme();
         matchLexeme("(");
 
         String[] variadicHolder = {null};
@@ -1128,6 +1129,7 @@ public class Parser {
 
         FuncDecl decl = new FuncDecl(name, parameters, body, variadicHolder[0], isAsync, isPure);
         decl.line = kwToken.getLine();
+        decl.nameColumn = nameToken.getColumn();
         return decl;
     }
 

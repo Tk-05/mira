@@ -59,6 +59,7 @@ import com.mira.parser.nodes.statement.Statement.Assign;
 import com.mira.parser.nodes.statement.Statement.Block;
 import com.mira.parser.nodes.statement.Statement.Break;
 import com.mira.parser.nodes.statement.Statement.CatchClause;
+import com.mira.parser.nodes.statement.Statement.ComptimeBlock;
 import com.mira.parser.nodes.statement.Statement.Continue;
 import com.mira.parser.nodes.statement.Statement.EnumDecl;
 import com.mira.parser.nodes.statement.Statement.For;
@@ -70,14 +71,12 @@ import com.mira.parser.nodes.statement.Statement.ModuleDecl;
 import com.mira.parser.nodes.statement.Statement.Return;
 import com.mira.parser.nodes.statement.Statement.Switch;
 import com.mira.parser.nodes.statement.Statement.SwitchCase;
+import com.mira.parser.nodes.statement.Statement.TestCall;
 import com.mira.parser.nodes.statement.Statement.Throw;
 import com.mira.parser.nodes.statement.Statement.TryCatch;
-import com.mira.parser.nodes.statement.Statement.ComptimeBlock;
-import com.mira.parser.nodes.statement.Statement.TestCall;
 import com.mira.parser.nodes.statement.Statement.VarDecl;
 import com.mira.parser.nodes.statement.Statement.VarDestructure;
 import com.mira.parser.nodes.statement.Statement.While;
-import com.mira.testing.TestRunner;
 import com.mira.runtime.ComptimeExecutor;
 import com.mira.runtime.functions.BreakSignal;
 import com.mira.runtime.functions.Callable;
@@ -91,9 +90,8 @@ import com.mira.runtime.values.MutexValue;
 import com.mira.runtime.values.NullValue;
 import com.mira.runtime.visitors.ExprVisitor;
 import com.mira.runtime.visitors.StmtVisitor;
+import com.mira.testing.TestRunner;
 import com.mira.vocabulary.Vocabulary;
-import com.mira.warning.WarningCollector;
-import com.mira.warning.WarningLevel;
 
 @SuppressWarnings("unchecked")
 public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
@@ -522,13 +520,6 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                 try {
                     yield numericAdd(left, right);
                 } catch (NumberFormatException e) {
-                    boolean leftIsStr = left instanceof String;
-                    boolean rightIsStr = right instanceof String;
-                    if (leftIsStr != rightIsStr) {
-                        WarningCollector.emit(WarningLevel.HINT,
-                                "Implicit string concatenation: mixed String and non-String operands",
-                                expression.getOperator());
-                    }
                     yield String.valueOf(left) + String.valueOf(right);
                 }
             }
@@ -540,10 +531,6 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                 Math.pow(toNumber(left), toNumber(right));
             case "/" -> {
                 double divisor = toNumber(right);
-                if (divisor == 0) {
-                    WarningCollector.emit(WarningLevel.WARNING,
-                            "Division by zero", expression.getOperator());
-                }
                 yield toNumber(left) / divisor;
             }
             case "%" -> {

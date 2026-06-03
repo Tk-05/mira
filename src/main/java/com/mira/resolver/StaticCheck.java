@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import com.mira.Flags;
 import com.mira.error.MiraError;
 import com.mira.error.resolver.MultipleStaticCheckErrors;
 import com.mira.error.resolver.StaticCheckError.ArityMismatchError;
@@ -93,11 +94,14 @@ public class StaticCheck {
             scope.markUsed(builtin);
         }
 
+        if (Flags.mainFunction) {
+            scope.markUsed("main");
+        }
+
         for (Node node : ast) {
             switch (node) {
                 case FuncDecl f -> {
-                    scope.declare(f.getName(), f.line, 0, false);
-                    scope.markUsed(f.getName());
+                    scope.declareFunction(f.getName(), f.line, f.nameColumn);
                     knownFunctions.add(f.getName());
                     if (f.getVariadicParam() == null) {
                         knownArities.put(f.getName(), new int[]{f.getArity(), f.getMaxArity()});
@@ -213,6 +217,26 @@ public class StaticCheck {
                     resolveCallExpression(call, 1);
                 } else {
                     resolveExpr(e.getRight());
+                }
+            }
+            case BinaryExpression e when "+".equals(e.getOperator().getLexeme()) -> {
+                resolveExpr(e.getLeft());
+                resolveExpr(e.getRight());
+                boolean leftStr = isStringLiteral(e.getLeft());
+                boolean rightStr = isStringLiteral(e.getRight());
+                boolean leftLit = isNonStringLiteral(e.getLeft());
+                boolean rightLit = isNonStringLiteral(e.getRight());
+                if ((leftStr && rightLit) || (leftLit && rightStr)) {
+                    WarningCollector.emit(WarningLevel.HINT,
+                            "Implicit string concatenation: mixed String and non-String operands",
+                            e.getOperator());
+                }
+            }
+            case BinaryExpression e when "/".equals(e.getOperator().getLexeme()) -> {
+                resolveExpr(e.getLeft());
+                resolveExpr(e.getRight());
+                if (isZeroLiteral(e.getRight())) {
+                    WarningCollector.emit(WarningLevel.WARNING, "Division by zero", e.getOperator());
                 }
             }
             case BinaryExpression e -> {
@@ -341,6 +365,7 @@ public class StaticCheck {
             if (!callable) {
                 errors.add(new UndefinedFunctionError(name, callee.getLine(), callee.getColumn()));
             } else {
+                scope.markUsed(name);
                 int[] arity = knownArities.get(name);
                 if (arity != null) {
                     int actual = expr.getArguments().size() + implicitArgs;
@@ -550,6 +575,9 @@ public class StaticCheck {
                 if (info.isImport()) {
                     WarningCollector.emit(WarningLevel.WARNING, "'" + name + "' is imported but never used",
                             info.line(), info.column(), name.length());
+                } else if (info.isFunction()) {
+                    WarningCollector.emit(WarningLevel.HINT, "'" + name + "' is defined but never called",
+                            info.line(), info.column(), name.length());
                 } else {
                     WarningCollector.emit(WarningLevel.HINT, "'" + name + "' is declared but never used",
                             info.line(), info.column(), name.length());
@@ -593,6 +621,21 @@ public class StaticCheck {
 
     private void warn(String message, int line, int column, int span) {
         WarningCollector.emit(WarningLevel.WARNING, message, line, column, span);
+    }
+
+    private static boolean isStringLiteral(Node n) {
+        return n instanceof DumbExpression d && d.getTokenType() == TokenType.STRING_LITERAL;
+    }
+
+    private static boolean isNonStringLiteral(Node n) {
+        if (!(n instanceof DumbExpression d)) {
+            return false;
+        }
+        return d.getTokenType() != TokenType.STRING_LITERAL && !isIdentifier(d);
+    }
+
+    private static boolean isZeroLiteral(Node n) {
+        return n instanceof DumbExpression d && "0".equals(d.getValue());
     }
 
     private static boolean isIdentifier(DumbExpression expr) {

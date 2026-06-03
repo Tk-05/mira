@@ -54,6 +54,7 @@ public abstract class Statement implements Node {
         private final String variadicParam;
         private final boolean isAsync;
         private final boolean isPure;
+        public int nameColumn = 0;
 
         public FuncDecl(String name, List<Parameter> parameters,
                 List<Node> body, String variadicParam) {
