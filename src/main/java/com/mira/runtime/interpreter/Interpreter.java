@@ -522,14 +522,12 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                 try {
                     yield numericAdd(left, right);
                 } catch (NumberFormatException e) {
-                    if (Flags.lint) {
-                        boolean leftIsStr = left instanceof String;
-                        boolean rightIsStr = right instanceof String;
-                        if (leftIsStr != rightIsStr) {
-                            WarningCollector.emit(WarningLevel.HINT,
-                                    "Implicit string concatenation: mixed String and non-String operands",
-                                    expression.getOperator());
-                        }
+                    boolean leftIsStr = left instanceof String;
+                    boolean rightIsStr = right instanceof String;
+                    if (leftIsStr != rightIsStr) {
+                        WarningCollector.emit(WarningLevel.HINT,
+                                "Implicit string concatenation: mixed String and non-String operands",
+                                expression.getOperator());
                     }
                     yield String.valueOf(left) + String.valueOf(right);
                 }
@@ -542,7 +540,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                 Math.pow(toNumber(left), toNumber(right));
             case "/" -> {
                 double divisor = toNumber(right);
-                if (Flags.lint && divisor == 0) {
+                if (divisor == 0) {
                     WarningCollector.emit(WarningLevel.WARNING,
                             "Division by zero", expression.getOperator());
                 }
@@ -1473,16 +1471,6 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         }
 
         Environment env = localEnvironment == null ? globalEnvironment : localEnvironment;
-
-        if (Flags.lint && localEnvironment != null) {
-            boolean shadowsLocal = localEnvironment.getParent() != null
-                    && localEnvironment.getParent().existsInChain(varDecl.getName());
-            boolean shadowsGlobal = globalEnvironment.existsInChain(varDecl.getName());
-            if (shadowsLocal || shadowsGlobal) {
-                WarningCollector.emit(WarningLevel.WARNING,
-                        "Variable '" + varDecl.getName() + "' shadows an outer variable");
-            }
-        }
 
         try {
             if (varDecl.isConst()) {

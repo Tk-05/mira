@@ -21,7 +21,7 @@ public record ProjectConfig(
 
     public record BuildConfig(
             Path outputDir, BuildMode mode, BuildMode runMode,
-            boolean main, boolean lint, String[] args,
+            boolean main, String[] args,
             List<String> preBuild, List<String> postBuild,
             List<String> preRun, List<String> postRun) {
 
@@ -66,7 +66,6 @@ public record ProjectConfig(
         BuildMode runMode = runModeStr != null ? parseMode(runModeStr) : null;
 
         boolean mainFn = toBoolean(build.getOrDefault("main", false));
-        boolean lint = toBoolean(build.getOrDefault("lint", false));
         String outputStr = (String) build.getOrDefault("output", "out");
         Path outputDir = projectRoot.resolve(outputStr).normalize();
         List<String> argsList = (List<String>) build.getOrDefault("args", List.of());
@@ -123,7 +122,7 @@ public record ProjectConfig(
 
         return new ProjectConfig(
                 name, version, entry, description, authors,
-                new BuildConfig(outputDir, mode, runMode, mainFn, lint, argsArr, preBuild, postBuild, preRun, postRun),
+                new BuildConfig(outputDir, mode, runMode, mainFn, argsArr, preBuild, postBuild, preRun, postRun),
                 testConfig,
                 dependencies,
                 tasks,

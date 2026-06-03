@@ -25,7 +25,6 @@ public class Help {
           -crash          On crash: print Mira call stack and memory dump
           -crashFull      On crash: same as -crash plus Java stack trace
           -watch          Watch entry file and all imported modules for changes, restart on save
-          -lint           Lint the code before execution or compilation
           -ast            Print AST
           -test           Run test() calls and print a pass/fail summary; exit 1 if any test fails
           -debug          Launch interactive debugger

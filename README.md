@@ -46,7 +46,7 @@ java -jar target/mira-RELEASE.jar
 | `-li`                   | Show loaded imports with type and alias                                                                  |
 | `-liFull`               | Like `-li`, but also lists every exported symbol per import                                              |
 | `-args <arg0,arg1,...>` | Pass arguments to the script                                                                             |
-| `-lint`                 | Run the static linter before execution                                                                   |
+| `-nsc`                  | Skip the static check (useful for quick iteration or debugging runtime errors)                           |
 | `-watch`                | Watch entry file and all imported modules; restart on save                                               |
 | `-crash`                | On crash: print Mira call stack and memory dump                                                          |
 | `-crashFull`            | On crash: same as `-crash` plus full Java stack trace                                                    |

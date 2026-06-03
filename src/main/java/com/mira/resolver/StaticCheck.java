@@ -20,7 +20,10 @@ import com.mira.error.resolver.StaticCheckError.UnknownNamespaceError;
 import com.mira.lexer.token.TokenType;
 import com.mira.lib.LibIndex;
 import com.mira.linter.LintScope;
+import com.mira.linter.LintScope.VarInfo;
 import com.mira.parser.nodes.Node;
+import com.mira.warning.WarningCollector;
+import com.mira.warning.WarningLevel;
 import com.mira.parser.nodes.expression.Expression.AccessExpression;
 import com.mira.parser.nodes.expression.Expression.ArrayExpression;
 import com.mira.parser.nodes.expression.Expression.AwaitExpression;
@@ -87,19 +90,23 @@ public class StaticCheck {
 
         for (String builtin : LibIndex.GLOBAL_NAMES) {
             scope.declare(builtin, 0, 0, false);
+            scope.markUsed(builtin);
         }
 
         for (Node node : ast) {
             switch (node) {
                 case FuncDecl f -> {
                     scope.declare(f.getName(), f.line, 0, false);
+                    scope.markUsed(f.getName());
                     knownFunctions.add(f.getName());
                     if (f.getVariadicParam() == null) {
                         knownArities.put(f.getName(), new int[]{f.getArity(), f.getMaxArity()});
                     }
                 }
-                case EnumDecl e ->
+                case EnumDecl e -> {
                     scope.declare(e.getIdentifier(), e.line, 0, true);
+                    scope.markUsed(e.getIdentifier());
+                }
                 case ImportExpression imp ->
                     preDeclareImport(imp);
                 default -> {
@@ -108,7 +115,7 @@ public class StaticCheck {
         }
 
         resolveNodes(ast);
-        scope.pop();
+        popScope();
 
         if (!errors.isEmpty()) {
             throw new MultipleStaticCheckErrors(errors);
@@ -188,6 +195,8 @@ public class StaticCheck {
                     String name = d.getValue();
                     if (!scope.isDeclared(name)) {
                         errors.add(new UndeclaredVariableError(name, d.getLine(), d.getColumn()));
+                    } else {
+                        scope.markUsed(name);
                     }
                 } else if (e.getRight() != null) {
                     resolveExpr(e.getRight());
@@ -246,9 +255,13 @@ public class StaticCheck {
                         scope.declare(method.getVariadicParam(), 0, 0, false);
                     }
                     scope.declare("this", 0, 0, false);
-                    e.getVarDecls().forEach(f -> scope.declare(f.getName(), 0, 0, false));
-                    resolveNodes(method.getBody());
-                    scope.pop();
+                    scope.markUsed("this");
+                    e.getVarDecls().forEach(f -> {
+                        scope.declare(f.getName(), 0, 0, false);
+                        scope.markUsed(f.getName());
+                    });
+                    resolveBody(method.getBody());
+                    popScope();
                 }
             }
             case LambdaExpression e -> {
@@ -257,8 +270,8 @@ public class StaticCheck {
                 if (e.getVariadicParam() != null) {
                     scope.declare(e.getVariadicParam(), 0, 0, false);
                 }
-                resolveNodes(e.getBody());
-                scope.pop();
+                resolveBody(e.getBody());
+                popScope();
             }
             case TernaryExpression e -> {
                 resolveExpr(e.getCondition());
@@ -301,8 +314,13 @@ public class StaticCheck {
             }
             case ExecBlock e -> {
                 scope.push();
-                resolveNodes(e.getBody());
-                scope.pop();
+                resolveBody(e.getBody());
+                popScope();
+            }
+            case DumbExpression e -> {
+                if (isIdentifier(e)) {
+                    scope.markUsed(e.getValue());
+                }
             }
             default -> {
             }
@@ -348,6 +366,16 @@ public class StaticCheck {
         if (scope.isDeclaredInCurrentScope(stmt.getName())) {
             errors.add(new DuplicateDeclarationError(stmt.getName(), stmt.line, stmt.nameColumn));
         }
+        if (scope.isDeclared(stmt.getName())
+                && !scope.isDeclaredInCurrentScope(stmt.getName())
+                && !scope.isDeclaredInOutermostScope(stmt.getName())) {
+            warn("Variable '" + stmt.getName() + "' shadows an outer declaration",
+                    stmt.line, stmt.nameColumn, stmt.getName().length());
+        }
+        if (stmt.isConst() && stmt.getInitializer() == null) {
+            warn("Const '" + stmt.getName() + "' declared without an initializer",
+                    stmt.line, stmt.nameColumn, stmt.getName().length());
+        }
         scope.declare(stmt.getName(), stmt.line, stmt.nameColumn, stmt.isConst());
     }
 
@@ -361,8 +389,8 @@ public class StaticCheck {
         if (stmt.getVariadicParam() != null) {
             scope.declare(stmt.getVariadicParam(), stmt.line, 0, false);
         }
-        resolveNodes(stmt.getBody());
-        scope.pop();
+        resolveBody(stmt.getBody());
+        popScope();
     }
 
     private void resolveAssign(Assign stmt) {
@@ -375,6 +403,8 @@ public class StaticCheck {
                 errors.add(new UndeclaredVariableError(name, d.getLine(), d.getColumn()));
             } else if (scope.isConst(name)) {
                 errors.add(new ConstReassignmentError(name, d.getLine(), d.getColumn()));
+            } else {
+                scope.markUsed(name);
             }
         } else {
             resolveExpr(stmt.getReference());
@@ -385,12 +415,12 @@ public class StaticCheck {
     private void resolveIf(If stmt) {
         resolveExpr(stmt.getCondition());
         scope.push();
-        resolveNodes(stmt.getThenBody());
-        scope.pop();
+        resolveBody(stmt.getThenBody());
+        popScope();
         if (stmt.getElseBody() != null) {
             scope.push();
-            resolveNodes(stmt.getElseBody());
-            scope.pop();
+            resolveBody(stmt.getElseBody());
+            popScope();
         }
     }
 
@@ -398,22 +428,27 @@ public class StaticCheck {
         scope.push();
         loopDepth++;
         resolveNodes(stmt.getVarDecls());
+        for (Node n : stmt.getVarDecls()) {
+            if (n instanceof VarDecl v && v.getInitializer() == null) {
+                scope.markUsed(v.getName());
+            }
+        }
         if (stmt.getCondition() != null) {
             resolveExpr(stmt.getCondition());
         }
         stmt.getPostExpressions().forEach(this::resolveNode);
-        resolveNodes(stmt.getBody());
+        resolveBody(stmt.getBody());
         loopDepth--;
-        scope.pop();
+        popScope();
     }
 
     private void resolveWhile(While stmt) {
         resolveExpr(stmt.getCondition());
         scope.push();
         loopDepth++;
-        resolveNodes(stmt.getBody());
+        resolveBody(stmt.getBody());
         loopDepth--;
-        scope.pop();
+        popScope();
     }
 
     private void resolveForeach(Foreach stmt) {
@@ -422,42 +457,42 @@ public class StaticCheck {
         loopDepth++;
         VarDecl iter = stmt.getIterator();
         scope.declare(iter.getName(), iter.line > 0 ? iter.line : stmt.line, iter.nameColumn, false);
-        resolveNodes(stmt.getBody());
+        resolveBody(stmt.getBody());
         loopDepth--;
-        scope.pop();
+        popScope();
     }
 
     private void resolveBlock(Block stmt) {
         scope.push();
-        resolveNodes(stmt.getBody());
-        scope.pop();
+        resolveBody(stmt.getBody());
+        popScope();
     }
 
     private void resolveSwitch(Switch stmt) {
         resolveExpr(stmt.getSubject());
         for (var c : stmt.getCases()) {
             scope.push();
-            resolveNodes(c.getBody());
-            scope.pop();
+            resolveBody(c.getBody());
+            popScope();
         }
         if (stmt.getDefaultBody() != null) {
             scope.push();
-            resolveNodes(stmt.getDefaultBody());
-            scope.pop();
+            resolveBody(stmt.getDefaultBody());
+            popScope();
         }
     }
 
     private void resolveTryCatch(TryCatch stmt) {
         scope.push();
-        resolveNodes(stmt.getTryBody());
-        scope.pop();
+        resolveBody(stmt.getTryBody());
+        popScope();
         for (CatchClause clause : stmt.getCatchClauses()) {
             scope.push();
             if (clause.getParamName() != null) {
                 scope.declare(clause.getParamName(), stmt.line, 0, false);
             }
-            resolveNodes(clause.getBody());
-            scope.pop();
+            resolveBody(clause.getBody());
+            popScope();
         }
     }
 
@@ -486,6 +521,58 @@ public class StaticCheck {
                 }
             });
         }
+    }
+
+    private void popScope() {
+        checkUnused(scope.pop());
+    }
+
+    private void resolveBody(List<Node> body) {
+        boolean terminated = false;
+        for (Node node : body) {
+            if (terminated) {
+                WarningCollector.emit(WarningLevel.WARNING, "Unreachable code", lineOf(node), 0);
+                break;
+            }
+            resolveNode(node);
+            if (node instanceof Return || node instanceof Throw) {
+                terminated = true;
+            }
+        }
+    }
+
+    private void checkUnused(Map<String, VarInfo> closedScope) {
+        for (var entry : closedScope.entrySet()) {
+            String name = entry.getKey();
+            VarInfo info = entry.getValue();
+            if (!info.used() && !name.startsWith("_")) {
+                WarningCollector.emit(WarningLevel.HINT, "'" + name + "' is declared but never used",
+                        info.line(), info.column(), name.length());
+            }
+        }
+    }
+
+    private static int lineOf(Node node) {
+        return switch (node) {
+            case VarDecl s -> s.line;
+            case FuncDecl s -> s.line;
+            case Return s -> s.line;
+            case If s -> s.line;
+            case For s -> s.line;
+            case While s -> s.line;
+            case Foreach s -> s.line;
+            case Block s -> s.line;
+            case Switch s -> s.line;
+            case TryCatch s -> s.line;
+            case Throw s -> s.line;
+            case Assign s -> s.line;
+            case CallExpression e when e.getCallee() instanceof DumbExpression d -> d.getLine();
+            default -> 0;
+        };
+    }
+
+    private void warn(String message, int line, int column, int span) {
+        WarningCollector.emit(WarningLevel.WARNING, message, line, column, span);
     }
 
     private static boolean isIdentifier(DumbExpression expr) {

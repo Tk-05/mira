@@ -40,7 +40,6 @@ public class ProjectConfigTest {
                 "build", section(
                         "mode", "compile",
                         "main", Boolean.TRUE,
-                        "lint", Boolean.TRUE,
                         "output", "build",
                         "args", List.of("--verbose")
                 ),
@@ -63,7 +62,6 @@ public class ProjectConfigTest {
 
         assertEquals(ProjectConfig.BuildMode.COMPILE, cfg.build().mode());
         assertTrue(cfg.build().main());
-        assertTrue(cfg.build().lint());
         assertEquals(root.resolve("build").normalize(), cfg.build().outputDir());
         assertArrayEquals(new String[]{"--verbose"}, cfg.build().args());
 
@@ -88,7 +86,6 @@ public class ProjectConfigTest {
         assertTrue(cfg.authors().isEmpty());
         assertEquals(ProjectConfig.BuildMode.INTERPRET, cfg.build().mode());
         assertFalse(cfg.build().main());
-        assertFalse(cfg.build().lint());
         assertEquals(root.resolve("out").normalize(), cfg.build().outputDir());
         assertEquals(0, cfg.build().args().length);
         assertNull(cfg.test());

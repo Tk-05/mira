@@ -18,7 +18,6 @@ import com.mira.error.runtime.RuntimeError.ModuleNameMismatchError;
 import com.mira.lexer.Tokenizer;
 import com.mira.lexer.token.Token;
 import com.mira.lib.LibIndex;
-import com.mira.linter.Linter;
 import com.mira.lsp.Launcher;
 import com.mira.parser.Parser;
 import com.mira.parser.nodes.Node;
@@ -85,8 +84,6 @@ public class Main {
                     }
                     case "-debug" ->
                         Flags.debug = true;
-                    case "-lint" ->
-                        Flags.lint = true;
                     case "-watch" ->
                         Flags.hotReload = true;
                     case "-crash" ->
@@ -113,6 +110,8 @@ public class Main {
                     }
                     case "-package" ->
                         Flags.packageJar = true;
+                    case "-nsc" ->
+                        Flags.skipStaticCheck = true;
                     default -> {
                         System.err.println(DiagnosticFormatter.formatError("'" + args[i] + "' is not a known flag"));
                         System.err.println("Use -h for help.");
@@ -216,10 +215,8 @@ public class Main {
                 System.out.println(new AstPrinter().print(asts));
             }
 
-            new StaticCheck().check(asts);
-
-            if (Flags.lint) {
-                new Linter().lint(asts);
+            if (!Flags.skipStaticCheck) {
+                new StaticCheck().check(asts);
                 WarningCollector.flush();
             }
 

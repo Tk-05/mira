@@ -30,7 +30,6 @@ public class BuildContext {
 
         Flags.inputPath.set(config.entry());
         Flags.mainFunction = bc.main();
-        Flags.lint = bc.lint();
         Flags.args = bc.args().length > 0 ? bc.args() : null;
         Flags.dependencyRoots = new ArrayList<>(depRoots);
 

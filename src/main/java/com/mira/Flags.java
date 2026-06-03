@@ -13,7 +13,6 @@ public class Flags {
     public static boolean libInfo = false;
     public static boolean libInfoFull = false;
     public static boolean debug = false;
-    public static boolean lint = false;
     public static boolean hotReload = false;
     public static boolean crashDump = false;
     public static boolean crashDumpFull = false;
@@ -31,4 +30,6 @@ public class Flags {
     public static boolean packageJar = false;
 
     public static List<Path> dependencyRoots = new ArrayList<>();
+
+    public static boolean skipStaticCheck = false;
 }

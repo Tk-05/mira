@@ -13,7 +13,6 @@ import com.mira.error.parser.MultipleParserErrors;
 import com.mira.error.resolver.MultipleStaticCheckErrors;
 import com.mira.lexer.Tokenizer;
 import com.mira.lexer.token.Token;
-import com.mira.linter.Linter;
 import com.mira.parser.Parser;
 import com.mira.parser.nodes.Node;
 import com.mira.resolver.StaticCheck;
@@ -33,11 +32,6 @@ public class DiagnosticCollector {
                 new StaticCheck().check(ast);
             } catch (MultipleStaticCheckErrors mre) {
                 mre.getErrors().forEach(e -> result.add(fromError(e, DiagnosticSeverity.Error)));
-            }
-            try {
-                new Linter().lint(ast);
-            } catch (MiraError e) {
-                result.add(fromError(e, DiagnosticSeverity.Error));
             }
         } catch (MultipleParserErrors mpe) {
             mpe.getErrors().forEach(e -> result.add(fromError(e, DiagnosticSeverity.Error)));
