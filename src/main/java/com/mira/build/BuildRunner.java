@@ -14,7 +14,12 @@ import java.util.stream.Stream;
 import com.mira.Flags;
 import com.mira.Main;
 import com.mira.error.DiagnosticFormatter;
+import com.mira.lexer.Tokenizer;
+import com.mira.lexer.token.Token;
+import com.mira.parser.Parser;
+import com.mira.parser.nodes.Node;
 import com.mira.runtime.HotReloader;
+import com.mira.testing.TestRunner;
 
 public class BuildRunner {
 
@@ -69,19 +74,33 @@ public class BuildRunner {
         runHook(ctx, config.test().preTest());
         System.out.println(DiagnosticFormatter.formatInfo("running tests for " + config.name() + "..."));
         long totalStart = System.currentTimeMillis();
+        boolean anyFailed = false;
+
         for (Path testFile : testFiles) {
             System.out.println("\n--- " + projectRoot.relativize(testFile) + " ---");
             Flags.inputPath.set(testFile);
-            Flags.testsDone = false;
-            long fileStart = System.currentTimeMillis();
-            Main.runFile(new AtomicBoolean(false));
-            System.out.println(DiagnosticFormatter.formatInfo(
-                    projectRoot.relativize(testFile) + " finished in "
-                    + (System.currentTimeMillis() - fileStart) + " ms"));
+            try {
+                String source = Files.readString(testFile);
+                Flags.fileName = testFile.getFileName().toString();
+                Flags.sourceLines = source.split("\n", -1);
+                List<Token> tokens = new Tokenizer().tokenize(source, false);
+                List<Node> asts = new Parser().parseTokens(tokens);
+                boolean failed = TestRunner.runPrePassCollecting(asts, Flags.args);
+                if (failed) {
+                    anyFailed = true;
+                }
+            } catch (Exception e) {
+                System.err.println(DiagnosticFormatter.format(e));
+                anyFailed = true;
+            }
         }
+
         System.out.println(DiagnosticFormatter.formatInfo(
                 "all tests finished in " + (System.currentTimeMillis() - totalStart) + " ms"));
         runHook(ctx, config.test().postTest());
+        if (anyFailed) {
+            System.exit(1);
+        }
     }
 
     static void runHook(BuildContext ctx, List<String> taskNames) {

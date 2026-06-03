@@ -71,6 +71,14 @@ public class TestRunner {
     }
 
     public static void runPrePass(List<Node> asts, String[] args) {
+        boolean failed = runPrePassCollecting(asts, args);
+        if (failed) {
+            System.exit(1);
+        }
+        Flags.testsDone = true;
+    }
+
+    public static boolean runPrePassCollecting(List<Node> asts, String[] args) {
         List<Node> prePassNodes = asts.stream()
                 .filter(n -> isDeclaration(n) || isTestCall(n))
                 .toList();
@@ -83,12 +91,7 @@ public class TestRunner {
         printSummary(System.out);
         boolean failed = hasFailures();
         reset();
-
-        if (failed) {
-            System.exit(1);
-        }
-
-        Flags.testsDone = true;
+        return failed;
     }
 
     private static boolean isDeclaration(Node n) {
