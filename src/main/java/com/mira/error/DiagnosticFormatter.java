@@ -6,6 +6,8 @@ import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 
 import com.mira.Flags;
+import com.mira.warning.Warning;
+import com.mira.warning.WarningLevel;
 
 public final class DiagnosticFormatter {
 
@@ -52,6 +54,53 @@ public final class DiagnosticFormatter {
             return RED + BOLD + "[error]" + RESET + ": file not found: " + path;
         }
         return RED + BOLD + "[error]" + RESET + ": cannot read file: " + path + " — " + e.getMessage();
+    }
+
+    public static String formatWarning(Warning warning) {
+        boolean isHint = warning.level() == WarningLevel.HINT;
+        String color = isHint ? CYAN : "[33m";
+        String tag = color + BOLD + "[" + warning.level().name().toLowerCase() + "]" + RESET;
+
+        StringBuilder sb = new StringBuilder();
+        sb.append(tag).append(": ").append(BOLD).append(warning.message()).append(RESET).append("\n");
+
+        int line = warning.line();
+        int col = warning.column();
+        String fileName = Flags.fileName != null ? Flags.fileName : "<input>";
+
+        if (line > 0) {
+            sb.append(CYAN).append("  --> ").append(RESET)
+                    .append(fileName).append(":").append(line).append(":").append(col).append("\n");
+
+            String[] sourceLines = Flags.sourceLines;
+            if (sourceLines != null && line <= sourceLines.length) {
+                String srcLine = sourceLines[line - 1];
+
+                if (line >= 2) {
+                    String prevLine = sourceLines[line - 2];
+                    String prevLabel = String.format("%4d", line - 1);
+                    sb.append(DIM).append(prevLabel).append(" |").append(RESET)
+                            .append(" ").append(prevLine).append("\n");
+                } else {
+                    sb.append(DIM).append("     |").append(RESET).append("\n");
+                }
+
+                String lineLabel = String.format("%4d", line);
+                sb.append(lineLabel).append(" | ").append(srcLine).append("\n");
+
+                sb.append(DIM).append("     |").append(RESET).append(" ");
+                int caretPos = Math.max(0, col - 1);
+                for (int i = 0; i < caretPos; i++) {
+                    sb.append(srcLine.length() > i && srcLine.charAt(i) == '\t' ? '\t' : ' ');
+                }
+                sb.append(color).append(BOLD);
+                sb.append("^".repeat(Math.max(1, warning.span())));
+                sb.append(RESET).append("\n");
+                sb.append(DIM).append("     |").append(RESET).append("\n");
+            }
+        }
+
+        return sb.toString().stripTrailing();
     }
 
     private static String formatMiraError(MiraError error) {

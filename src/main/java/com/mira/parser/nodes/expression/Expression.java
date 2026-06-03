@@ -285,6 +285,8 @@ public abstract class Expression implements Node {
             STDLIB, MODULE, NATIVE
         }
 
+        public int line = 0;
+
         private final Expression module;
         private final String namespace;
         private final ImportKind kind;

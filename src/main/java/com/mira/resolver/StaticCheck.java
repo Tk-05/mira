@@ -22,8 +22,6 @@ import com.mira.lib.LibIndex;
 import com.mira.linter.LintScope;
 import com.mira.linter.LintScope.VarInfo;
 import com.mira.parser.nodes.Node;
-import com.mira.warning.WarningCollector;
-import com.mira.warning.WarningLevel;
 import com.mira.parser.nodes.expression.Expression.AccessExpression;
 import com.mira.parser.nodes.expression.Expression.ArrayExpression;
 import com.mira.parser.nodes.expression.Expression.AwaitExpression;
@@ -60,12 +58,14 @@ import com.mira.parser.nodes.statement.Statement.If;
 import com.mira.parser.nodes.statement.Statement.Lock;
 import com.mira.parser.nodes.statement.Statement.Return;
 import com.mira.parser.nodes.statement.Statement.Switch;
+import com.mira.parser.nodes.statement.Statement.TestCall;
 import com.mira.parser.nodes.statement.Statement.Throw;
 import com.mira.parser.nodes.statement.Statement.TryCatch;
 import com.mira.parser.nodes.statement.Statement.VarDecl;
-import com.mira.parser.nodes.statement.Statement.TestCall;
 import com.mira.parser.nodes.statement.Statement.VarDestructure;
 import com.mira.parser.nodes.statement.Statement.While;
+import com.mira.warning.WarningCollector;
+import com.mira.warning.WarningLevel;
 
 public class StaticCheck {
 
@@ -226,6 +226,7 @@ public class StaticCheck {
                 if (!knownNamespaces.contains(alias)) {
                     errors.add(new UnknownNamespaceError(alias, e.getLine(), 0));
                 }
+                scope.markUsed(alias);
                 e.getArguments().forEach(this::resolveExpr);
             }
             case AccessExpression e -> {
@@ -250,9 +251,9 @@ public class StaticCheck {
                         .forEach(v -> resolveExpr(v.getInitializer()));
                 for (var method : e.getMethods()) {
                     scope.push();
-                    method.getParameters().forEach(p -> scope.declare(p.name(), 0, 0, false));
+                    method.getParameters().forEach(p -> scope.declare(p.name(), method.line, 0, false));
                     if (method.getVariadicParam() != null) {
-                        scope.declare(method.getVariadicParam(), 0, 0, false);
+                        scope.declare(method.getVariadicParam(), method.line, 0, false);
                     }
                     scope.declare("this", 0, 0, false);
                     scope.markUsed("this");
@@ -506,11 +507,11 @@ public class StaticCheck {
     private void preDeclareImport(ImportExpression expr) {
         if (expr.isSelective()) {
             for (String fn : expr.getSelectedFunctions()) {
-                scope.declare(fn, 0, 0, false);
+                scope.declareImport(fn, expr.line);
                 knownFunctions.add(fn);
             }
         } else if (expr.getNamespace() != null) {
-            scope.declare(expr.getNamespace(), 0, 0, false);
+            scope.declareImport(expr.getNamespace(), expr.line);
             knownNamespaces.add(expr.getNamespace());
         } else {
             String libName = expr.getModule().replace("\"", "");
@@ -546,28 +547,47 @@ public class StaticCheck {
             String name = entry.getKey();
             VarInfo info = entry.getValue();
             if (!info.used() && !name.startsWith("_")) {
-                WarningCollector.emit(WarningLevel.HINT, "'" + name + "' is declared but never used",
-                        info.line(), info.column(), name.length());
+                if (info.isImport()) {
+                    WarningCollector.emit(WarningLevel.WARNING, "'" + name + "' is imported but never used",
+                            info.line(), info.column(), name.length());
+                } else {
+                    WarningCollector.emit(WarningLevel.HINT, "'" + name + "' is declared but never used",
+                            info.line(), info.column(), name.length());
+                }
             }
         }
     }
 
     private static int lineOf(Node node) {
         return switch (node) {
-            case VarDecl s -> s.line;
-            case FuncDecl s -> s.line;
-            case Return s -> s.line;
-            case If s -> s.line;
-            case For s -> s.line;
-            case While s -> s.line;
-            case Foreach s -> s.line;
-            case Block s -> s.line;
-            case Switch s -> s.line;
-            case TryCatch s -> s.line;
-            case Throw s -> s.line;
-            case Assign s -> s.line;
-            case CallExpression e when e.getCallee() instanceof DumbExpression d -> d.getLine();
-            default -> 0;
+            case VarDecl s ->
+                s.line;
+            case FuncDecl s ->
+                s.line;
+            case Return s ->
+                s.line;
+            case If s ->
+                s.line;
+            case For s ->
+                s.line;
+            case While s ->
+                s.line;
+            case Foreach s ->
+                s.line;
+            case Block s ->
+                s.line;
+            case Switch s ->
+                s.line;
+            case TryCatch s ->
+                s.line;
+            case Throw s ->
+                s.line;
+            case Assign s ->
+                s.line;
+            case CallExpression e when e.getCallee() instanceof DumbExpression d ->
+                d.getLine();
+            default ->
+                0;
         };
     }
 

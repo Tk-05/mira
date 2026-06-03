@@ -7,10 +7,14 @@ import java.util.Map;
 
 public class LintScope {
 
-    public record VarInfo(int line, int column, boolean isConst, boolean used) {
+    public record VarInfo(int line, int column, boolean isConst, boolean used, boolean isImport) {
+
+        public VarInfo(int line, int column, boolean isConst, boolean used) {
+            this(line, column, isConst, used, false);
+        }
 
         public VarInfo markUsed() {
-            return new VarInfo(line, column, isConst, true);
+            return new VarInfo(line, column, isConst, true, isImport);
         }
     }
 
@@ -30,6 +34,12 @@ public class LintScope {
         }
     }
 
+    public void declareImport(String name, int line) {
+        if (!scopes.isEmpty()) {
+            scopes.peek().put(name, new VarInfo(line, 0, false, false, true));
+        }
+    }
+
     public boolean isDeclared(String name) {
         for (Map<String, VarInfo> scope : scopes) {
             if (scope.containsKey(name)) {
@@ -44,7 +54,9 @@ public class LintScope {
     }
 
     public boolean isDeclaredInOutermostScope(String name) {
-        if (scopes.isEmpty()) return false;
+        if (scopes.isEmpty()) {
+            return false;
+        }
         Map<String, VarInfo> outermost = null;
         for (Map<String, VarInfo> scope : scopes) {
             outermost = scope;

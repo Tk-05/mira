@@ -980,6 +980,9 @@ public class Parser {
             }
             case "import" -> {
                 node = parseImportExpression();
+                if (node instanceof ImportExpression imp) {
+                    imp.line = line;
+                }
                 matchLexeme(";");
             }
             case "switch" -> {
@@ -1123,7 +1126,9 @@ public class Parser {
         Token open = matchLexeme("{");
         List<Node> body = parseBlockBody(open);
 
-        return new FuncDecl(name, parameters, body, variadicHolder[0], isAsync, isPure);
+        FuncDecl decl = new FuncDecl(name, parameters, body, variadicHolder[0], isAsync, isPure);
+        decl.line = kwToken.getLine();
+        return decl;
     }
 
     private Node parseReturn() {

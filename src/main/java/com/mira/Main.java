@@ -1,6 +1,7 @@
 package com.mira;
 
 import java.io.IOException;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -218,6 +219,7 @@ public class Main {
             if (!Flags.skipStaticCheck) {
                 new StaticCheck().check(asts);
                 WarningCollector.flush();
+                checkModuleImports(asts, new LinkedHashSet<>());
             }
 
             if (Flags.libInfo) {
@@ -289,6 +291,56 @@ public class Main {
                 } else {
                     interpreter.dumpState(e, System.err);
                 }
+            }
+        }
+    }
+
+    private static void checkModuleImports(List<Node> asts, Set<Path> visited) {
+        Path parentPath = Flags.inputPath.get();
+
+        for (Node node : asts) {
+            if (!(node instanceof ImportExpression imp)) {
+                continue;
+            }
+            if (imp.getKind() != ImportKind.MODULE) {
+                continue;
+            }
+
+            String rawPath = imp.getModule().replace("\"", "");
+            if (!rawPath.endsWith(".mira")) {
+                rawPath += ".mira";
+            }
+            Path candidate = Paths.get(rawPath);
+            Path modulePath = candidate.isAbsolute()
+                    ? candidate.normalize()
+                    : parentPath.getParent().resolve(candidate).normalize();
+
+            if (!visited.add(modulePath)) {
+                continue;
+            }
+
+            Path savedInputPath = Flags.inputPath.get();
+            String savedFileName = Flags.fileName;
+            String[] savedSourceLines = Flags.sourceLines;
+
+            try {
+                String source = FileLoader.readFileFromPath(modulePath.toString());
+                Flags.inputPath.set(modulePath);
+                Flags.fileName = modulePath.getFileName().toString();
+                Flags.sourceLines = source.split("\n", -1);
+
+                List<Node> moduleAst = new Parser().parseTokens(new Tokenizer().tokenize(source, false));
+                new StaticCheck().check(moduleAst);
+                WarningCollector.flush();
+                checkModuleImports(moduleAst, visited);
+            } catch (MultipleStaticCheckErrors mse) {
+                WarningCollector.flush();
+                mse.getErrors().forEach(e -> System.err.println(DiagnosticFormatter.format(e)));
+            } catch (Exception ignored) {
+            } finally {
+                Flags.inputPath.set(savedInputPath);
+                Flags.fileName = savedFileName;
+                Flags.sourceLines = savedSourceLines;
             }
         }
     }
