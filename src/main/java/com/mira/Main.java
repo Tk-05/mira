@@ -3,8 +3,10 @@ package com.mira;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
@@ -33,6 +35,7 @@ import com.mira.runtime.functions.ReturnSignal;
 import com.mira.runtime.interpreter.Interpreter;
 import com.mira.testing.TestRunner;
 import com.mira.utils.FileLoader;
+import com.mira.utils.ModuleResolver;
 import com.mira.warning.WarningCollector;
 
 public class Main {
@@ -295,52 +298,60 @@ public class Main {
         }
     }
 
-    private static void checkModuleImports(List<Node> asts, Set<Path> visited) {
-        Path parentPath = Flags.inputPath.get();
+    private record ParsedModule(Path path, List<Node> ast, String source) {
 
-        for (Node node : asts) {
-            if (!(node instanceof ImportExpression imp)) {
-                continue;
+    }
+
+    private static void checkModuleImports(List<Node> rootAst, Set<Path> visited) {
+        Map<Path, ParsedModule> allModules = new LinkedHashMap<>();
+        collectAllModules(rootAst, Flags.inputPath.get(), allModules, new LinkedHashSet<>(visited));
+
+        Path rootPath = Flags.inputPath.get();
+        String savedFileName = Flags.fileName;
+        String[] savedSourceLines = Flags.sourceLines;
+
+        for (ParsedModule module : allModules.values()) {
+            Set<String> externalCalls = new LinkedHashSet<>();
+            ModuleResolver.collectExternalCalls(rootAst, rootPath, module.path(), externalCalls);
+            for (ParsedModule caller : allModules.values()) {
+                if (!caller.path().equals(module.path())) {
+                    ModuleResolver.collectExternalCalls(caller.ast(), caller.path(), module.path(), externalCalls);
+                }
             }
-            if (imp.getKind() != ImportKind.MODULE) {
-                continue;
-            }
-
-            String rawPath = imp.getModule().replace("\"", "");
-            if (!rawPath.endsWith(".mira")) {
-                rawPath += ".mira";
-            }
-            Path candidate = Paths.get(rawPath);
-            Path modulePath = candidate.isAbsolute()
-                    ? candidate.normalize()
-                    : parentPath.getParent().resolve(candidate).normalize();
-
-            if (!visited.add(modulePath)) {
-                continue;
-            }
-
-            Path savedInputPath = Flags.inputPath.get();
-            String savedFileName = Flags.fileName;
-            String[] savedSourceLines = Flags.sourceLines;
-
             try {
-                String source = FileLoader.readFileFromPath(modulePath.toString());
-                Flags.inputPath.set(modulePath);
-                Flags.fileName = modulePath.getFileName().toString();
-                Flags.sourceLines = source.split("\n", -1);
-
-                List<Node> moduleAst = new Parser().parseTokens(new Tokenizer().tokenize(source, false));
-                new StaticCheck().check(moduleAst);
+                Flags.inputPath.set(module.path());
+                Flags.fileName = module.path().getFileName().toString();
+                Flags.sourceLines = module.source().split("\n", -1);
+                new StaticCheck(externalCalls).check(module.ast());
                 WarningCollector.flush();
-                checkModuleImports(moduleAst, visited);
             } catch (MultipleStaticCheckErrors mse) {
                 WarningCollector.flush();
                 mse.getErrors().forEach(e -> System.err.println(DiagnosticFormatter.format(e)));
             } catch (Exception ignored) {
             } finally {
-                Flags.inputPath.set(savedInputPath);
+                Flags.inputPath.set(rootPath);
                 Flags.fileName = savedFileName;
                 Flags.sourceLines = savedSourceLines;
+            }
+        }
+    }
+
+    private static void collectAllModules(List<Node> ast, Path parentPath,
+            Map<Path, ParsedModule> out, Set<Path> visited) {
+        for (Node node : ast) {
+            if (!(node instanceof ImportExpression imp) || imp.getKind() != ImportKind.MODULE) {
+                continue;
+            }
+            Path modulePath = ModuleResolver.resolveModulePath(imp.getModule(), parentPath);
+            if (!visited.add(modulePath)) {
+                continue;
+            }
+            try {
+                String source = FileLoader.readFileFromPath(modulePath.toString());
+                List<Node> moduleAst = new Parser().parseTokens(new Tokenizer().tokenize(source, false));
+                out.put(modulePath, new ParsedModule(modulePath, moduleAst, source));
+                collectAllModules(moduleAst, modulePath, out, visited);
+            } catch (Exception ignored) {
             }
         }
     }

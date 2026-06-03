@@ -1,5 +1,6 @@
 package com.mira.lsp;
 
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -48,7 +49,7 @@ public class DocumentService implements TextDocumentService {
         String content = params.getTextDocument().getText();
         documents.put(uri, content);
         updateAstCache(uri, content);
-        server.publishDiagnostics(uri, analyze(content));
+        server.publishDiagnostics(uri, analyze(uri, content));
     }
 
     @Override
@@ -57,7 +58,7 @@ public class DocumentService implements TextDocumentService {
         String content = params.getContentChanges().get(0).getText();
         documents.put(uri, content);
         updateAstCache(uri, content);
-        server.publishDiagnostics(uri, analyze(content));
+        server.publishDiagnostics(uri, analyze(uri, content));
     }
 
     @Override
@@ -117,7 +118,16 @@ public class DocumentService implements TextDocumentService {
         }
     }
 
-    private List<Diagnostic> analyze(String content) {
-        return DiagnosticCollector.collect(content);
+    private List<Diagnostic> analyze(String uri, String content) {
+        Path filePath = uriToPath(uri);
+        return DiagnosticCollector.collect(content, filePath);
+    }
+
+    private static Path uriToPath(String uri) {
+        try {
+            return java.nio.file.Paths.get(new java.net.URI(uri));
+        } catch (Exception e) {
+            return null;
+        }
     }
 }

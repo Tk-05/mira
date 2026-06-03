@@ -1,7 +1,12 @@
 package com.mira.lsp;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.eclipse.lsp4j.Diagnostic;
 import org.eclipse.lsp4j.DiagnosticSeverity;
@@ -16,20 +21,24 @@ import com.mira.lexer.token.Token;
 import com.mira.parser.Parser;
 import com.mira.parser.nodes.Node;
 import com.mira.resolver.StaticCheck;
+import com.mira.utils.ModuleResolver;
 import com.mira.warning.Warning;
 import com.mira.warning.WarningCollector;
 import com.mira.warning.WarningLevel;
 
 public class DiagnosticCollector {
 
-    public static List<Diagnostic> collect(String source) {
+    public static List<Diagnostic> collect(String source, Path filePath) {
         List<Diagnostic> result = new ArrayList<>();
         WarningCollector.clear();
         try {
             List<Token> tokens = new Tokenizer().tokenize(source, false);
             List<Node> ast = new Parser().parseTokens(tokens);
             try {
-                new StaticCheck().check(ast);
+                Set<String> externalCalls = filePath != null
+                        ? collectExternalCalls(ast, filePath)
+                        : Set.of();
+                new StaticCheck(externalCalls).check(ast);
             } catch (MultipleStaticCheckErrors mre) {
                 mre.getErrors().forEach(e -> result.add(fromError(e, DiagnosticSeverity.Error)));
             }
@@ -43,6 +52,29 @@ public class DiagnosticCollector {
         }
         WarningCollector.clear();
         return result;
+    }
+
+    private static Set<String> collectExternalCalls(List<Node> ast, Path filePath) {
+        Set<String> externalCalls = new LinkedHashSet<>();
+        Path dir = filePath.getParent();
+        if (dir == null) {
+            return externalCalls;
+        }
+        try {
+            Files.walk(dir)
+                    .filter(p -> p.toString().endsWith(".mira") && !p.equals(filePath))
+                    .forEach(callerPath -> {
+                        try {
+                            String src = Files.readString(callerPath);
+                            List<Node> callerAst = new Parser().parseTokens(
+                                    new Tokenizer().tokenize(src, false));
+                            ModuleResolver.collectExternalCalls(callerAst, callerPath, filePath, externalCalls);
+                        } catch (Exception ignored) {
+                        }
+                    });
+        } catch (IOException ignored) {
+        }
+        return externalCalls;
     }
 
     private static Diagnostic fromError(MiraError e, DiagnosticSeverity severity) {

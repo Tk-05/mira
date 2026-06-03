@@ -1,6 +1,8 @@
 package com.mira.resolver;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -76,8 +78,15 @@ public class StaticCheck {
     private final List<MiraError> errors = new ArrayList<>();
     private int loopDepth = 0;
     private final Map<String, int[]> knownArities = new HashMap<>();
+    private boolean isModule = false;
+    private final Set<String> externallyUsed;
 
     public StaticCheck() {
+        this(Set.of());
+    }
+
+    public StaticCheck(Set<String> externallyUsed) {
+        this.externallyUsed = externallyUsed;
         knownFunctions.addAll(LibIndex.INTERNAL_NAMES);
         LibIndex.GLOBAL_ARITIES.forEach((name, arity) -> {
             if (arity >= 0) {
@@ -86,8 +95,129 @@ public class StaticCheck {
         });
     }
 
+    public static Set<String> collectNamespaceCalls(List<Node> ast, String alias) {
+        Set<String> result = new HashSet<>();
+        Deque<Node> queue = new ArrayDeque<>(ast);
+        while (!queue.isEmpty()) {
+            Node node = queue.poll();
+            if (node == null) {
+                continue;
+            }
+            if (node instanceof NamespaceCallExpression nce && alias.equals(nce.getAlias())) {
+                result.add(nce.getFunctionName());
+                queue.addAll(nce.getArguments());
+            } else {
+                addChildren(node, queue);
+            }
+        }
+        return result;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static void addChildren(Node node, Deque<Node> queue) {
+        switch (node) {
+            case FuncDecl s ->
+                queue.addAll(s.getBody());
+            case VarDecl s -> {
+                if (s.getInitializer() != null) {
+                    queue.add(s.getInitializer());
+
+                }
+            }
+            case Assign s -> {
+                queue.add(s.getReference());
+                if (s.getExpression() != null) {
+                    queue.add(s.getExpression());
+
+                }
+            }
+            case Return s -> {
+                if (s.getValue() != null) {
+                    queue.add(s.getValue());
+
+                }
+            }
+            case Throw s ->
+                queue.add(s.getValue());
+            case If s -> {
+                queue.add(s.getCondition());
+                queue.addAll(s.getThenBody());
+                if (s.getElseBody() != null) {
+                    queue.addAll(s.getElseBody());
+
+                }
+            }
+            case While s -> {
+                queue.add(s.getCondition());
+                queue.addAll(s.getBody());
+            }
+            case Foreach s -> {
+                queue.add(s.getCollection());
+                queue.addAll(s.getBody());
+            }
+            case For s -> {
+                queue.addAll(s.getVarDecls());
+                if (s.getCondition() != null) {
+                    queue.add(s.getCondition());
+
+                }
+                queue.addAll(s.getBody());
+            }
+            case Block s ->
+                queue.addAll(s.getBody());
+            case TryCatch s -> {
+                queue.addAll(s.getTryBody());
+                s.getCatchClauses().forEach(c -> queue.addAll(c.getBody()));
+            }
+            case Lock s -> {
+                queue.add(s.getMutex());
+                queue.addAll(s.getBody());
+            }
+            case ComptimeBlock s ->
+                queue.addAll(s.getBody());
+            case BinaryExpression e -> {
+                queue.add(e.getLeft());
+                queue.add(e.getRight());
+            }
+            case UnaryExpression e ->
+                queue.add(e.getRight());
+            case CallExpression e -> {
+                queue.add(e.getCallee());
+                queue.addAll(e.getArguments());
+            }
+            case NamespaceCallExpression e ->
+                queue.addAll(e.getArguments());
+            case AccessExpression e -> {
+                queue.add(e.getReference());
+                queue.addAll(e.getIndecies());
+            }
+            case FieldAccessExpression e ->
+                queue.add(e.getObject());
+            case MethodCallExpression e -> {
+                queue.add(e.getObject());
+                queue.addAll(e.getArguments());
+            }
+            case TernaryExpression e -> {
+                queue.add(e.getCondition());
+                queue.add(e.getThenExpr());
+                queue.add(e.getElseExpr());
+            }
+            case ArrayExpression e ->
+                queue.addAll(e.getMembers());
+            case ListExpression e ->
+                queue.addAll(e.getMembers());
+            case LambdaExpression e ->
+                queue.addAll(e.getBody());
+            case ExecBlock e ->
+                queue.addAll(e.getBody());
+            default -> {
+            }
+        }
+    }
+
     public void check(List<Node> ast) {
         scope.push();
+        isModule = !ast.isEmpty() && ast.getFirst() instanceof com.mira.parser.nodes.statement.Statement.ModuleDecl;
 
         for (String builtin : LibIndex.GLOBAL_NAMES) {
             scope.declare(builtin, 0, 0, false);
@@ -117,6 +247,8 @@ public class StaticCheck {
                 }
             }
         }
+
+        externallyUsed.forEach(scope::markUsed);
 
         resolveNodes(ast);
         popScope();
@@ -575,7 +707,7 @@ public class StaticCheck {
                 if (info.isImport()) {
                     WarningCollector.emit(WarningLevel.WARNING, "'" + name + "' is imported but never used",
                             info.line(), info.column(), name.length());
-                } else if (info.isFunction()) {
+                } else if (info.isFunction() && !isModule) {
                     WarningCollector.emit(WarningLevel.HINT, "'" + name + "' is defined but never called",
                             info.line(), info.column(), name.length());
                 } else {

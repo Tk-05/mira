@@ -74,6 +74,12 @@ public class LintScope {
         return outermost != null && outermost.containsKey(name);
     }
 
+    public void markAllFunctionsUsed() {
+        if (!scopes.isEmpty()) {
+            scopes.peek().replaceAll((name, info) -> info.isFunction() ? info.markUsed() : info);
+        }
+    }
+
     public boolean isConst(String name) {
         for (Map<String, VarInfo> scope : scopes) {
             VarInfo info = scope.get(name);
