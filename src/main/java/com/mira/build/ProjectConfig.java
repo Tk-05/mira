@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 public record ProjectConfig(
         String name,
@@ -44,10 +45,16 @@ public record ProjectConfig(
 
     @SuppressWarnings("unchecked")
     public static ProjectConfig fromMap(Map<String, Object> map, Path projectRoot) {
+        checkUnknownKeys("(root)", map, Set.of("project", "build", "test", "dependencies", "tasks"));
+
         Map<String, Object> project = (Map<String, Object>) map.getOrDefault("project", Map.of());
         Map<String, Object> build = (Map<String, Object>) map.getOrDefault("build", Map.of());
         Map<String, Object> testRaw = (Map<String, Object>) map.get("test");
         Map<String, Object> deps = (Map<String, Object>) map.getOrDefault("dependencies", Map.of());
+
+        checkUnknownKeys("[project]", project, Set.of("name", "version", "entry", "description", "authors"));
+        checkUnknownKeys("[build]", build, Set.of("mode", "run-mode", "main", "output", "args",
+                "pre-build", "post-build", "pre-run", "post-run"));
 
         String name = (String) project.getOrDefault("name", projectRoot.getFileName().toString());
         String version = (String) project.getOrDefault("version", "0.1.0");
@@ -78,6 +85,7 @@ public record ProjectConfig(
 
         TestConfig testConfig = null;
         if (testRaw != null) {
+            checkUnknownKeys("[test]", testRaw, Set.of("pattern", "extra", "pre-test", "post-test"));
             String pattern = (String) testRaw.getOrDefault("pattern", "**/*_test.mira");
             List<String> extra = (List<String>) testRaw.getOrDefault("extra", List.of());
             testConfig = new TestConfig(pattern, new ArrayList<>(extra),
@@ -110,6 +118,8 @@ public record ProjectConfig(
                     }
                 }
                 case Map<?, ?> taskMap -> {
+                    checkUnknownKeys("[tasks." + taskName + "]",
+                            (Map<String, Object>) taskMap, Set.of("cmd", "script", "description"));
                     String cmd = (String) ((Map<?, ?>) taskMap).get("cmd");
                     String script = (String) ((Map<?, ?>) taskMap).get("script");
                     String taskDesc = (String) ((Map<?, ?>) taskMap).get("description");
@@ -153,6 +163,14 @@ public record ProjectConfig(
             default ->
                 BuildMode.INTERPRET;
         };
+    }
+
+    private static void checkUnknownKeys(String section, Map<String, Object> map, Set<String> known) {
+        for (String key : map.keySet()) {
+            if (!known.contains(key)) {
+                throw new BuildException("mira.toml: unknown field '" + key + "' in " + section);
+            }
+        }
     }
 
     private static boolean toBoolean(Object value) {
