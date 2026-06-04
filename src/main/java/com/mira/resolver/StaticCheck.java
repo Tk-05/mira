@@ -224,10 +224,6 @@ public class StaticCheck {
             scope.markUsed(builtin);
         }
 
-        if (Flags.mainFunction) {
-            scope.markUsed("main");
-        }
-
         for (Node node : ast) {
             switch (node) {
                 case FuncDecl f -> {
@@ -248,6 +244,7 @@ public class StaticCheck {
             }
         }
 
+        scope.markUsed("main");
         externallyUsed.forEach(scope::markUsed);
 
         resolveNodes(ast);

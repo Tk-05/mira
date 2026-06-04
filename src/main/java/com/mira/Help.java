@@ -22,6 +22,9 @@ public class Help {
           -e              Exit before interpreter
           -m              Use main() as entry point
           -args {a,b,...} Pass arguments to the program
+          -li             Show loaded imports with type and alias
+          -liFull         Like -li, but also lists every exported symbol per import
+          -nsc            Skip the static check
           -crash          On crash: print Mira call stack and memory dump
           -crashFull      On crash: same as -crash plus Java stack trace
           -watch          Watch entry file and all imported modules for changes, restart on save

@@ -1,15 +1,10 @@
 package com.mira;
 
 import java.io.IOException;
-import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.stream.Collectors;
 
 import com.mira.build.BuildDispatcher;
 import com.mira.compiler.CompileRunner;
@@ -24,10 +19,9 @@ import com.mira.lib.LibIndex;
 import com.mira.lsp.Launcher;
 import com.mira.parser.Parser;
 import com.mira.parser.nodes.Node;
-import com.mira.parser.nodes.expression.Expression.ImportExpression;
-import com.mira.parser.nodes.expression.Expression.ImportExpression.ImportKind;
 import com.mira.parser.nodes.statement.Statement.ModuleDecl;
 import com.mira.repl.Repl;
+import com.mira.resolver.ModuleChecker;
 import com.mira.resolver.StaticCheck;
 import com.mira.runtime.AstPrinter;
 import com.mira.runtime.HotReloader;
@@ -35,7 +29,6 @@ import com.mira.runtime.functions.ReturnSignal;
 import com.mira.runtime.interpreter.Interpreter;
 import com.mira.testing.TestRunner;
 import com.mira.utils.FileLoader;
-import com.mira.utils.ModuleResolver;
 import com.mira.warning.WarningCollector;
 
 public class Main {
@@ -141,41 +134,6 @@ public class Main {
         }
     }
 
-    private static void displayImportInfo(List<Node> asts) {
-        List<ImportExpression> imports = asts.stream()
-                .filter(n -> n instanceof ImportExpression)
-                .map(n -> (ImportExpression) n)
-                .toList();
-
-        if (imports.isEmpty()) {
-            System.out.println("No imports");
-            return;
-        }
-
-        for (ImportExpression expr : imports) {
-            String name = expr.getModule().replace("\"", "");
-            String ns = expr.getNamespace();
-            String kind = expr.getKind().name().toLowerCase();
-            String label = (ns != null && !ns.isBlank()) ? name + " as " + ns : name + " (global)";
-            System.out.println("[" + kind + "] " + label);
-
-            if (Flags.libInfoFull) {
-                Set<String> symbols;
-                if (expr.isSelective()) {
-                    symbols = new LinkedHashSet<>(expr.getSelectedFunctions());
-                } else if (expr.getKind() == ImportKind.STDLIB) {
-                    symbols = LibIndex.getFunctionNames(name);
-                } else {
-                    System.out.println("  → (symbols available at runtime)");
-                    continue;
-                }
-                if (!symbols.isEmpty()) {
-                    System.out.println("  → " + symbols.stream().sorted().collect(Collectors.joining(", ")));
-                }
-            }
-        }
-    }
-
     private static void runFile() {
         runFile(new AtomicBoolean(false));
     }
@@ -222,11 +180,11 @@ public class Main {
             if (!Flags.skipStaticCheck) {
                 new StaticCheck().check(asts);
                 WarningCollector.flush();
-                checkModuleImports(asts, new LinkedHashSet<>());
+                ModuleChecker.check(asts, new LinkedHashSet<>());
             }
 
             if (Flags.libInfo) {
-                displayImportInfo(asts);
+                LibIndex.printImportInfo(asts);
             }
 
             if (Flags.exitBeforeInterpreter) {
@@ -297,63 +255,4 @@ public class Main {
             }
         }
     }
-
-    private record ParsedModule(Path path, List<Node> ast, String source) {
-
-    }
-
-    private static void checkModuleImports(List<Node> rootAst, Set<Path> visited) {
-        Map<Path, ParsedModule> allModules = new LinkedHashMap<>();
-        collectAllModules(rootAst, Flags.inputPath.get(), allModules, new LinkedHashSet<>(visited));
-
-        Path rootPath = Flags.inputPath.get();
-        String savedFileName = Flags.fileName;
-        String[] savedSourceLines = Flags.sourceLines;
-
-        for (ParsedModule module : allModules.values()) {
-            Set<String> externalCalls = new LinkedHashSet<>();
-            ModuleResolver.collectExternalCalls(rootAst, rootPath, module.path(), externalCalls);
-            for (ParsedModule caller : allModules.values()) {
-                if (!caller.path().equals(module.path())) {
-                    ModuleResolver.collectExternalCalls(caller.ast(), caller.path(), module.path(), externalCalls);
-                }
-            }
-            try {
-                Flags.inputPath.set(module.path());
-                Flags.fileName = module.path().getFileName().toString();
-                Flags.sourceLines = module.source().split("\n", -1);
-                new StaticCheck(externalCalls).check(module.ast());
-                WarningCollector.flush();
-            } catch (MultipleStaticCheckErrors mse) {
-                WarningCollector.flush();
-                mse.getErrors().forEach(e -> System.err.println(DiagnosticFormatter.format(e)));
-            } catch (Exception ignored) {
-            } finally {
-                Flags.inputPath.set(rootPath);
-                Flags.fileName = savedFileName;
-                Flags.sourceLines = savedSourceLines;
-            }
-        }
-    }
-
-    private static void collectAllModules(List<Node> ast, Path parentPath,
-            Map<Path, ParsedModule> out, Set<Path> visited) {
-        for (Node node : ast) {
-            if (!(node instanceof ImportExpression imp) || imp.getKind() != ImportKind.MODULE) {
-                continue;
-            }
-            Path modulePath = ModuleResolver.resolveModulePath(imp.getModule(), parentPath);
-            if (!visited.add(modulePath)) {
-                continue;
-            }
-            try {
-                String source = FileLoader.readFileFromPath(modulePath.toString());
-                List<Node> moduleAst = new Parser().parseTokens(new Tokenizer().tokenize(source, false));
-                out.put(modulePath, new ParsedModule(modulePath, moduleAst, source));
-                collectAllModules(moduleAst, modulePath, out, visited);
-            } catch (Exception ignored) {
-            }
-        }
-    }
-
 }

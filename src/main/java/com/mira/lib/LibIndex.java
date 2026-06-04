@@ -1,13 +1,13 @@
 package com.mira.lib;
 
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import com.mira.runtime.functions.Callable;
-
+import com.mira.Flags;
 import com.mira.lib.std.Bytes;
 import com.mira.lib.std.Collection;
 import com.mira.lib.std.DateTime;
@@ -18,6 +18,10 @@ import com.mira.lib.std.Regex;
 import com.mira.lib.std.Shell;
 import com.mira.lib.std.Strings;
 import com.mira.lib.std.ThreadLib;
+import com.mira.parser.nodes.Node;
+import com.mira.parser.nodes.expression.Expression.ImportExpression;
+import com.mira.parser.nodes.expression.Expression.ImportExpression.ImportKind;
+import com.mira.runtime.functions.Callable;
 import com.mira.runtime.interpreter.Environment;
 
 public final class LibIndex {
@@ -109,5 +113,40 @@ public final class LibIndex {
             }
         }
         return arities;
+    }
+
+    public static void printImportInfo(List<Node> asts) {
+        List<ImportExpression> imports = asts.stream()
+                .filter(n -> n instanceof ImportExpression)
+                .map(n -> (ImportExpression) n)
+                .toList();
+
+        if (imports.isEmpty()) {
+            System.out.println("No imports");
+            return;
+        }
+
+        for (ImportExpression expr : imports) {
+            String name = expr.getModule().replace("\"", "");
+            String ns = expr.getNamespace();
+            String kind = expr.getKind().name().toLowerCase();
+            String label = (ns != null && !ns.isBlank()) ? name + " as " + ns : name + " (global)";
+            System.out.println("[" + kind + "] " + label);
+
+            if (Flags.libInfoFull) {
+                Set<String> symbols;
+                if (expr.isSelective()) {
+                    symbols = new LinkedHashSet<>(expr.getSelectedFunctions());
+                } else if (expr.getKind() == ImportKind.STDLIB) {
+                    symbols = getFunctionNames(name);
+                } else {
+                    System.out.println("  → (symbols available at runtime)");
+                    continue;
+                }
+                if (!symbols.isEmpty()) {
+                    System.out.println("  → " + symbols.stream().sorted().collect(Collectors.joining(", ")));
+                }
+            }
+        }
     }
 }
