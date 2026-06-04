@@ -56,6 +56,15 @@ public class DefinitionProvider {
                 raw += ".mira";
             }
             Path modPath = docPath.getParent().resolve(raw).normalize();
+
+            if (alias.equals(stripped)) {
+                if (Files.exists(modPath)) {
+                    Range r = new Range(new Position(0, 0), new Position(0, 0));
+                    return new Location(modPath.toUri().toString(), r);
+                }
+                continue;
+            }
+
             Location loc = searchInModule(modPath, stripped, alias, word);
             if (loc != null) {
                 return loc;

@@ -13,43 +13,10 @@ import org.eclipse.lsp4j.Position;
 import com.mira.parser.nodes.Node;
 import com.mira.parser.nodes.Parameter;
 import com.mira.parser.nodes.statement.Statement;
+import com.mira.parser.nodes.statement.Statement.ComptimeBlock;
 
 public class HoverProvider {
 
-    private static final Map<String, String> KEYWORD_DOCS = Map.ofEntries(
-            Map.entry("fn", "**fn** — Function declaration"),
-            Map.entry("var", "**var** — Mutable variable declaration\n\n`var x;` · `var x : 5;` · `var x : 5, y, z : 10;`"),
-            Map.entry("const", "**const** — Immutable constant declaration\n\n`const x : 5;` · `const x : 1, y : 2;`"),
-            Map.entry("pure", "**pure fn** — Pure function (result is cached for same arguments)"),
-            Map.entry("async", "**async fn** — Asynchronous function"),
-            Map.entry("spawn", "**spawn(fn)** — Starts an async task, returns a `Promise`"),
-            Map.entry("await", "**await(promise)** — Waits for the result of an async task"),
-            Map.entry("lock", "**lock(mutex) { ... }** — Exclusive access via mutex"),
-            Map.entry("return", "**return** — Returns a value from a function"),
-            Map.entry("if", "**if** — Conditional statement"),
-            Map.entry("else", "**else** — Alternative branch of an if statement"),
-            Map.entry("while", "**while** — Loop while condition is true"),
-            Map.entry("for", "**for** — C-style or range loop\n\n`for (var i in <0..10>)` — range with iterator\n`for (<0..10>)` — range without iterator\n`for (init; cond; update)` — C-style"),
-            Map.entry("foreach", "**foreach** — Iterate over a collection"),
-            Map.entry("in", "**in** — Used in foreach to iterate over a collection"),
-            Map.entry("break", "**break** — Exit the current loop"),
-            Map.entry("continue", "**continue** — Skip to the next loop iteration"),
-            Map.entry("switch", "**switch** — Pattern matching on a value"),
-            Map.entry("case", "**case** — A branch in a switch statement"),
-            Map.entry("default", "**default** — Default branch in a switch statement"),
-            Map.entry("try", "**try** — Try block for error handling"),
-            Map.entry("catch", "**catch** — Catch block for error handling"),
-            Map.entry("finally", "**finally** — Always-executed block after try/catch"),
-            Map.entry("throw", "**throw** — Throw an exception"),
-            Map.entry("import", "**import** — Import a module or stdlib"),
-            Map.entry("module", "**module** — Declare the module name for this file"),
-            Map.entry("as", "**as** — Alias for an import"),
-            Map.entry("enum", "**enum** — Declare an enumeration"),
-            Map.entry("typeof", "**typeof(value)** — Returns the type of a value as a string"),
-            Map.entry("true", "**true** — Boolean literal"),
-            Map.entry("false", "**false** — Boolean literal"),
-            Map.entry("null", "**null** — Null value")
-    );
 
     private static final Map<String, String> STDLIB_DOCS;
 
@@ -198,6 +165,15 @@ public class HoverProvider {
         STDLIB_DOCS.put("jsonSet", "**json.jsonSet(json, key, value)** — Sets `key` to `value` in a JSON object string");
         // thread
         STDLIB_DOCS.put("newMutex", "**thread.newMutex()** — Creates a new mutex for use with `lock`");
+        // bytes
+        STDLIB_DOCS.put("newBytes", "**bytes.newBytes(size)** — Creates a zero-filled byte array of the given size");
+        STDLIB_DOCS.put("fromString", "**bytes.fromString(str)** — Encodes a string to bytes (UTF-8)");
+        STDLIB_DOCS.put("fromList", "**bytes.fromList(list)** — Creates a byte array from a list of numbers (0–255)");
+        STDLIB_DOCS.put("fromHex", "**bytes.fromHex(hex)** — Parses a hex string into a byte array");
+        STDLIB_DOCS.put("fromBase64", "**bytes.fromBase64(str)** — Decodes a Base64 string into a byte array");
+        STDLIB_DOCS.put("toList", "**bytes.toList(b)** — Converts a byte array to a list of numbers (0–255)");
+        STDLIB_DOCS.put("toHex", "**bytes.toHex(b)** — Returns the byte array as a lowercase hex string");
+        STDLIB_DOCS.put("toBase64", "**bytes.toBase64(b)** — Encodes a byte array as a Base64 string");
     }
 
     public static Hover provide(List<Node> ast, String content, Position pos) {
@@ -227,18 +203,36 @@ public class HoverProvider {
             }
             if (n instanceof Statement.VarDecl v && v.getName().equals(stripped)) {
                 String kind = v.isConst() ? "const" : "var";
+                if (v.getInitializer() instanceof com.mira.parser.nodes.expression.Expression.ObjectExpression obj) {
+                    StringBuilder sb = new StringBuilder("```mira\n")
+                            .append(kind).append(" $").append(v.getName()).append(" {\n");
+                    for (Statement.VarDecl f : obj.getVarDecls()) {
+                        sb.append("    ").append(f.isConst() ? "const" : "var")
+                          .append(" ").append(f.getName()).append("\n");
+                    }
+                    for (Statement.FuncDecl m : obj.getMethods()) {
+                        String params = m.getParameters().stream()
+                                .map(Parameter::name).collect(Collectors.joining(", "));
+                        sb.append("    fn ").append(m.getName())
+                          .append("(").append(params).append(")\n");
+                    }
+                    sb.append("}\n```");
+                    return hover(sb.toString());
+                }
                 return hover("```mira\n" + kind + " $" + v.getName() + "\n```");
+            }
+            if (n instanceof ComptimeBlock comptime) {
+                for (Node bodyNode : comptime.getBody()) {
+                    if (bodyNode instanceof Statement.VarDecl v && v.getName().equals(stripped)) {
+                        return hover("```mira\ncomptime const $" + v.getName() + "\n```\n*compile-time constant*");
+                    }
+                }
             }
         }
 
         String stdlibDoc = STDLIB_DOCS.get(word);
         if (stdlibDoc != null) {
             return hover(stdlibDoc);
-        }
-
-        String kwDoc = KEYWORD_DOCS.get(word);
-        if (kwDoc != null) {
-            return hover(kwDoc);
         }
 
         return null;
@@ -287,6 +281,12 @@ public class HoverProvider {
         }
         if (n instanceof Statement.VarDecl vd && vd.getInitializer() != null) {
             return searchNodeForField(vd.getInitializer(), fieldName);
+        }
+        if (n instanceof Statement.FuncDecl f) {
+            for (Node bodyNode : f.getBody()) {
+                Hover h = searchNodeForField(bodyNode, fieldName);
+                if (h != null) return h;
+            }
         }
         return null;
     }

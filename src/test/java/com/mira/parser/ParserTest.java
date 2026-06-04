@@ -3,9 +3,11 @@ package com.mira.parser;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 
@@ -18,15 +20,20 @@ import com.mira.parser.nodes.expression.Expression.DumbExpression;
 import com.mira.parser.nodes.expression.Expression.ImportExpression;
 import com.mira.parser.nodes.expression.Expression.LambdaExpression;
 import com.mira.parser.nodes.expression.Expression.NamespaceCallExpression;
+import com.mira.parser.nodes.expression.Expression.AwaitExpression;
+import com.mira.parser.nodes.expression.Expression.FieldAccessExpression;
 import com.mira.parser.nodes.expression.Expression.ObjectExpression;
+import com.mira.parser.nodes.expression.Expression.TernaryExpression;
 import com.mira.parser.nodes.expression.Expression.UnaryExpression;
 import com.mira.parser.nodes.statement.Statement;
 import com.mira.parser.nodes.statement.Statement.Block;
 import com.mira.parser.nodes.statement.Statement.Break;
+import com.mira.parser.nodes.statement.Statement.ComptimeBlock;
 import com.mira.parser.nodes.statement.Statement.Continue;
 import com.mira.parser.nodes.statement.Statement.EnumDecl;
 import com.mira.parser.nodes.statement.Statement.For;
 import com.mira.parser.nodes.statement.Statement.Foreach;
+import com.mira.parser.nodes.statement.Statement.Lock;
 import com.mira.parser.nodes.statement.Statement.ModuleDecl;
 import com.mira.parser.nodes.statement.Statement.Switch;
 import com.mira.parser.nodes.statement.Statement.Throw;
@@ -175,7 +182,7 @@ public class ParserTest {
     @Test
     void parseFuncDecl() {
         String funcDecl = """
-                fn test() {}
+                fn foo() {}
                 """;
         List<Node> ast = parser.parseTokens(tokenizer.tokenize(funcDecl, false));
         assertEquals(1, ast.size());
@@ -225,7 +232,7 @@ public class ParserTest {
     @Test
     void parseEmptyCall() {
         String callExpression = """
-                test();
+                foo();
                 """;
         List<Node> ast = parser.parseTokens(tokenizer.tokenize(callExpression, false));
         assertEquals(1, ast.size());
@@ -235,7 +242,7 @@ public class ParserTest {
     @Test
     void parseCall() {
         String callExpression = """
-                test("test");
+                foo("bar");
                 """;
         List<Node> ast = parser.parseTokens(tokenizer.tokenize(callExpression, false));
         assertEquals(1, ast.size());
@@ -317,7 +324,7 @@ public class ParserTest {
     @Test
     void parseModule() {
         String moduleStmt = """
-                module test;
+                module foo;
                 """;
         List<Node> ast = parser.parseTokens(tokenizer.tokenize(moduleStmt, false));
         assertEquals(1, ast.size());
@@ -327,7 +334,7 @@ public class ParserTest {
     @Test
     void parseForeach() {
         String foreachStmt = """
-                foreach(var i in $test) {} 
+                foreach(var i in $arr) {}
                 """;
         List<Node> ast = parser.parseTokens(tokenizer.tokenize(foreachStmt, false));
         assertEquals(1, ast.size());
@@ -357,7 +364,7 @@ public class ParserTest {
     @Test
     void parseNamespaceCallExpression() {
         String callExpression = """
-                Test.test();
+                Test.foo();
                 """;
         List<Node> ast = parser.parseTokens(tokenizer.tokenize(callExpression, false));
         assertEquals(1, ast.size());
@@ -367,7 +374,7 @@ public class ParserTest {
     @Test
     void parseConstVar() {
         String callExpression = """
-                const test : 0;
+                const foo : 0;
                 """;
         List<Node> ast = parser.parseTokens(tokenizer.tokenize(callExpression, false));
         assertEquals(1, ast.size());
@@ -542,5 +549,143 @@ public class ParserTest {
         List<Node> ast = parser.parseTokens(tokenizer.tokenize("var vals : {\"69\" : 420};", false));
         assertEquals(1, ast.size());
         assertInstanceOf(VarDecl.class, ast.get(0));
+    }
+
+    @Test
+    void parseArrowLambda() {
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize("var f : (x) -> eval($x * 2);", false));
+        assertEquals(1, ast.size());
+        VarDecl decl = assertInstanceOf(VarDecl.class, ast.getFirst());
+        LambdaExpression lambda = assertInstanceOf(LambdaExpression.class, decl.getInitializer());
+        assertEquals(1, lambda.getArity());
+    }
+
+    @Test
+    void parseAsyncFunc() {
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize("async fn fetch() {}", false));
+        assertEquals(1, ast.size());
+        Statement.FuncDecl decl = assertInstanceOf(Statement.FuncDecl.class, ast.getFirst());
+        assertTrue(decl.isAsync());
+    }
+
+    @Test
+    void parseAwaitExpr() {
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize("await fetch();", false));
+        assertEquals(1, ast.size());
+        assertInstanceOf(AwaitExpression.class, ast.getFirst());
+    }
+
+    @Test
+    void parseVariadicFunc() {
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize("fn sum(...args) {}", false));
+        assertEquals(1, ast.size());
+        Statement.FuncDecl decl = assertInstanceOf(Statement.FuncDecl.class, ast.getFirst());
+        assertNotNull(decl.getVariadicParam());
+        assertEquals("args", decl.getVariadicParam());
+    }
+
+    @Test
+    void parseTryCatchFinally() {
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize("""
+                try {
+                    throw error("err");
+                } catch(error) {
+                    print($error);
+                } finally {
+                    print("done");
+                }
+                """, false));
+        assertEquals(1, ast.size());
+        TryCatch tc = assertInstanceOf(TryCatch.class, ast.getFirst());
+        assertNotNull(tc.getFinallyBody());
+        assertFalse(tc.getFinallyBody().isEmpty());
+    }
+
+    @Test
+    void parseTryCatchMultipleClauses() {
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize("""
+                try {
+                    throw error("err");
+                } catch(TypeError e) {
+                    print("type");
+                } catch(error) {
+                    print("other");
+                }
+                """, false));
+        assertEquals(1, ast.size());
+        TryCatch tc = assertInstanceOf(TryCatch.class, ast.getFirst());
+        assertEquals(2, tc.getCatchClauses().size());
+    }
+
+    @Test
+    void parseFuncDeclParams() {
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize("fn add(a, b) {}", false));
+        assertEquals(1, ast.size());
+        Statement.FuncDecl decl = assertInstanceOf(Statement.FuncDecl.class, ast.getFirst());
+        assertEquals(2, decl.getParameters().size());
+        assertEquals("a", decl.getParameters().get(0).name());
+        assertEquals("b", decl.getParameters().get(1).name());
+    }
+
+    @Test
+    void parseFuncDeclDefaultParam() {
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize("fn greet(name : \"World\") {}", false));
+        assertEquals(1, ast.size());
+        Statement.FuncDecl decl = assertInstanceOf(Statement.FuncDecl.class, ast.getFirst());
+        assertEquals(1, decl.getParameters().size());
+        assertTrue(decl.getParameters().getFirst().hasDefault());
+    }
+
+    @Test
+    void parseReturnWithValue() {
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize("return 42;", false));
+        assertEquals(1, ast.size());
+        Statement.Return ret = assertInstanceOf(Statement.Return.class, ast.getFirst());
+        assertNotNull(ret.getValue());
+    }
+
+    @Test
+    void parseLockStatement() {
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize("lock($mutex) { }", false));
+        assertEquals(1, ast.size());
+        assertInstanceOf(Lock.class, ast.getFirst());
+    }
+
+    @Test
+    void parseComptimeBlock() {
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize("comptime { var x : 1; }", false));
+        assertEquals(1, ast.size());
+        assertInstanceOf(ComptimeBlock.class, ast.getFirst());
+    }
+
+    @Test
+    void parseTernaryExpression() {
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize("$x ? 1 : 0;", false));
+        assertEquals(1, ast.size());
+        TernaryExpression ternary = assertInstanceOf(TernaryExpression.class, ast.getFirst());
+        assertNotNull(ternary.getCondition());
+        assertNotNull(ternary.getThenExpr());
+        assertNotNull(ternary.getElseExpr());
+    }
+
+    @Test
+    void parseNullCoalescing() {
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize("$x ?? 0;", false));
+        assertEquals(1, ast.size());
+        BinaryExpression expr = assertInstanceOf(BinaryExpression.class, ast.getFirst());
+        assertEquals("??", expr.getOperator().getLexeme());
+    }
+
+    @Test
+    void parseOptionalChaining() {
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize("$x?.field;", false));
+        assertEquals(1, ast.size());
+        FieldAccessExpression access = assertInstanceOf(FieldAccessExpression.class, ast.getFirst());
+        assertEquals("field", access.getField());
+    }
+
+    @Test
+    void parseInvalidSyntaxThrows() {
+        assertThrows(Exception.class, () -> parser.parseTokens(tokenizer.tokenize("var ;", false)));
     }
 }

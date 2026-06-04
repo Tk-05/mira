@@ -5,7 +5,17 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import com.mira.Flags;
+import com.mira.error.DiagnosticFormatter;
+import com.mira.parser.nodes.Node;
+import com.mira.parser.nodes.expression.Expression.ImportExpression;
+import com.mira.parser.nodes.statement.Statement.EnumDecl;
+import com.mira.parser.nodes.statement.Statement.FuncDecl;
+import com.mira.parser.nodes.statement.Statement.ModuleDecl;
+import com.mira.parser.nodes.statement.Statement.TestCall;
+import com.mira.parser.nodes.statement.Statement.VarDecl;
 import com.mira.runtime.functions.Callable;
+import com.mira.runtime.functions.ReturnSignal;
 import com.mira.runtime.functions.ThrowSignal;
 import com.mira.runtime.interpreter.Interpreter;
 import com.mira.runtime.values.NullValue;
@@ -22,15 +32,15 @@ public class TestRunner {
         try {
             fn.call(interpreter, List.of());
             results.add(new TestResult(name, true, null));
-            System.out.println("  PASS " + name);
+            System.out.println("  " + DiagnosticFormatter.formatPass(name));
         } catch (ThrowSignal ts) {
             String msg = ts.getValue() != null ? String.valueOf(ts.getValue()) : ts.getExceptionType();
             results.add(new TestResult(name, false, msg));
-            System.out.println("  FAIL " + name + " — " + msg);
+            System.out.println("  " + DiagnosticFormatter.formatFail(name + " — " + msg));
         } catch (Exception e) {
             String msg = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
             results.add(new TestResult(name, false, msg));
-            System.out.println("  FAIL " + name + " — " + msg);
+            System.out.println("  " + DiagnosticFormatter.formatFail(name + " — " + msg));
         }
     }
 
@@ -42,9 +52,9 @@ public class TestRunner {
         out.println("  Failed : " + failed);
         out.println("  Total  : " + results.size());
         if (failed > 0) {
-            out.println("  Status : FAILED");
+            out.println("  " + DiagnosticFormatter.formatFail("FAILED"));
         } else {
-            out.println("  Status : OK");
+            out.println("  " + DiagnosticFormatter.formatPass("OK"));
         }
     }
 
@@ -58,5 +68,41 @@ public class TestRunner {
 
     public static Object nullValue() {
         return NullValue.INSTANCE;
+    }
+
+    public static void runPrePass(List<Node> asts, String[] args) {
+        boolean failed = runPrePassCollecting(asts, args);
+        if (failed) {
+            System.exit(1);
+        }
+        Flags.testsDone = true;
+    }
+
+    public static boolean runPrePassCollecting(List<Node> asts, String[] args) {
+        List<Node> prePassNodes = asts.stream()
+                .filter(n -> isDeclaration(n) || isTestCall(n))
+                .toList();
+
+        try {
+            new Interpreter().run(prePassNodes, args, true);
+        } catch (ReturnSignal ignored) {
+        }
+
+        printSummary(System.out);
+        boolean failed = hasFailures();
+        reset();
+        return failed;
+    }
+
+    private static boolean isDeclaration(Node n) {
+        return n instanceof FuncDecl
+                || n instanceof VarDecl
+                || n instanceof EnumDecl
+                || n instanceof ImportExpression
+                || n instanceof ModuleDecl;
+    }
+
+    private static boolean isTestCall(Node n) {
+        return n instanceof TestCall;
     }
 }

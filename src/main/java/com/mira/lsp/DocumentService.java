@@ -1,5 +1,6 @@
 package com.mira.lsp;
 
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -26,6 +27,7 @@ import org.eclipse.lsp4j.jsonrpc.messages.Either;
 import org.eclipse.lsp4j.services.TextDocumentService;
 
 import com.mira.error.MiraError;
+import com.mira.error.parser.MultipleParserErrors;
 import com.mira.lexer.Tokenizer;
 import com.mira.lexer.token.Token;
 import com.mira.parser.Parser;
@@ -47,7 +49,7 @@ public class DocumentService implements TextDocumentService {
         String content = params.getTextDocument().getText();
         documents.put(uri, content);
         updateAstCache(uri, content);
-        server.publishDiagnostics(uri, analyze(content));
+        server.publishDiagnostics(uri, analyze(uri, content));
     }
 
     @Override
@@ -56,7 +58,7 @@ public class DocumentService implements TextDocumentService {
         String content = params.getContentChanges().get(0).getText();
         documents.put(uri, content);
         updateAstCache(uri, content);
-        server.publishDiagnostics(uri, analyze(content));
+        server.publishDiagnostics(uri, analyze(uri, content));
     }
 
     @Override
@@ -112,11 +114,20 @@ public class DocumentService implements TextDocumentService {
             List<Token> tokens = new Tokenizer().tokenize(content, false);
             List<Node> ast = new Parser().parseTokens(tokens);
             astCache.put(uri, ast);
-        } catch (MiraError ignored) {
+        } catch (MiraError | MultipleParserErrors ignored) {
         }
     }
 
-    private List<Diagnostic> analyze(String content) {
-        return DiagnosticCollector.collect(content);
+    private List<Diagnostic> analyze(String uri, String content) {
+        Path filePath = uriToPath(uri);
+        return DiagnosticCollector.collect(content, filePath);
+    }
+
+    private static Path uriToPath(String uri) {
+        try {
+            return java.nio.file.Paths.get(new java.net.URI(uri));
+        } catch (Exception e) {
+            return null;
+        }
     }
 }

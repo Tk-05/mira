@@ -136,7 +136,7 @@ async fn worker(cx, cy, zoom, step, maxIter, w, h, isJulia, jre, jim, isNewton, 
         var ci  : eval($cy + ($py - $halfH) * $scaleY);
         var row : c.newList();
         var cr  : eval($cx - $halfW * $scaleX);
-        for (var px : 0; $px < $w; $px += $step) {
+        for (var px : 0; $px < $w; $px +: $step) {
             var iters : 0;
             if ($isNewton) {
                 $iters : newton($cr, $ci, $maxIter, $ncr, $nci);
@@ -146,7 +146,7 @@ async fn worker(cx, cy, zoom, step, maxIter, w, h, isJulia, jre, jim, isNewton, 
                 $iters : mandelbrot($cr, $ci, $maxIter);
             }
             c.push($row, $iters);
-            $cr += $stepX;
+            $cr +: $stepX;
         }
 
         lock($gMu) {
@@ -169,7 +169,7 @@ fn render(tex, cx, cy, zoom, step, maxIter, w, h, pal, isJulia, jre, jim, isNewt
 
     ray.BeginTextureMode($tex);
     ray.ClearBackground(ray.Color(0, 0, 0, 255));
-    for (var py : 0; $py < $h; $py += $step) {
+    for (var py : 0; $py < $h; $py +: $step) {
         var row : mp.mapGet($gResults, $py);
         if ($row != null) {
             var px : 0;

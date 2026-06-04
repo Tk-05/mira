@@ -1,6 +1,6 @@
 module Debug;
 
-import module "./Debug2.mira" as test;
+import module "./Debug2.mira" as debug2;
 import native "../../../../extern/raylib/target/raylib-RELEASE.jar" as ray;
 import module "./Fractals.mira" as fractals;
 import string;
@@ -9,11 +9,12 @@ import net;
 import json;
 import dateTime;
 import map;
+import bytes as bytes;
 
 var list : {1,2,4};
 var boolean : true;
 
-enum test {
+enum testCases {
     TEST1,
     TEST2,
     TEST3
@@ -64,7 +65,22 @@ fn function(body) {
     $body();
 }
 
+comptime {
+    println("Hello from comptime");
+}
+
 fn main() {
+    var data : bytes.fromString("Hello");
+    println($data);
+    $data : bytes.toString($data);
+    println("Byte data : " $data);
+
+    var z : exec {
+        return 69;
+    };
+
+    assert($z == 69);
+
     for(<0..10>) {
         println("Hello World");
     }
@@ -85,8 +101,8 @@ fn main() {
     println(typeof 1);
     println(outer());
     var i : 10;
-    $i\%= 5;
-    $i**=2;
+    $i\%: 5;
+    $i**:2;
 
     switch($i) {
         case (1) {
@@ -159,7 +175,7 @@ fn main() {
             print($i "\n");
         }
 
-        print(test.hello("test"));
+        print(debug2.hello("test"));
 
         var list : [
         [0,0,0],
@@ -215,3 +231,7 @@ fn main() {
         print("Dead code");
     }
 }
+
+test("test", fn (){
+    assert(true);
+});

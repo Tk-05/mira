@@ -171,7 +171,9 @@ public class CompileRunner {
                 }
                 jos.putNextEntry(new JarEntry(name));
                 if (!entry.isDirectory()) {
-                    jos.write(jf.getInputStream(entry).readAllBytes());
+                    try (var is = jf.getInputStream(entry)) {
+                        jos.write(is.readAllBytes());
+                    }
                 }
                 jos.closeEntry();
             }

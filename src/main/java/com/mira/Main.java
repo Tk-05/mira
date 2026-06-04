@@ -2,21 +2,27 @@ package com.mira;
 
 import java.io.IOException;
 import java.nio.file.Paths;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import com.mira.build.BuildDispatcher;
 import com.mira.compiler.CompileRunner;
 import com.mira.debugger.Debugger;
 import com.mira.error.DiagnosticFormatter;
+import com.mira.error.parser.MultipleParserErrors;
+import com.mira.error.resolver.MultipleStaticCheckErrors;
 import com.mira.error.runtime.RuntimeError.ModuleNameMismatchError;
 import com.mira.lexer.Tokenizer;
 import com.mira.lexer.token.Token;
-import com.mira.linter.Linter;
+import com.mira.lib.LibIndex;
 import com.mira.lsp.Launcher;
 import com.mira.parser.Parser;
 import com.mira.parser.nodes.Node;
 import com.mira.parser.nodes.statement.Statement.ModuleDecl;
 import com.mira.repl.Repl;
+import com.mira.resolver.ModuleChecker;
+import com.mira.resolver.StaticCheck;
 import com.mira.runtime.AstPrinter;
 import com.mira.runtime.HotReloader;
 import com.mira.runtime.functions.ReturnSignal;
@@ -39,8 +45,17 @@ public class Main {
                 return;
             }
 
+            if (BuildDispatcher.isSubcommand(args[0])) {
+                BuildDispatcher.dispatch(args);
+                return;
+            }
+
             if (args[0].equals("-h") || args[0].equals("-help")) {
                 System.out.println(Help.getHelp());
+                System.exit(1);
+            } else if (args[0].startsWith("-")) {
+                System.err.println(DiagnosticFormatter.formatError("no input file specified"));
+                System.err.println("Usage: mira <file.mira> [flags]  |  Use -h for help.");
                 System.exit(1);
             } else {
                 Flags.inputPath.set(Paths.get((args[0])).toAbsolutePath().normalize());
@@ -56,14 +71,16 @@ public class Main {
                         Flags.mainFunction = true;
                     case "-li" ->
                         Flags.libInfo = true;
+                    case "-liFull" -> {
+                        Flags.libInfo = true;
+                        Flags.libInfoFull = true;
+                    }
                     case "-args" -> {
                         Flags.args = args[i + 1].split(",");
                         i++;
                     }
                     case "-debug" ->
                         Flags.debug = true;
-                    case "-lint" ->
-                        Flags.lint = true;
                     case "-watch" ->
                         Flags.hotReload = true;
                     case "-crash" ->
@@ -90,8 +107,13 @@ public class Main {
                     }
                     case "-package" ->
                         Flags.packageJar = true;
-                    default ->
-                        throw new RuntimeException(args[i] + " is not a known flag");
+                    case "-nsc" ->
+                        Flags.skipStaticCheck = true;
+                    default -> {
+                        System.err.println(DiagnosticFormatter.formatError("'" + args[i] + "' is not a known flag"));
+                        System.err.println("Use -h for help.");
+                        System.exit(1);
+                    }
                 }
             }
 
@@ -124,7 +146,7 @@ public class Main {
             readFile = FileLoader.readFileFromPath(Flags.inputPath.get().toString());
         } catch (IOException e) {
             if (!stopping.get()) {
-                System.err.println(DiagnosticFormatter.format(e));
+                System.err.println(DiagnosticFormatter.formatFileError(Flags.inputPath.get(), e));
             }
             return;
         }
@@ -155,12 +177,22 @@ public class Main {
                 System.out.println(new AstPrinter().print(asts));
             }
 
-            if (Flags.lint) {
-                new Linter().lint(asts);
+            if (!Flags.skipStaticCheck) {
+                new StaticCheck().check(asts);
                 WarningCollector.flush();
+                ModuleChecker.check(asts, new LinkedHashSet<>());
+            }
+
+            if (Flags.libInfo) {
+                LibIndex.printImportInfo(asts);
             }
 
             if (Flags.exitBeforeInterpreter) {
+                return;
+            }
+
+            if (Flags.testMode) {
+                TestRunner.runPrePass(asts, Flags.args);
                 return;
             }
 
@@ -187,7 +219,7 @@ public class Main {
                 }
             }
 
-            if (Flags.testMode) {
+            if (Flags.testMode && !Flags.testsDone) {
                 TestRunner.printSummary(System.out);
                 boolean failed = TestRunner.hasFailures();
                 TestRunner.reset();
@@ -196,6 +228,18 @@ public class Main {
                 }
             }
 
+        } catch (MultipleParserErrors mpe) {
+            WarningCollector.clear();
+            if (stopping.get() || Thread.currentThread().isInterrupted()) {
+                return;
+            }
+            mpe.getErrors().forEach(e -> System.err.println(DiagnosticFormatter.format(e)));
+        } catch (MultipleStaticCheckErrors mre) {
+            WarningCollector.clear();
+            if (stopping.get() || Thread.currentThread().isInterrupted()) {
+                return;
+            }
+            mre.getErrors().forEach(e -> System.err.println(DiagnosticFormatter.format(e)));
         } catch (Exception e) {
             WarningCollector.clear();
             if (stopping.get() || Thread.currentThread().isInterrupted()) {
@@ -203,9 +247,12 @@ public class Main {
             }
             System.err.println(DiagnosticFormatter.format(e));
             if (Flags.crashDump) {
-                interpreter.dumpState(e, System.err);
+                if (Flags.compile && !com.mira.compiler.Runtime.getCallStack().isEmpty()) {
+                    com.mira.compiler.Runtime.dumpCallStack(e, System.err);
+                } else {
+                    interpreter.dumpState(e, System.err);
+                }
             }
         }
     }
-
 }

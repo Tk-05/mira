@@ -44,6 +44,7 @@ import com.mira.parser.nodes.expression.Expression.BinaryExpression;
 import com.mira.parser.nodes.expression.Expression.CallExpression;
 import com.mira.parser.nodes.expression.Expression.ComplexExpression;
 import com.mira.parser.nodes.expression.Expression.DumbExpression;
+import com.mira.parser.nodes.expression.Expression.ExecBlock;
 import com.mira.parser.nodes.expression.Expression.FieldAccessExpression;
 import com.mira.parser.nodes.expression.Expression.LambdaExpression;
 import com.mira.parser.nodes.expression.Expression.ListExpression;
@@ -78,6 +79,7 @@ import com.mira.parser.nodes.statement.Statement.While;
 import com.mira.runtime.visitors.ExprVisitor;
 import com.mira.runtime.visitors.StmtVisitor;
 
+@SuppressWarnings("null")
 public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
 
     private final CompilerContext ctx;
@@ -431,10 +433,13 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
         Expression callee = expression.getCallee();
         if (callee instanceof DumbExpression dumb && !isNumberOrKeyword(dumb.getValue())) {
             String name = dumb.getValue();
+            int line = dumb.getLine();
             if (ctx.knownFunctions.contains(name)) {
-                emitObjectArray(expression.getArguments());
-                mv.visitMethodInsn(INVOKESTATIC, ctx.className,
-                        "mira$" + name, ClassEmitter.FN_DESC, false);
+                emitTrackedCall(name, line, () -> {
+                    emitObjectArray(expression.getArguments());
+                    mv.visitMethodInsn(INVOKESTATIC, ctx.className,
+                            "mira$" + name, ClassEmitter.FN_DESC, false);
+                });
             } else {
                 Integer slot = ctx.slots.slotOf(name);
                 if (slot != null && !ctx.localFunctions.contains(name)) {
@@ -442,16 +447,20 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
                     mv.visitMethodInsn(INVOKESTATIC, RT, "localCallableError",
                             "(Ljava/lang/String;)" + OBJ_D, false);
                 } else if (slot != null) {
-                    mv.visitVarInsn(ALOAD, slot);
-                    emitObjectArray(expression.getArguments());
-                    mv.visitMethodInsn(INVOKESTATIC, RT, "dynamicCall",
-                            "(" + OBJ_D + "[" + OBJ_D + ")" + OBJ_D, false);
+                    emitTrackedCall(name, line, () -> {
+                        mv.visitVarInsn(ALOAD, slot);
+                        emitObjectArray(expression.getArguments());
+                        mv.visitMethodInsn(INVOKESTATIC, RT, "dynamicCall",
+                                "(" + OBJ_D + "[" + OBJ_D + ")" + OBJ_D, false);
+                    });
                 } else {
-                    emitRealGlobals();
-                    mv.visitLdcInsn(name);
-                    emitObjectArray(expression.getArguments());
-                    mv.visitMethodInsn(INVOKESTATIC, RT, "callNamed",
-                            "(" + ENV_D + "Ljava/lang/String;[" + OBJ_D + ")" + OBJ_D, false);
+                    emitTrackedCall(name, line, () -> {
+                        emitRealGlobals();
+                        mv.visitLdcInsn(name);
+                        emitObjectArray(expression.getArguments());
+                        mv.visitMethodInsn(INVOKESTATIC, RT, "callNamed",
+                                "(" + ENV_D + "Ljava/lang/String;[" + OBJ_D + ")" + OBJ_D, false);
+                    });
                 }
             }
         } else {
@@ -461,6 +470,24 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
                     "(" + OBJ_D + "[" + OBJ_D + ")" + OBJ_D, false);
         }
         return null;
+    }
+
+    private void emitTrackedCall(String name, int line, Runnable callEmitter) {
+        Label tryStart = new Label(), tryEnd = new Label(),
+                handler = new Label(), after = new Label();
+        mv.visitLdcInsn(name);
+        emitIntConst(line);
+        mv.visitMethodInsn(INVOKESTATIC, RT, "pushCallStack",
+                "(Ljava/lang/String;I)V", false);
+        mv.visitLabel(tryStart);
+        callEmitter.run();
+        mv.visitLabel(tryEnd);
+        mv.visitMethodInsn(INVOKESTATIC, RT, "popCallStack", "()V", false);
+        mv.visitJumpInsn(GOTO, after);
+        mv.visitTryCatchBlock(tryStart, tryEnd, handler, null);
+        mv.visitLabel(handler);
+        mv.visitInsn(ATHROW);
+        mv.visitLabel(after);
     }
 
     private void emitCalleeObject(Expression callee) {
@@ -487,12 +514,15 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
 
     @Override
     public <T> T visitNamespaceCallExpr(NamespaceCallExpression expression) {
-        mv.visitFieldInsn(GETSTATIC, ctx.className, "GLOBALS", ENV_D);
-        mv.visitLdcInsn(expression.getAlias());
-        mv.visitLdcInsn(expression.getFunctionName());
-        emitObjectArray(expression.getArguments());
-        mv.visitMethodInsn(INVOKESTATIC, RT, "namespaceCall",
-                "(" + ENV_D + "Ljava/lang/String;Ljava/lang/String;[" + OBJ_D + ")" + OBJ_D, false);
+        String frame = expression.getAlias() + "." + expression.getFunctionName();
+        emitTrackedCall(frame, expression.getLine(), () -> {
+            mv.visitFieldInsn(GETSTATIC, ctx.className, "GLOBALS", ENV_D);
+            mv.visitLdcInsn(expression.getAlias());
+            mv.visitLdcInsn(expression.getFunctionName());
+            emitObjectArray(expression.getArguments());
+            mv.visitMethodInsn(INVOKESTATIC, RT, "namespaceCall",
+                    "(" + ENV_D + "Ljava/lang/String;Ljava/lang/String;[" + OBJ_D + ")" + OBJ_D, false);
+        });
         return null;
     }
 
@@ -793,14 +823,14 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
         parts.get(0).accept(this);
         for (int i = 1; i < parts.size(); i++) {
             parts.get(i).accept(this);
-            mv.visitMethodInsn(INVOKESTATIC, RT, "add",
-                    "(" + OBJ_D + OBJ_D + ")" + OBJ_D, false);
+            mv.visitMethodInsn(INVOKESTATIC, RT, "concat",
+                    "(" + OBJ_D + OBJ_D + ")Ljava/lang/String;", false);
         }
         return null;
     }
 
     @Override
-    public <T> T visitThrownExpection(ThrownException expression) {
+    public <T> T visitThrownException(ThrownException expression) {
         if (expression.getValue() != null) {
             expression.getValue().accept(this);
         } else {
@@ -852,6 +882,16 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
             emitNullVal();
         }
         mv.visitLabel(switchEnd);
+        return null;
+    }
+
+    @Override
+    public <T> T visitExecBlock(ExecBlock expression) {
+        LambdaExpression synthetic = new LambdaExpression(List.of(), expression.getBody(), null, false);
+        synthetic.accept(this);
+        emitObjectArray(List.of());
+        mv.visitMethodInsn(INVOKESTATIC, RT, "dynamicCall",
+                "(" + OBJ_D + "[" + OBJ_D + ")" + OBJ_D, false);
         return null;
     }
 
@@ -1326,19 +1366,23 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
     }
 
     private void emitLiteral(Object val) {
-        if (val instanceof Long l) {
-            mv.visitLdcInsn(l);
-            mv.visitMethodInsn(INVOKESTATIC, RT, "wrapLong", "(J)" + OBJ_D, false);
-        } else if (val instanceof Double d) {
-            mv.visitLdcInsn(d);
-            mv.visitMethodInsn(INVOKESTATIC, RT, "wrapDouble", "(D)" + OBJ_D, false);
-        } else if (val instanceof String s) {
-            mv.visitLdcInsn(s);
-        } else if (val instanceof Boolean b) {
-            mv.visitInsn(b ? ICONST_1 : ICONST_0);
-            mv.visitMethodInsn(INVOKESTATIC, RT, "wrapBool", "(Z)" + OBJ_D, false);
-        } else {
-            emitNullVal();
+        switch (val) {
+            case Long l -> {
+                mv.visitLdcInsn(l);
+                mv.visitMethodInsn(INVOKESTATIC, RT, "wrapLong", "(J)" + OBJ_D, false);
+            }
+            case Double d -> {
+                mv.visitLdcInsn(d);
+                mv.visitMethodInsn(INVOKESTATIC, RT, "wrapDouble", "(D)" + OBJ_D, false);
+            }
+            case String s ->
+                mv.visitLdcInsn(s);
+            case Boolean b -> {
+                mv.visitInsn(b ? ICONST_1 : ICONST_0);
+                mv.visitMethodInsn(INVOKESTATIC, RT, "wrapBool", "(Z)" + OBJ_D, false);
+            }
+            default ->
+                emitNullVal();
         }
     }
 

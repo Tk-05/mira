@@ -6,16 +6,18 @@
 2. [Values](#values) — Variables, Destructuring, Literals
 3. [Expressions](#expressions) — Operators, `??`, `?.`, Ternary, Pipe
 4. [Data Structures](#data-structures) — List, Array, Object, Map, Range
-5. [Control Flow](#control-flow)
+5. [Control Flow](#control-flow) — If, While, For, Foreach, Switch, `exec { }`
 6. [Functions](#functions) — Default Parameters, Variadic, Inner Functions, Lambdas, Async/Await, spawn, Pure Functions
-7. [Objects with Methods](#objects-with-methods)
-8. [Enums](#enums)
-9. [Built-in Functions](#built-in-functions)
-10. [Standard Libraries](#standard-libraries)
-11. [Multithreading](#multithreading)
-12. [Compilation](#compilation)
-13. [IDE Integration (LSP)](#ide-integration-lsp)
-14. [Example Program](#example-program)
+7. [Comptime](#comptime) — Compile-Time Code Execution
+8. [Objects with Methods](#objects-with-methods)
+9. [Enums](#enums)
+10. [Built-in Functions](#built-in-functions)
+11. [Standard Libraries](#standard-libraries)
+12. [Multithreading](#multithreading)
+13. [Build System](#build-system) — Projects, `mira.toml`, Commands, Dependencies
+14. [Compilation](#compilation)
+15. [IDE Integration (LSP)](#ide-integration-lsp)
+16. [Example Program](#example-program)
 
 ---
 
@@ -179,16 +181,16 @@ test()?.a         // Optional chaining on call result
 ### Compound Assignment
 
 ```
-$<name> += <expression>;
-$<name> -= <expression>;
-$<name> *= <expression>;
-$<name> /= <expression>;
-$<name> %= <expression>;
-$<name> **= <expression>;
-$<name> \%= <expression>;
-$<name> &= <expression>;
-$<name> |= <expression>;
-$<name> ^= <expression>;
+$<name> +: <expression>;
+$<name> -: <expression>;
+$<name> *: <expression>;
+$<name> /: <expression>;
+$<name> %: <expression>;
+$<name> **: <expression>;
+$<name> \%: <expression>;
+$<name> &: <expression>;
+$<name> |: <expression>;
+$<name> ^: <expression>;
 ```
 
 ### Literals
@@ -618,6 +620,78 @@ var label : switch($dir) {
 };
 ```
 
+### exec Block
+
+`exec { }` executes a block of statements as an isolated expression and returns the value of its `return` statement. Variables declared inside the block do not leak into the surrounding scope.
+
+```
+exec {
+    <body>
+}
+
+exec isolated {
+    <body>
+}
+```
+
+- **`exec { }`** — runs with access to the enclosing local scope (reads and writes outer variables).
+- **`exec isolated { }`** — runs with access to the global scope only; local variables of the enclosing function are not visible.
+
+Without a `return` statement, the block yields `null`.
+
+**As an expression (variable initializer):**
+
+```
+var label : exec {
+    if ($score > 90) { return "A"; }
+    if ($score > 75) { return "B"; }
+    return "C";
+};
+```
+
+**Scope isolation — temporary variables are discarded:**
+
+```
+var checksum : exec {
+    var buf : readFile("data.bin");
+    var hash : computeHash($buf);
+    return $hash;
+};
+// $buf and $hash are not accessible here
+```
+
+**Reading and writing outer variables:**
+
+```
+var x : 10;
+exec { $x : 99; };
+// $x is now 99
+```
+
+**`exec isolated` inside a function:**
+
+```
+var config : { var token : "abc"; };
+
+fn processRequest(userId) {
+    var token : exec isolated {
+        return $config.token;   // sees globals, not $userId
+    };
+}
+```
+
+**`return` in an exec block only exits the block, not the enclosing function:**
+
+```
+fn test() {
+    var r : exec { return 1; };   // returns 1 from exec, not from test()
+    return 100;
+}
+test();   // => 100
+```
+
+> **Note:** `exec(string)` (the built-in function) continues to work for dynamically constructed code strings. `exec { }` is the static block form — it does not accept a string.
+
 ### Break / Continue
 
 ```
@@ -1032,7 +1106,7 @@ Example — parallel heavy computations:
 ```
 fn heavy(n) {
     var s : 0;
-    for (var i : 0; $i < $n; $i++) { $s += $i; }
+    for (var i : 0; $i < $n; $i++) { $s +: $i; }
     return $s;
 }
 
@@ -1095,6 +1169,91 @@ fib(30)   // returned from cache instantly
 
 ---
 
+## Comptime
+
+`comptime` blocks execute code **before** the program starts — at what Mira calls "compile time". They are useful for computing constants that are expensive or verbose to write as literals, and for running build-time assertions or diagnostics.
+
+### Syntax
+
+```
+comptime {
+    <body>
+}
+```
+
+The block body is a normal sequence of statements. Any variable declared inside becomes an **immutable constant** available throughout the rest of the program. Other statements (e.g. `println`) run immediately as a side effect during startup, before any other code executes.
+
+### Example
+
+```
+comptime {
+    var MAX_SIZE : eval(64 * 1024);
+    var APP_NAME : "MyApp";
+    println("Build: constants initialized");
+}
+
+fn main() {
+    println($APP_NAME);          // => "MyApp"
+    println($MAX_SIZE);          // => 65536
+}
+```
+
+Output when running:
+
+```
+Build: constants initialized
+MyApp
+65536
+```
+
+### Multiple comptime Blocks
+
+Multiple `comptime` blocks are allowed in the same file. They are all executed in order before the main program begins:
+
+```
+comptime {
+    var BASE : 100;
+}
+
+comptime {
+    var LIMIT : eval($BASE * 10);
+}
+```
+
+### Immutability
+
+Variables declared in a `comptime` block are constants — assigning to them later is an error:
+
+```
+comptime {
+    var PI : 3.14159;
+}
+
+$PI : 3.0;   // error E205: ReferenceIsImmutableError
+```
+
+### Execution Model
+
+- **Interpreter path:** All `comptime` blocks run in an isolated interpreter instance during the pre-pass phase (before `loadGlobalContext` finishes). Their results are injected into the global environment as constants.
+- **Compiler path (`-compile`):** The same pre-pass runs before JVM bytecode is generated. Side effects (e.g. `println`) execute during compilation; constants are available to the compiled program.
+- **Errors** inside a `comptime` block are reported like any other runtime error and abort the program before it starts.
+
+### What Can Be Used Inside comptime
+
+All built-in functions, standard library functions (if imported), arithmetic, string operations, and control flow are available:
+
+```
+comptime {
+    import math as m;
+    var SQRT2 : m.sqrt(2.0);
+    var MSG : "version-" "1.0";
+}
+```
+
+Recursive functions, loops, and `if` statements work too — the comptime block is ordinary Mira code, just executed at a different point in time.
+
+---
+
 ## Objects with Methods
 
 Objects can contain `fn` declarations alongside `var` fields. Methods are called via dot notation and have implicit access to all fields of the same object.
@@ -1124,7 +1283,7 @@ Fields are accessible directly by name inside methods:
 var counter : {
     var count : 0;
     fn increment() {
-        $count += 1;
+        $count +: 1;
     }
     fn get() {
         return $count;
@@ -1279,16 +1438,18 @@ var message : switch($code) {
 
 Always available without any import.
 
-| Function                    | Parameters             | Description                                               |
-| --------------------------- | ---------------------- | --------------------------------------------------------- |
-| `print(<value>)`            | Any value              | Prints the value to stdout without a newline              |
-| `scan()`                    | —                      | Reads a line from stdin and returns it as a string        |
-| `eval(<expr>)`              | Arithmetic expression  | Evaluates an arithmetic expression and returns the result |
-| `exec(<code>)`              | String                 | Parses and executes a string of Mira code at runtime      |
-| `length(<value>)`           | String, List, or Array | Returns the number of characters / elements               |
-| `exit(<code>)`              | Number                 | Exits the program with the given exit code                |
-| `assert(<cond>)`            | Boolean expression     | Throws a runtime error if the condition is false          |
-| `assert(<cond>, <message>)` | Boolean, String        | Throws with a custom message if condition is false        |
+| Function                    | Parameters             | Description                                                                     |
+| --------------------------- | ---------------------- | ------------------------------------------------------------------------------- |
+| `print(<value>)`            | Any value              | Prints the value to stdout without a newline                                    |
+| `scan()`                    | —                      | Reads a line from stdin and returns it as a string                              |
+| `eval(<expr>)`              | Arithmetic expression  | Evaluates an arithmetic expression and returns the result                       |
+| `exec(<code>)`              | String                 | Parses and executes a string of Mira code at runtime                            |
+| `exec { <body> }`           | Block                  | Executes a block and returns its `return` value (see [exec Block](#exec-block)) |
+| `exec isolated { <body> }`  | Block                  | Same as `exec { }` but restricted to global scope only                          |
+| `length(<value>)`           | String, List, or Array | Returns the number of characters / elements                                     |
+| `exit(<code>)`              | Number                 | Exits the program with the given exit code                                      |
+| `assert(<cond>)`            | Boolean expression     | Throws a runtime error if the condition is false                                |
+| `assert(<cond>, <message>)` | Boolean, String        | Throws with a custom message if condition is false                              |
 
 ---
 
@@ -1533,6 +1694,29 @@ Constants: `pi`, `e`, `inf`, `nan`
 | `processInfo(pid)`    | Returns the command of a process by PID               |
 | `sleep(ms)`           | Pauses execution for the given number of milliseconds |
 
+### `bytes`
+
+| Function               | Description                                            |
+| ---------------------- | ------------------------------------------------------ |
+| `newBytes(size)`       | Creates a zero-filled byte array                       |
+| `fromString(str)`      | UTF-8 encodes a string into bytes                      |
+| `fromList(list)`       | Creates bytes from a list of numbers (0–255)           |
+| `fromHex(hex)`         | Parses a lowercase hex string into bytes               |
+| `fromBase64(str)`      | Decodes a Base64 string into bytes                     |
+| `size(b)`              | Returns the length of the byte array                   |
+| `get(b, index)`        | Returns the byte at `index` as a number (0–255)        |
+| `set(b, index, value)` | Returns a new byte array with one byte replaced        |
+| `slice(b, start, end)` | Returns a sub-array from `start` to `end` (exclusive)  |
+| `concat(b1, b2)`       | Concatenates two byte arrays                           |
+| `copy(b)`              | Returns an independent copy                            |
+| `fill(b, value)`       | Returns a new byte array with all bytes set to `value` |
+| `toString(b)`          | UTF-8 decodes bytes into a string                      |
+| `toList(b)`            | Converts bytes to a list of numbers (0–255)            |
+| `toHex(b)`             | Returns the bytes as a lowercase hex string            |
+| `toBase64(b)`          | Encodes bytes as a Base64 string                       |
+| `readFile(path)`       | Reads a file as raw bytes                              |
+| `writeFile(path, b)`   | Writes raw bytes to a file                             |
+
 ---
 
 ## Multithreading
@@ -1679,6 +1863,262 @@ The process exits with code `1` when any test fails, making it suitable for CI p
 
 ---
 
+## Build System
+
+The Mira build system lets you manage a multi-file project with a single configuration file (`mira.toml`) and a set of subcommands. Single-file usage (`mira <file.mira> [flags]`) continues to work unchanged.
+
+### Creating a Project
+
+```bash
+mira init                  # use current directory name as project name
+mira init --name my-app    # explicit project name
+```
+
+Creates two files in the current directory:
+
+```
+my-app/
+├── mira.toml        ← project configuration
+└── src/
+    └── main.mira    ← entry point skeleton
+```
+
+### `mira.toml` — Project Configuration
+
+```toml
+[project]
+name    = "my-app"        # project name
+version = "0.1.0"
+entry   = "src/main.mira" # entry point (required, relative to mira.toml)
+
+[build]
+mode       = "interpret"   # interpret | compile | package  — used by mira build
+run-mode   = "interpret"   # interpret | compile            — used by mira run (optional, defaults to mode)
+                           # compile = equivalent to -compile-run: compiles to JVM bytecode in memory, no files written
+main       = true          # call main() as entry point (equivalent to -m flag)
+lint       = false         # run linter before execution
+output     = "out"         # output directory for compiled files (default: "out/")
+args       = []            # default program arguments
+pre-build  = "codegen"              # single task — or an array: ["codegen", "lint"]
+post-build = ["notify", "upload"]   # multiple tasks run in order
+pre-run    = "prepare"              # task to run before mira run   (optional)
+post-run   = "cleanup"              # task to run after  mira run   (optional)
+
+[test]
+pattern   = "**/*_test.mira" # glob for test files relative to project root
+extra     = []               # additional test files
+pre-test  = "seed-db"              # single task or array: ["seed-db", "migrate"]
+post-test = ["teardown", "report"] # multiple tasks run in order
+
+[dependencies]
+math-utils = { path = "../math-utils" }  # local path dependency
+```
+
+All paths in `mira.toml` are relative to the file itself.
+
+### Commands
+
+| Command                                            | Description                                                                                              |
+| -------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `mira init [--name <n>]`                           | Create a new project in the current directory                                                            |
+| `mira build`                                       | Build the project using the mode defined in `mira.toml`                                                  |
+| `mira build --mode interpret\|compile\|package`    | Override the build mode for this run                                                                     |
+| `mira build --watch`                               | Build and re-run on file changes                                                                         |
+| `mira run [--mode interpret\|compile] [-- <args>]` | Run the project; execution mode from `mira.toml` unless overridden; `--` passes arguments to the program |
+| `mira test`                                        | Discover and run all test files matching `test.pattern`                                                  |
+| `mira clean`                                       | Delete the output directory                                                                              |
+| `mira release`                                     | Full pipeline: pre-build → build → post-build → pre-test → tests → post-test                             |
+| `mira task`                                        | List all tasks defined in `mira.toml`                                                                    |
+| `mira task <name>`                                 | Run the task named `<name>`                                                                              |
+
+All commands (except `init`) require a `mira.toml` in the current directory or any parent directory. If none is found, an error is printed with a hint to run `mira init`.
+
+### Release Pipeline
+
+`mira release` runs the full project lifecycle in a fixed order:
+
+```
+pre-build hooks
+    ↓
+mira build  (uses mode from mira.toml)
+    ↓
+post-build hooks
+    ↓
+pre-test hooks      ─┐
+mira test            ├─ skipped with [info] message if [test] is not defined
+post-test hooks     ─┘
+```
+
+A typical release setup:
+
+```toml
+[tasks.codegen]
+cmd = "python scripts/gen.py"
+
+[tasks.package-docs]
+cmd = "mkdocs build"
+
+[tasks.notify]
+cmd = "curl -s https://hooks.example.com/released"
+
+[build]
+mode       = "package"
+pre-build  = "codegen"
+post-build = "package-docs"
+
+[test]
+pattern   = "**/*_test.mira"
+post-test = "notify"
+```
+
+Running `mira release` with this config: generates code → builds a fat JAR → packages docs → runs all tests → sends a notification.
+
+### Build Modes
+
+The two mode fields control build and run independently:
+
+| Field      | Used by      | Allowed values                    |
+| ---------- | ------------ | --------------------------------- |
+| `mode`     | `mira build` | `interpret`, `compile`, `package` |
+| `run-mode` | `mira run`   | `interpret`, `compile`            |
+
+If `run-mode` is not set, `mira run` falls back to `mode`.
+
+| Effective mode | `mira build`                                       | `mira run`                                                                                                                             |
+| -------------- | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `interpret`    | Interprets source directly — no files written      | Runs via tree-walk interpreter                                                                                                         |
+| `compile`      | Compiles to `.class` files in the output directory | Compiles to JVM bytecode **in memory** and executes immediately — no files written (equivalent to the single-file `-compile-run` flag) |
+| `package`      | Compiles and bundles into a self-contained fat JAR | Same as `compile` for run — executes in memory, no JAR written                                                                         |
+
+A typical setup: build produces a JAR, but `mira run` uses the faster interpreter during development:
+
+```toml
+[build]
+mode     = "package"    # mira build → standalone JAR
+run-mode = "interpret"  # mira run  → fast interpreter
+```
+
+You can override `run-mode` for a single invocation:
+
+```bash
+mira run --mode interpret   # force interpreter
+mira run --mode compile     # force in-memory compilation
+```
+
+### Running Tests
+
+`mira test` discovers every `.mira` file matching the `test.pattern` glob (default `**/*_test.mira`), runs each file with test mode enabled, and prints a pass/fail summary per file. The process exits with code `1` if any test fails.
+
+```bash
+mira test
+# Running tests for my-app...
+#
+# --- src/math_test.mira ---
+#   PASS addition
+#   PASS multiplication
+# ─── Test Summary ───
+#   Passed : 2
+#   Failed : 0
+#   Total  : 2
+#   Status : OK
+```
+
+Test files use the built-in `test()` and `assert()` functions:
+
+```
+module math_test;
+
+import math as m;
+
+test("square root", fn() {
+    assert(m.sqrt(9) == 3);
+});
+```
+
+### Local Dependencies
+
+A dependency declared under `[dependencies]` must point to a directory that itself contains a `mira.toml`. The dependency's source files are added as import roots, so module imports that are not found relative to the current file are also searched in each dependency's root directory.
+
+```toml
+[dependencies]
+utils = { path = "../utils" }
+```
+
+```
+# in src/main.mira
+import module "./utils/strings.mira" as str;   # resolved in the utils project
+```
+
+### Tasks
+
+Tasks are named automation steps defined in `mira.toml` under `[tasks]`. Each task runs either a shell command (`cmd`) or a Mira script (`script`) — not both.
+
+```toml
+[tasks.format]
+cmd         = "prettier --write src/"
+description = "Format source files"
+
+[tasks.codegen]
+script      = "scripts/codegen.mira"
+description = "Generate code from schema"
+```
+
+Shorthand using a plain string — the type is inferred automatically:
+
+- Ends with `.mira` → treated as `script`
+- Anything else → treated as `cmd`
+
+```toml
+[tasks]
+clean = "rm -rf out/"      # cmd  — shell command
+demo  = "scripts/demo.mira" # script — Mira file
+```
+
+| Command            | Description                                    |
+| ------------------ | ---------------------------------------------- |
+| `mira task`        | List all defined tasks with their descriptions |
+| `mira task <name>` | Run the task named `<name>`                    |
+
+**Rules:**
+
+- Exactly one of `cmd` or `script` must be set — specifying both or neither is an error
+- `description` is optional
+- `cmd` is executed via the system shell (`cmd.exe /c` on Windows, `sh -c` on Unix)
+- `script` is resolved relative to `mira.toml` and executed as a Mira file
+- A non-zero exit code from `cmd` results in a `[fail]` error
+
+#### Hooks
+
+Tasks can be wired as automatic pre/post hooks for the built-in commands via fields in `[build]` and `[test]`. Every hook value is the name of a task defined in `[tasks]`.
+
+| Field        | Runs before/after |
+| ------------ | ----------------- |
+| `pre-build`  | `mira build`      |
+| `post-build` | `mira build`      |
+| `pre-run`    | `mira run`        |
+| `post-run`   | `mira run`        |
+| `pre-test`   | `mira test`       |
+| `post-test`  | `mira test`       |
+
+Example — generate code before every build and send a notification afterwards:
+
+```toml
+[tasks.codegen]
+cmd         = "python scripts/gen.py"
+description = "Generate code from schema"
+
+[tasks.notify]
+cmd         = "curl -s https://hooks.example.com/build-done"
+description = "Notify external service"
+
+[build]
+mode       = "compile"
+pre-build  = "codegen"
+post-build = "notify"
+```
+
+---
+
 ## Compilation
 
 Mira scripts can be compiled to JVM bytecode instead of interpreted. The compiler produces standard `.class` files that run on any JVM without the Mira interpreter.
@@ -1808,7 +2248,7 @@ Diagnostics are cleared automatically when the file is closed.
 
 Completions trigger automatically as you type. The following are always available:
 
-- All Mira **keywords** (`var`, `fn`, `if`, `foreach`, `switch`, `return`, …)
+- All Mira **keywords** (`var`, `fn`, `if`, `foreach`, `switch`, `return`, `comptime`, …)
 - All **built-in globals** (`print`, `scan`, `eval`, `length`, `assert`, …)
 
 Additionally, for each open file the server provides:

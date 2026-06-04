@@ -8,9 +8,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
 import com.mira.lexer.Tokenizer;
 import com.mira.parser.Parser;
 import com.mira.parser.nodes.Node;
+import com.mira.runtime.interpreter.ImportResolver;
 
 public abstract class CompilerTestBase {
 
@@ -18,6 +21,7 @@ public abstract class CompilerTestBase {
     private final Parser parser = new Parser();
 
     protected String run(String source) {
+        ImportResolver.reset();
         List<Node> ast = parser.parseTokens(tokenizer.tokenize(source, false));
         Compiler compiler = new Compiler();
         Compiler.CompileResult result = compiler.compile(ast, "test.mira");
@@ -30,6 +34,7 @@ public abstract class CompilerTestBase {
         PrintStream old = System.out;
         System.setOut(new PrintStream(out));
         try {
+            Thread.currentThread().setContextClassLoader(loader);
             String dotName = result.className().replace('/', '.');
             Class<?> cls = loader.loadClass(dotName);
             Method main = cls.getMethod("main", String[].class);
@@ -42,7 +47,21 @@ public abstract class CompilerTestBase {
             throw new RuntimeException(e);
         } finally {
             System.setOut(old);
+            ImportResolver.reset();
         }
         return out.toString().trim();
+    }
+
+    protected void assertOutput(String expected, String source) {
+        assertEquals(expected, run(source));
+    }
+
+    protected void assertNumericOutput(double expected, String source) {
+        String raw = run(source);
+        try {
+            assertEquals(expected, Double.parseDouble(raw), 1e-9);
+        } catch (NumberFormatException e) {
+            assertEquals(String.valueOf(expected), raw);
+        }
     }
 }

@@ -7,10 +7,18 @@ import java.util.Map;
 
 public class LintScope {
 
-    public record VarInfo(int line, int column, boolean isConst, boolean used) {
+    public record VarInfo(int line, int column, boolean isConst, boolean used, boolean isImport, boolean isFunction) {
+
+        public VarInfo(int line, int column, boolean isConst, boolean used) {
+            this(line, column, isConst, used, false, false);
+        }
+
+        public VarInfo(int line, int column, boolean isConst, boolean used, boolean isImport) {
+            this(line, column, isConst, used, isImport, false);
+        }
 
         public VarInfo markUsed() {
-            return new VarInfo(line, column, isConst, true);
+            return new VarInfo(line, column, isConst, true, isImport, isFunction);
         }
     }
 
@@ -30,6 +38,18 @@ public class LintScope {
         }
     }
 
+    public void declareImport(String name, int line) {
+        if (!scopes.isEmpty()) {
+            scopes.peek().put(name, new VarInfo(line, 0, false, false, true));
+        }
+    }
+
+    public void declareFunction(String name, int line, int column) {
+        if (!scopes.isEmpty()) {
+            scopes.peek().put(name, new VarInfo(line, column, false, false, false, true));
+        }
+    }
+
     public boolean isDeclared(String name) {
         for (Map<String, VarInfo> scope : scopes) {
             if (scope.containsKey(name)) {
@@ -44,12 +64,20 @@ public class LintScope {
     }
 
     public boolean isDeclaredInOutermostScope(String name) {
-        if (scopes.isEmpty()) return false;
+        if (scopes.isEmpty()) {
+            return false;
+        }
         Map<String, VarInfo> outermost = null;
         for (Map<String, VarInfo> scope : scopes) {
             outermost = scope;
         }
         return outermost != null && outermost.containsKey(name);
+    }
+
+    public void markAllFunctionsUsed() {
+        if (!scopes.isEmpty()) {
+            scopes.peek().replaceAll((name, info) -> info.isFunction() ? info.markUsed() : info);
+        }
     }
 
     public boolean isConst(String name) {

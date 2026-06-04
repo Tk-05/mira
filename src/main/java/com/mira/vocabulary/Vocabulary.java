@@ -39,7 +39,9 @@ public class Vocabulary {
             "async",
             "typeof",
             "lock",
-            "pure"
+            "pure",
+            "comptime",
+            "test"
     );
 
     public static final Set<String> COMPARISON_OPERATORS = Set.of("==", "!=", "<", ">", "<=", ">=");
@@ -51,7 +53,7 @@ public class Vocabulary {
     public static final Set<String> BITWISE_OPERATORS = Set.of("&", "|", "^", "~", "<<", ">>");
 
     public static final Set<String> COMPOUND_ASSIGNMENT_OPERATORS = Set.of(
-            "+=", "-=", "*=", "/=", "%=", "**=", "\\%=", "&=", "|=", "^="
+            "+:", "-:", "*:", "/:", "%:", "**:", "\\%:", "&:", "|:", "^:"
     );
 
     public static final Set<String> UNARY_OPERATORS = Set.of("++", "--", "!", "~");
@@ -61,8 +63,8 @@ public class Vocabulary {
     public static final Set<String> OPERATORS = Set.of(
             "+", "-", "*", "/", "%", "**", "\\%",
             "++", "--",
-            "+=", "-=", "*=", "/=", "%=", "**=", "\\%=",
-            "&=", "|=", "^=",
+            "+:", "-:", "*:", "/:", "%:", "**:", "\\%:",
+            "&:", "|:", "^:",
             "==", "!=", "<", ">", "<=", ">=",
             "&&", "||",
             "&", "|", "^", "~",

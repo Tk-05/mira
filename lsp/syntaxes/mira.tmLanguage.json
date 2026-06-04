@@ -50,15 +50,15 @@
     },
     "keywords-control": {
       "name": "keyword.control.mira",
-      "match": "\\b(if|else|while|for|foreach|in|switch|case|default|break|continue|return|try|catch|finally|throw|do)\\b"
+      "match": "\\b(if|else|while|for|foreach|in|switch|case|default|break|continue|return|try|catch|finally|throw|do|lock|exec|isolated)\\b"
     },
     "keywords-declaration": {
       "name": "keyword.declaration.mira",
-      "match": "\\b(fn|var|const|async|module|import|enum|native|as)\\b"
+      "match": "\\b(fn|var|const|async|pure|module|import|enum|native|as|comptime|test)\\b"
     },
     "keywords-operator": {
       "name": "keyword.operator.word.mira",
-      "match": "\\b(typeof|await|spawn|eval|assert|length|scan|print|println|httpGet|now|dateFormat|replace|jsonNested|jsonIndexOf)\\b"
+      "match": "\\b(typeof|await|spawn|eval|assert|length|scan|print|println|exit)\\b"
     },
     "constants-language": {
       "name": "constant.language.mira",
@@ -90,7 +90,7 @@
     },
     "operators": {
       "name": "keyword.operator.mira",
-      "match": "->|\\?\\?|\\|>|:|==|!=|<=|>=|<|>|\\+|-|\\*\\*|\\*|/|%|\\^|&(?!&)|\\|(?!\\|)|\\+\\+|--|\\+=|-=|\\*=|/=|%=|\\*\\*=|&&|\\|\\|"
+      "match": "->|\\?\\?|\\|>|:|==|!=|<=|>=|<|>|\\+\\+|--|\\*\\*:|\\*\\*|\\+:|-:|\\*:|/:|%:|&:|\\|:|\\^:|\\+|-|\\*|/|%|\\^|&(?!&)|\\|(?!\\|)|&&|\\|\\|"
     }
   }
 }

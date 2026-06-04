@@ -1,5 +1,6 @@
 package com.mira.runtime.interpreter;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -82,9 +83,8 @@ public class Environment {
     }
 
     public Object get(String name) {
-        Object value = values.get(name);
-        if (value != null || values.containsKey(name)) {
-            return value;
+        if (values.containsKey(name)) {
+            return values.get(name);
         }
         if (parent != null) {
             return parent.get(name);
@@ -136,9 +136,8 @@ public class Environment {
     }
 
     public Object getOrNull(String name) {
-        Object value = values.get(name);
-        if (value != null || values.containsKey(name)) {
-            return value;
+        if (values.containsKey(name)) {
+            return values.get(name);
         }
         if (parent != null) {
             return parent.getOrNull(name);
@@ -148,6 +147,10 @@ public class Environment {
 
     public boolean exists(String name) {
         return values.containsKey(name);
+    }
+
+    public Set<String> getDefinedNames() {
+        return Collections.unmodifiableSet(values.keySet());
     }
 
     public boolean existsInChain(String name) {
@@ -191,6 +194,10 @@ public class Environment {
 
     public Set<String> keySet() {
         return values.keySet();
+    }
+
+    public Map<String, Object> getLocalValues() {
+        return Collections.unmodifiableMap(values);
     }
 
     public void copyDeclarationsTo(Environment target, Set<String> exclude) {

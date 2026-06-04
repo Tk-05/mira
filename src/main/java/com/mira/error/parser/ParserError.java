@@ -26,6 +26,13 @@ public class ParserError extends MiraError {
                     : null);
         }
 
+        public LexemeMismatchError(Token found, Token after, String message) {
+            super("E102",
+                    message + ", but found '" + found.getLexeme() + "'",
+                    after.getLine(), after.getColumn(), spanOf(after),
+                    null);
+        }
+
         public LexemeMismatchError(Token token, String message, String hint) {
             super("E102",
                     message + ", but found '" + token.getLexeme() + "'",

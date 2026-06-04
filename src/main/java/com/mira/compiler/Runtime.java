@@ -1,7 +1,10 @@
 package com.mira.compiler;
 
+import java.io.PrintStream;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Deque;
 import java.util.LinkedHashMap;
 import java.util.List;
 
@@ -10,6 +13,7 @@ import com.mira.error.runtime.RuntimeError.NotANamespaceError;
 import com.mira.error.runtime.RuntimeError.NotCallableError;
 import com.mira.error.runtime.RuntimeError.RangeStepZeroError;
 import com.mira.error.runtime.RuntimeError.TypeConversionError;
+import com.mira.error.runtime.RuntimeError.UnknownOperatorError;
 import com.mira.parser.nodes.expression.Expression;
 import com.mira.parser.nodes.expression.Expression.ArrayExpression;
 import com.mira.parser.nodes.expression.Expression.DumbExpression;
@@ -22,10 +26,50 @@ import com.mira.runtime.interpreter.Environment;
 import com.mira.runtime.interpreter.Interpreter;
 import com.mira.runtime.interpreter.Namespace;
 import com.mira.runtime.values.NullValue;
+import com.mira.runtime.visitors.ExprVisitor;
 
 public final class Runtime {
 
     public static final ThreadLocal<Environment> METHOD_ENV = new ThreadLocal<>();
+
+    private record StackFrame(String name, int line) {
+
+    }
+
+    private static final ThreadLocal<Deque<StackFrame>> CALL_STACK
+            = ThreadLocal.withInitial(ArrayDeque::new);
+
+    public static void pushCallStack(String name, int line) {
+        CALL_STACK.get().push(new StackFrame(name, line));
+    }
+
+    public static void popCallStack() {
+        Deque<StackFrame> stack = CALL_STACK.get();
+        if (!stack.isEmpty()) {
+            stack.poll();
+        }
+    }
+
+    public static Deque<StackFrame> getCallStack() {
+        return CALL_STACK.get();
+    }
+
+    public static void dumpCallStack(Throwable cause, PrintStream out) {
+        out.println("\n=== MIRA CRASH DUMP (compiled) ===");
+        out.println("Cause: " + cause);
+        out.println();
+        out.println("--- Mira Call Stack ---");
+        Deque<StackFrame> stack = CALL_STACK.get();
+        if (stack.isEmpty()) {
+            out.println("  <top level>");
+        } else {
+            for (StackFrame frame : stack) {
+                String loc = frame.line() > 0 ? " (line " + frame.line() + ")" : "";
+                out.println("  at " + frame.name() + "()" + loc);
+            }
+        }
+        out.println();
+    }
 
     public static final Object CACHE_MISS = new Object();
 
@@ -181,6 +225,10 @@ public final class Runtime {
         throw new TypeConversionError(value);
     }
 
+    public static String concat(Object a, Object b) {
+        return String.valueOf(a) + String.valueOf(b);
+    }
+
     public static Object add(Object a, Object b) {
         if (a instanceof Long la && b instanceof Long lb) {
             try {
@@ -315,7 +363,7 @@ public final class Runtime {
                 case ">=" ->
                     l >= r;
                 default ->
-                    throw new RuntimeException("Unknown op: " + op);
+                    throw new UnknownOperatorError(op);
             };
         }
         if (left instanceof Boolean lb && right instanceof Boolean rb) {
@@ -325,7 +373,7 @@ public final class Runtime {
                 case "!=" ->
                     !lb.equals(rb);
                 default ->
-                    throw new RuntimeException("Cannot compare booleans with: " + op);
+                    throw new UnknownOperatorError(op);
             };
         }
         if ((left instanceof NullValue || left == null) || (right instanceof NullValue || right == null)) {
@@ -356,7 +404,7 @@ public final class Runtime {
                 case ">=" ->
                     ld >= rd;
                 default ->
-                    throw new RuntimeException("Unknown op: " + op);
+                    throw new UnknownOperatorError(op);
             };
         } catch (NumberFormatException e) {
             return switch (op) {
@@ -373,7 +421,7 @@ public final class Runtime {
                 case ">=" ->
                     l.compareTo(r) >= 0;
                 default ->
-                    throw new RuntimeException("Unknown op: " + op);
+                    throw new UnknownOperatorError(op);
             };
         }
     }
@@ -427,7 +475,8 @@ public final class Runtime {
         final Object captured = val;
         return new Expression() {
             @Override
-            public <T> T accept(com.mira.runtime.visitors.ExprVisitor<T> v) {
+            @SuppressWarnings("unchecked")
+            public <T> T accept(ExprVisitor<T> v) {
                 return (T) captured;
             }
 
@@ -474,6 +523,7 @@ public final class Runtime {
             long finalI = i;
             members.add(new Expression() {
                 @Override
+                @SuppressWarnings("unchecked")
                 public <T> T accept(com.mira.runtime.visitors.ExprVisitor<T> v) {
                     return (T) (Object) finalI;
                 }
@@ -525,7 +575,7 @@ public final class Runtime {
                 String key = String.valueOf(index);
                 Expression val = map.getEntries().get(key);
                 if (val == null) {
-                    throw new RuntimeException("Map key not found: " + key);
+                    throw new FieldAccessError(key, "map");
                 }
                 yield evalExpr(val);
             }

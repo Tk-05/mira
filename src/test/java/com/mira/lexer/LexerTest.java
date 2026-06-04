@@ -47,6 +47,7 @@ public class LexerTest {
         assertEquals(TokenType.KEYWORD, tokenizer.tokenize("async", false).getFirst().getTokenType());
         assertEquals(TokenType.KEYWORD, tokenizer.tokenize("typeof", false).getFirst().getTokenType());
         assertEquals(TokenType.KEYWORD, tokenizer.tokenize("pure", false).getFirst().getTokenType());
+        assertEquals(TokenType.KEYWORD, tokenizer.tokenize("test", false).getFirst().getTokenType());
     }
 
     @Test
@@ -66,10 +67,10 @@ public class LexerTest {
         assertEquals(TokenType.OPERATION, tokenizer.tokenize("$", false).getFirst().getTokenType());
         assertEquals(TokenType.OPERATION, tokenizer.tokenize(":", false).getFirst().getTokenType());
         assertEquals(TokenType.OPERATION, tokenizer.tokenize("!", false).getFirst().getTokenType());
-        assertEquals(TokenType.OPERATION, tokenizer.tokenize("+=", false).getFirst().getTokenType());
-        assertEquals(TokenType.OPERATION, tokenizer.tokenize("-=", false).getFirst().getTokenType());
-        assertEquals(TokenType.OPERATION, tokenizer.tokenize("*=", false).getFirst().getTokenType());
-        assertEquals(TokenType.OPERATION, tokenizer.tokenize("/=", false).getFirst().getTokenType());
+        assertEquals(TokenType.OPERATION, tokenizer.tokenize("+:", false).getFirst().getTokenType());
+        assertEquals(TokenType.OPERATION, tokenizer.tokenize("-:", false).getFirst().getTokenType());
+        assertEquals(TokenType.OPERATION, tokenizer.tokenize("*:", false).getFirst().getTokenType());
+        assertEquals(TokenType.OPERATION, tokenizer.tokenize("/:", false).getFirst().getTokenType());
     }
 
     @Test
@@ -107,10 +108,10 @@ public class LexerTest {
 
     @Test
     void testFunctionDeclaration() {
-        String functionDeclaration = "fn test() {print}";
+        String functionDeclaration = "fn foo() {print}";
         List<Token> tokens = tokenizer.tokenize(functionDeclaration, false);
         assertEquals(tokens.get(0).getLexeme(), "fn");
-        assertEquals(tokens.get(1).getLexeme(), "test");
+        assertEquals(tokens.get(1).getLexeme(), "foo");
         assertEquals(tokens.get(2).getLexeme(), "(");
         assertEquals(tokens.get(3).getLexeme(), ")");
         assertEquals(tokens.get(4).getLexeme(), "{");
@@ -120,9 +121,9 @@ public class LexerTest {
 
     @Test
     void testFunctionCall() {
-        String functionCall = "test()";
+        String functionCall = "foo()";
         List<Token> tokens = tokenizer.tokenize(functionCall, false);
-        assertEquals(tokens.get(0).getLexeme(), "test");
+        assertEquals(tokens.get(0).getLexeme(), "foo");
         assertEquals(tokens.get(1).getLexeme(), "(");
         assertEquals(tokens.get(2).getLexeme(), ")");
     }
@@ -335,5 +336,84 @@ public class LexerTest {
         assertTrue(Vocabulary.OPERATORS.containsAll(Vocabulary.COMPOUND_ASSIGNMENT_OPERATORS));
         assertTrue(Vocabulary.OPERATORS.containsAll(Vocabulary.UNARY_OPERATORS));
         assertTrue(Vocabulary.OPERATORS.containsAll(Vocabulary.SPECIAL_OPERATORS));
+    }
+
+    @Test
+    void testMissingKeywords() {
+        assertEquals(TokenType.KEYWORD, tokenizer.tokenize("break", false).getFirst().getTokenType());
+        assertEquals(TokenType.KEYWORD, tokenizer.tokenize("module", false).getFirst().getTokenType());
+        assertEquals(TokenType.KEYWORD, tokenizer.tokenize("case", false).getFirst().getTokenType());
+        assertEquals(TokenType.KEYWORD, tokenizer.tokenize("catch", false).getFirst().getTokenType());
+        assertEquals(TokenType.KEYWORD, tokenizer.tokenize("lock", false).getFirst().getTokenType());
+        assertEquals(TokenType.KEYWORD, tokenizer.tokenize("comptime", false).getFirst().getTokenType());
+    }
+
+    @Test
+    void testRangeDelimiters() {
+        assertEquals(TokenType.DELIMITER, tokenizer.tokenize("..", false).getFirst().getTokenType());
+        assertEquals("..", tokenizer.tokenize("..", false).getFirst().getLexeme());
+        assertEquals(TokenType.DELIMITER, tokenizer.tokenize("...", false).getFirst().getTokenType());
+        assertEquals("...", tokenizer.tokenize("...", false).getFirst().getLexeme());
+    }
+
+    @Test
+    void testArrowOperator() {
+        List<Token> tokens = tokenizer.tokenize("->", false);
+        assertEquals(TokenType.OPERATION, tokens.getFirst().getTokenType());
+        assertEquals("->", tokens.getFirst().getLexeme());
+    }
+
+    @Test
+    void testFloorDivOperator() {
+        List<Token> tokens = tokenizer.tokenize("\\%", false);
+        assertEquals(TokenType.OPERATION, tokens.getFirst().getTokenType());
+        assertEquals("\\%", tokens.getFirst().getLexeme());
+    }
+
+    @Test
+    void testIntegerLiteral() {
+        List<Token> tokens = tokenizer.tokenize("42", false);
+        assertEquals(TokenType.EXPRESSION, tokens.getFirst().getTokenType());
+        assertEquals("42", tokens.getFirst().getLexeme());
+    }
+
+    @Test
+    void testFloatLiteral() {
+        List<Token> tokens = tokenizer.tokenize("3.14", false);
+        assertEquals(TokenType.EXPRESSION, tokens.getFirst().getTokenType());
+        assertEquals("3.14", tokens.getFirst().getLexeme());
+    }
+
+    @Test
+    void testAdditionalEscapeSequences() {
+        assertEquals("Hello\tWorld", tokenizer.tokenize("\"Hello\\tWorld\"", false).getFirst().getLexeme());
+        assertEquals("Hello\\World", tokenizer.tokenize("\"Hello\\\\World\"", false).getFirst().getLexeme());
+    }
+
+    @Test
+    void testEmptyInput() {
+        List<Token> tokens = tokenizer.tokenize("", false);
+        assertEquals(1, tokens.size());
+        assertEquals(TokenType.EOF, tokens.getFirst().getTokenType());
+    }
+
+    @Test
+    void testWhitespaceOnlyInput() {
+        List<Token> tokens = tokenizer.tokenize("   \t\n  ", false);
+        assertEquals(1, tokens.size());
+        assertEquals(TokenType.EOF, tokens.getFirst().getTokenType());
+    }
+
+    @Test
+    void testTokenCount() {
+        List<Token> tokens = tokenizer.tokenize("var x : 10;", false);
+        assertEquals(6, tokens.size());
+    }
+
+    @Test
+    void testMultiLinePositions() {
+        List<Token> tokens = tokenizer.tokenize("var x;\nvar y;", false);
+        assertEquals(1, tokens.get(0).getLine());
+        assertEquals(2, tokens.get(3).getLine());
     }
 }

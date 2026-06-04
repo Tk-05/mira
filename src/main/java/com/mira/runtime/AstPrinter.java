@@ -25,6 +25,7 @@ import com.mira.parser.nodes.expression.Expression.NamespaceCallExpression;
 import com.mira.parser.nodes.expression.Expression.ObjectExpression;
 import com.mira.parser.nodes.expression.Expression.RangeExpression;
 import com.mira.parser.nodes.expression.Expression.TernaryExpression;
+import com.mira.parser.nodes.expression.Expression.ExecBlock;
 import com.mira.parser.nodes.expression.Expression.ThrownException;
 import com.mira.parser.nodes.expression.Expression.UnaryExpression;
 import com.mira.parser.nodes.statement.Statement.Assign;
@@ -49,6 +50,7 @@ import com.mira.parser.nodes.statement.Statement.While;
 import com.mira.runtime.visitors.ExprVisitor;
 import com.mira.runtime.visitors.StmtVisitor;
 
+@SuppressWarnings("unchecked")
 public class AstPrinter implements ExprVisitor<String>, StmtVisitor<String> {
 
     private int depth = 0;
@@ -404,8 +406,14 @@ public class AstPrinter implements ExprVisitor<String>, StmtVisitor<String> {
     }
 
     @Override
-    public String visitThrownExpection(ThrownException thrownException) {
+    public String visitThrownException(ThrownException thrownException) {
         return pad() + "Exception Literal [" + thrownException.getIdentifier() + "]";
+    }
+
+    @Override
+    public <T> T visitExecBlock(ExecBlock expression) {
+        return (T) (pad() + "ExecBlock [isolated=" + expression.isIsolated() + "]"
+                + body(expression.getBody()));
     }
 
     @Override

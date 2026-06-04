@@ -31,16 +31,8 @@ import com.mira.error.runtime.RuntimeError.NativeLibNotFoundError;
 import com.mira.lexer.Tokenizer;
 import com.mira.lexer.token.Token;
 import com.mira.lib.Lib;
+import com.mira.lib.LibIndex;
 import com.mira.lib.internal.Internal;
-import com.mira.lib.std.Collection;
-import com.mira.lib.std.DateTime;
-import com.mira.lib.std.IO;
-import com.mira.lib.std.Json;
-import com.mira.lib.std.Math;
-import com.mira.lib.std.Net;
-import com.mira.lib.std.Regex;
-import com.mira.lib.std.Shell;
-import com.mira.lib.std.Strings;
 import com.mira.parser.Parser;
 import com.mira.parser.nodes.Node;
 import com.mira.parser.nodes.expression.Expression;
@@ -65,22 +57,6 @@ public class ImportResolver {
     private static final ConcurrentHashMap<String, Lib> loadedNativeLibs = new ConcurrentHashMap<>();
     private static final List<URLClassLoader> nativeClassLoaders = new ArrayList<>();
     private static final ConcurrentHashMap<String, Namespace> resolvedModules = new ConcurrentHashMap<>();
-    private static final Map<String, Lib> libs = new HashMap<String, Lib>() {
-        {
-            put("math", new Math());
-            put("string", new Strings());
-            put("io", new IO());
-            put("shell", new Shell());
-            put("dateTime", new DateTime());
-            put("collection", new Collection());
-            put("json", new Json());
-            put("net", new Net());
-            put("process", new com.mira.lib.std.Process());
-            put("regex", new Regex());
-            put("map", new com.mira.lib.std.Map());
-            put("thread", new com.mira.lib.std.ThreadLib());
-        }
-    };
 
     public static void loadInternal(Environment environment) {
         internal.loadLib(environment);
@@ -90,6 +66,7 @@ public class ImportResolver {
         ImportKind kind = ImportKind.valueOf(kindStr);
         Expression moduleExpr = new Expression() {
             @Override
+            @SuppressWarnings("null")
             public <T> T accept(com.mira.runtime.visitors.ExprVisitor<T> v) {
                 return (T) null;
             }
@@ -107,6 +84,12 @@ public class ImportResolver {
                 resolveNativeImport(expr, env);
             case MODULE ->
                 resolveModuleImport(new Interpreter(), expr, env);
+        }
+    }
+
+    public static void interruptNativeLibs() {
+        for (Lib lib : loadedNativeLibs.values()) {
+            lib.interrupt();
         }
     }
 
@@ -149,7 +132,7 @@ public class ImportResolver {
                 CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new)).join();
             } catch (CompletionException e) {
                 Throwable cause = e.getCause();
-                if (cause instanceof com.mira.error.MiraError me) {
+                if (cause instanceof MiraError me) {
                     throw me;
                 }
                 if (cause instanceof RuntimeException re) {
@@ -187,17 +170,6 @@ public class ImportResolver {
         }
 
         if (Flags.libInfo && entryPoint) {
-            if (imports.isEmpty()) {
-                System.out.println("No imports");
-            } else {
-                for (ImportExpression expr : imports) {
-                    String name = expr.getModule().replace("\"", "");
-                    String ns = expr.getNamespace();
-                    String kind = expr.getKind().name().toLowerCase();
-                    String label = (ns != null && !ns.isBlank()) ? name + " as " + ns : name;
-                    System.out.println("[" + kind + "] " + label);
-                }
-            }
             System.out.println("Resolving of imports took " + (System.currentTimeMillis() - start) + " ms");
         }
     }
@@ -213,6 +185,17 @@ public class ImportResolver {
         Path modulePath = candidate.isAbsolute()
                 ? candidate.normalize()
                 : currentFile.getParent().resolve(candidate).normalize();
+
+        if (!Files.exists(modulePath) && !Flags.dependencyRoots.isEmpty()) {
+            for (Path depRoot : Flags.dependencyRoots) {
+                Path depCandidate = depRoot.resolve(candidate).normalize();
+                if (Files.exists(depCandidate)) {
+                    modulePath = depCandidate;
+                    break;
+                }
+            }
+        }
+
         String moduleKey = modulePath.toAbsolutePath().toString();
 
         CompletableFuture<Void> loadFuture = new CompletableFuture<>();
@@ -347,7 +330,7 @@ public class ImportResolver {
             return;
         }
 
-        Lib lib = libs.get(libName);
+        Lib lib = LibIndex.STDLIB_LIBS.get(libName);
         if (lib == null) {
             throw new RuntimeException("Import '" + libName + "' could not be resolved");
         }

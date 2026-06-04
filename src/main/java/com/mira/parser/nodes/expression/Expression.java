@@ -28,9 +28,18 @@ public abstract class Expression implements Node {
     public static class DumbExpression extends Expression {
 
         private final Token token;
+        private Object cachedValue;
 
         public DumbExpression(Token token) {
             this.token = token;
+        }
+
+        public Object getCachedValue() {
+            return cachedValue;
+        }
+
+        public void setCachedValue(Object v) {
+            cachedValue = v;
         }
 
         public String getValue() {
@@ -276,6 +285,8 @@ public abstract class Expression implements Node {
             STDLIB, MODULE, NATIVE
         }
 
+        public int line = 0;
+
         private final Expression module;
         private final String namespace;
         private final ImportKind kind;
@@ -336,11 +347,13 @@ public abstract class Expression implements Node {
         private final String alias;
         private final String functionName;
         private final List<Expression> arguments;
+        private final int line;
 
-        public NamespaceCallExpression(String alias, String functionName, List<Expression> arguments) {
+        public NamespaceCallExpression(String alias, String functionName, List<Expression> arguments, int line) {
             this.alias = alias;
             this.functionName = functionName;
             this.arguments = arguments;
+            this.line = line;
         }
 
         public String getAlias() {
@@ -353,6 +366,10 @@ public abstract class Expression implements Node {
 
         public List<Expression> getArguments() {
             return arguments;
+        }
+
+        public int getLine() {
+            return line;
         }
 
         @Override
@@ -725,6 +742,35 @@ public abstract class Expression implements Node {
         }
     }
 
+    public static class ExecBlock extends Expression {
+
+        private final List<Node> body;
+        private final boolean isolated;
+
+        public ExecBlock(List<Node> body, boolean isolated) {
+            this.body = body;
+            this.isolated = isolated;
+        }
+
+        public List<Node> getBody() {
+            return body;
+        }
+
+        public boolean isIsolated() {
+            return isolated;
+        }
+
+        @Override
+        public <T> T accept(ExprVisitor<T> visitor) {
+            return visitor.visitExecBlock(this);
+        }
+
+        @Override
+        public String toString() {
+            return "exec" + (isolated ? " isolated" : "") + "{...}";
+        }
+    }
+
     public static class ThrownException extends Expression {
 
         private final String identifier;
@@ -745,7 +791,7 @@ public abstract class Expression implements Node {
 
         @Override
         public <T> T accept(ExprVisitor<T> visitor) {
-            return visitor.visitThrownExpection(this);
+            return visitor.visitThrownException(this);
         }
 
         @Override

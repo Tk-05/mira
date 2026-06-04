@@ -20,6 +20,7 @@ public abstract class Statement implements Node {
         private final String name;
         private final Expression initializer;
         private final boolean isConst;
+        public int nameColumn = 0;
 
         public VarDecl(String name, Expression initializer, boolean isConst) {
             this.name = name;
@@ -53,6 +54,7 @@ public abstract class Statement implements Node {
         private final String variadicParam;
         private final boolean isAsync;
         private final boolean isPure;
+        public int nameColumn = 0;
 
         public FuncDecl(String name, List<Parameter> parameters,
                 List<Node> body, String variadicParam) {
@@ -526,6 +528,48 @@ public abstract class Statement implements Node {
         @Override
         public <T> T accept(StmtVisitor<T> visitor) {
             return visitor.visitVarDestructure(this);
+        }
+    }
+
+    public static class ComptimeBlock extends Statement {
+
+        private final List<Node> body;
+
+        public ComptimeBlock(List<Node> body) {
+            this.body = body;
+        }
+
+        public List<Node> getBody() {
+            return body;
+        }
+
+        @Override
+        public <T> T accept(StmtVisitor<T> visitor) {
+            return visitor.visitComptimeBlock(this);
+        }
+    }
+
+    public static class TestCall extends Statement {
+
+        private final Expression name;
+        private final Expression testFn;
+
+        public TestCall(Expression name, Expression testFn) {
+            this.name = name;
+            this.testFn = testFn;
+        }
+
+        public Expression getName() {
+            return name;
+        }
+
+        public Expression getTestFn() {
+            return testFn;
+        }
+
+        @Override
+        public <T> T accept(StmtVisitor<T> visitor) {
+            return visitor.visitTestCall(this);
         }
     }
 }
