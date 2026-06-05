@@ -95,4 +95,24 @@ public class StaticCheckError extends MiraError {
                     line, column, name.length(), null);
         }
     }
+
+    public static class MissingModuleDeclarationError extends StaticCheckError {
+
+        public MissingModuleDeclarationError() {
+            super("E309",
+                    "Entry file is missing a 'module' declaration",
+                    1, 0, 0,
+                    "Add 'module <name>;' as the first statement in your file");
+        }
+    }
+
+    public static class ModuleNameMismatchError extends StaticCheckError {
+
+        public ModuleNameMismatchError(String file, String expected, String found, int line) {
+            super("E310",
+                    "Module name mismatch in '" + file + "': expected '" + expected + "' but found '" + found + "'",
+                    line, 0, found.length(),
+                    "Rename either the file or the 'module' declaration so they match");
+        }
+    }
 }

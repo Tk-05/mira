@@ -18,7 +18,6 @@ import com.mira.error.runtime.RuntimeError.FieldAccessError;
 import com.mira.error.runtime.RuntimeError.ImmutableCollectionError;
 import com.mira.error.runtime.RuntimeError.IndexOutOfBoundsError;
 import com.mira.error.runtime.RuntimeError.LocalCallableError;
-import com.mira.error.runtime.RuntimeError.NoModuleDeclarationError;
 import com.mira.error.runtime.RuntimeError.NotANamespaceError;
 import com.mira.error.runtime.RuntimeError.NotCallableError;
 import com.mira.error.runtime.RuntimeError.NotIterableError;
@@ -68,7 +67,6 @@ import com.mira.parser.nodes.statement.Statement.Foreach;
 import com.mira.parser.nodes.statement.Statement.FuncDecl;
 import com.mira.parser.nodes.statement.Statement.If;
 import com.mira.parser.nodes.statement.Statement.Lock;
-import com.mira.parser.nodes.statement.Statement.ModuleDecl;
 import com.mira.parser.nodes.statement.Statement.Return;
 import com.mira.parser.nodes.statement.Statement.StaticAssert;
 import com.mira.parser.nodes.statement.Statement.Switch;
@@ -164,10 +162,6 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
     private void loadGlobalContext(List<Node> asts, boolean enforceModule) {
         if (globalEnvironment.getSize() > 0) {
             globalEnvironment = new Environment();
-        }
-
-        if (enforceModule && !(asts.getFirst() instanceof ModuleDecl)) {
-            throw new NoModuleDeclarationError();
         }
 
         List<ImportExpression> imports = new ArrayList<>();
