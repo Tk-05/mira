@@ -9,15 +9,16 @@
 5. [Control Flow](#control-flow) — If, While, For, Foreach, Switch, `exec { }`
 6. [Functions](#functions) — Default Parameters, Variadic, Inner Functions, Lambdas, Async/Await, spawn, Pure Functions
 7. [Comptime](#comptime) — Compile-Time Code Execution
-8. [Objects with Methods](#objects-with-methods)
-9. [Enums](#enums)
-10. [Built-in Functions](#built-in-functions)
-11. [Standard Libraries](#standard-libraries)
-12. [Multithreading](#multithreading)
-13. [Build System](#build-system) — Projects, `mira.toml`, Commands, Dependencies
-14. [Compilation](#compilation)
-15. [IDE Integration (LSP)](#ide-integration-lsp)
-16. [Example Program](#example-program)
+8. [static_assert](#static_assert) — Compile-Time Assertions
+9. [Objects with Methods](#objects-with-methods)
+10. [Enums](#enums)
+11. [Built-in Functions](#built-in-functions)
+12. [Standard Libraries](#standard-libraries)
+13. [Multithreading](#multithreading)
+14. [Build System](#build-system) — Projects, `mira.toml`, Commands, Dependencies
+15. [Compilation](#compilation)
+16. [IDE Integration (LSP)](#ide-integration-lsp)
+17. [Example Program](#example-program)
 
 ---
 
@@ -1254,6 +1255,72 @@ Recursive functions, loops, and `if` statements work too — the comptime block 
 
 ---
 
+## static_assert
+
+`static_assert` checks a condition and aborts with error **E308** if it is falsy. At the top level it runs after `comptime` constants are injected but before user code, making it an effective compile-time guard. Inside functions it runs on every call.
+
+### Syntax
+
+```
+static_assert(<condition>);
+static_assert(<condition>, <message>);
+```
+
+The optional `message` is evaluated only when the assertion fails and is included in the error output.
+
+### Examples
+
+#### Basic guard
+
+```
+static_assert(1 == 1);               // passes silently
+static_assert(false, "unreachable"); // [error][E308]: static assertion failed: unreachable
+```
+
+#### Using comptime constants
+
+```
+comptime {
+    var MAX_SIZE : 64;
+}
+
+static_assert($MAX_SIZE > 0, "MAX_SIZE must be positive");
+static_assert($MAX_SIZE <= 1024, "MAX_SIZE exceeds limit");
+```
+
+#### Inside a function
+
+```
+fn clampedSqrt(x) {
+    static_assert($x >= 0, "argument must be non-negative");
+    return m.sqrt($x);
+}
+```
+
+### Error Format
+
+A failing assertion produces a formatted diagnostic with the source location:
+
+```
+[error][E308]: static assertion failed: MAX_SIZE must be positive
+  --> example.mira:8:0
+   7 | }
+   8 | static_assert($MAX_SIZE > 0, "MAX_SIZE must be positive");
+     | ^^^^^^^^^^^^^
+     |
+```
+
+### Relation to `assert`
+
+| | `assert` | `static_assert` |
+|---|---|---|
+| Error code | E210 | E308 |
+| Typical use | runtime checks inside tests | compile-time / precondition guards |
+| Message | optional | optional |
+| Scope | anywhere | anywhere |
+
+---
+
 ## Objects with Methods
 
 Objects can contain `fn` declarations alongside `var` fields. Methods are called via dot notation and have implicit access to all fields of the same object.
@@ -2248,7 +2315,7 @@ Diagnostics are cleared automatically when the file is closed.
 
 Completions trigger automatically as you type. The following are always available:
 
-- All Mira **keywords** (`var`, `fn`, `if`, `foreach`, `switch`, `return`, `comptime`, …)
+- All Mira **keywords** (`var`, `fn`, `if`, `foreach`, `switch`, `return`, `comptime`, `static_assert`, …)
 - All **built-in globals** (`print`, `scan`, `eval`, `length`, `assert`, …)
 
 Additionally, for each open file the server provides:

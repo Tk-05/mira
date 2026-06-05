@@ -41,7 +41,8 @@ public class Vocabulary {
             "lock",
             "pure",
             "comptime",
-            "test"
+            "test",
+            "static_assert"
     );
 
     public static final Set<String> COMPARISON_OPERATORS = Set.of("==", "!=", "<", ">", "<=", ">=");

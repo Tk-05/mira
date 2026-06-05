@@ -11,6 +11,7 @@ import java.util.Set;
 import java.util.concurrent.ExecutionException;
 
 import com.mira.Flags;
+import com.mira.error.resolver.StaticCheckError.StaticAssertFailedError;
 import com.mira.error.runtime.RuntimeError.ArgMismatchError;
 import com.mira.error.runtime.RuntimeError.DivisionByZeroError;
 import com.mira.error.runtime.RuntimeError.FieldAccessError;
@@ -69,6 +70,7 @@ import com.mira.parser.nodes.statement.Statement.If;
 import com.mira.parser.nodes.statement.Statement.Lock;
 import com.mira.parser.nodes.statement.Statement.ModuleDecl;
 import com.mira.parser.nodes.statement.Statement.Return;
+import com.mira.parser.nodes.statement.Statement.StaticAssert;
 import com.mira.parser.nodes.statement.Statement.Switch;
 import com.mira.parser.nodes.statement.Statement.SwitchCase;
 import com.mira.parser.nodes.statement.Statement.TestCall;
@@ -1521,6 +1523,17 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
     @Override
     public Object visitComptimeBlock(ComptimeBlock stmt) {
+        return null;
+    }
+
+    @Override
+    public Object visitStaticAssert(StaticAssert stmt) {
+        Object condition = stmt.getCondition().accept(this);
+        if (!resolveLoopCondition(condition)) {
+            String msg = stmt.getMessage() != null
+                    ? String.valueOf(stmt.getMessage().accept(this)) : null;
+            throw new StaticAssertFailedError(msg, stmt.line);
+        }
         return null;
     }
 

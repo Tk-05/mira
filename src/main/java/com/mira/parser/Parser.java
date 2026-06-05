@@ -53,6 +53,7 @@ import com.mira.parser.nodes.statement.Statement.FuncDecl;
 import com.mira.parser.nodes.statement.Statement.If;
 import com.mira.parser.nodes.statement.Statement.ModuleDecl;
 import com.mira.parser.nodes.statement.Statement.Return;
+import com.mira.parser.nodes.statement.Statement.StaticAssert;
 import com.mira.parser.nodes.statement.Statement.Switch;
 import com.mira.parser.nodes.statement.Statement.SwitchCase;
 import com.mira.parser.nodes.statement.Statement.TestCall;
@@ -1009,6 +1010,12 @@ public class Parser {
                     matchLexeme(";");
                 }
             }
+            case "static_assert" -> {
+                node = parseStaticAssert();
+                if (expectSemicolon) {
+                    matchLexeme(";");
+                }
+            }
             default -> {
                 node = parseExpression();
                 if (expectSemicolon) {
@@ -1035,6 +1042,19 @@ public class Parser {
         Expression testFn = parseExpression();
         matchLexeme(")");
         return new TestCall(name, testFn);
+    }
+
+    private Node parseStaticAssert() {
+        matchLexeme("static_assert");
+        matchLexeme("(");
+        Expression condition = parseExpression();
+        Expression message = null;
+        if (peek().getLexeme().equals(",")) {
+            matchLexeme(",");
+            message = parseExpression();
+        }
+        matchLexeme(")");
+        return new StaticAssert(condition, message);
     }
 
     private Node parseModuleDecl() {

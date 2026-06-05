@@ -72,6 +72,15 @@ public class StaticCheckError extends MiraError {
         }
     }
 
+    public static class StaticAssertFailedError extends StaticCheckError {
+
+        public StaticAssertFailedError(String userMessage, int line) {
+            super("E308",
+                    "static assertion failed" + (userMessage != null ? ": " + userMessage : ""),
+                    line, 0, "static_assert".length(), null);
+        }
+    }
+
     public static class ArityMismatchError extends StaticCheckError {
 
         public ArityMismatchError(String name, int expected, int actual, int line, int column) {
