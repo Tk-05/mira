@@ -75,7 +75,6 @@ public class TomlParser {
         if (raw.startsWith("{")) {
             return parseInlineTable(raw, lineNum);
         }
-        // Bare value — strip trailing comment
         String bare = stripComment(raw).trim();
         if (bare.equals("true")) {
             return Boolean.TRUE;
@@ -128,7 +127,6 @@ public class TomlParser {
     static List<String> parseArray(String raw, int lineNum) {
         List<String> result = new ArrayList<>();
         int i = 0;
-        // skip opening bracket
         while (i < raw.length() && raw.charAt(i) != '[') {
             i++;
         }
@@ -164,7 +162,6 @@ public class TomlParser {
                 result.add(sb.toString());
                 continue;
             }
-            // non-string element (bare value)
             int start = i;
             while (i < raw.length() && raw.charAt(i) != ',' && raw.charAt(i) != ']') {
                 i++;

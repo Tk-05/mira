@@ -241,7 +241,11 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             Object lastResult = null;
 
             if (Flags.mainFunction) {
-                Expression argsTuple = getArgsTuple(args);
+                int mainArity = asts.stream()
+                        .filter(n -> n instanceof FuncDecl fd && "main".equals(fd.getName()))
+                        .mapToInt(n -> ((FuncDecl) n).getParameters().size())
+                        .findFirst().orElse(0);
+                Expression argsTuple = mainArity > 0 ? getArgsTuple(args != null ? args : new String[0]) : null;
                 return (T) new CallExpression(new DumbExpression(
                         new Token(null, "main", 0, 0)),
                         argsTuple == null ? List.of() : List.of(argsTuple)).
