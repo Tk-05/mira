@@ -14,14 +14,14 @@ import org.junit.jupiter.api.Test;
 import com.mira.lexer.Tokenizer;
 import com.mira.parser.nodes.Node;
 import com.mira.parser.nodes.expression.Expression.AccessExpression;
+import com.mira.parser.nodes.expression.Expression.AwaitExpression;
 import com.mira.parser.nodes.expression.Expression.BinaryExpression;
 import com.mira.parser.nodes.expression.Expression.CallExpression;
 import com.mira.parser.nodes.expression.Expression.DumbExpression;
+import com.mira.parser.nodes.expression.Expression.FieldAccessExpression;
 import com.mira.parser.nodes.expression.Expression.ImportExpression;
 import com.mira.parser.nodes.expression.Expression.LambdaExpression;
 import com.mira.parser.nodes.expression.Expression.NamespaceCallExpression;
-import com.mira.parser.nodes.expression.Expression.AwaitExpression;
-import com.mira.parser.nodes.expression.Expression.FieldAccessExpression;
 import com.mira.parser.nodes.expression.Expression.ObjectExpression;
 import com.mira.parser.nodes.expression.Expression.TernaryExpression;
 import com.mira.parser.nodes.expression.Expression.UnaryExpression;
@@ -33,6 +33,7 @@ import com.mira.parser.nodes.statement.Statement.Continue;
 import com.mira.parser.nodes.statement.Statement.EnumDecl;
 import com.mira.parser.nodes.statement.Statement.For;
 import com.mira.parser.nodes.statement.Statement.Foreach;
+import com.mira.parser.nodes.statement.Statement.If;
 import com.mira.parser.nodes.statement.Statement.Lock;
 import com.mira.parser.nodes.statement.Statement.ModuleDecl;
 import com.mira.parser.nodes.statement.Statement.Switch;
@@ -227,6 +228,70 @@ public class ParserTest {
         List<Node> ast = parser.parseTokens(tokenizer.tokenize(whileStmt, false));
         assertEquals(1, ast.size());
         assertInstanceOf(Statement.While.class, ast.getFirst());
+    }
+
+    @Test
+    void parseIfWithoutBraces() {
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize("if (1) foo();", false));
+        If ifStmt = assertInstanceOf(If.class, ast.getFirst());
+        assertEquals(1, ifStmt.getThenBody().size());
+        assertNull(ifStmt.getElseBody());
+    }
+
+    @Test
+    void parseIfElseWithoutBraces() {
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize("if (1) foo(); else bar();", false));
+        If ifStmt = assertInstanceOf(If.class, ast.getFirst());
+        assertEquals(1, ifStmt.getThenBody().size());
+        assertEquals(1, ifStmt.getElseBody().size());
+    }
+
+    @Test
+    void parseIfElseIfWithoutBraces() {
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize("if (1) foo(); else if (2) bar();", false));
+        If outer = assertInstanceOf(If.class, ast.getFirst());
+        assertEquals(1, outer.getThenBody().size());
+        assertEquals(1, outer.getElseBody().size());
+        assertInstanceOf(If.class, outer.getElseBody().getFirst());
+    }
+
+    @Test
+    void parseWhileWithoutBraces() {
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize("while (1) foo();", false));
+        While whileStmt = assertInstanceOf(While.class, ast.getFirst());
+        assertEquals(1, whileStmt.getBody().size());
+        assertFalse(whileStmt.getDoModifier());
+    }
+
+    @Test
+    void parseDoWhileWithoutBraces() {
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize("do foo(); while (1);", false));
+        While doWhile = assertInstanceOf(While.class, ast.getFirst());
+        assertEquals(1, doWhile.getBody().size());
+        assertTrue(doWhile.getDoModifier());
+    }
+
+    @Test
+    void parseForWithoutBraces() {
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize(
+                "for (var i : 0; $i < 10; $i : eval($i + 1)) foo();", false));
+        For forStmt = assertInstanceOf(For.class, ast.getFirst());
+        assertEquals(1, forStmt.getBody().size());
+    }
+
+    @Test
+    void parseForeachWithoutBraces() {
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize(
+                "foreach (var x in $list) foo();", false));
+        Foreach foreachStmt = assertInstanceOf(Foreach.class, ast.getFirst());
+        assertEquals(1, foreachStmt.getBody().size());
+    }
+
+    @Test
+    void parseIfWithBracesBodyStillWorks() {
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize("if (1) { foo(); bar(); }", false));
+        If ifStmt = assertInstanceOf(If.class, ast.getFirst());
+        assertEquals(2, ifStmt.getThenBody().size());
     }
 
     @Test

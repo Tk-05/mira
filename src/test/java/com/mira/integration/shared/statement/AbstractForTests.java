@@ -56,4 +56,22 @@ public abstract class AbstractForTests {
                 print($last);
                 """));
     }
+
+    @Test
+    void forSingleStatementNoBraces() {
+        assertEquals("5", runForOutput("""
+                var count : 0;
+                for (var i : 0; $i < 5; $i : eval($i + 1)) $count : eval($count + 1);
+                print($count);
+                """));
+    }
+
+    @Test
+    void forRangeSingleStatementNoBraces() {
+        assertEquals("4", runForOutput("""
+                var last : 0;
+                for(var i in <0..5>) $last : $i;
+                print($last);
+                """));
+    }
 }
