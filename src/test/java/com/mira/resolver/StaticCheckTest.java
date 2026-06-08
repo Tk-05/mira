@@ -17,14 +17,14 @@ import com.mira.parser.nodes.Node;
 public class StaticCheckTest {
 
     private List<MiraError> errorsFor(String source) {
-        List<Node> ast = new Parser().parseTokens(new Tokenizer().tokenize(source, false));
+        List<Node> ast = new Parser().parseTokens(new Tokenizer().tokenize("module Main; " + source, false));
         MultipleStaticCheckErrors ex = assertThrows(MultipleStaticCheckErrors.class,
                 () -> new StaticCheck().check(ast));
         return ex.getErrors();
     }
 
     private void assertClean(String source) {
-        List<Node> ast = new Parser().parseTokens(new Tokenizer().tokenize(source, false));
+        List<Node> ast = new Parser().parseTokens(new Tokenizer().tokenize("module Main; " + source, false));
         assertDoesNotThrow(() -> new StaticCheck().check(ast));
     }
 
