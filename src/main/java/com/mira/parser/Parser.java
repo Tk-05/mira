@@ -566,7 +566,9 @@ public class Parser {
                 }
             }
             matchLexeme(")");
-            return new CallExpression(base, args);
+            CallExpression ce = new CallExpression(base, args);
+            ce.line = base.line;
+            return ce;
         }
         return base;
     }
@@ -586,7 +588,9 @@ public class Parser {
         }
 
         matchLexeme(")");
-        return new CallExpression(new DumbExpression(referencedFunction), args);
+        CallExpression ce = new CallExpression(new DumbExpression(referencedFunction), args);
+        ce.line = referencedFunction.getLine();
+        return ce;
     }
 
     private Expression parseNamespaceCallExpression() {

@@ -1,6 +1,24 @@
 import * as path from "path";
 import * as os from "os";
-import { workspace, ExtensionContext } from "vscode";
+import * as fs from "fs";
+import {
+  workspace,
+  ExtensionContext,
+  debug,
+  DebugAdapterExecutable,
+  DebugAdapterTracker,
+  DebugAdapterTrackerFactory,
+  DebugConfiguration,
+  DebugSession,
+  languages,
+  CodeLensProvider,
+  CodeLens,
+  TextDocument,
+  Range,
+  commands,
+  Uri,
+  window,
+} from "vscode";
 import {
   LanguageClient,
   LanguageClientOptions,
@@ -9,11 +27,66 @@ import {
 
 let client: LanguageClient;
 
-export function activate(context: ExtensionContext) {
+function getJarPath(): string {
   const config = workspace.getConfiguration("mira");
-  const jarPath =
+  return (
     config.get<string>("jarPath") ||
-    path.join(os.homedir(), ".mira", "mira.jar");
+    path.join(os.homedir(), ".mira", "mira.jar")
+  );
+}
+
+class MiraCodeLensProvider implements CodeLensProvider {
+  provideCodeLenses(document: TextDocument): CodeLens[] {
+    const lenses: CodeLens[] = [];
+    const lines = document.getText().split("\n");
+
+    let targetLine = 0;
+    let hasMain = false;
+    for (let i = 0; i < lines.length; i++) {
+      if (/^\s*fn\s+main\s*\(/.test(lines[i])) {
+        targetLine = i;
+        hasMain = true;
+        break;
+      }
+    }
+    const range = new Range(targetLine, 0, targetLine, 0);
+    lenses.push(
+      new CodeLens(range, {
+        title: "▶ Run",
+        command: "mira.run",
+        arguments: [document.uri, hasMain],
+      }),
+    );
+    lenses.push(
+      new CodeLens(range, {
+        title: "⬡ Debug",
+        command: "mira.debug",
+        arguments: [document.uri],
+      }),
+    );
+    return lenses;
+  }
+}
+
+const traceFile = path.join(os.homedir(), ".mira", "dap-trace.txt");
+
+class MiraTrackerFactory implements DebugAdapterTrackerFactory {
+  createDebugAdapterTracker(_session: DebugSession): DebugAdapterTracker {
+    const log = (line: string) => {
+      try { fs.appendFileSync(traceFile, line + "\n"); } catch {}
+    };
+    return {
+      onWillStartSession: () => log(`\n=== SESSION START ${new Date().toISOString()} ===`),
+      onWillReceiveMessage: (msg) => log(`${new Date().toISOString()} → ${JSON.stringify(msg)}`),
+      onDidSendMessage: (msg) => log(`${new Date().toISOString()} ← ${JSON.stringify(msg)}`),
+      onError: (err) => log(`ERROR: ${err}`),
+      onWillStopSession: () => log("=== SESSION STOP ==="),
+    };
+  }
+}
+
+export function activate(context: ExtensionContext) {
+  const jarPath = getJarPath();
 
   const serverOptions: ServerOptions = {
     command: "java",
@@ -36,6 +109,61 @@ export function activate(context: ExtensionContext) {
 
   client.start();
   context.subscriptions.push(client);
+
+  context.subscriptions.push(
+    debug.registerDebugAdapterTrackerFactory("mira", new MiraTrackerFactory())
+  );
+
+  const factory = debug.registerDebugAdapterDescriptorFactory("mira", {
+    createDebugAdapterDescriptor(
+      _session: DebugSession,
+      _executable: DebugAdapterExecutable | undefined,
+    ) {
+      return new DebugAdapterExecutable("java", [
+        "-jar",
+        getJarPath(),
+        "--dap",
+      ]);
+    },
+  });
+  context.subscriptions.push(factory);
+
+  context.subscriptions.push(
+    commands.registerCommand("mira.run", (uri?: Uri, hasMain?: boolean) => {
+      const fileUri = uri ?? window.activeTextEditor?.document.uri;
+      if (!fileUri) {
+        window.showErrorMessage("No Mira file open.");
+        return;
+      }
+      const flags = hasMain ? " -m" : "";
+      const terminal = window.createTerminal("Mira Run");
+      terminal.show();
+      terminal.sendText(`java -jar "${getJarPath()}" "${fileUri.fsPath}"${flags}`);
+    }),
+    commands.registerCommand("mira.debug", async (uri?: Uri) => {
+      const fileUri = uri ?? window.activeTextEditor?.document.uri;
+      if (!fileUri) {
+        window.showErrorMessage("No Mira file open.");
+        return;
+      }
+      const folder = workspace.getWorkspaceFolder(fileUri) ?? workspace.workspaceFolders?.[0];
+      const started = await debug.startDebugging(folder, {
+        type: "mira",
+        request: "launch",
+        name: "Debug Mira File",
+        program: fileUri.fsPath,
+      } as DebugConfiguration);
+      if (!started) {
+        window.showErrorMessage(
+          "Failed to start Mira debug session. Make sure mira.jar is installed at ~/.mira/mira.jar"
+        );
+      }
+    }),
+    languages.registerCodeLensProvider(
+      { language: "mira" },
+      new MiraCodeLensProvider(),
+    ),
+  );
 }
 
 export function deactivate(): Thenable<void> | undefined {

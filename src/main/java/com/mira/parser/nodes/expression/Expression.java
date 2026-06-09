@@ -15,6 +15,8 @@ import com.mira.utils.StringFormatter;
 
 public abstract class Expression implements Node {
 
+    public int line = 0;
+
     public static interface Mutability {
 
         public abstract boolean isMutable();
@@ -32,6 +34,9 @@ public abstract class Expression implements Node {
 
         public DumbExpression(Token token) {
             this.token = token;
+            if (token != null) {
+                this.line = token.getLine();
+            }
         }
 
         public Object getCachedValue() {
