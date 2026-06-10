@@ -1471,7 +1471,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             }
         } catch (com.mira.error.MiraError e) {
             if (e.getLine() < 0) {
-                e.withLocation(varDecl.line, 0);
+                e.withLocation(varDecl.line, varDecl.nameColumn);
             }
             throw e;
         }
@@ -1534,7 +1534,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         if (!resolveLoopCondition(condition)) {
             String msg = stmt.getMessage() != null
                     ? String.valueOf(stmt.getMessage().accept(this)) : null;
-            throw new StaticAssertFailedError(msg, stmt.line);
+            throw new StaticAssertFailedError(msg, stmt.line, stmt.column);
         }
         return null;
     }

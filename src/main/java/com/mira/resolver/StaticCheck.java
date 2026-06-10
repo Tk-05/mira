@@ -53,7 +53,6 @@ import com.mira.parser.nodes.statement.Statement.Block;
 import com.mira.parser.nodes.statement.Statement.Break;
 import com.mira.parser.nodes.statement.Statement.CatchClause;
 import com.mira.parser.nodes.statement.Statement.ComptimeBlock;
-import com.mira.parser.nodes.statement.Statement.StaticAssert;
 import com.mira.parser.nodes.statement.Statement.Continue;
 import com.mira.parser.nodes.statement.Statement.EnumDecl;
 import com.mira.parser.nodes.statement.Statement.For;
@@ -63,6 +62,7 @@ import com.mira.parser.nodes.statement.Statement.If;
 import com.mira.parser.nodes.statement.Statement.Lock;
 import com.mira.parser.nodes.statement.Statement.ModuleDecl;
 import com.mira.parser.nodes.statement.Statement.Return;
+import com.mira.parser.nodes.statement.Statement.StaticAssert;
 import com.mira.parser.nodes.statement.Statement.Switch;
 import com.mira.parser.nodes.statement.Statement.TestCall;
 import com.mira.parser.nodes.statement.Statement.Throw;
@@ -319,12 +319,12 @@ public class StaticCheck {
             }
             case Break stmt -> {
                 if (loopDepth == 0) {
-                    errors.add(new BreakOutsideLoopError(stmt.line));
+                    errors.add(new BreakOutsideLoopError(stmt.line, stmt.column));
                 }
             }
             case Continue stmt -> {
                 if (loopDepth == 0) {
-                    errors.add(new ContinueOutsideLoopError(stmt.line));
+                    errors.add(new ContinueOutsideLoopError(stmt.line, stmt.column));
                 }
             }
             case CallExpression e ->
@@ -595,7 +595,7 @@ public class StaticCheck {
             knownArities.put(stmt.getName(), new int[]{stmt.getArity(), stmt.getMaxArity()});
         }
         scope.push();
-        stmt.getParameters().forEach(p -> scope.declare(p.name(), stmt.line, 0, false));
+        stmt.getParameters().forEach(p -> scope.declare(p.name(), stmt.line, p.column(), false));
         if (stmt.getVariadicParam() != null) {
             scope.declare(stmt.getVariadicParam(), stmt.line, 0, false);
         }
@@ -741,7 +741,7 @@ public class StaticCheck {
         boolean terminated = false;
         for (Node node : body) {
             if (terminated) {
-                WarningCollector.emit(WarningLevel.WARNING, "Unreachable code", lineOf(node), 0);
+                WarningCollector.emit(WarningLevel.WARNING, "Unreachable code", lineOf(node), columnOf(node), spanOf(node));
                 break;
             }
             resolveNode(node);
@@ -800,6 +800,68 @@ public class StaticCheck {
                 d.getLine();
             default ->
                 0;
+        };
+    }
+
+    private static int columnOf(Node node) {
+        return switch (node) {
+            case VarDecl s ->
+                s.column;
+            case FuncDecl s ->
+                s.column;
+            case Return s ->
+                s.column;
+            case If s ->
+                s.column;
+            case For s ->
+                s.column;
+            case While s ->
+                s.column;
+            case Foreach s ->
+                s.column;
+            case Block s ->
+                s.column;
+            case Switch s ->
+                s.column;
+            case TryCatch s ->
+                s.column;
+            case Throw s ->
+                s.column;
+            case Assign s ->
+                s.column;
+            case CallExpression e when e.getCallee() instanceof DumbExpression d ->
+                d.getColumn();
+            default ->
+                0;
+        };
+    }
+
+    private static int spanOf(Node node) {
+        return switch (node) {
+            case VarDecl s ->
+                s.getName().length();
+            case FuncDecl s ->
+                s.getName().length();
+            case Return ignored ->
+                "return".length();
+            case Throw ignored ->
+                "throw".length();
+            case If ignored ->
+                "if".length();
+            case For ignored ->
+                "for".length();
+            case While ignored ->
+                "while".length();
+            case Foreach ignored ->
+                "foreach".length();
+            case Switch ignored ->
+                "switch".length();
+            case TryCatch ignored ->
+                "try".length();
+            case CallExpression e when e.getCallee() instanceof DumbExpression d ->
+                d.getValue().length();
+            default ->
+                1;
         };
     }
 

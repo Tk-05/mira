@@ -50,15 +50,15 @@ public class StaticCheckError extends MiraError {
 
     public static class BreakOutsideLoopError extends StaticCheckError {
 
-        public BreakOutsideLoopError(int line) {
-            super("E305", "'break' used outside of a loop", line, 0, 5, null);
+        public BreakOutsideLoopError(int line, int column) {
+            super("E305", "'break' used outside of a loop", line, column, 5, null);
         }
     }
 
     public static class ContinueOutsideLoopError extends StaticCheckError {
 
-        public ContinueOutsideLoopError(int line) {
-            super("E305", "'continue' used outside of a loop", line, 0, 8, null);
+        public ContinueOutsideLoopError(int line, int column) {
+            super("E305", "'continue' used outside of a loop", line, column, 8, null);
         }
     }
 
@@ -74,10 +74,10 @@ public class StaticCheckError extends MiraError {
 
     public static class StaticAssertFailedError extends StaticCheckError {
 
-        public StaticAssertFailedError(String userMessage, int line) {
+        public StaticAssertFailedError(String userMessage, int line, int column) {
             super("E308",
                     "static assertion failed" + (userMessage != null ? ": " + userMessage : ""),
-                    line, 0, "static_assert".length(), null);
+                    line, column, "static_assert".length(), null);
         }
     }
 

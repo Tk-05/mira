@@ -869,6 +869,7 @@ public class Parser {
 
     private List<Node> parseStatement(boolean expectSemicolon) {
         int line = peek().getLine();
+        int column = peek().getColumn();
         Node node;
 
         if (peek().getLexeme().equals("comptime") && peek().getTokenType() == TokenType.KEYWORD) {
@@ -881,6 +882,7 @@ public class Parser {
             List<Node> body = parseBlockBody(open);
             ComptimeBlock comptimeBlock = new ComptimeBlock(body);
             comptimeBlock.line = line;
+            comptimeBlock.column = column;
             return List.of(comptimeBlock);
         }
 
@@ -894,6 +896,7 @@ public class Parser {
             decreaseDepth();
             if (node instanceof Statement stmt) {
                 stmt.line = line;
+                stmt.column = column;
             }
             return List.of(node);
         }
@@ -907,6 +910,7 @@ public class Parser {
                 for (Node n : decls) {
                     if (n instanceof Statement s) {
                         s.line = line;
+                        s.column = column;
                     }
                 }
                 return decls;
@@ -919,6 +923,7 @@ public class Parser {
                 for (Node n : decls) {
                     if (n instanceof Statement s) {
                         s.line = line;
+                        s.column = column;
                     }
                 }
                 return decls;
@@ -1030,6 +1035,7 @@ public class Parser {
 
         if (node instanceof Statement stmt) {
             stmt.line = line;
+            stmt.column = column;
         }
         return List.of(node);
     }
@@ -1119,13 +1125,14 @@ public class Parser {
                 variadicParamHolder[0] = matchExpression().getLexeme();
                 break;
             }
-            String paramName = matchExpression().getLexeme();
+            Token paramToken = matchExpression();
+            String paramName = paramToken.getLexeme();
             Expression defaultValue = null;
             if (peek().getLexeme().equals(":")) {
                 consume();
                 defaultValue = parseExpression();
             }
-            parameters.add(new Parameter(paramName, defaultValue));
+            parameters.add(new Parameter(paramName, defaultValue, paramToken.getColumn()));
             if (!peek().getLexeme().equals(")")) {
                 matchLexeme(",");
             }
