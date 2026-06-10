@@ -43,6 +43,15 @@ public class Main {
                 return;
             }
 
+            if (args[0].equals("--dap")) {
+                try {
+                    com.mira.dap.DapLauncher.launch();
+                } catch (Exception e) {
+                    System.err.println("DAP server error: " + e.getMessage());
+                }
+                return;
+            }
+
             if (BuildDispatcher.isSubcommand(args[0])) {
                 BuildDispatcher.dispatch(args);
                 return;

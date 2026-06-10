@@ -97,16 +97,7 @@ public class Function implements Callable {
             CompletableFuture<Object> future = CompletableFuture.supplyAsync(() -> {
                 forked.setLocalEnvironment(localEnv);
                 try {
-                    for (Node node : body) {
-                        switch (node) {
-                            case Statement stmt ->
-                                stmt.accept(forked);
-                            case Expression expr ->
-                                expr.accept(forked);
-                            default ->
-                                throw new AssertionError();
-                        }
-                    }
+                    forked.runBody(body);
                 } catch (ReturnSignal returnSignal) {
                     return returnSignal.getValue();
                 } finally {
@@ -123,17 +114,7 @@ public class Function implements Callable {
         interpreter.setGlobalEnvironment(globalContext);
 
         try {
-            for (Node node : body) {
-                switch (node) {
-                    case Statement stmt ->
-                        stmt.accept(interpreter);
-                    case Expression expr ->
-                        expr.accept(interpreter);
-                    default -> {
-                        throw new AssertionError();
-                    }
-                }
-            }
+            interpreter.runBody(body);
         } catch (ReturnSignal returnSignal) {
             return returnSignal.getValue();
         } finally {
