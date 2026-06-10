@@ -1,6 +1,7 @@
 package com.mira.resolver;
 
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -60,6 +61,34 @@ public final class ModuleChecker {
                 Flags.sourceLines = savedSourceLines;
             }
         }
+    }
+
+    public static Map<Path, List<Path>> collectDependencyGraph(List<Node> rootAst, Path rootPath) {
+        Map<Path, List<Path>> graph = new LinkedHashMap<>();
+        collectDeps(rootAst, rootPath, graph, new LinkedHashSet<>());
+        return graph;
+    }
+
+    private static void collectDeps(List<Node> ast, Path parentPath,
+            Map<Path, List<Path>> graph, Set<Path> visited) {
+        List<Path> directImports = new ArrayList<>();
+        for (Node node : ast) {
+            if (!(node instanceof ImportExpression imp) || imp.getKind() != ImportKind.MODULE) {
+                continue;
+            }
+            Path modulePath = ModuleResolver.resolveModulePath(imp.getModule(), parentPath);
+            directImports.add(modulePath);
+            if (!visited.add(modulePath)) {
+                continue;
+            }
+            try {
+                String source = FileLoader.readFileFromPath(modulePath.toString());
+                List<Node> moduleAst = new Parser().parseTokens(new Tokenizer().tokenize(source, false));
+                collectDeps(moduleAst, modulePath, graph, visited);
+            } catch (Exception ignored) {
+            }
+        }
+        graph.put(parentPath, directImports);
     }
 
     private static void collectAllModules(List<Node> ast, Path parentPath,

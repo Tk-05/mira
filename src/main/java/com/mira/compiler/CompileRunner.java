@@ -30,8 +30,10 @@ import org.objectweb.asm.util.TraceClassVisitor;
 
 import com.mira.Flags;
 import com.mira.Main;
+import com.mira.build.BuildCache;
 import com.mira.compiler.Compiler.CompileResult;
 import com.mira.parser.nodes.Node;
+import com.mira.resolver.ModuleChecker;
 
 public class CompileRunner {
 
@@ -50,6 +52,9 @@ public class CompileRunner {
             if (Flags.packageJar) {
                 packageToJar(result, outDir);
             }
+            BuildCache cache = BuildCache.load(outDir);
+            cache.update(ModuleChecker.collectDependencyGraph(ast, Flags.inputPath.get()));
+            cache.save(outDir);
         }
 
         if (Flags.dumpByteCode) {
