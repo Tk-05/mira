@@ -115,4 +115,14 @@ public class StaticCheckError extends MiraError {
                     "Rename either the file or the 'module' declaration so they match");
         }
     }
+
+    public static class StaticAssertRuntimeValueError extends StaticCheckError {
+
+        public StaticAssertRuntimeValueError(String name, int line, int column) {
+            super("E311",
+                    "'static_assert' requires a compile-time expression, but '$" + name + "' is a runtime variable",
+                    line, column, name.length(),
+                    "Declare the variable inside a 'comptime { }' block to use it in static_assert");
+        }
+    }
 }

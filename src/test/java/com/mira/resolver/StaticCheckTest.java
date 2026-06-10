@@ -205,4 +205,37 @@ public class StaticCheckTest {
         assertEquals(2, errors.size());
         assertTrue(errors.stream().allMatch(e -> "E301".equals(e.getErrorCode())));
     }
+
+    @Test
+    void staticAssertWithLiteralIsClean() {
+        assertClean("static_assert(true);");
+    }
+
+    @Test
+    void staticAssertWithLiteralExprIsClean() {
+        assertClean("static_assert(1 == 1);");
+    }
+
+    @Test
+    void staticAssertWithComptimeConstIsClean() {
+        assertClean("comptime { const SIZE : 64; } static_assert($SIZE > 0);");
+    }
+
+    @Test
+    void staticAssertWithRuntimeVarProducesE311() {
+        List<MiraError> errors = errorsFor("var x : 5; static_assert($x > 0);");
+        assertTrue(hasCode(errors, "E311"));
+    }
+
+    @Test
+    void staticAssertWithFunctionParamProducesE311() {
+        List<MiraError> errors = errorsFor("fn check(x) { static_assert($x > 0); } check(1);");
+        assertTrue(hasCode(errors, "E311"));
+    }
+
+    @Test
+    void staticAssertMixedComptimeAndRuntimeProducesE311() {
+        List<MiraError> errors = errorsFor("comptime { const A : 1; } var b : 2; static_assert($A + $b > 0);");
+        assertTrue(hasCode(errors, "E311"));
+    }
 }

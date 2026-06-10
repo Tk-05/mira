@@ -17,6 +17,7 @@ import com.mira.error.resolver.StaticCheckError.ConstReassignmentError;
 import com.mira.error.resolver.StaticCheckError.ContinueOutsideLoopError;
 import com.mira.error.resolver.StaticCheckError.DuplicateDeclarationError;
 import com.mira.error.resolver.StaticCheckError.MissingModuleDeclarationError;
+import com.mira.error.resolver.StaticCheckError.StaticAssertRuntimeValueError;
 import com.mira.error.resolver.StaticCheckError.UndeclaredVariableError;
 import com.mira.error.resolver.StaticCheckError.UndefinedFunctionError;
 import com.mira.error.resolver.StaticCheckError.UnknownNamespaceError;
@@ -52,6 +53,7 @@ import com.mira.parser.nodes.statement.Statement.Block;
 import com.mira.parser.nodes.statement.Statement.Break;
 import com.mira.parser.nodes.statement.Statement.CatchClause;
 import com.mira.parser.nodes.statement.Statement.ComptimeBlock;
+import com.mira.parser.nodes.statement.Statement.StaticAssert;
 import com.mira.parser.nodes.statement.Statement.Continue;
 import com.mira.parser.nodes.statement.Statement.EnumDecl;
 import com.mira.parser.nodes.statement.Statement.For;
@@ -78,6 +80,7 @@ public class StaticCheck {
     private final Set<String> knownNamespaces = new HashSet<>();
     private final List<MiraError> errors = new ArrayList<>();
     private int loopDepth = 0;
+    private boolean inComptimeBlock = false;
     private final Map<String, int[]> knownArities = new HashMap<>();
     private boolean isModule = false;
     private final Set<String> externallyUsed;
@@ -303,8 +306,13 @@ public class StaticCheck {
                 resolveExpr(stmt.getMutex());
                 resolveNodes(stmt.getBody());
             }
-            case ComptimeBlock stmt ->
+            case ComptimeBlock stmt -> {
+                inComptimeBlock = true;
                 resolveNodes(stmt.getBody());
+                inComptimeBlock = false;
+            }
+            case StaticAssert stmt ->
+                resolveStaticAssert(stmt);
             case TestCall stmt -> {
                 resolveExpr(stmt.getName());
                 resolveExpr(stmt.getTestFn());
@@ -536,7 +544,49 @@ public class StaticCheck {
             warn("Const '" + stmt.getName() + "' declared without an initializer",
                     stmt.line, stmt.nameColumn, stmt.getName().length());
         }
-        scope.declare(stmt.getName(), stmt.line, stmt.nameColumn, stmt.isConst());
+        scope.declare(stmt.getName(), stmt.line, stmt.nameColumn, stmt.isConst(), inComptimeBlock && stmt.isConst());
+    }
+
+    private void resolveStaticAssert(StaticAssert stmt) {
+        resolveExpr(stmt.getCondition());
+        checkComptimeExpr(stmt.getCondition());
+        if (stmt.getMessage() != null) {
+            resolveExpr(stmt.getMessage());
+            checkComptimeExpr(stmt.getMessage());
+        }
+    }
+
+    private void checkComptimeExpr(Node expr) {
+        switch (expr) {
+            case DumbExpression e -> {
+            }
+            case UnaryExpression e when "$".equals(e.getOperation().getLexeme()) -> {
+                if (e.getRight() instanceof DumbExpression d && isIdentifier(d)) {
+                    String name = d.getValue();
+                    if (!scope.isComptime(name)) {
+                        errors.add(new StaticAssertRuntimeValueError(name, d.getLine(), d.getColumn()));
+                    }
+                } else if (e.getRight() != null) {
+                    checkComptimeExpr(e.getRight());
+                }
+            }
+            case UnaryExpression e -> {
+                if (e.getRight() != null) {
+                    checkComptimeExpr(e.getRight());
+                }
+            }
+            case BinaryExpression e -> {
+                checkComptimeExpr(e.getLeft());
+                checkComptimeExpr(e.getRight());
+            }
+            case TernaryExpression e -> {
+                checkComptimeExpr(e.getCondition());
+                checkComptimeExpr(e.getThenExpr());
+                checkComptimeExpr(e.getElseExpr());
+            }
+            default ->
+                errors.add(new StaticAssertRuntimeValueError("expression", 0, 0));
+        }
     }
 
     private void resolveFuncDecl(FuncDecl stmt) {

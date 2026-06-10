@@ -67,10 +67,11 @@ fn function(body) {
 
 comptime {
     println("Hello from comptime");
+    const abc : 0;
 }
 
 fn main() {
-    static_assert(true);
+    static_assert($abc == 0);
 
     var data : bytes.fromString("Hello");
     println($data);

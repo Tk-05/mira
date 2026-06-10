@@ -7,18 +7,18 @@ import java.util.Map;
 
 public class LintScope {
 
-    public record VarInfo(int line, int column, boolean isConst, boolean used, boolean isImport, boolean isFunction) {
+    public record VarInfo(int line, int column, boolean isConst, boolean used, boolean isImport, boolean isFunction, boolean isComptime) {
 
         public VarInfo(int line, int column, boolean isConst, boolean used) {
-            this(line, column, isConst, used, false, false);
+            this(line, column, isConst, used, false, false, false);
         }
 
         public VarInfo(int line, int column, boolean isConst, boolean used, boolean isImport) {
-            this(line, column, isConst, used, isImport, false);
+            this(line, column, isConst, used, isImport, false, false);
         }
 
         public VarInfo markUsed() {
-            return new VarInfo(line, column, isConst, true, isImport, isFunction);
+            return new VarInfo(line, column, isConst, true, isImport, isFunction, isComptime);
         }
     }
 
@@ -33,8 +33,12 @@ public class LintScope {
     }
 
     public void declare(String name, int line, int column, boolean isConst) {
+        declare(name, line, column, isConst, false);
+    }
+
+    public void declare(String name, int line, int column, boolean isConst, boolean isComptime) {
         if (!scopes.isEmpty()) {
-            scopes.peek().put(name, new VarInfo(line, column, isConst, false));
+            scopes.peek().put(name, new VarInfo(line, column, isConst, false, false, false, isComptime));
         }
     }
 
@@ -46,7 +50,7 @@ public class LintScope {
 
     public void declareFunction(String name, int line, int column) {
         if (!scopes.isEmpty()) {
-            scopes.peek().put(name, new VarInfo(line, column, false, false, false, true));
+            scopes.peek().put(name, new VarInfo(line, column, false, false, false, true, false));
         }
     }
 
@@ -85,6 +89,16 @@ public class LintScope {
             VarInfo info = scope.get(name);
             if (info != null) {
                 return info.isConst();
+            }
+        }
+        return false;
+    }
+
+    public boolean isComptime(String name) {
+        for (Map<String, VarInfo> scope : scopes) {
+            VarInfo info = scope.get(name);
+            if (info != null) {
+                return info.isComptime();
             }
         }
         return false;

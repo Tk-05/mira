@@ -41,36 +41,6 @@ public abstract class AbstractStaticAssertTests {
     }
 
     @Test
-    void staticAssertInsideFunctionDoesNotThrowWhenTrue() {
-        assertDoesNotThrow(() -> runForOutput("""
-                fn check(x) {
-                    static_assert($x > 0, "x must be positive");
-                }
-                check(5);
-                """));
-    }
-
-    @Test
-    void staticAssertInsideFunctionThrowsWhenFalse() {
-        assertThrows(StaticAssertFailedError.class, () -> runForOutput("""
-                fn check(x) {
-                    static_assert($x > 0, "x must be positive");
-                }
-                check(-1);
-                """));
-    }
-
-    @Test
-    void staticAssertInsideIfBlock() {
-        assertDoesNotThrow(() -> runForOutput("""
-                var ok : true;
-                if ($ok) {
-                    static_assert($ok, "ok must be true");
-                }
-                """));
-    }
-
-    @Test
     void staticAssertWithComptimeConstant() {
         assertDoesNotThrow(() -> runForOutput("""
                 comptime {
