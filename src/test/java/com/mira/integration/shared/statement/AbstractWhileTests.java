@@ -72,4 +72,31 @@ public abstract class AbstractWhileTests {
                 print($i);
                 """));
     }
+
+    @Test
+    void whileSingleStatementNoBraces() {
+        assertEquals("3", runForOutput("""
+                var i : 0;
+                while ($i < 3) $i : eval($i + 1);
+                print($i);
+                """));
+    }
+
+    @Test
+    void whileSingleStatementFalseNeverRuns() {
+        assertEquals("0", runForOutput("""
+                var i : 0;
+                while (false) $i : eval($i + 1);
+                print($i);
+                """));
+    }
+
+    @Test
+    void doWhileSingleStatementNoBraces() {
+        assertEquals("1", runForOutput("""
+                var i : 0;
+                do $i : eval($i + 1); while (false);
+                print($i);
+                """));
+    }
 }

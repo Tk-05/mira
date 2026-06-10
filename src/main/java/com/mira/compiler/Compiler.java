@@ -28,7 +28,6 @@ import static org.objectweb.asm.Opcodes.PUTSTATIC;
 import static org.objectweb.asm.Opcodes.RETURN;
 
 import com.mira.Flags;
-import com.mira.runtime.ComptimeExecutor;
 import com.mira.error.runtime.RuntimeError.ModuleMissingDeclarationError;
 import com.mira.lexer.Tokenizer;
 import com.mira.parser.Parser;
@@ -39,6 +38,7 @@ import com.mira.parser.nodes.expression.Expression.ImportExpression;
 import com.mira.parser.nodes.statement.Statement.EnumDecl;
 import com.mira.parser.nodes.statement.Statement.FuncDecl;
 import com.mira.parser.nodes.statement.Statement.ModuleDecl;
+import com.mira.runtime.ComptimeExecutor;
 
 public class Compiler {
 
@@ -274,44 +274,20 @@ public class Compiler {
             int mainArity = ast.stream()
                     .filter(n -> n instanceof FuncDecl fd && "main".equals(fd.getName()))
                     .mapToInt(n -> ((FuncDecl) n).getParameters().size())
-                    .findFirst().orElse(-1);
+                    .findFirst().orElse(0);
 
-            String errClass = "com/mira/error/runtime/RuntimeError$ArgMismatchError";
-            if (mainArity == 0) {
-                Label noArgs = new Label();
-                mv.visitVarInsn(ALOAD, 0);
-                mv.visitInsn(org.objectweb.asm.Opcodes.ARRAYLENGTH);
-                mv.visitJumpInsn(org.objectweb.asm.Opcodes.IFEQ, noArgs);
-                mv.visitTypeInsn(NEW, errClass);
-                mv.visitInsn(DUP);
-                mv.visitLdcInsn("main");
-                mv.visitInsn(ICONST_0);
+            if (mainArity > 0) {
                 mv.visitInsn(org.objectweb.asm.Opcodes.ICONST_1);
-                mv.visitMethodInsn(INVOKESPECIAL, errClass, "<init>", "(Ljava/lang/String;II)V", false);
-                mv.visitInsn(org.objectweb.asm.Opcodes.ATHROW);
-                mv.visitLabel(noArgs);
-            } else if (mainArity > 0) {
-                Label hasArgs = new Label();
+                mv.visitTypeInsn(org.objectweb.asm.Opcodes.ANEWARRAY, "java/lang/Object");
+                mv.visitInsn(org.objectweb.asm.Opcodes.DUP);
+                mv.visitInsn(org.objectweb.asm.Opcodes.ICONST_0);
                 mv.visitVarInsn(ALOAD, 0);
-                mv.visitInsn(org.objectweb.asm.Opcodes.ARRAYLENGTH);
-                mv.visitJumpInsn(org.objectweb.asm.Opcodes.IFGT, hasArgs);
-                mv.visitTypeInsn(NEW, errClass);
-                mv.visitInsn(DUP);
-                mv.visitLdcInsn("main");
-                emitIntConst(mv, mainArity);
-                mv.visitInsn(ICONST_0);
-                mv.visitMethodInsn(INVOKESPECIAL, errClass, "<init>", "(Ljava/lang/String;II)V", false);
-                mv.visitInsn(org.objectweb.asm.Opcodes.ATHROW);
-                mv.visitLabel(hasArgs);
+                mv.visitMethodInsn(INVOKESTATIC, RT, "wrapArgs", "([Ljava/lang/String;)Ljava/lang/Object;", false);
+                mv.visitInsn(org.objectweb.asm.Opcodes.AASTORE);
+            } else {
+                mv.visitInsn(org.objectweb.asm.Opcodes.ICONST_0);
+                mv.visitTypeInsn(org.objectweb.asm.Opcodes.ANEWARRAY, "java/lang/Object");
             }
-
-            mv.visitInsn(org.objectweb.asm.Opcodes.ICONST_1);
-            mv.visitTypeInsn(org.objectweb.asm.Opcodes.ANEWARRAY, "java/lang/Object");
-            mv.visitInsn(org.objectweb.asm.Opcodes.DUP);
-            mv.visitInsn(org.objectweb.asm.Opcodes.ICONST_0);
-            mv.visitVarInsn(ALOAD, 0);
-            mv.visitMethodInsn(INVOKESTATIC, RT, "wrapArgs", "([Ljava/lang/String;)Ljava/lang/Object;", false);
-            mv.visitInsn(org.objectweb.asm.Opcodes.AASTORE);
             mv.visitMethodInsn(INVOKESTATIC, className, "mira$main", ClassEmitter.FN_DESC, false);
             mv.visitInsn(org.objectweb.asm.Opcodes.POP);
         }

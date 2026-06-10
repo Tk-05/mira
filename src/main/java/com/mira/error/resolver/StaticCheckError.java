@@ -72,6 +72,15 @@ public class StaticCheckError extends MiraError {
         }
     }
 
+    public static class StaticAssertFailedError extends StaticCheckError {
+
+        public StaticAssertFailedError(String userMessage, int line) {
+            super("E308",
+                    "static assertion failed" + (userMessage != null ? ": " + userMessage : ""),
+                    line, 0, "static_assert".length(), null);
+        }
+    }
+
     public static class ArityMismatchError extends StaticCheckError {
 
         public ArityMismatchError(String name, int expected, int actual, int line, int column) {
@@ -84,6 +93,26 @@ public class StaticCheckError extends MiraError {
             super("E307",
                     "'" + name + "' expects " + min + " to " + max + " argument(s) but was called with " + actual,
                     line, column, name.length(), null);
+        }
+    }
+
+    public static class MissingModuleDeclarationError extends StaticCheckError {
+
+        public MissingModuleDeclarationError() {
+            super("E309",
+                    "Entry file is missing a 'module' declaration",
+                    1, 0, 0,
+                    "Add 'module <name>;' as the first statement in your file");
+        }
+    }
+
+    public static class ModuleNameMismatchError extends StaticCheckError {
+
+        public ModuleNameMismatchError(String file, String expected, String found, int line) {
+            super("E310",
+                    "Module name mismatch in '" + file + "': expected '" + expected + "' but found '" + found + "'",
+                    line, 0, found.length(),
+                    "Rename either the file or the 'module' declaration so they match");
         }
     }
 }

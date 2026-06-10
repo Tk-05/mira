@@ -9,7 +9,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import com.mira.Flags;
 import com.mira.error.MiraError;
 import com.mira.error.resolver.MultipleStaticCheckErrors;
 import com.mira.error.resolver.StaticCheckError.ArityMismatchError;
@@ -17,6 +16,7 @@ import com.mira.error.resolver.StaticCheckError.BreakOutsideLoopError;
 import com.mira.error.resolver.StaticCheckError.ConstReassignmentError;
 import com.mira.error.resolver.StaticCheckError.ContinueOutsideLoopError;
 import com.mira.error.resolver.StaticCheckError.DuplicateDeclarationError;
+import com.mira.error.resolver.StaticCheckError.MissingModuleDeclarationError;
 import com.mira.error.resolver.StaticCheckError.UndeclaredVariableError;
 import com.mira.error.resolver.StaticCheckError.UndefinedFunctionError;
 import com.mira.error.resolver.StaticCheckError.UnknownNamespaceError;
@@ -59,6 +59,7 @@ import com.mira.parser.nodes.statement.Statement.Foreach;
 import com.mira.parser.nodes.statement.Statement.FuncDecl;
 import com.mira.parser.nodes.statement.Statement.If;
 import com.mira.parser.nodes.statement.Statement.Lock;
+import com.mira.parser.nodes.statement.Statement.ModuleDecl;
 import com.mira.parser.nodes.statement.Statement.Return;
 import com.mira.parser.nodes.statement.Statement.Switch;
 import com.mira.parser.nodes.statement.Statement.TestCall;
@@ -216,8 +217,12 @@ public class StaticCheck {
     }
 
     public void check(List<Node> ast) {
+        if (ast.isEmpty() || !(ast.getFirst() instanceof ModuleDecl)) {
+            errors.add(new MissingModuleDeclarationError());
+            throw new MultipleStaticCheckErrors(errors);
+        }
         scope.push();
-        isModule = !ast.isEmpty() && ast.getFirst() instanceof com.mira.parser.nodes.statement.Statement.ModuleDecl;
+        isModule = true;
 
         for (String builtin : LibIndex.GLOBAL_NAMES) {
             scope.declare(builtin, 0, 0, false);

@@ -50,4 +50,22 @@ public abstract class AbstractForeachTests {
                 print($last);
                 """));
     }
+
+    @Test
+    void foreachSingleStatementNoBraces() {
+        assertEquals("6", runForOutput("""
+                var sum : 0;
+                foreach(var i in {1, 2, 3}) $sum : eval($sum + $i);
+                print($sum);
+                """));
+    }
+
+    @Test
+    void foreachRangeSingleStatementNoBraces() {
+        assertEquals("4", runForOutput("""
+                var last : 0;
+                foreach(var i in <0..5>) $last : $i;
+                print($last);
+                """));
+    }
 }

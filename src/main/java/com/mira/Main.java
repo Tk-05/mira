@@ -12,14 +12,12 @@ import com.mira.debugger.Debugger;
 import com.mira.error.DiagnosticFormatter;
 import com.mira.error.parser.MultipleParserErrors;
 import com.mira.error.resolver.MultipleStaticCheckErrors;
-import com.mira.error.runtime.RuntimeError.ModuleNameMismatchError;
 import com.mira.lexer.Tokenizer;
 import com.mira.lexer.token.Token;
 import com.mira.lib.LibIndex;
 import com.mira.lsp.Launcher;
 import com.mira.parser.Parser;
 import com.mira.parser.nodes.Node;
-import com.mira.parser.nodes.statement.Statement.ModuleDecl;
 import com.mira.repl.Repl;
 import com.mira.resolver.ModuleChecker;
 import com.mira.resolver.StaticCheck;
@@ -41,6 +39,15 @@ public class Main {
                     Launcher.launch();
                 } catch (Exception e) {
                     System.err.println("LSP server error: " + e.getMessage());
+                }
+                return;
+            }
+
+            if (args[0].equals("--dap")) {
+                try {
+                    com.mira.dap.DapLauncher.launch();
+                } catch (Exception e) {
+                    System.err.println("DAP server error: " + e.getMessage());
                 }
                 return;
             }
@@ -165,13 +172,6 @@ public class Main {
 
             Parser parser = new Parser();
             List<Node> asts = parser.parseTokens(tokens);
-
-            if (!asts.isEmpty() && asts.getFirst() instanceof ModuleDecl moduleDecl) {
-                String expectedName = Flags.fileName.replace(".mira", "");
-                if (!moduleDecl.getModuleName().equals(expectedName)) {
-                    throw new ModuleNameMismatchError(Flags.fileName, expectedName, moduleDecl.getModuleName());
-                }
-            }
 
             if (Flags.printAsts) {
                 System.out.println(new AstPrinter().print(asts));

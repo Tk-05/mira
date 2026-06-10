@@ -13,6 +13,11 @@
   "activationEvents": [],
   "main": "./out/extension.js",
   "contributes": {
+    "breakpoints": [
+      {
+        "language": "mira"
+      }
+    ],
     "languages": [
       {
         "id": "mira",
@@ -41,7 +46,50 @@
           "description": "Path to mira-RELEASE.jar. Leave empty to use ~/.mira/mira.jar"
         }
       }
-    }
+    },
+    "debuggers": [
+      {
+        "type": "mira",
+        "label": "Mira Debug",
+        "languages": [
+          "mira"
+        ],
+        "configurationAttributes": {
+          "launch": {
+            "required": [
+              "program"
+            ],
+            "properties": {
+              "program": {
+                "type": "string",
+                "description": "Path to the .mira file to debug.",
+                "default": "${file}"
+              }
+            }
+          }
+        },
+        "initialConfigurations": [
+          {
+            "type": "mira",
+            "request": "launch",
+            "name": "Debug Mira File",
+            "program": "${file}"
+          }
+        ],
+        "configurationSnippets": [
+          {
+            "label": "Mira: Debug File",
+            "description": "Debug the current .mira file",
+            "body": {
+              "type": "mira",
+              "request": "launch",
+              "name": "Debug Mira File",
+              "program": "^\"${file}\""
+            }
+          }
+        ]
+      }
+    ]
   },
   "dependencies": {
     "vscode-languageclient": "latest"

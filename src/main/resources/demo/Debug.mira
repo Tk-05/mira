@@ -70,6 +70,8 @@ comptime {
 }
 
 fn main() {
+    static_assert(true);
+
     var data : bytes.fromString("Hello");
     println($data);
     $data : bytes.toString($data);

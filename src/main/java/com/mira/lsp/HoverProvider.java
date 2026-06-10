@@ -165,6 +165,8 @@ public class HoverProvider {
         STDLIB_DOCS.put("jsonSet", "**json.jsonSet(json, key, value)** — Sets `key` to `value` in a JSON object string");
         // thread
         STDLIB_DOCS.put("newMutex", "**thread.newMutex()** — Creates a new mutex for use with `lock`");
+        // keywords
+        STDLIB_DOCS.put("static_assert", "**static_assert(condition)**  \n**static_assert(condition, message)**\n\nEvaluates `condition` at the point of execution and throws error **E308** if it is falsy. At the top level this runs before user code starts (after `comptime` constants are available), making it a compile-time guard. Inside functions it runs on every call.\n\n```mira\nstatic_assert($SIZE > 0, \"SIZE must be positive\");\n```");
         // bytes
         STDLIB_DOCS.put("newBytes", "**bytes.newBytes(size)** — Creates a zero-filled byte array of the given size");
         STDLIB_DOCS.put("fromString", "**bytes.fromString(str)** — Encodes a string to bytes (UTF-8)");

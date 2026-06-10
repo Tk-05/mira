@@ -89,4 +89,49 @@ public abstract class AbstractIfTests {
                 else { print(0); }
                 """));
     }
+
+    @Test
+    void singleStatementTrueBranchNoBraces() {
+        assertEquals("yes", runForOutput(
+                "if (true) print(\"yes\");"));
+    }
+
+    @Test
+    void singleStatementFalseBranchSkipped() {
+        assertEquals("no", runForOutput(
+                "var x : false; if ($x) print(\"yes\"); else print(\"no\");"));
+    }
+
+    @Test
+    void singleStatementElseNoBraces() {
+        assertEquals("else", runForOutput(
+                "if (false) print(\"then\"); else print(\"else\");"));
+    }
+
+    @Test
+    void singleStatementElseIfNoBraces() {
+        assertEquals("2", runForOutput("""
+                var x : 2;
+                if ($x == 1) print(1);
+                else if ($x == 2) print(2);
+                else print(0);
+                """));
+    }
+
+    @Test
+    void singleStatementBodyDoesNotLeakToNextStatement() {
+        assertEquals("inside", runForOutput("""
+                var out : "outside";
+                if (true) $out : "inside";
+                print($out);
+                """));
+    }
+
+    @Test
+    void nextStatementAfterSingleBodyAlwaysRuns() {
+        assertEquals("AB", runForOutput("""
+                if (true) print("A");
+                print("B");
+                """));
+    }
 }

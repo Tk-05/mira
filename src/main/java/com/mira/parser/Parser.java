@@ -53,6 +53,7 @@ import com.mira.parser.nodes.statement.Statement.FuncDecl;
 import com.mira.parser.nodes.statement.Statement.If;
 import com.mira.parser.nodes.statement.Statement.ModuleDecl;
 import com.mira.parser.nodes.statement.Statement.Return;
+import com.mira.parser.nodes.statement.Statement.StaticAssert;
 import com.mira.parser.nodes.statement.Statement.Switch;
 import com.mira.parser.nodes.statement.Statement.SwitchCase;
 import com.mira.parser.nodes.statement.Statement.TestCall;
@@ -565,7 +566,9 @@ public class Parser {
                 }
             }
             matchLexeme(")");
-            return new CallExpression(base, args);
+            CallExpression ce = new CallExpression(base, args);
+            ce.line = base.line;
+            return ce;
         }
         return base;
     }
@@ -585,7 +588,9 @@ public class Parser {
         }
 
         matchLexeme(")");
-        return new CallExpression(new DumbExpression(referencedFunction), args);
+        CallExpression ce = new CallExpression(new DumbExpression(referencedFunction), args);
+        ce.line = referencedFunction.getLine();
+        return ce;
     }
 
     private Expression parseNamespaceCallExpression() {
@@ -1009,8 +1014,14 @@ public class Parser {
                     matchLexeme(";");
                 }
             }
+            case "static_assert" -> {
+                node = parseStaticAssert();
+                if (expectSemicolon) {
+                    matchLexeme(";");
+                }
+            }
             default -> {
-                node = parseExpression();
+                node = parsePratt(0);
                 if (expectSemicolon) {
                     matchLexeme(";");
                 }
@@ -1035,6 +1046,19 @@ public class Parser {
         Expression testFn = parseExpression();
         matchLexeme(")");
         return new TestCall(name, testFn);
+    }
+
+    private Node parseStaticAssert() {
+        matchLexeme("static_assert");
+        matchLexeme("(");
+        Expression condition = parseExpression();
+        Expression message = null;
+        if (peek().getLexeme().equals(",")) {
+            matchLexeme(",");
+            message = parseExpression();
+        }
+        matchLexeme(")");
+        return new StaticAssert(condition, message);
     }
 
     private Node parseModuleDecl() {
@@ -1201,8 +1225,7 @@ public class Parser {
         Expression condition = parseExpression();
         matchLexeme(")");
 
-        Token thenOpen = matchLexeme("{");
-        List<Node> thenBody = parseBlockBody(thenOpen);
+        List<Node> thenBody = parseBody();
 
         if (peek().getLexeme().equals("else")) {
             matchLexeme("else");
@@ -1211,8 +1234,7 @@ public class Parser {
                 elseIfBody.add(parseIf());
                 return new If(condition, thenBody, elseIfBody);
             }
-            Token elseOpen = matchLexeme("{");
-            List<Node> elseBody = parseBlockBody(elseOpen);
+            List<Node> elseBody = parseBody();
             return new If(condition, thenBody, elseBody);
         } else {
             return new If(condition, thenBody, null);
@@ -1227,8 +1249,7 @@ public class Parser {
         if (peek().getLexeme().equals("<")) {
             Expression range = parseRangeExpression();
             matchLexeme(")");
-            Token forOpen = matchLexeme("{");
-            List<Node> body = parseBlockBody(forOpen);
+            List<Node> body = parseBody();
             return new Foreach(new VarDecl("_", null, false), range, body);
         }
 
@@ -1243,8 +1264,7 @@ public class Parser {
             Expression range = parseRangeExpression();
             matchLexeme(")");
 
-            Token forOpen = matchLexeme("{");
-            List<Node> body = parseBlockBody(forOpen);
+            List<Node> body = parseBody();
 
             VarDecl iterVd = new VarDecl(iteratorName, null, false);
             iterVd.nameColumn = iterToken.getColumn();
@@ -1286,14 +1306,12 @@ public class Parser {
             }
             matchLexeme(")");
 
-            Token forOpen = matchLexeme("{");
-            List<Node> body = parseBlockBody(forOpen);
+            List<Node> body = parseBody();
 
             return new For(varDecls, condition, postExpressions, body);
         } else {
             matchLexeme(")");
-            Token forOpen = matchLexeme("{");
-            List<Node> body = parseBlockBody(forOpen);
+            List<Node> body = parseBody();
 
             return new For(varDecls, null, null, body);
         }
@@ -1305,8 +1323,7 @@ public class Parser {
         matchLexeme("(");
         Expression condition = parseExpression();
         matchLexeme(")");
-        Token whileOpen = matchLexeme("{");
-        List<Node> body = parseBlockBody(whileOpen);
+        List<Node> body = parseBody();
 
         return new While(condition, body, false);
     }
@@ -1314,8 +1331,7 @@ public class Parser {
     private Node parseDoWhile() {
         Token kwToken = matchLexeme("do");
         requireNotIncomplete(kwToken, "{ body } while (condition)");
-        Token doOpen = matchLexeme("{");
-        List<Node> body = parseBlockBody(doOpen);
+        List<Node> body = parseBody();
 
         matchLexeme("while");
         matchLexeme("(");
@@ -1338,8 +1354,7 @@ public class Parser {
 
         matchLexeme(")");
 
-        Token feOpen = matchLexeme("{");
-        List<Node> body = parseBlockBody(feOpen);
+        List<Node> body = parseBody();
 
         return new Foreach(iterator, collection, body);
     }
@@ -1433,6 +1448,14 @@ public class Parser {
         }
 
         return new TryCatch(tryBody, catchClauses, finallyBody);
+    }
+
+    private List<Node> parseBody() {
+        if (peek().getLexeme().equals("{")) {
+            Token open = matchLexeme("{");
+            return parseBlockBody(open);
+        }
+        return new ArrayList<>(parseStatement(true));
     }
 
     private List<Node> parseBlockBody(Token open) {

@@ -549,6 +549,30 @@ public abstract class Statement implements Node {
         }
     }
 
+    public static class StaticAssert extends Statement {
+
+        private final Expression condition;
+        private final Expression message;
+
+        public StaticAssert(Expression condition, Expression message) {
+            this.condition = condition;
+            this.message = message;
+        }
+
+        public Expression getCondition() {
+            return condition;
+        }
+
+        public Expression getMessage() {
+            return message;
+        }
+
+        @Override
+        public <T> T accept(StmtVisitor<T> visitor) {
+            return visitor.visitStaticAssert(this);
+        }
+    }
+
     public static class TestCall extends Statement {
 
         private final Expression name;

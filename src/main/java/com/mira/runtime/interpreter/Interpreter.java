@@ -11,13 +11,13 @@ import java.util.Set;
 import java.util.concurrent.ExecutionException;
 
 import com.mira.Flags;
+import com.mira.error.resolver.StaticCheckError.StaticAssertFailedError;
 import com.mira.error.runtime.RuntimeError.ArgMismatchError;
 import com.mira.error.runtime.RuntimeError.DivisionByZeroError;
 import com.mira.error.runtime.RuntimeError.FieldAccessError;
 import com.mira.error.runtime.RuntimeError.ImmutableCollectionError;
 import com.mira.error.runtime.RuntimeError.IndexOutOfBoundsError;
 import com.mira.error.runtime.RuntimeError.LocalCallableError;
-import com.mira.error.runtime.RuntimeError.NoModuleDeclarationError;
 import com.mira.error.runtime.RuntimeError.NotANamespaceError;
 import com.mira.error.runtime.RuntimeError.NotCallableError;
 import com.mira.error.runtime.RuntimeError.NotIterableError;
@@ -67,8 +67,8 @@ import com.mira.parser.nodes.statement.Statement.Foreach;
 import com.mira.parser.nodes.statement.Statement.FuncDecl;
 import com.mira.parser.nodes.statement.Statement.If;
 import com.mira.parser.nodes.statement.Statement.Lock;
-import com.mira.parser.nodes.statement.Statement.ModuleDecl;
 import com.mira.parser.nodes.statement.Statement.Return;
+import com.mira.parser.nodes.statement.Statement.StaticAssert;
 import com.mira.parser.nodes.statement.Statement.Switch;
 import com.mira.parser.nodes.statement.Statement.SwitchCase;
 import com.mira.parser.nodes.statement.Statement.TestCall;
@@ -99,7 +99,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
     private static Interpreter instance;
     private static final ThreadLocal<Interpreter> activeInterpreter = new ThreadLocal<>();
 
-    private record StackFrame(String name, int line) {
+    public record StackFrame(String name, int line) {
 
     }
 
@@ -113,7 +113,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
     public interface DebugHook {
 
-        void onStatement(Statement stmt, Environment env);
+        void onLine(int line, Environment env);
     }
 
     private Environment globalEnvironment = new Environment();
@@ -162,10 +162,6 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
     private void loadGlobalContext(List<Node> asts, boolean enforceModule) {
         if (globalEnvironment.getSize() > 0) {
             globalEnvironment = new Environment();
-        }
-
-        if (enforceModule && !(asts.getFirst() instanceof ModuleDecl)) {
-            throw new NoModuleDeclarationError();
         }
 
         List<ImportExpression> imports = new ArrayList<>();
@@ -239,7 +235,11 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             Object lastResult = null;
 
             if (Flags.mainFunction) {
-                Expression argsTuple = getArgsTuple(args);
+                int mainArity = asts.stream()
+                        .filter(n -> n instanceof FuncDecl fd && "main".equals(fd.getName()))
+                        .mapToInt(n -> ((FuncDecl) n).getParameters().size())
+                        .findFirst().orElse(0);
+                Expression argsTuple = mainArity > 0 ? getArgsTuple(args != null ? args : new String[0]) : null;
                 return (T) new CallExpression(new DumbExpression(
                         new Token(null, "main", 0, 0)),
                         argsTuple == null ? List.of() : List.of(argsTuple)).
@@ -371,9 +371,13 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         this.debugHook = hook;
     }
 
-    private void notifyDebugger(Statement stmt) {
-        if (debugHook != null) {
-            debugHook.onStatement(stmt, localEnvironment != null ? localEnvironment : globalEnvironment);
+    public List<StackFrame> getCallStack() {
+        return new ArrayList<>(miraCallStack);
+    }
+
+    private void notifyDebugger(int line) {
+        if (debugHook != null && line > 0) {
+            debugHook.onLine(line, localEnvironment != null ? localEnvironment : globalEnvironment);
         }
     }
 
@@ -1450,7 +1454,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
     @Override
     public Void visitVarDecl(VarDecl varDecl) {
-        notifyDebugger(varDecl);
+        notifyDebugger(varDecl.line);
         Object value = NullValue.INSTANCE;
 
         if (varDecl.getInitializer() != null) {
@@ -1487,7 +1491,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
     @Override
     public Void visitVarDestructure(VarDestructure stmt) {
-        notifyDebugger(stmt);
+        notifyDebugger(stmt.line);
         Object value = stmt.getInitializer().accept(this);
         List<Expression> members = switch (value) {
             case ListExpression l ->
@@ -1508,7 +1512,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
     @Override
     public Object visitLock(Lock stmt) {
-        notifyDebugger(stmt);
+        notifyDebugger(stmt.line);
         Object val = stmt.getMutex().accept(this);
         if (!(val instanceof MutexValue mutex)) {
             throw new TypeConversionError(val);
@@ -1521,6 +1525,17 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
     @Override
     public Object visitComptimeBlock(ComptimeBlock stmt) {
+        return null;
+    }
+
+    @Override
+    public Object visitStaticAssert(StaticAssert stmt) {
+        Object condition = stmt.getCondition().accept(this);
+        if (!resolveLoopCondition(condition)) {
+            String msg = stmt.getMessage() != null
+                    ? String.valueOf(stmt.getMessage().accept(this)) : null;
+            throw new StaticAssertFailedError(msg, stmt.line);
+        }
         return null;
     }
 
@@ -1540,7 +1555,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
     @Override
     public Void visitAssign(Assign assign) {
-        notifyDebugger(assign);
+        notifyDebugger(assign.line);
         switch (assign.getReference()) {
             case AccessExpression accessExpression -> {
                 Object referencedObject = accessExpression.getReference().accept(this);
@@ -1665,7 +1680,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
     @Override
     public Void visitReturn(Return ret) {
-        notifyDebugger(ret);
+        notifyDebugger(ret.line);
         Object value = null;
 
         if (ret.getValue() != null) {
@@ -1677,7 +1692,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
     @Override
     public Object visitIf(If stmt) {
-        notifyDebugger(stmt);
+        notifyDebugger(stmt.line);
         Object condition = stmt.getCondition().accept(this);
         boolean value = resolveLoopCondition(condition);
         List<Node> body = value ? stmt.getThenBody() : stmt.getElseBody();
@@ -1693,7 +1708,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
     @Override
     public Object visitFor(For stmt) {
-        notifyDebugger(stmt);
+        notifyDebugger(stmt.line);
 
         Environment outer = localEnvironment;
         Environment forScope = new Environment(outer != null ? outer : globalEnvironment);
@@ -1729,7 +1744,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
     @Override
     public Object visitWhile(While stmt) {
-        notifyDebugger(stmt);
+        notifyDebugger(stmt.line);
         if (!stmt.getDoModifier()) {
             try {
                 while (true) {
@@ -1767,7 +1782,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
     @Override
     public Object visitForeach(Foreach stmt) {
-        notifyDebugger(stmt);
+        notifyDebugger(stmt.line);
 
         String iteratorName = stmt.getIterator().getName();
 
@@ -1890,7 +1905,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
     @Override
     public Object visitThrow(Throw stmt) {
-        notifyDebugger(stmt);
+        notifyDebugger(stmt.line);
         Expression value = stmt.getValue();
         if (value instanceof ThrownException exception) {
             throw new ThrowSignal(exception.getIdentifier(), exception.accept(this));
@@ -1906,7 +1921,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
     @Override
     public Object visitTryCatch(TryCatch stmt) {
-        notifyDebugger(stmt);
+        notifyDebugger(stmt.line);
         int stackDepthBeforeTry = miraCallStack.size();
         try {
             runBodyInFreshScope(stmt.getTryBody());
@@ -1943,11 +1958,13 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         return null;
     }
 
-    private void runBody(List<Node> body) {
+    public void runBody(List<Node> body) {
         for (Node node : body) {
             switch (node) {
-                case Expression expression ->
+                case Expression expression -> {
+                    notifyDebugger(expression.line);
                     expression.accept(this);
+                }
                 case Statement statement ->
                     statement.accept(this);
                 default -> {
