@@ -29,6 +29,13 @@ public class BuildRunner {
             new HotReloader(Flags.inputPath.get()).run();
             return;
         }
+        if (Flags.compile && Flags.outputDir != null) {
+            BuildCache cache = BuildCache.load(Flags.outputDir);
+            if (cache.isUpToDate(Flags.inputPath.get())) {
+                System.out.println(DiagnosticFormatter.formatInfo("nothing to compile (up to date)"));
+                return;
+            }
+        }
         runHook(ctx, ctx.config().build().preBuild());
         long start = System.currentTimeMillis();
         Main.runFile(new AtomicBoolean(false));

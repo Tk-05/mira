@@ -155,17 +155,27 @@ public class Commands {
     }
 
     static void clean(String[] args, Path startDir) {
+        boolean buildAfter = args.length >= 2 && "build".equals(args[1]);
         BuildContext ctx = requireContext(startDir);
         Path outputDir = ctx.config().build().outputDir();
-        if (!Files.exists(outputDir)) {
+        if (Files.exists(outputDir)) {
+            try {
+                deleteRecursively(outputDir);
+                System.out.println("Cleaned: " + outputDir);
+            } catch (IOException e) {
+                throw new BuildException("Cannot clean output directory: " + e.getMessage());
+            }
+        } else if (!buildAfter) {
             System.out.println("Nothing to clean (output directory does not exist).");
-            return;
         }
-        try {
-            deleteRecursively(outputDir);
-            System.out.println("Cleaned: " + outputDir);
-        } catch (IOException e) {
-            throw new BuildException("Cannot clean output directory: " + e.getMessage());
+        if (buildAfter) {
+            ProjectConfig.BuildMode modeOverride = null;
+            for (int i = 2; i < args.length; i++) {
+                if ("--mode".equals(args[i]) && i + 1 < args.length) {
+                    modeOverride = parseBuildMode(args[++i]);
+                }
+            }
+            BuildRunner.runBuild(ctx, modeOverride, false);
         }
     }
 
