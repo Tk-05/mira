@@ -95,16 +95,21 @@ public class Commands {
     public static void run(String[] args) {
         ProjectConfig.BuildMode modeOverride = null;
         String[] programArgs = null;
+        String projectDir = null;
         for (int i = 1; i < args.length; i++) {
             if ("--mode".equals(args[i]) && i + 1 < args.length) {
                 modeOverride = parseBuildMode(args[++i]);
+            } else if ("--project".equals(args[i]) && i + 1 < args.length) {
+                projectDir = args[++i];
             } else if ("--".equals(args[i])) {
                 programArgs = Arrays.copyOfRange(args, i + 1, args.length);
                 break;
             }
         }
 
-        BuildContext ctx = requireContext();
+        BuildContext ctx = projectDir != null
+                ? requireContext(Paths.get(projectDir).toAbsolutePath().normalize())
+                : requireContext();
         ProjectConfig.BuildMode effectiveMode = modeOverride != null
                 ? modeOverride
                 : ctx.config().build().effectiveRunMode();

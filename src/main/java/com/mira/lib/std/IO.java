@@ -26,6 +26,12 @@ public class IO implements Lib {
                 new NativeFunction(1, args -> {
                     try {
                         return FileLoader.readFileFromPath(String.valueOf(args.get(0)));
+                    } catch (java.nio.charset.MalformedInputException e) {
+                        try {
+                            return Files.readString(Path.of(String.valueOf(args.get(0))), StandardCharsets.ISO_8859_1);
+                        } catch (IOException e2) {
+                            throw new RuntimeException("readFile failed: " + e2.getMessage());
+                        }
                     } catch (IOException e) {
                         throw new RuntimeException("readFile failed: " + e.getMessage());
                     }

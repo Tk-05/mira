@@ -474,9 +474,13 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             if (cached != null) {
                 return (T) cached;
             }
-            Number parsed = parseNumber(value);
-            expression.setCachedValue(parsed);
-            return (T) parsed;
+            try {
+                Number parsed = parseNumber(value);
+                expression.setCachedValue(parsed);
+                return (T) parsed;
+            } catch (NumberFormatException e) {
+                return (T) value;
+            }
         }
         return (T) value;
     }
@@ -866,7 +870,27 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
     @Override
     public <T> T visitListExpr(ListExpression expression) {
-        return (T) new ListExpression(new ArrayList<>(expression.getMembers()));
+        List<Expression> evaluated = new ArrayList<>();
+        for (Expression member : expression.getMembers()) {
+            Object result = member.accept(this);
+            if (result instanceof Expression e) {
+                evaluated.add(e);
+            } else {
+                final Object captured = result;
+                evaluated.add(new Expression() {
+                    @Override
+                    public <T2> T2 accept(ExprVisitor<T2> visitor) {
+                        return (T2) captured;
+                    }
+
+                    @Override
+                    public String toString() {
+                        return String.valueOf(captured);
+                    }
+                });
+            }
+        }
+        return (T) new ListExpression(evaluated);
     }
 
     @Override
@@ -2121,6 +2145,8 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             return (T) NullValue.INSTANCE;
         } catch (ReturnSignal signal) {
             return (T) signal.getValue();
+        } catch (ThrowSignal signal) {
+            throw signal;
         } finally {
             localEnvironment = prevLocal;
         }

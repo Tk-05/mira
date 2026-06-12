@@ -1418,13 +1418,17 @@ public class Parser {
             if (peek().getLexeme().equals("(")) {
                 matchLexeme("(");
                 skipWhitespaceTokens();
-                typeFilter = matchExpression().getLexeme();
+                String firstToken = matchExpression().getLexeme();
                 skipWhitespaceTokens();
                 if (!peek().getLexeme().equals(")")) {
+                    // catch(ExceptionType varName) — first token is the type filter
+                    typeFilter = firstToken;
                     paramName = matchExpression().getLexeme();
                     skipWhitespaceTokens();
                 } else {
-                    paramName = typeFilter;
+                    // catch(varName) — no type filter, matches any exception
+                    typeFilter = null;
+                    paramName = firstToken;
                 }
                 matchLexeme(")");
             }
