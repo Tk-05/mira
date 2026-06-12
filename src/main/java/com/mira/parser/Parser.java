@@ -334,6 +334,9 @@ public class Parser {
                 break;
             }
 
+            if (opToken.getTokenType() == TokenType.STRING_LITERAL) {
+                break;
+            }
             int lbp = binaryOperatorBP(opToken.getLexeme());
             if (lbp == 0 || lbp <= minBP) {
                 break;
@@ -476,9 +479,13 @@ public class Parser {
             expr = maybeParseFieldAccess(expr);
         }
 
-        expr = maybeParseFieldAccess(expr);
-        expr = maybeParseAccess(expr);
-        expr = maybeParseCallOnExpr(expr);
+        Expression prev;
+        do {
+            prev = expr;
+            expr = maybeParseFieldAccess(expr);
+            expr = maybeParseAccess(expr);
+            expr = maybeParseCallOnExpr(expr);
+        } while (expr != prev);
         expr = parsePostfix(expr);
         return expr;
     }
@@ -1176,19 +1183,7 @@ public class Parser {
                 || peek().getLexeme().equals("async")
                 || peek().getLexeme().equals("fn")));
         if (startsExpression) {
-            value = parsePratt(0);
-            List<Expression> parts = new ArrayList<>();
-            parts.add(value);
-            while (!isStructuralDelimiter(peek()) && peek().getTokenType() != TokenType.EOF) {
-                skipWhitespaceTokens();
-                Token next = peek();
-                if (next.getTokenType() != TokenType.STRING_LITERAL
-                        && !(next.getTokenType() == TokenType.OPERATION && next.getLexeme().equals("$"))) {
-                    break;
-                }
-                parts.add(parsePratt(0));
-            }
-            value = parts.size() == 1 ? parts.get(0) : new ComplexExpression(parts);
+            value = parseExpression();
         } else {
             value = new DumbExpression(new Token(null, "0.0", -1, -1));
         }
