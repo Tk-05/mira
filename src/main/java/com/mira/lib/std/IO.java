@@ -48,6 +48,9 @@ public class IO implements Lib {
         environment.define("fileExists",
                 new NativeFunction(1, args -> Files.exists(Path.of(String.valueOf(args.get(0))))));
 
+        environment.define("isDir",
+                new NativeFunction(1, args -> Files.isDirectory(Path.of(String.valueOf(args.get(0))))));
+
         environment.define("appendFile",
                 new NativeFunction(2, args -> {
                     try {

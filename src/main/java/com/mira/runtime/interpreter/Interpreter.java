@@ -866,7 +866,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
     @Override
     public <T> T visitListExpr(ListExpression expression) {
-        return (T) expression;
+        return (T) new ListExpression(new ArrayList<>(expression.getMembers()));
     }
 
     @Override
@@ -1110,6 +1110,18 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
     private <T> T visitPipeExpr(BinaryExpression expr) {
         Object piped = expr.getLeft().accept(this);
+
+        if (expr.getRight() instanceof NamespaceCallExpression nsCall) {
+            Object namespaceObj = localEnvironment != null ? localEnvironment.getOrNull(nsCall.getAlias()) : null;
+            if (namespaceObj == null) namespaceObj = globalEnvironment.get(nsCall.getAlias());
+            if (!(namespaceObj instanceof Namespace namespace)) throw new NotCallableError(nsCall.getAlias() + "." + nsCall.getFunctionName());
+            Object callee = namespace.get(nsCall.getFunctionName());
+            if (!(callee instanceof Callable callable)) throw new NotCallableError(nsCall.getAlias() + "." + nsCall.getFunctionName());
+            List<Object> arguments = new ArrayList<>();
+            arguments.add(piped);
+            for (Expression arg : nsCall.getArguments()) arguments.add(arg.accept(this));
+            return (T) callable.call(this, arguments);
+        }
 
         if (!(expr.getRight() instanceof CallExpression call)) {
             throw new NotCallableError("right-hand side of |> must be a call expression");
@@ -1583,9 +1595,9 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                             }
                             referencedObject = switch (members.get(i)) {
                                 case ArrayExpression innerArray ->
-                                    innerArray.accept(this);
+                                    innerArray;
                                 case ListExpression innerList ->
-                                    innerList.accept(this);
+                                    innerList;
                                 default ->
                                     throw new ImmutableCollectionError();
                             };
@@ -1598,7 +1610,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                             }
                             referencedObject = switch (members.get(i)) {
                                 case ListExpression innerList ->
-                                    innerList.accept(this);
+                                    innerList;
                                 default ->
                                     throw new ImmutableCollectionError();
                             };
@@ -1832,7 +1844,8 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                     }
                 }
                 case ListExpression list -> {
-                    for (Expression expr : list.getMembers()) {
+                    List<Expression> snapshot = new ArrayList<>(list.getMembers());
+                    for (Expression expr : snapshot) {
                         Object value = expr.accept(this);
                         try {
                             runBodyWithIterator(iteratorName, value, stmt.getBody());

@@ -41,7 +41,10 @@ public class Collection implements Lib {
             }
             return s;
         }
-        return e;
+        if (e instanceof ArrayExpression || e instanceof ListExpression || e instanceof MapExpression) {
+            return e;
+        }
+        return e.accept(null);
     }
 
     private static boolean isTruthy(Object val) {
