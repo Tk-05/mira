@@ -62,7 +62,7 @@
                 <mkdir />
                 <copy />
                 <echo>@echo off
-java --enable-native-access=ALL-UNNAMED -jar "%USERPROFILE%\.mira\mira.jar" %*</echo>
+                                    java --enable-native-access=ALL-UNNAMED -jar "%USERPROFILE%\.mira\mira.jar" %*</echo>
               </target>
             </configuration>
           </execution>

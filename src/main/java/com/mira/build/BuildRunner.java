@@ -1,13 +1,12 @@
 package com.mira.build;
 
 import java.io.IOException;
-import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.PathMatcher;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -122,15 +121,50 @@ public class BuildRunner {
     }
 
     private static List<Path> findTestFiles(Path root, String pattern) {
-        PathMatcher matcher = FileSystems.getDefault().getPathMatcher("glob:" + pattern);
+        Pattern compiled = Pattern.compile(globToRegex(pattern));
         try (Stream<Path> stream = Files.walk(root)) {
             return stream
                     .filter(Files::isRegularFile)
-                    .filter(p -> matcher.matches(root.relativize(p)))
+                    .filter(p -> {
+                        String rel = root.relativize(p).toString().replace(java.io.File.separatorChar, '/');
+                        return compiled.matcher(rel).matches();
+                    })
                     .sorted()
                     .collect(Collectors.toCollection(ArrayList::new));
         } catch (IOException e) {
             return new ArrayList<>();
         }
+    }
+
+    private static String globToRegex(String glob) {
+        glob = glob.replace('\\', '/');
+        StringBuilder sb = new StringBuilder("^");
+        int i = 0;
+        while (i < glob.length()) {
+            char c = glob.charAt(i);
+            if (c == '*' && i + 1 < glob.length() && glob.charAt(i + 1) == '*') {
+                i += 2;
+                if (i < glob.length() && glob.charAt(i) == '/') {
+                    i++;
+                    sb.append("(.*/)?");
+                } else {
+                    sb.append(".*");
+                }
+            } else if (c == '*') {
+                sb.append("[^/]*");
+                i++;
+            } else if (c == '?') {
+                sb.append("[^/]");
+                i++;
+            } else if (".()[]{}+^$|\\".indexOf(c) >= 0) {
+                sb.append('\\').append(c);
+                i++;
+            } else {
+                sb.append(c);
+                i++;
+            }
+        }
+        sb.append("$");
+        return sb.toString();
     }
 }

@@ -327,9 +327,9 @@ public class Parser {
                     break;
                 }
                 consume();
-                Expression thenExpr = parsePratt(0);
+                Expression thenExpr = parseTernaryBranch();
                 matchLexeme(":");
-                Expression elseExpr = parsePratt(0);
+                Expression elseExpr = parseTernaryBranch();
                 left = new TernaryExpression(left, thenExpr, elseExpr);
                 break;
             }
@@ -347,6 +347,25 @@ public class Parser {
         }
 
         return left;
+    }
+
+    private Expression parseTernaryBranch() {
+        List<Expression> items = new ArrayList<>();
+        while (peek().getTokenType() != TokenType.EOF && !isStructuralDelimiter(peek())) {
+            Token t = peek();
+            if (isWhitespaceToken(t)) {
+                consume();
+                continue;
+            }
+            if (t.getLexeme().equals(":") && t.getTokenType() != TokenType.STRING_LITERAL) {
+                break;
+            }
+            items.add(parsePratt(0));
+        }
+        if (items.isEmpty()) {
+            throw new UnexpectedToken(peek(), "Expected expression in ternary branch");
+        }
+        return items.size() == 1 ? items.get(0) : new ComplexExpression(items);
     }
 
     private int binaryOperatorBP(String op) {

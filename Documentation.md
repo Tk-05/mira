@@ -289,6 +289,13 @@ Ternaries can be nested:
 $x > 10 ? "high" : ($x > 5 ? "mid" : "low")
 ```
 
+Both branches support string concatenation:
+
+```
+length($d) > 0 ? " (" $d ")" : ""
+$ok ? "Result: " $value "\n" : "n/a"
+```
+
 ### Pipe Operator
 
 Passes the left-hand value as the first argument to the right-hand call:

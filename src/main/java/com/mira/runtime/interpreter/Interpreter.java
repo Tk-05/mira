@@ -1646,11 +1646,12 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
                 if (referencedObject instanceof Mutability mutability) {
                     if (mutability.isMutable()) {
+                        Object evaluatedRhs = assign.getExpression().accept(this);
                         Expression assignment;
-                        if (assign.getExpression() instanceof CallExpression callExpression) {
-                            assignment = new DumbExpression(new Token(TokenType.EXPRESSION, String.valueOf(callExpression.accept(this)), 0, 0));
+                        if (evaluatedRhs instanceof Expression e) {
+                            assignment = e;
                         } else {
-                            assignment = assign.getExpression();
+                            assignment = new DumbExpression(new Token(TokenType.EXPRESSION, String.valueOf(evaluatedRhs), 0, 0));
                         }
 
                         switch (referencedObject) {
