@@ -113,6 +113,8 @@
                                 <copy file="${project.build.directory}/mira-RELEASE.jar"
                                       tofile="${user.home}/.mira/mira.jar"
                                       overwrite="true"/>
+                                <echo file="${user.home}/.mira/mira.cmd">@echo off
+                                    java --enable-native-access=ALL-UNNAMED -jar "%USERPROFILE%\.mira\mira.jar" %*</echo>
                             </target>
                         </configuration>
                     </execution>

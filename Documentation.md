@@ -1312,12 +1312,12 @@ A failing assertion produces a formatted diagnostic with the source location:
 
 ### Relation to `assert`
 
-| | `assert` | `static_assert` |
-|---|---|---|
-| Error code | E210 | E308 |
+|             | `assert`                    | `static_assert`                    |
+| ----------- | --------------------------- | ---------------------------------- |
+| Error code  | E210                        | E308                               |
 | Typical use | runtime checks inside tests | compile-time / precondition guards |
-| Message | optional | optional |
-| Scope | anywhere | anywhere |
+| Message     | optional                    | optional                           |
+| Scope       | anywhere                    | anywhere                           |
 
 ---
 
@@ -2241,6 +2241,27 @@ java -jar mira-RELEASE.jar script.mira -compile-run
 | `-compile-run` | Compile and immediately run in memory (no files written)                |
 | `-o <dir>`     | Output directory for `.class` files and JAR (default: source directory) |
 | `-b`           | Dump disassembled bytecode of compiled classes to stdout                |
+
+### General flags
+
+Flags available for both single-file and build-system usage:
+
+| Flag              | Description                                                       |
+| ----------------- | ----------------------------------------------------------------- |
+| `-m`              | Call `main()` as the program entry point                          |
+| `-args <a,b,...>` | Pass comma-separated arguments to the program                     |
+| `-nsc`            | Skip the static check (linter / unused-variable analysis)         |
+| `-no-warn`        | Suppress all warnings and hints produced by the static checker    |
+| `-test`           | Run `test()` calls and print a pass/fail summary; exits 1 on fail |
+| `-debug`          | Launch the interactive debugger                                   |
+| `-watch`          | Re-run the program whenever the source file or its imports change |
+| `-crash`          | On error: print the Mira call stack and memory dump               |
+| `-crashFull`      | Like `-crash`, but also includes the Java stack trace             |
+| `-t`              | Dump the token stream to stdout                                   |
+| `-e`              | Exit after parsing and static check, before interpretation        |
+| `-ast`            | Print the AST to stdout                                           |
+| `-li`             | Show all loaded imports with their type and alias                 |
+| `-liFull`         | Like `-li`, but also lists every exported symbol per import       |
 
 ---
 

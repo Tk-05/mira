@@ -25,6 +25,7 @@ public class Help {
           -li             Show loaded imports with type and alias
           -liFull         Like -li, but also lists every exported symbol per import
           -nsc            Skip the static check
+          -no-warn        Suppress all warnings and hints
           -crash          On crash: print Mira call stack and memory dump
           -crashFull      On crash: same as -crash plus Java stack trace
           -watch          Watch entry file and all imported modules for changes, restart on save

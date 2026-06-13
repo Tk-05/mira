@@ -101,6 +101,8 @@ public class Commands {
                 modeOverride = parseBuildMode(args[++i]);
             } else if ("--project".equals(args[i]) && i + 1 < args.length) {
                 projectDir = args[++i];
+            } else if ("--no-warn".equals(args[i])) {
+                Flags.suppressWarnings = true;
             } else if ("--".equals(args[i])) {
                 programArgs = Arrays.copyOfRange(args, i + 1, args.length);
                 break;

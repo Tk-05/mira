@@ -32,4 +32,5 @@ public class Flags {
     public static List<Path> dependencyRoots = new ArrayList<>();
 
     public static boolean skipStaticCheck = false;
+    public static boolean suppressWarnings = false;
 }

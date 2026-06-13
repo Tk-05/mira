@@ -116,6 +116,8 @@ public class Main {
                         Flags.packageJar = true;
                     case "-nsc" ->
                         Flags.skipStaticCheck = true;
+                    case "-no-warn" ->
+                        Flags.suppressWarnings = true;
                     default -> {
                         System.err.println(DiagnosticFormatter.formatError("'" + args[i] + "' is not a known flag"));
                         System.err.println("Use -h for help.");
