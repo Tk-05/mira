@@ -77,7 +77,7 @@ public class DocumentService implements TextDocumentService {
     public CompletableFuture<List<? extends TextEdit>> formatting(DocumentFormattingParams params) {
         String uri = params.getTextDocument().getUri();
         String content = documents.getOrDefault(uri, "");
-        String formatted = Formatter.format(content);
+        String formatted = AstFormatter.format(content);
         int lineCount = content.split("\n", -1).length;
         Range fullRange = new Range(new Position(0, 0), new Position(lineCount, 0));
         return CompletableFuture.completedFuture(List.of(new TextEdit(fullRange, formatted)));

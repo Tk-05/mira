@@ -37,6 +37,7 @@ public class Help {
           -package        (used with -compile) Bundle compiled classes and the Mira runtime into a standalone fat JAR
           -compile-run    Compile to JVM bytecode and run in memory
           --lsp           Start the Mira Language Server (LSP) over stdin/stdout
+          --fmt <file>    Format a .mira file in-place
         """;
 
     public static String getHelp() {

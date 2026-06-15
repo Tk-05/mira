@@ -15,6 +15,7 @@ import com.mira.error.resolver.MultipleStaticCheckErrors;
 import com.mira.lexer.Tokenizer;
 import com.mira.lexer.token.Token;
 import com.mira.lib.LibIndex;
+import com.mira.lsp.AstFormatter;
 import com.mira.lsp.Launcher;
 import com.mira.parser.Parser;
 import com.mira.parser.nodes.Node;
@@ -48,6 +49,25 @@ public class Main {
                     com.mira.dap.DapLauncher.launch();
                 } catch (Exception e) {
                     System.err.println("DAP server error: " + e.getMessage());
+                }
+                return;
+            }
+
+            if (args[0].equals("--fmt")) {
+                if (args.length < 2) {
+                    System.err.println("Usage: mira --fmt <file.mira>");
+                    System.exit(1);
+                    return;
+                }
+                try {
+                    java.nio.file.Path fmtPath = Paths.get(args[1]).toAbsolutePath().normalize();
+                    String fmtSource = FileLoader.readFileFromPath(fmtPath.toString());
+                    String fmtResult = AstFormatter.format(fmtSource);
+                    java.nio.file.Files.writeString(fmtPath, fmtResult);
+                    System.out.println("Formatted: " + fmtPath);
+                } catch (Exception e) {
+                    System.err.println("Format error: " + e.getMessage());
+                    System.exit(1);
                 }
                 return;
             }
