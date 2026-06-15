@@ -96,8 +96,11 @@ public class DiagnosticCollector {
     private static Diagnostic fromWarning(Warning w) {
         int line = Math.max(w.line() - 1, 0);
         int col = Math.max(w.column() - 1, 0);
-        int endCol = col + Math.max(1, w.span());
-        Range range = new Range(new Position(line, col), new Position(line, endCol));
+        int endLine = w.endLine() > 0 ? Math.max(w.endLine() - 1, 0) : line;
+        Position end = endLine > line
+                ? new Position(endLine + 1, 0)
+                : new Position(line, col + Math.max(1, w.span()));
+        Range range = new Range(new Position(line, col), end);
         DiagnosticSeverity sev = w.level() == WarningLevel.WARNING
                 ? DiagnosticSeverity.Warning : DiagnosticSeverity.Information;
         return new Diagnostic(range, w.message(), sev, "mira");

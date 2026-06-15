@@ -741,12 +741,13 @@ public class StaticCheck {
         boolean terminated = false;
         for (Node node : body) {
             if (terminated) {
-                WarningCollector.emit(WarningLevel.WARNING, "Unreachable code", lineOf(node), columnOf(node), spanOf(node));
-                break;
-            }
-            resolveNode(node);
-            if (node instanceof Return || node instanceof Throw) {
-                terminated = true;
+                WarningCollector.emit(WarningLevel.WARNING, "Unreachable code",
+                        lineOf(node), columnOf(node), spanOf(node));
+            } else {
+                resolveNode(node);
+                if (node instanceof Return || node instanceof Throw) {
+                    terminated = true;
+                }
             }
         }
     }

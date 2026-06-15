@@ -34,6 +34,10 @@ public final class WarningCollector {
         warnings.add(new Warning(level, message, line, column, span));
     }
 
+    public static void emit(WarningLevel level, String message, int line, int column, int span, int endLine) {
+        warnings.add(new Warning(level, message, line, column, span, endLine));
+    }
+
     public static List<Warning> getWarnings() {
         return Collections.unmodifiableList(warnings);
     }
