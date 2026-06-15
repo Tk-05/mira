@@ -533,12 +533,24 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
         String lambdaClass = ctx.className + "$Lambda$" + n;
         int arity = lambda.getArity();
 
+        List<String> captureNames = ctx.isTopLevel ? List.of() : ctx.slots.getCaptureList();
+        int captureCount = captureNames.size();
+
         MethodVisitor lmv = ce.openFunction(methodName);
         lmv.visitCode();
         LocalSlotTable lSlots = new LocalSlotTable(1);
         CompilerContext lCtx = new CompilerContext(ctx.className, lmv, lSlots,
                 ctx.knownFunctions, ctx.lambdaCounter, false);
         MethodEmitter lme = new MethodEmitter(lCtx, ce);
+
+        // Load captured outer-scope variables from the front of the combined args array
+        for (int ci = 0; ci < captureCount; ci++) {
+            int slot = lSlots.allocate(captureNames.get(ci));
+            lmv.visitVarInsn(ALOAD, 0);
+            emitIntConst(lmv, ci);
+            lmv.visitInsn(AALOAD);
+            lmv.visitVarInsn(ASTORE, slot);
+        }
 
         List<Parameter> params = lambda.getParameters();
         for (int i = 0; i < params.size(); i++) {
@@ -548,10 +560,10 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
                 Label useDefault = new Label(), useDefaultAfterPop = new Label(), done = new Label();
                 lmv.visitVarInsn(ALOAD, 0);
                 lmv.visitInsn(org.objectweb.asm.Opcodes.ARRAYLENGTH);
-                emitIntConst(lmv, i + 1);
+                emitIntConst(lmv, captureCount + i + 1);
                 lmv.visitJumpInsn(org.objectweb.asm.Opcodes.IF_ICMPLT, useDefault);
                 lmv.visitVarInsn(ALOAD, 0);
-                emitIntConst(lmv, i);
+                emitIntConst(lmv, captureCount + i);
                 lmv.visitInsn(AALOAD);
                 lmv.visitInsn(DUP);
                 lmv.visitMethodInsn(INVOKESTATIC, RT, "isNullValue", "(Ljava/lang/Object;)Z", false);
@@ -564,7 +576,7 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
                 lmv.visitLabel(done);
             } else {
                 lmv.visitVarInsn(ALOAD, 0);
-                emitIntConst(lmv, i);
+                emitIntConst(lmv, captureCount + i);
                 lmv.visitInsn(AALOAD);
             }
             lmv.visitVarInsn(ASTORE, slot);
@@ -573,7 +585,7 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
         if (lambda.getVariadicParam() != null) {
             int slot = lSlots.allocate(lambda.getVariadicParam());
             lmv.visitVarInsn(ALOAD, 0);
-            emitIntConst(lmv, params.size());
+            emitIntConst(lmv, captureCount + params.size());
             lmv.visitMethodInsn(INVOKESTATIC, RT, "variadicTail",
                     "([Ljava/lang/Object;I)Ljava/lang/Object;", false);
             lmv.visitVarInsn(ASTORE, slot);
@@ -586,18 +598,45 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
         lmv.visitEnd();
 
         String syncClass = lambdaClass + (lambda.isAsync() ? "$sync" : "");
-        ce.emitLambdaClass(syncClass, ctx.className, methodName, arity);
+        if (captureCount > 0) {
+            ce.emitLambdaClassWithCaptures(syncClass, ctx.className, methodName, arity);
+        } else {
+            ce.emitLambdaClass(syncClass, ctx.className, methodName, arity);
+        }
 
         String visibleClass = syncClass;
         if (lambda.isAsync()) {
-            ce.emitAsyncLambdaClass(lambdaClass, syncClass, arity);
+            if (captureCount > 0) {
+                ce.emitAsyncLambdaClassWithCaptures(lambdaClass, syncClass, arity);
+            } else {
+                ce.emitAsyncLambdaClass(lambdaClass, syncClass, arity);
+            }
             visibleClass = lambdaClass;
         }
 
-        mv.visitTypeInsn(NEW, visibleClass);
-        mv.visitInsn(DUP);
-        emitIntConst(arity);
-        mv.visitMethodInsn(INVOKESPECIAL, visibleClass, "<init>", "(I)V", false);
+        if (captureCount > 0) {
+            // Build the captures array from the current local slots
+            emitIntConst(captureCount);
+            mv.visitTypeInsn(ANEWARRAY, "java/lang/Object");
+            for (int ci = 0; ci < captureCount; ci++) {
+                mv.visitInsn(DUP);
+                emitIntConst(ci);
+                mv.visitVarInsn(ALOAD, ctx.slots.slotOf(captureNames.get(ci)));
+                mv.visitInsn(AASTORE);
+            }
+            int capturesSlot = ctx.slots.allocateTemp();
+            mv.visitVarInsn(ASTORE, capturesSlot);
+            mv.visitTypeInsn(NEW, visibleClass);
+            mv.visitInsn(DUP);
+            emitIntConst(arity);
+            mv.visitVarInsn(ALOAD, capturesSlot);
+            mv.visitMethodInsn(INVOKESPECIAL, visibleClass, "<init>", "(I[Ljava/lang/Object;)V", false);
+        } else {
+            mv.visitTypeInsn(NEW, visibleClass);
+            mv.visitInsn(DUP);
+            emitIntConst(arity);
+            mv.visitMethodInsn(INVOKESPECIAL, visibleClass, "<init>", "(I)V", false);
+        }
         return null;
     }
 
@@ -915,17 +954,30 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
         String mName = "mira$lambda$" + n;
         String lClass = ctx.className + "$Lambda$" + n;
 
+        List<String> captureNames = ctx.isTopLevel ? List.of() : ctx.slots.getCaptureList();
+        int captureCount = captureNames.size();
+
         MethodVisitor lmv = ce.openFunction(mName);
         lmv.visitCode();
         LocalSlotTable lSlots = new LocalSlotTable(1);
         CompilerContext lCtx = new CompilerContext(ctx.className, lmv, lSlots,
                 ctx.knownFunctions, ctx.lambdaCounter, false);
         MethodEmitter lme = new MethodEmitter(lCtx, ce);
+
+        // Load captured outer-scope variables from the front of the combined args array
+        for (int ci = 0; ci < captureCount; ci++) {
+            int slot = lSlots.allocate(captureNames.get(ci));
+            lmv.visitVarInsn(ALOAD, 0);
+            emitIntConst(lmv, ci);
+            lmv.visitInsn(AALOAD);
+            lmv.visitVarInsn(ASTORE, slot);
+        }
+
         List<Parameter> params = stmt.getParameters();
         for (int i = 0; i < params.size(); i++) {
             int slot = lSlots.allocate(params.get(i).name());
             lmv.visitVarInsn(ALOAD, 0);
-            emitIntConst(lmv, i);
+            emitIntConst(lmv, captureCount + i);
             lmv.visitInsn(AALOAD);
             lmv.visitVarInsn(ASTORE, slot);
         }
@@ -935,18 +987,44 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
         lmv.visitMaxs(0, 0);
         lmv.visitEnd();
         String syncClass = lClass + (stmt.isAsync() ? "$sync" : "");
-        ce.emitLambdaClass(syncClass, ctx.className, mName, stmt.getArity());
+        if (captureCount > 0) {
+            ce.emitLambdaClassWithCaptures(syncClass, ctx.className, mName, stmt.getArity());
+        } else {
+            ce.emitLambdaClass(syncClass, ctx.className, mName, stmt.getArity());
+        }
 
         String visibleClass = syncClass;
         if (stmt.isAsync()) {
-            ce.emitAsyncLambdaClass(lClass, syncClass, stmt.getArity());
+            if (captureCount > 0) {
+                ce.emitAsyncLambdaClassWithCaptures(lClass, syncClass, stmt.getArity());
+            } else {
+                ce.emitAsyncLambdaClass(lClass, syncClass, stmt.getArity());
+            }
             visibleClass = lClass;
         }
 
-        mv.visitTypeInsn(NEW, visibleClass);
-        mv.visitInsn(DUP);
-        emitIntConst(stmt.getArity());
-        mv.visitMethodInsn(INVOKESPECIAL, visibleClass, "<init>", "(I)V", false);
+        if (captureCount > 0) {
+            emitIntConst(captureCount);
+            mv.visitTypeInsn(ANEWARRAY, "java/lang/Object");
+            for (int ci = 0; ci < captureCount; ci++) {
+                mv.visitInsn(DUP);
+                emitIntConst(ci);
+                mv.visitVarInsn(ALOAD, ctx.slots.slotOf(captureNames.get(ci)));
+                mv.visitInsn(AASTORE);
+            }
+            int capturesSlot = ctx.slots.allocateTemp();
+            mv.visitVarInsn(ASTORE, capturesSlot);
+            mv.visitTypeInsn(NEW, visibleClass);
+            mv.visitInsn(DUP);
+            emitIntConst(stmt.getArity());
+            mv.visitVarInsn(ALOAD, capturesSlot);
+            mv.visitMethodInsn(INVOKESPECIAL, visibleClass, "<init>", "(I[Ljava/lang/Object;)V", false);
+        } else {
+            mv.visitTypeInsn(NEW, visibleClass);
+            mv.visitInsn(DUP);
+            emitIntConst(stmt.getArity());
+            mv.visitMethodInsn(INVOKESPECIAL, visibleClass, "<init>", "(I)V", false);
+        }
 
         if (ctx.isTopLevel) {
             int tmp = ctx.slots.allocate("$$fn_" + stmt.getName());

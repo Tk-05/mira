@@ -1196,6 +1196,7 @@ public class Parser {
         boolean startsExpression = isExpressionToken(peek())
                 || peek().getTokenType() == TokenType.OPERATION
                 || peek().getLexeme().equals("{")
+                || peek().getLexeme().equals("(")
                 || (peek().getTokenType() == TokenType.KEYWORD
                 && (peek().getLexeme().equals("switch")
                 || peek().getLexeme().equals("await")

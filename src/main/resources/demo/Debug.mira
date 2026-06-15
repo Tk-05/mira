@@ -231,6 +231,7 @@ fn main() {
             case (2)  -> 2
             default   -> 0
         };
+        return () -> {};
         print("Dead code");
     }
 }

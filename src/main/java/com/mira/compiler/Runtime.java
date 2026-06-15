@@ -773,6 +773,13 @@ public final class Runtime {
         return new ListExpression(members);
     }
 
+    public static Object[] concatArrays(Object[] captures, Object[] args) {
+        Object[] result = new Object[captures.length + args.length];
+        System.arraycopy(captures, 0, result, 0, captures.length);
+        System.arraycopy(args, 0, result, captures.length, args.length);
+        return result;
+    }
+
     public static Object asyncWrap(Callable callable, Object[] args) {
         java.util.List<Object> argsList = java.util.Arrays.asList(args);
         java.util.concurrent.CompletableFuture<Object> future
