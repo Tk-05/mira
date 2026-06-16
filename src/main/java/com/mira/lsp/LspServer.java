@@ -8,6 +8,8 @@ import org.eclipse.lsp4j.Diagnostic;
 import org.eclipse.lsp4j.InitializeParams;
 import org.eclipse.lsp4j.InitializeResult;
 import org.eclipse.lsp4j.PublishDiagnosticsParams;
+import org.eclipse.lsp4j.SemanticTokensLegend;
+import org.eclipse.lsp4j.SemanticTokensWithRegistrationOptions;
 import org.eclipse.lsp4j.ServerCapabilities;
 import org.eclipse.lsp4j.TextDocumentSyncKind;
 import org.eclipse.lsp4j.services.LanguageClient;
@@ -29,6 +31,12 @@ public class LspServer implements LanguageServer, LanguageClientAware {
         caps.setDocumentFormattingProvider(true);
         caps.setHoverProvider(true);
         caps.setDefinitionProvider(true);
+        SemanticTokensWithRegistrationOptions semTokenOpts = new SemanticTokensWithRegistrationOptions();
+        semTokenOpts.setLegend(new SemanticTokensLegend(
+                SemanticTokenProvider.TOKEN_TYPES,
+                SemanticTokenProvider.TOKEN_MODIFIERS));
+        semTokenOpts.setFull(true);
+        caps.setSemanticTokensProvider(semTokenOpts);
         return CompletableFuture.<InitializeResult>completedFuture(new InitializeResult(caps));
     }
 

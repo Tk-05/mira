@@ -12,11 +12,11 @@ import org.eclipse.lsp4j.Position;
 
 import com.mira.parser.nodes.Node;
 import com.mira.parser.nodes.Parameter;
+import com.mira.parser.nodes.expression.Expression.ObjectExpression;
 import com.mira.parser.nodes.statement.Statement;
 import com.mira.parser.nodes.statement.Statement.ComptimeBlock;
 
 public class HoverProvider {
-
 
     private static final Map<String, String> STDLIB_DOCS;
 
@@ -210,13 +210,13 @@ public class HoverProvider {
                             .append(kind).append(" $").append(v.getName()).append(" {\n");
                     for (Statement.VarDecl f : obj.getVarDecls()) {
                         sb.append("    ").append(f.isConst() ? "const" : "var")
-                          .append(" ").append(f.getName()).append("\n");
+                                .append(" ").append(f.getName()).append("\n");
                     }
                     for (Statement.FuncDecl m : obj.getMethods()) {
                         String params = m.getParameters().stream()
                                 .map(Parameter::name).collect(Collectors.joining(", "));
                         sb.append("    fn ").append(m.getName())
-                          .append("(").append(params).append(")\n");
+                                .append("(").append(params).append(")\n");
                     }
                     sb.append("}\n```");
                     return hover(sb.toString());
@@ -240,7 +240,7 @@ public class HoverProvider {
         return null;
     }
 
-    private static boolean isFieldAccess(String content, Position pos) {
+    static boolean isFieldAccess(String content, Position pos) {
         String[] lines = content.split("\n", -1);
         if (pos.getLine() >= lines.length) {
             return false;
@@ -265,7 +265,7 @@ public class HoverProvider {
     }
 
     private static Hover searchNodeForField(Node n, String fieldName) {
-        if (n instanceof com.mira.parser.nodes.expression.Expression.ObjectExpression obj) {
+        if (n instanceof ObjectExpression obj) {
             for (Statement.VarDecl f : obj.getVarDecls()) {
                 if (f.getName().equals(fieldName)) {
                     String kind = f.isConst() ? "const" : "var";
@@ -287,7 +287,9 @@ public class HoverProvider {
         if (n instanceof Statement.FuncDecl f) {
             for (Node bodyNode : f.getBody()) {
                 Hover h = searchNodeForField(bodyNode, fieldName);
-                if (h != null) return h;
+                if (h != null) {
+                    return h;
+                }
             }
         }
         return null;

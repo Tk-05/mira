@@ -22,6 +22,8 @@ import org.eclipse.lsp4j.Location;
 import org.eclipse.lsp4j.LocationLink;
 import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.Range;
+import org.eclipse.lsp4j.SemanticTokens;
+import org.eclipse.lsp4j.SemanticTokensParams;
 import org.eclipse.lsp4j.TextEdit;
 import org.eclipse.lsp4j.jsonrpc.messages.Either;
 import org.eclipse.lsp4j.services.TextDocumentService;
@@ -97,6 +99,13 @@ public class DocumentService implements TextDocumentService {
         String content = documents.getOrDefault(uri, "");
         Hover hover = HoverProvider.provide(ast, content, params.getPosition());
         return CompletableFuture.completedFuture(hover);
+    }
+
+    @Override
+    public CompletableFuture<SemanticTokens> semanticTokensFull(SemanticTokensParams params) {
+        String uri = params.getTextDocument().getUri();
+        List<Node> ast = astCache.getOrDefault(uri, List.of());
+        return CompletableFuture.completedFuture(SemanticTokenProvider.provide(ast));
     }
 
     @Override
