@@ -15,8 +15,14 @@ import com.mira.error.resolver.StaticCheckError.ArityMismatchError;
 import com.mira.error.resolver.StaticCheckError.BreakOutsideLoopError;
 import com.mira.error.resolver.StaticCheckError.ConstReassignmentError;
 import com.mira.error.resolver.StaticCheckError.ContinueOutsideLoopError;
+import com.mira.error.resolver.StaticCheckError.DivisionByZeroStaticError;
 import com.mira.error.resolver.StaticCheckError.DuplicateDeclarationError;
+import com.mira.error.resolver.StaticCheckError.LiteralNotCallableError;
 import com.mira.error.resolver.StaticCheckError.MissingModuleDeclarationError;
+import com.mira.error.resolver.StaticCheckError.NotIterableStaticError;
+import com.mira.error.resolver.StaticCheckError.PostUnaryStaticError;
+import com.mira.error.resolver.StaticCheckError.RangeStepZeroStaticError;
+import com.mira.error.resolver.StaticCheckError.ReturnOutsideFunctionError;
 import com.mira.error.resolver.StaticCheckError.StaticAssertRuntimeValueError;
 import com.mira.error.resolver.StaticCheckError.UndeclaredVariableError;
 import com.mira.error.resolver.StaticCheckError.UndefinedFunctionError;
@@ -80,6 +86,7 @@ public class StaticCheck {
     private final Set<String> knownNamespaces = new HashSet<>();
     private final List<MiraError> errors = new ArrayList<>();
     private int loopDepth = 0;
+    private int functionDepth = 0;
     private boolean inComptimeBlock = false;
     private final Map<String, int[]> knownArities = new HashMap<>();
     private boolean isModule = false;
@@ -278,6 +285,9 @@ public class StaticCheck {
             case Assign stmt ->
                 resolveAssign(stmt);
             case Return stmt -> {
+                if (functionDepth == 0) {
+                    errors.add(new ReturnOutsideFunctionError(stmt.line, stmt.column));
+                }
                 if (stmt.getValue() != null) {
                     resolveExpr(stmt.getValue());
                 }
@@ -336,6 +346,18 @@ public class StaticCheck {
 
     private void resolveExpr(Node node) {
         switch (node) {
+            case UnaryExpression e when "++".equals(e.getOperation().getLexeme())
+            || "--".equals(e.getOperation().getLexeme()) -> {
+                if (!(e.getRight() instanceof UnaryExpression inner)
+                        || !"$".equals(inner.getOperation().getLexeme())) {
+                    errors.add(new PostUnaryStaticError(
+                            e.getOperation().getLexeme(),
+                            e.getOperation().getLine(),
+                            e.getOperation().getColumn()));
+                } else {
+                    resolveExpr(e.getRight());
+                }
+            }
             case UnaryExpression e when "$".equals(e.getOperation().getLexeme()) -> {
                 if (e.getRight() instanceof DumbExpression d && isIdentifier(d)) {
                     String name = d.getValue();
@@ -378,7 +400,8 @@ public class StaticCheck {
                 resolveExpr(e.getLeft());
                 resolveExpr(e.getRight());
                 if (isZeroLiteral(e.getRight())) {
-                    WarningCollector.emit(WarningLevel.WARNING, "Division by zero", e.getOperator());
+                    errors.add(new DivisionByZeroStaticError(
+                            e.getOperator().getLine(), e.getOperator().getColumn()));
                 }
             }
             case BinaryExpression e -> {
@@ -427,7 +450,9 @@ public class StaticCheck {
                         scope.declare(f.getName(), 0, 0, false);
                         scope.markUsed(f.getName());
                     });
+                    functionDepth++;
                     resolveBody(method.getBody());
+                    functionDepth--;
                     popScope();
                 }
             }
@@ -437,7 +462,9 @@ public class StaticCheck {
                 if (e.getVariadicParam() != null) {
                     scope.declare(e.getVariadicParam(), 0, 0, false);
                 }
+                functionDepth++;
                 resolveBody(e.getBody());
+                functionDepth--;
                 popScope();
             }
             case TernaryExpression e -> {
@@ -468,6 +495,10 @@ public class StaticCheck {
                 }
                 if (e.getStepsize() != null) {
                     resolveExpr(e.getStepsize());
+                    if (isZeroLiteral(e.getStepsize())) {
+                        DumbExpression d = (DumbExpression) e.getStepsize();
+                        errors.add(new RangeStepZeroStaticError(d.getLine(), d.getColumn()));
+                    }
                 }
             }
             case ImportExpression e ->
@@ -499,27 +530,32 @@ public class StaticCheck {
     }
 
     private void resolveCallExpression(CallExpression expr, int implicitArgs) {
-        if (expr.getCallee() instanceof DumbExpression callee && isIdentifier(callee)) {
-            String name = callee.getValue();
+        if (expr.getCallee() instanceof DumbExpression callee) {
+            if (isIdentifier(callee)) {
+                String name = callee.getValue();
 
-            boolean callable = knownFunctions.contains(name)
-                    || (scope.isDeclared(name) && !knownNamespaces.contains(name));
-            if (!callable) {
-                errors.add(new UndefinedFunctionError(name, callee.getLine(), callee.getColumn()));
-            } else {
-                scope.markUsed(name);
-                int[] arity = knownArities.get(name);
-                if (arity != null) {
-                    int actual = expr.getArguments().size() + implicitArgs;
-                    int min = arity[0], max = arity[1];
-                    if (min == max && actual != min) {
-                        errors.add(new ArityMismatchError(name, min, actual,
-                                callee.getLine(), callee.getColumn()));
-                    } else if (min != max && (actual < min || (max >= 0 && actual > max))) {
-                        errors.add(new ArityMismatchError(name, min, max, actual,
-                                callee.getLine(), callee.getColumn()));
+                boolean callable = knownFunctions.contains(name)
+                        || (scope.isDeclared(name) && !knownNamespaces.contains(name));
+                if (!callable) {
+                    errors.add(new UndefinedFunctionError(name, callee.getLine(), callee.getColumn()));
+                } else {
+                    scope.markUsed(name);
+                    int[] arity = knownArities.get(name);
+                    if (arity != null) {
+                        int actual = expr.getArguments().size() + implicitArgs;
+                        int min = arity[0], max = arity[1];
+                        if (min == max && actual != min) {
+                            errors.add(new ArityMismatchError(name, min, actual,
+                                    callee.getLine(), callee.getColumn()));
+                        } else if (min != max && (actual < min || (max >= 0 && actual > max))) {
+                            errors.add(new ArityMismatchError(name, min, max, actual,
+                                    callee.getLine(), callee.getColumn()));
+                        }
                     }
                 }
+            } else {
+                errors.add(new LiteralNotCallableError(
+                        callee.getValue(), callee.getLine(), callee.getColumn()));
             }
         } else {
             resolveExpr(expr.getCallee());
@@ -599,7 +635,13 @@ public class StaticCheck {
         if (stmt.getVariadicParam() != null) {
             scope.declare(stmt.getVariadicParam(), stmt.line, 0, false);
         }
+        functionDepth++;
         resolveBody(stmt.getBody());
+        functionDepth--;
+        if (hasAnyReturn(stmt.getBody()) && !alwaysReturns(stmt.getBody())) {
+            warn("Function '" + stmt.getName() + "' may not return a value on all code paths",
+                    stmt.line, stmt.nameColumn, stmt.getName().length());
+        }
         popScope();
     }
 
@@ -663,6 +705,9 @@ public class StaticCheck {
 
     private void resolveForeach(Foreach stmt) {
         resolveExpr(stmt.getCollection());
+        if (isNonIterableLiteral(stmt.getCollection())) {
+            errors.add(new NotIterableStaticError(stmt.line, stmt.column));
+        }
         scope.push();
         loopDepth++;
         VarDecl iter = stmt.getIterator();
@@ -708,6 +753,9 @@ public class StaticCheck {
 
     private void resolveVarDestructure(VarDestructure stmt) {
         resolveExpr(stmt.getInitializer());
+        if (isNonIterableLiteral(stmt.getInitializer())) {
+            errors.add(new NotIterableStaticError(stmt.line, 0));
+        }
         for (String name : stmt.getNames()) {
             scope.declare(name, stmt.line, 0, false);
         }
@@ -891,5 +939,115 @@ public class StaticCheck {
         }
         char first = expr.getValue().charAt(0);
         return Character.isLetter(first) || first == '_';
+    }
+
+    private static boolean isNonIterableLiteral(Node n) {
+        if (!(n instanceof DumbExpression d)) {
+            return false;
+        }
+        return !isIdentifier(d);
+    }
+
+    private static boolean alwaysReturns(List<Node> body) {
+        for (Node node : body) {
+            switch (node) {
+                case Return ignored -> {
+                    return true;
+                }
+                case Throw ignored -> {
+                    return true;
+                }
+                case If ifStmt -> {
+                    if (ifStmt.getElseBody() != null
+                            && alwaysReturns(ifStmt.getThenBody())
+                            && alwaysReturns(ifStmt.getElseBody())) {
+                        return true;
+                    }
+                }
+                case Switch sw -> {
+                    if (sw.getDefaultBody() != null
+                            && sw.getCases().stream().allMatch(c -> alwaysReturns(c.getBody()))
+                            && alwaysReturns(sw.getDefaultBody())) {
+                        return true;
+                    }
+                }
+                case TryCatch tc -> {
+                    if (alwaysReturns(tc.getTryBody())
+                            && !tc.getCatchClauses().isEmpty()
+                            && tc.getCatchClauses().stream().allMatch(c -> alwaysReturns(c.getBody()))) {
+                        return true;
+                    }
+                }
+                case Block b -> {
+                    if (alwaysReturns(b.getBody())) {
+                        return true;
+                    }
+                }
+                default -> {
+                }
+            }
+        }
+        return false;
+    }
+
+    private static boolean hasAnyReturn(List<Node> body) {
+        for (Node node : body) {
+            switch (node) {
+                case Return ignored -> {
+                    return true;
+                }
+                case If ifStmt -> {
+                    if (hasAnyReturn(ifStmt.getThenBody())) {
+                        return true;
+                    }
+                    if (ifStmt.getElseBody() != null && hasAnyReturn(ifStmt.getElseBody())) {
+                        return true;
+                    }
+                }
+                case While w -> {
+                    if (hasAnyReturn(w.getBody())) {
+                        return true;
+
+                    }
+                }
+                case For f -> {
+                    if (hasAnyReturn(f.getBody())) {
+                        return true;
+
+                    }
+                }
+                case Foreach fe -> {
+                    if (hasAnyReturn(fe.getBody())) {
+                        return true;
+
+                    }
+                }
+                case Block b -> {
+                    if (hasAnyReturn(b.getBody())) {
+                        return true;
+
+                    }
+                }
+                case Switch sw -> {
+                    if (sw.getCases().stream().anyMatch(c -> hasAnyReturn(c.getBody()))) {
+                        return true;
+                    }
+                    if (sw.getDefaultBody() != null && hasAnyReturn(sw.getDefaultBody())) {
+                        return true;
+                    }
+                }
+                case TryCatch tc -> {
+                    if (hasAnyReturn(tc.getTryBody())) {
+                        return true;
+                    }
+                    if (tc.getCatchClauses().stream().anyMatch(c -> hasAnyReturn(c.getBody()))) {
+                        return true;
+                    }
+                }
+                default -> {
+                }
+            }
+        }
+        return false;
     }
 }

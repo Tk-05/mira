@@ -561,12 +561,20 @@ public class AstFormatter implements ExprVisitor<String>, StmtVisitor<String> {
 
     @Override
     public <T> T visitLambdaExpr(LambdaExpression expression) {
+        List<Node> body = expression.getBody();
+        String params = formatParams(expression.getParameters(), expression.getVariadicParam());
+
+        if (!expression.isAsync() && body.size() == 1
+                && body.get(0) instanceof Return ret && ret.getValue() != null) {
+            return (T) ("(" + params + ") -> " + formatExpr(ret.getValue()));
+        }
+
         StringBuilder sb = new StringBuilder();
         if (expression.isAsync()) {
             sb.append("async ");
         }
-        sb.append("fn (").append(formatParams(expression.getParameters(), expression.getVariadicParam())).append(") ");
-        sb.append(formatBody(expression.getBody()));
+        sb.append("fn (").append(params).append(") ");
+        sb.append(formatBody(body));
         return (T) sb.toString();
     }
 

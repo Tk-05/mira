@@ -125,4 +125,64 @@ public class StaticCheckError extends MiraError {
                     "Declare the variable inside a 'comptime { }' block to use it in static_assert");
         }
     }
+
+    public static class PostUnaryStaticError extends StaticCheckError {
+
+        public PostUnaryStaticError(String op, int line, int column) {
+            super("E312",
+                    "'" + op + "' can only be applied to a variable reference",
+                    line, column, op.length(),
+                    "Use '$variable" + op + "' to increment or decrement a variable");
+        }
+    }
+
+    public static class RangeStepZeroStaticError extends StaticCheckError {
+
+        public RangeStepZeroStaticError(int line, int column) {
+            super("E313",
+                    "Range step cannot be zero",
+                    line, column, 1,
+                    "Use a non-zero step value, e.g. '<0..10, 2>'");
+        }
+    }
+
+    public static class ReturnOutsideFunctionError extends StaticCheckError {
+
+        public ReturnOutsideFunctionError(int line, int column) {
+            super("E314",
+                    "'return' used outside of a function",
+                    line, column, "return".length(),
+                    "Move this 'return' inside a function body");
+        }
+    }
+
+    public static class DivisionByZeroStaticError extends StaticCheckError {
+
+        public DivisionByZeroStaticError(int line, int column) {
+            super("E315",
+                    "Division by zero",
+                    line, column, 1,
+                    "The divisor is the literal 0 — this will always produce Infinity at runtime");
+        }
+    }
+
+    public static class LiteralNotCallableError extends StaticCheckError {
+
+        public LiteralNotCallableError(String value, int line, int column) {
+            super("E316",
+                    "'" + value + "' is a literal and cannot be called as a function",
+                    line, column, value.length(),
+                    "Only functions and lambdas can be called with '()'");
+        }
+    }
+
+    public static class NotIterableStaticError extends StaticCheckError {
+
+        public NotIterableStaticError(int line, int column) {
+            super("E317",
+                    "Value is not iterable — expected a list, tuple, or range",
+                    line, column, 1,
+                    "Use a list '{...}', a tuple '[...]', or a range expression as the collection");
+        }
+    }
 }

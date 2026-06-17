@@ -6,6 +6,8 @@ import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 
 import com.mira.Flags;
+import com.mira.error.resolver.StaticCheckError;
+import com.mira.error.runtime.RuntimeError;
 import com.mira.warning.Warning;
 import com.mira.warning.WarningLevel;
 
@@ -106,7 +108,11 @@ public final class DiagnosticFormatter {
     private static String formatMiraError(MiraError error) {
         StringBuilder sb = new StringBuilder();
 
-        sb.append(RED).append(BOLD).append("[error]");
+        String phaseLabel = error instanceof StaticCheckError ? "static error"
+                : error instanceof RuntimeError ? "runtime error"
+                        : "error";
+
+        sb.append(RED).append(BOLD).append("[").append(phaseLabel).append("]");
         if (error.getErrorCode() != null) {
             sb.append("[").append(error.getErrorCode()).append("]");
         }
