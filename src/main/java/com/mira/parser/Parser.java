@@ -69,6 +69,7 @@ public class Parser {
     private List<Token> tokens;
     private int index;
     private int parsingDepth = 0;
+    private int lastClosingBraceLine = 0;
     private final List<MiraError> errors = new ArrayList<>();
     private Token lastConsumed = null;
 
@@ -896,6 +897,7 @@ public class Parser {
     private List<Node> parseStatement(boolean expectSemicolon) {
         int line = peek().getLine();
         int column = peek().getColumn();
+        lastClosingBraceLine = 0;
         Node node;
 
         if (peek().getLexeme().equals("comptime") && peek().getTokenType() == TokenType.KEYWORD) {
@@ -909,6 +911,7 @@ public class Parser {
             ComptimeBlock comptimeBlock = new ComptimeBlock(body);
             comptimeBlock.line = line;
             comptimeBlock.column = column;
+            comptimeBlock.endLine = lastClosingBraceLine;
             return List.of(comptimeBlock);
         }
 
@@ -923,6 +926,7 @@ public class Parser {
             if (node instanceof Statement stmt) {
                 stmt.line = line;
                 stmt.column = column;
+                stmt.endLine = lastClosingBraceLine;
             }
             return List.of(node);
         }
@@ -1062,6 +1066,7 @@ public class Parser {
         if (node instanceof Statement stmt) {
             stmt.line = line;
             stmt.column = column;
+            stmt.endLine = lastClosingBraceLine;
         }
         return List.of(node);
     }
@@ -1414,7 +1419,7 @@ public class Parser {
         while (!peek().getLexeme().equals("}")) {
             body.addAll(parseStatement(true));
         }
-        matchLexeme("}");
+        lastClosingBraceLine = matchLexeme("}").getLine();
         return new Statement.Lock(mutex, body);
     }
 
@@ -1426,7 +1431,7 @@ public class Parser {
         while (!peek().getLexeme().equals("}")) {
             tryBody.addAll(parseStatement(true));
         }
-        matchLexeme("}");
+        lastClosingBraceLine = matchLexeme("}").getLine();
 
         List<CatchClause> catchClauses = new ArrayList<>();
         while (peek().getLexeme().equals("catch")) {
@@ -1441,12 +1446,10 @@ public class Parser {
                 String firstToken = matchExpression().getLexeme();
                 skipWhitespaceTokens();
                 if (!peek().getLexeme().equals(")")) {
-                    // catch(ExceptionType varName) — first token is the type filter
                     typeFilter = firstToken;
                     paramName = matchExpression().getLexeme();
                     skipWhitespaceTokens();
                 } else {
-                    // catch(varName) — no type filter, matches any exception
                     typeFilter = null;
                     paramName = firstToken;
                 }
@@ -1458,7 +1461,7 @@ public class Parser {
             while (!peek().getLexeme().equals("}")) {
                 catchBody.addAll(parseStatement(true));
             }
-            matchLexeme("}");
+            lastClosingBraceLine = matchLexeme("}").getLine();
 
             catchClauses.add(new CatchClause(typeFilter, paramName, catchBody));
         }
@@ -1470,7 +1473,7 @@ public class Parser {
             while (!peek().getLexeme().equals("}")) {
                 finallyBody.addAll(parseStatement(true));
             }
-            matchLexeme("}");
+            lastClosingBraceLine = matchLexeme("}").getLine();
         }
 
         return new TryCatch(tryBody, catchClauses, finallyBody);
@@ -1498,7 +1501,7 @@ public class Parser {
                 synchronizeInBlock();
             }
         }
-        matchLexeme("}");
+        lastClosingBraceLine = matchLexeme("}").getLine();
         return body;
     }
 
@@ -1637,7 +1640,7 @@ public class Parser {
                         while (!peek().getLexeme().equals("}")) {
                             body.addAll(parseStatement(true));
                         }
-                        matchLexeme("}");
+                        lastClosingBraceLine = matchLexeme("}").getLine();
                     }
                     cases.add(new SwitchCase(value, body));
                 }
@@ -1652,7 +1655,7 @@ public class Parser {
                         while (!peek().getLexeme().equals("}")) {
                             defaultBody.addAll(parseStatement(true));
                         }
-                        matchLexeme("}");
+                        lastClosingBraceLine = matchLexeme("}").getLine();
                     }
                 }
                 default ->
@@ -1660,7 +1663,7 @@ public class Parser {
             }
         }
 
-        matchLexeme("}");
+        lastClosingBraceLine = matchLexeme("}").getLine();
         return new Switch(subject, cases, defaultBody);
     }
 

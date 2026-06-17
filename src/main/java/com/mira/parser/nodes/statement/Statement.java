@@ -13,6 +13,7 @@ public abstract class Statement implements Node {
 
     public int line = 0;
     public int column = 0;
+    public int endLine = 0;
 
     public abstract <T> T accept(StmtVisitor<T> visitor);
 

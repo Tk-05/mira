@@ -1,6 +1,9 @@
 package com.mira.lsp;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import com.mira.error.MiraError;
@@ -65,6 +68,8 @@ public class AstFormatter implements ExprVisitor<String>, StmtVisitor<String> {
 
     private static final int INDENT_SIZE = 4;
     private int indentLevel = 0;
+    private Map<Integer, List<String>> standaloneComments = new LinkedHashMap<>();
+    private Map<Integer, String> inlineComments = new LinkedHashMap<>();
 
     public static String format(String source) {
         // Normalize CRLF to LF before tokenizing. scanTextBlock() only skips '\n',
@@ -74,32 +79,148 @@ public class AstFormatter implements ExprVisitor<String>, StmtVisitor<String> {
         try {
             List<Token> tokens = new Tokenizer().tokenize(src, false);
             List<Node> ast = new Parser().parseTokens(tokens);
-            return new AstFormatter().formatProgram(ast);
+            AstFormatter formatter = new AstFormatter();
+            extractComments(src, formatter.standaloneComments, formatter.inlineComments);
+            return formatter.formatProgram(ast);
         } catch (MiraError | MultipleParserErrors e) {
             return Formatter.format(src);
         }
     }
 
+    private static void extractComments(String source,
+            Map<Integer, List<String>> standalone,
+            Map<Integer, String> inline) {
+        int i = 0, line = 1;
+        while (i < source.length()) {
+            char c = source.charAt(i);
+            if (c == '"') {
+                i = skipString(source, i);
+            } else if (c == '/' && i + 1 < source.length() && source.charAt(i + 1) == '/') {
+                int commentLine = line;
+                int start = i;
+                int lineStart = start;
+                while (lineStart > 0 && source.charAt(lineStart - 1) != '\n') {
+                    lineStart--;
+                }
+                boolean isInline = !source.substring(lineStart, start).isBlank();
+                while (i < source.length() && source.charAt(i) != '\n') {
+                    i++;
+                }
+                String text = source.substring(start, i).stripTrailing();
+                if (isInline) {
+                    inline.put(commentLine, text);
+                } else {
+                    standalone.computeIfAbsent(commentLine, k -> new ArrayList<>()).add(text);
+                }
+            } else if (c == '/' && i + 1 < source.length() && source.charAt(i + 1) == '*') {
+                int commentLine = line;
+                int start = i;
+                i += 2;
+                while (i + 1 < source.length() && !(source.charAt(i) == '*' && source.charAt(i + 1) == '/')) {
+                    if (source.charAt(i) == '\n') {
+                        line++;
+                    }
+                    i++;
+                }
+                i += 2; // skip */
+                String text = source.substring(start, i).stripTrailing();
+                standalone.computeIfAbsent(commentLine, k -> new ArrayList<>()).add(text);
+            } else {
+                if (c == '\n') {
+                    line++;
+                }
+                i++;
+            }
+        }
+    }
+
+    private static int skipString(String source, int i) {
+        i++; // skip opening "
+        if (i + 1 < source.length() && source.charAt(i) == '"' && source.charAt(i + 1) == '"') {
+            // text block """..."""
+            i += 2;
+            while (i + 2 < source.length()
+                    && !(source.charAt(i) == '"' && source.charAt(i + 1) == '"' && source.charAt(i + 2) == '"')) {
+                i++;
+            }
+            i = Math.min(i + 3, source.length());
+        } else {
+            while (i < source.length() && source.charAt(i) != '"' && source.charAt(i) != '\n') {
+                if (source.charAt(i) == '\\' && i + 1 < source.length()) {
+                    i++; // skip escaped char
+                }
+                i++;
+            }
+            if (i < source.length() && source.charAt(i) == '"') {
+                i++;
+            }
+        }
+        return i;
+    }
+
+    private void appendComments(StringBuilder sb, int fromLine, int toLine, String indentation) {
+        for (int cl = fromLine; cl <= toLine; cl++) {
+            for (String comment : standaloneComments.getOrDefault(cl, List.of())) {
+                sb.append(indentation).append(comment).append("\n");
+            }
+        }
+    }
+
     private String formatProgram(List<Node> nodes) {
         StringBuilder sb = new StringBuilder();
+
+        // comments before the first node (file header comments)
+        if (!nodes.isEmpty()) {
+            int firstLine = nodeStartLine(nodes.get(0));
+            if (firstLine > 1) {
+                appendComments(sb, 1, firstLine - 1, "");
+            }
+        }
+
         for (int i = 0; i < nodes.size(); i++) {
             Node node = nodes.get(i);
+            int currLine = nodeStartLine(node);
+
             String formatted = formatNode(node);
             if (formatted == null || formatted.isBlank()) {
                 continue;
+            }
+
+            int nodeEnd = (node instanceof Statement s && s.endLine > 0) ? s.endLine : currLine;
+            if (formatted.contains("\n") && nodeEnd > currLine) {
+                String startCom = currLine > 0 ? inlineComments.get(currLine) : null;
+                if (startCom != null) {
+                    int firstNl = formatted.indexOf('\n');
+                    formatted = formatted.substring(0, firstNl) + " " + startCom + formatted.substring(firstNl);
+                }
+                String endCom = inlineComments.get(nodeEnd);
+                if (endCom != null) {
+                    formatted = formatted + " " + endCom;
+                }
+            } else {
+                String inlineCom = currLine > 0 ? inlineComments.get(currLine) : null;
+                if (inlineCom != null) {
+                    formatted = formatted + " " + inlineCom;
+                }
             }
 
             sb.append(formatted).append("\n");
 
             if (i < nodes.size() - 1) {
                 Node next = nodes.get(i + 1);
+                int nextLine = nodeStartLine(next);
                 boolean currIsImport = isImport(node);
                 boolean nextIsImport = isImport(next);
 
                 if (!currIsImport || !nextIsImport) {
                     sb.append("\n");
                 }
+
+                if (currLine > 0 && nextLine > 0) {
+                    appendComments(sb, nodeEnd + 1, nextLine - 1, "");
+                }
             }
+
         }
         return sb.toString().stripTrailing() + "\n";
     }
@@ -151,16 +272,47 @@ public class AstFormatter implements ExprVisitor<String>, StmtVisitor<String> {
         }
         StringBuilder sb = new StringBuilder("{\n");
         indentLevel++;
-        int prevStartLine = -1;
+        int prevEndLine = -1;
         for (Node node : body) {
             String formatted = formatNode(node);
             if (formatted != null && !formatted.isBlank()) {
                 int currStartLine = nodeStartLine(node);
-                if (prevStartLine >= 0 && currStartLine > 0 && currStartLine - prevStartLine >= 2) {
-                    sb.append("\n");
+                int currEndLine = (node instanceof Statement s && s.endLine > 0) ? s.endLine : currStartLine;
+                if (prevEndLine >= 0 && currStartLine > 0) {
+                    int firstCommentLine = Integer.MAX_VALUE;
+                    for (int cl = prevEndLine + 1; cl < currStartLine; cl++) {
+                        if (!standaloneComments.getOrDefault(cl, List.of()).isEmpty()) {
+                            firstCommentLine = cl;
+                            break;
+                        }
+                    }
+                    if (firstCommentLine < Integer.MAX_VALUE) {
+                        if (firstCommentLine - prevEndLine >= 2) {
+                            sb.append("\n");
+                        }
+                        appendComments(sb, prevEndLine + 1, currStartLine - 1, indent());
+                    } else if (currStartLine - prevEndLine >= 2) {
+                        sb.append("\n");
+                    }
+                }
+                if (formatted.contains("\n") && currEndLine > currStartLine) {
+                    String startCom = currStartLine > 0 ? inlineComments.get(currStartLine) : null;
+                    if (startCom != null) {
+                        int firstNl = formatted.indexOf('\n');
+                        formatted = formatted.substring(0, firstNl) + " " + startCom + formatted.substring(firstNl);
+                    }
+                    String endCom = inlineComments.get(currEndLine);
+                    if (endCom != null) {
+                        formatted = formatted + " " + endCom;
+                    }
+                } else {
+                    String inlineCom = currStartLine > 0 ? inlineComments.get(currStartLine) : null;
+                    if (inlineCom != null) {
+                        formatted = formatted + " " + inlineCom;
+                    }
                 }
                 sb.append(indent()).append(formatted).append("\n");
-                prevStartLine = currStartLine;
+                prevEndLine = currEndLine;
             }
         }
         indentLevel--;
