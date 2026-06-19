@@ -251,7 +251,17 @@ public class HoverProvider {
         while (start > 0 && isWordChar(line.charAt(start - 1))) {
             start--;
         }
-        return start > 0 && (line.charAt(start - 1) == '.' || line.charAt(start - 1) == '?');
+        if (start == 0) {
+            return false;
+        }
+        char before = line.charAt(start - 1);
+        if (before == '?') {
+            return true;
+        }
+        if (before != '.') {
+            return false;
+        }
+        return start < 2 || line.charAt(start - 2) != '.';
     }
 
     private static Hover hoverForField(List<Node> ast, String fieldName) {

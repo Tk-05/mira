@@ -678,7 +678,7 @@ public class AstFormatter implements ExprVisitor<String>, StmtVisitor<String> {
         String start = formatExpr(expression.getStart());
         String end = formatExpr(expression.getEnd());
         if (expression.getStepsize() != null) {
-            return (T) ("<" + start + ".." + end + ".." + formatExpr(expression.getStepsize()) + ">");
+            return (T) ("<" + start + ".." + end + ", " + formatExpr(expression.getStepsize()) + ">");
         }
         return (T) ("<" + start + ".." + end + ">");
     }
