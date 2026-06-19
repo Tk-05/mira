@@ -29,23 +29,23 @@ public class Map implements Lib {
             return new MapExpression(new LinkedHashMap<>());
         }));
 
-        environment.define("mapSize", new NativeFunction(1, args -> {
+        environment.define("mapSize", new NativeFunction(1, "map", args -> {
             return (double) toMap(args.get(0)).getEntries().size();
         }));
 
-        environment.define("mapHas", new NativeFunction(2, args -> {
+        environment.define("mapHas", new NativeFunction(2, "map, key", args -> {
             String key = String.valueOf(args.get(1));
             return toMap(args.get(0)).getEntries().containsKey(key);
         }));
 
-        environment.define("mapRemove", new NativeFunction(2, args -> {
+        environment.define("mapRemove", new NativeFunction(2, "map, key", args -> {
             MapExpression map = toMap(args.get(0));
             String key = String.valueOf(args.get(1));
             map.getEntries().remove(key);
             return map;
         }));
 
-        environment.define("mapKeys", new NativeFunction(1, args -> {
+        environment.define("mapKeys", new NativeFunction(1, "map", args -> {
             MapExpression map = toMap(args.get(0));
             java.util.List<Expression> keys = new ArrayList<>();
             for (String key : map.getEntries().keySet()) {
@@ -54,13 +54,13 @@ public class Map implements Lib {
             return new ListExpression(keys);
         }));
 
-        environment.define("mapValues", new NativeFunction(1, args -> {
+        environment.define("mapValues", new NativeFunction(1, "map", args -> {
             MapExpression map = toMap(args.get(0));
             java.util.List<Expression> values = new ArrayList<>(map.getEntries().values());
             return new ListExpression(values);
         }));
 
-        environment.define("mapSet", new NativeFunction(3, args -> {
+        environment.define("mapSet", new NativeFunction(3, "map, key, value", args -> {
             MapExpression map = toMap(args.get(0));
             String key = String.valueOf(args.get(1));
             Object value = args.get(2);
@@ -72,14 +72,14 @@ public class Map implements Lib {
             return map;
         }));
 
-        environment.define("mapGet", new NativeFunction(2, args -> {
+        environment.define("mapGet", new NativeFunction(2, "map, key", args -> {
             MapExpression map = toMap(args.get(0));
             String key = String.valueOf(args.get(1));
             Expression val = map.getEntries().get(key);
             return val != null ? val : com.mira.runtime.values.NullValue.INSTANCE;
         }));
 
-        environment.define("mapEntries", new NativeFunction(1, args -> {
+        environment.define("mapEntries", new NativeFunction(1, "map", args -> {
             MapExpression map = toMap(args.get(0));
             java.util.List<Expression> entries = new ArrayList<>();
             for (java.util.Map.Entry<String, Expression> entry : map.getEntries().entrySet()) {
@@ -91,7 +91,7 @@ public class Map implements Lib {
             return new ListExpression(entries);
         }));
 
-        environment.define("mapMerge", new NativeFunction(2, args -> {
+        environment.define("mapMerge", new NativeFunction(2, "map1, map2", args -> {
             MapExpression m1 = toMap(args.get(0));
             MapExpression m2 = toMap(args.get(1));
             LinkedHashMap<String, Expression> merged = new LinkedHashMap<>(m1.getEntries());
@@ -99,7 +99,7 @@ public class Map implements Lib {
             return new MapExpression(merged);
         }));
 
-        environment.define("mapFromLists", new NativeFunction(2, args -> {
+        environment.define("mapFromLists", new NativeFunction(2, "keys, values", args -> {
             java.util.List<Expression> keys = toList(args.get(0));
             java.util.List<Expression> values = toList(args.get(1));
             LinkedHashMap<String, Expression> result = new LinkedHashMap<>();

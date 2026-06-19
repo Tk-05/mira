@@ -28,7 +28,7 @@ public class Process implements Lib {
     @Override
     public void loadLib(Environment environment) {
 
-        environment.define("processStart", new NativeFunction(1, args -> {
+        environment.define("processStart", new NativeFunction(1, "command", args -> {
             String command = String.valueOf(args.get(0));
             try {
                 ProcessBuilder pb = new ProcessBuilder();
@@ -48,7 +48,7 @@ public class Process implements Lib {
             }
         }));
 
-        environment.define("processAlive", new NativeFunction(1, args -> {
+        environment.define("processAlive", new NativeFunction(1, "process", args -> {
             double id = Double.parseDouble(String.valueOf(args.get(0)));
             java.lang.Process p = processes.get(id);
             if (p == null) {
@@ -57,7 +57,7 @@ public class Process implements Lib {
             return p.isAlive();
         }));
 
-        environment.define("processWait", new NativeFunction(1, args -> {
+        environment.define("processWait", new NativeFunction(1, "process", args -> {
             double id = Double.parseDouble(String.valueOf(args.get(0)));
             java.lang.Process p = processes.get(id);
             if (p == null) {
@@ -71,7 +71,7 @@ public class Process implements Lib {
             }
         }));
 
-        environment.define("processKill", new NativeFunction(1, args -> {
+        environment.define("processKill", new NativeFunction(1, "process", args -> {
             double id = Double.parseDouble(String.valueOf(args.get(0)));
             java.lang.Process p = processes.get(id);
             if (p == null) {
@@ -82,7 +82,7 @@ public class Process implements Lib {
             return null;
         }));
 
-        environment.define("processOutput", new NativeFunction(1, args -> {
+        environment.define("processOutput", new NativeFunction(1, "process", args -> {
             double id = Double.parseDouble(String.valueOf(args.get(0)));
             java.lang.Process p = processes.get(id);
             if (p == null) {
@@ -102,7 +102,7 @@ public class Process implements Lib {
             }
         }));
 
-        environment.define("processExitCode", new NativeFunction(1, args -> {
+        environment.define("processExitCode", new NativeFunction(1, "process", args -> {
             double id = Double.parseDouble(String.valueOf(args.get(0)));
             java.lang.Process p = processes.get(id);
             if (p == null) {
@@ -124,14 +124,14 @@ public class Process implements Lib {
             return new ListExpression(pids);
         }));
 
-        environment.define("processInfo", new NativeFunction(1, args -> {
+        environment.define("processInfo", new NativeFunction(1, "pid", args -> {
             long pid = (long) Double.parseDouble(String.valueOf(args.get(0)));
             return ProcessHandle.of(pid)
                     .flatMap(ph -> ph.info().command())
                     .orElse("unknown");
         }));
 
-        environment.define("sleep", new NativeFunction(1, args -> {
+        environment.define("sleep", new NativeFunction(1, "ms", args -> {
             long ms = (long) Double.parseDouble(String.valueOf(args.get(0)));
             try {
                 Thread.sleep(ms);

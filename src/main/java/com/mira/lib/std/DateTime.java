@@ -28,7 +28,7 @@ public class DateTime implements Lib {
             return (double) System.currentTimeMillis();
         }));
 
-        environment.define("dateFormat", new NativeFunction(2, args -> {
+        environment.define("dateFormat", new NativeFunction(2, "date, pattern", args -> {
             String dateStr = String.valueOf(args.get(0));
             String pattern = String.valueOf(args.get(1));
             LocalDateTime dt = LocalDateTime.parse(dateStr);
@@ -67,30 +67,30 @@ public class DateTime implements Lib {
             return (double) LocalDateTime.now().getDayOfYear();
         }));
 
-        environment.define("secondsSince", new NativeFunction(1, args -> {
+        environment.define("secondsSince", new NativeFunction(1, "date", args -> {
             String dateStr = String.valueOf(args.get(0));
             LocalDateTime then = LocalDateTime.parse(dateStr);
             return (double) ChronoUnit.SECONDS.between(then, LocalDateTime.now());
         }));
 
-        environment.define("fromEpoch", new NativeFunction(1, args -> {
+        environment.define("fromEpoch", new NativeFunction(1, "seconds", args -> {
             long epoch = (long) Double.parseDouble(String.valueOf(args.get(0)));
             return LocalDateTime.ofEpochSecond(epoch, 0, ZoneOffset.UTC).toString();
         }));
 
-        environment.define("addDays", new NativeFunction(2, args -> {
+        environment.define("addDays", new NativeFunction(2, "date, n", args -> {
             LocalDate date = LocalDate.parse(String.valueOf(args.get(0)));
             long n = (long) Double.parseDouble(String.valueOf(args.get(1)));
             return date.plusDays(n).toString();
         }));
 
-        environment.define("dateDiff", new NativeFunction(2, args -> {
+        environment.define("dateDiff", new NativeFunction(2, "date1, date2", args -> {
             LocalDate d1 = LocalDate.parse(String.valueOf(args.get(0)));
             LocalDate d2 = LocalDate.parse(String.valueOf(args.get(1)));
             return (double) ChronoUnit.DAYS.between(d1, d2);
         }));
 
-        environment.define("isLeapYear", new NativeFunction(1, args -> {
+        environment.define("isLeapYear", new NativeFunction(1, "year", args -> {
             int year = (int) Double.parseDouble(String.valueOf(args.get(0)));
             return Year.of(year).isLeap();
         }));

@@ -13,7 +13,7 @@
 9. [Objects with Methods](#objects-with-methods)
 10. [Enums](#enums)
 11. [Built-in Functions](#built-in-functions)
-12. [Standard Libraries](#standard-libraries)
+12. [Standard Libraries](#standard-libraries) — `string`, `collection`, `map`, `math`, `io`, `net`, `dateTime`, `json`, `regex`, `shell`, `process`, `bytes`, `crypto`, `path`, `csv`, `term`, `zip`, `toml`, `random`, `url`, `number`, `set`, `log`, `time`
 13. [Multithreading](#multithreading)
 14. [Build System](#build-system) — Projects, `mira.toml`, Commands, Dependencies
 15. [Compilation](#compilation)
@@ -1790,6 +1790,217 @@ Constants: `pi`, `e`, `inf`, `nan`
 | `toBase64(b)`          | Encodes bytes as a Base64 string                       |
 | `readFile(path)`       | Reads a file as raw bytes                              |
 | `writeFile(path, b)`   | Writes raw bytes to a file                             |
+
+### `crypto`
+
+Cryptographic hash functions and UUID generation. No external dependencies — uses Java's built-in `java.security` and `javax.crypto`.
+
+| Function                   | Description                                             |
+| -------------------------- | ------------------------------------------------------- |
+| `md5(str)`                 | Returns the MD5 hex digest of `str`                     |
+| `sha1(str)`                | Returns the SHA-1 hex digest                            |
+| `sha256(str)`              | Returns the SHA-256 hex digest (64 hex characters)      |
+| `sha512(str)`              | Returns the SHA-512 hex digest (128 hex characters)     |
+| `hmacSha256(key, message)` | HMAC-SHA256 of `message` signed with `key`              |
+| `uuid()`                   | Generates a random UUID v4 with dashes                  |
+| `uuidNoDashes()`           | Generates a random UUID v4 as a 32-character hex string |
+
+### `path`
+
+Cross-platform path manipulation. All functions return strings — they do not access the filesystem.
+
+| Function             | Description                                                   |
+| -------------------- | ------------------------------------------------------------- |
+| `join(...parts)`     | Joins path segments with the system separator (variadic)      |
+| `normalize(path)`    | Resolves `.` and `..` in a path without filesystem access     |
+| `resolve(base, rel)` | Resolves `rel` relative to `base`                             |
+| `relative(from, to)` | Returns `to` expressed relative to `from`                     |
+| `absolute(path)`     | Returns the absolute path (relative to the current directory) |
+| `parent(path)`       | Returns the parent directory, or `""` if none                 |
+| `fileName(path)`     | Returns the file name (last segment), or `""`                 |
+| `stem(path)`         | File name without its extension                               |
+| `extension(path)`    | Extension without the dot, or `""` if none                    |
+| `isAbsolute(path)`   | True if the path is absolute                                  |
+| `split(path)`        | Returns a list of all path segments                           |
+
+### `csv`
+
+CSV parsing and serialization. Handles quoted fields and embedded commas.
+
+| Function                   | Description                                                    |
+| -------------------------- | -------------------------------------------------------------- |
+| `parse(csvStr)`            | Parses CSV into a list of lists (each row = list of strings)   |
+| `parseWithHeaders(csvStr)` | Parses CSV into a list of maps; first row becomes the map keys |
+| `stringify(data)`          | Serializes a list of lists back into a CSV string              |
+| `column(data, index)`      | Extracts column `index` from all rows as a list                |
+| `parseRow(line)`           | Parses a single CSV line into a list (quoted-field-aware)      |
+| `rowCount(csvStr)`         | Returns the number of non-empty rows                           |
+
+### `term`
+
+ANSI terminal formatting. All functions wrap text in ANSI escape sequences and are pure string operations — they do not print anything themselves.
+
+| Function          | Description                                      |
+| ----------------- | ------------------------------------------------ |
+| `red(text)`       | Red foreground                                   |
+| `green(text)`     | Green foreground                                 |
+| `yellow(text)`    | Yellow foreground                                |
+| `blue(text)`      | Blue foreground                                  |
+| `magenta(text)`   | Magenta foreground                               |
+| `cyan(text)`      | Cyan foreground                                  |
+| `white(text)`     | White foreground                                 |
+| `bold(text)`      | Bold style                                       |
+| `dim(text)`       | Dim / faint style                                |
+| `italic(text)`    | Italic style                                     |
+| `underline(text)` | Underline style                                  |
+| `stripAnsi(text)` | Removes all ANSI escape codes from `text`        |
+| `clear()`         | Returns the ANSI sequence that clears the screen |
+
+Example:
+
+```
+import term as t;
+println(t.green("OK") " — " t.bold("done"));
+```
+
+### `zip`
+
+Compression and ZIP archive operations. Operates on `bytes` values.
+
+| Function                         | Description                                     |
+| -------------------------------- | ----------------------------------------------- |
+| `gzipCompress(bytes)`            | Compresses a bytes value with GZIP              |
+| `gzipDecompress(bytes)`          | Decompresses a GZIP-compressed bytes value      |
+| `deflate(bytes)`                 | Compresses with DEFLATE (raw)                   |
+| `inflate(bytes)`                 | Decompresses DEFLATE-compressed bytes           |
+| `createZip(outputPath, paths)`   | Creates a ZIP archive from a list of file paths |
+| `extractZip(zipPath, outputDir)` | Extracts a ZIP archive into the given directory |
+
+### `toml`
+
+Parses TOML configuration files. Uses Mira's built-in TOML parser — the same one used for `mira.toml`.
+
+| Function             | Description                                                    |
+| -------------------- | -------------------------------------------------------------- |
+| `parse(tomlStr)`     | Parses a TOML string, returns a map                            |
+| `parseFile(path)`    | Reads and parses a TOML file, returns a map                    |
+| `get(map, key)`      | Gets a value by key, or `null` if missing                      |
+| `getArray(map, key)` | Gets a value as a list, or an empty list if missing/wrong type |
+| `has(map, key)`      | True if `key` exists in the map                                |
+
+### `random`
+
+Stateful random number generation. The `Random` instance persists across calls within the same import scope.
+
+| Function              | Description                                               |
+| --------------------- | --------------------------------------------------------- |
+| `seed(n)`             | Seeds the RNG with integer `n` for reproducible sequences |
+| `next()`              | Returns a random float in `[0.0, 1.0)`                    |
+| `nextInt(min, max)`   | Returns a random integer in `[min, max)`                  |
+| `nextFloat(min, max)` | Returns a random float in `[min, max)`                    |
+| `nextBool()`          | Returns `true` or `false` with equal probability          |
+| `nextGaussian()`      | Returns a Gaussian-distributed value (μ=0, σ=1)           |
+| `shuffle(list)`       | Returns a randomly shuffled copy of the list              |
+| `pick(list)`          | Returns one random element from the list                  |
+| `sample(list, n)`     | Returns `n` unique random elements (without replacement)  |
+
+### `url`
+
+URL parsing, building, and encoding.
+
+| Function                           | Description                                                                                     |
+| ---------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `parse(urlStr)`                    | Parses a URL into a map with keys `scheme`, `host`, `port`, `path`, `query`, `fragment`, `user` |
+| `build(scheme, host, path, query)` | Assembles a URL string from its parts                                                           |
+| `getParam(urlStr, key)`            | Returns the value of query parameter `key`, or `null`                                           |
+| `getParams(urlStr)`                | Returns all query parameters as a map                                                           |
+| `encode(str)`                      | URL-encodes a string (percent-encoding)                                                         |
+| `decode(str)`                      | Decodes a percent-encoded string                                                                |
+| `isValid(str)`                     | True if `str` is a syntactically valid URL                                                      |
+
+### `number`
+
+Number formatting and base conversion.
+
+| Function                    | Description                                                         |
+| --------------------------- | ------------------------------------------------------------------- |
+| `toFixed(n, decimals)`      | Returns `n` formatted with exactly `decimals` decimal places        |
+| `toHex(n)`                  | Returns `n` as an uppercase hexadecimal string, e.g. `"FF"`         |
+| `toBinary(n)`               | Returns `n` as a binary string, e.g. `"1010"`                       |
+| `toOctal(n)`                | Returns `n` as an octal string, e.g. `"17"`                         |
+| `toScientific(n, decimals)` | Returns `n` in scientific notation, e.g. `"3.14e+10"`               |
+| `withCommas(n)`             | Returns `n` formatted with thousands separators, e.g. `"1,234,567"` |
+| `fromHex(str)`              | Parses a hex string into a number                                   |
+| `fromBinary(str)`           | Parses a binary string into a number                                |
+| `fromOctal(str)`            | Parses an octal string into a number                                |
+| `isInteger(n)`              | True if `n` has no fractional part                                  |
+
+### `set`
+
+Set operations on deduplicated lists. Sets are represented as plain lists with no duplicate elements. All mutating operations return a new set without modifying the input.
+
+| Function                   | Description                                             |
+| -------------------------- | ------------------------------------------------------- |
+| `newSet()`                 | Creates an empty set                                    |
+| `add(set, value)`          | Returns a new set with `value` added (no-op if present) |
+| `remove(set, value)`       | Returns a new set without `value`                       |
+| `has(set, value)`          | True if `value` is in the set                           |
+| `size(set)`                | Returns the number of elements                          |
+| `union(set1, set2)`        | Returns all elements from both sets (deduplicated)      |
+| `intersection(set1, set2)` | Returns only elements in both sets                      |
+| `difference(set1, set2)`   | Returns elements in `set1` that are not in `set2`       |
+| `toList(set)`              | Returns the set as a list                               |
+| `fromList(list)`           | Converts a list to a set (removes duplicates)           |
+
+### `log`
+
+Stateful logger with level filtering and optional file output. Each import scope has its own logger instance.
+
+| Function          | Description                                                          |
+| ----------------- | -------------------------------------------------------------------- |
+| `debug(message)`  | Prints `[DEBUG] message` to stdout (only if level ≤ `debug`)         |
+| `info(message)`   | Prints `[INFO] message` to stdout (only if level ≤ `info`)           |
+| `warn(message)`   | Prints `[WARN] message` to stderr (only if level ≤ `warn`)           |
+| `error(message)`  | Prints `[ERROR] message` to stderr (only if level ≤ `error`)         |
+| `setLevel(level)` | Sets the minimum log level: `"debug"`, `"info"`, `"warn"`, `"error"` |
+| `toFile(path)`    | Redirects all subsequent log output to the given file (append mode)  |
+
+Default level is `debug` — all messages are shown. Calling `setLevel("warn")` suppresses `debug` and `info` messages.
+
+Example:
+
+```
+import log as log;
+
+log.setLevel("info");
+log.debug("ignored");
+log.info("server started");
+log.warn("low memory");
+```
+
+### `time`
+
+Millisecond-precision timing utilities.
+
+| Function           | Description                                                     |
+| ------------------ | --------------------------------------------------------------- |
+| `now()`            | Returns the current time as milliseconds since the Unix epoch   |
+| `elapsed(startMs)` | Returns the milliseconds elapsed since `startMs`                |
+| `sleep(ms)`        | Pauses execution for `ms` milliseconds                          |
+| `format(ms)`       | Formats a duration: `"42ms"`, `"30s"`, `"2m 30s"`, `"1h 0m 0s"` |
+| `fromSeconds(s)`   | Converts seconds to milliseconds                                |
+| `fromMinutes(m)`   | Converts minutes to milliseconds                                |
+| `fromHours(h)`     | Converts hours to milliseconds                                  |
+
+Example — measure how long an operation takes:
+
+```
+import time as time;
+
+var start : time.now();
+doWork();
+println("took: " time.format(time.elapsed($start)));
+```
 
 ---
 
