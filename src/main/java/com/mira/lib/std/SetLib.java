@@ -58,47 +58,47 @@ public class SetLib implements Lib {
         environment.define("newSet", new NativeFunction(0, args
                 -> new ListExpression(new ArrayList<>())));
 
-        environment.define("add", new NativeFunction(2, args -> {
+        environment.define("add", new NativeFunction(2, "set, value", args -> {
             LinkedHashSet<String> set = toSet(args.get(0));
             set.add(String.valueOf(args.get(1)));
             return fromSet(set);
         }));
 
-        environment.define("remove", new NativeFunction(2, args -> {
+        environment.define("remove", new NativeFunction(2, "set, value", args -> {
             LinkedHashSet<String> set = toSet(args.get(0));
             set.remove(String.valueOf(args.get(1)));
             return fromSet(set);
         }));
 
-        environment.define("has", new NativeFunction(2, args
+        environment.define("has", new NativeFunction(2, "set, value", args
                 -> toSet(args.get(0)).contains(String.valueOf(args.get(1)))));
 
-        environment.define("size", new NativeFunction(1, args
+        environment.define("size", new NativeFunction(1, "set", args
                 -> (double) toSet(args.get(0)).size()));
 
-        environment.define("union", new NativeFunction(2, args -> {
+        environment.define("union", new NativeFunction(2, "set1, set2", args -> {
             LinkedHashSet<String> set = toSet(args.get(0));
             set.addAll(toSet(args.get(1)));
             return fromSet(set);
         }));
 
-        environment.define("intersection", new NativeFunction(2, args -> {
+        environment.define("intersection", new NativeFunction(2, "set1, set2", args -> {
             LinkedHashSet<String> set = toSet(args.get(0));
             Set<String> other = toSet(args.get(1));
             set.retainAll(other);
             return fromSet(set);
         }));
 
-        environment.define("difference", new NativeFunction(2, args -> {
+        environment.define("difference", new NativeFunction(2, "set1, set2", args -> {
             LinkedHashSet<String> set = toSet(args.get(0));
             set.removeAll(toSet(args.get(1)));
             return fromSet(set);
         }));
 
-        environment.define("toList", new NativeFunction(1, args
+        environment.define("toList", new NativeFunction(1, "set", args
                 -> fromSet(toSet(args.get(0)))));
 
-        environment.define("fromList", new NativeFunction(1, args
+        environment.define("fromList", new NativeFunction(1, "list", args
                 -> fromSet(toSet(args.get(0)))));
     }
 }

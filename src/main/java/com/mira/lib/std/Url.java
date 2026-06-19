@@ -31,7 +31,7 @@ public class Url implements Lib {
     @Override
     public void loadLib(Environment environment) {
 
-        environment.define("parse", new NativeFunction(1, args -> {
+        environment.define("parse", new NativeFunction(1, "urlStr", args -> {
             try {
                 URI uri = URI.create(String.valueOf(args.get(0)));
                 LinkedHashMap<String, com.mira.parser.nodes.expression.Expression> map = new LinkedHashMap<>();
@@ -49,7 +49,7 @@ public class Url implements Lib {
             }
         }));
 
-        environment.define("build", new NativeFunction(4, args -> {
+        environment.define("build", new NativeFunction(4, "scheme, host, path, query", args -> {
             String scheme = String.valueOf(args.get(0));
             String host = String.valueOf(args.get(1));
             String path = String.valueOf(args.get(2));
@@ -61,7 +61,7 @@ public class Url implements Lib {
             return sb.toString();
         }));
 
-        environment.define("getParam", new NativeFunction(2, args -> {
+        environment.define("getParam", new NativeFunction(2, "urlStr, key", args -> {
             String urlStr = String.valueOf(args.get(0));
             String key = String.valueOf(args.get(1));
             try {
@@ -81,7 +81,7 @@ public class Url implements Lib {
             }
         }));
 
-        environment.define("getParams", new NativeFunction(1, args -> {
+        environment.define("getParams", new NativeFunction(1, "urlStr", args -> {
             try {
                 String query = URI.create(String.valueOf(args.get(0))).getQuery();
                 LinkedHashMap<String, com.mira.parser.nodes.expression.Expression> map = new LinkedHashMap<>();
@@ -101,13 +101,13 @@ public class Url implements Lib {
             }
         }));
 
-        environment.define("encode", new NativeFunction(1, args
+        environment.define("encode", new NativeFunction(1, "str", args
                 -> URLEncoder.encode(String.valueOf(args.get(0)), StandardCharsets.UTF_8)));
 
-        environment.define("decode", new NativeFunction(1, args
+        environment.define("decode", new NativeFunction(1, "str", args
                 -> URLDecoder.decode(String.valueOf(args.get(0)), StandardCharsets.UTF_8)));
 
-        environment.define("isValid", new NativeFunction(1, args -> {
+        environment.define("isValid", new NativeFunction(1, "str", args -> {
             try {
                 URI.create(String.valueOf(args.get(0)));
                 return true;

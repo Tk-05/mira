@@ -74,7 +74,7 @@ public class Csv implements Lib {
     @Override
     public void loadLib(Environment environment) {
 
-        environment.define("parse", new NativeFunction(1, args -> {
+        environment.define("parse", new NativeFunction(1, "csvStr", args -> {
             List<List<String>> rows = parseCsv(String.valueOf(args.get(0)));
             List<Expression> result = new ArrayList<>();
             for (List<String> row : rows) {
@@ -87,7 +87,7 @@ public class Csv implements Lib {
             return new ListExpression(result);
         }));
 
-        environment.define("parseWithHeaders", new NativeFunction(1, args -> {
+        environment.define("parseWithHeaders", new NativeFunction(1, "csvStr", args -> {
             List<List<String>> rows = parseCsv(String.valueOf(args.get(0)));
             if (rows.isEmpty()) {
                 return new ListExpression(new ArrayList<>());
@@ -105,7 +105,7 @@ public class Csv implements Lib {
             return new ListExpression(result);
         }));
 
-        environment.define("stringify", new NativeFunction(1, args -> {
+        environment.define("stringify", new NativeFunction(1, "data", args -> {
             List<Expression> rows = toMembers(args.get(0));
             StringBuilder sb = new StringBuilder();
             for (Expression rowExpr : rows) {
@@ -127,7 +127,7 @@ public class Csv implements Lib {
             return sb.toString();
         }));
 
-        environment.define("column", new NativeFunction(2, args -> {
+        environment.define("column", new NativeFunction(2, "data, index", args -> {
             List<Expression> rows = toMembers(args.get(0));
             int idx = (int) Double.parseDouble(String.valueOf(args.get(1)));
             List<Expression> col = new ArrayList<>();
@@ -138,7 +138,7 @@ public class Csv implements Lib {
             return new ListExpression(col);
         }));
 
-        environment.define("parseRow", new NativeFunction(1, args -> {
+        environment.define("parseRow", new NativeFunction(1, "line", args -> {
             List<String> fields = parseRow(String.valueOf(args.get(0)));
             List<Expression> result = new ArrayList<>();
             for (String f : fields) {
@@ -147,7 +147,7 @@ public class Csv implements Lib {
             return new ListExpression(result);
         }));
 
-        environment.define("rowCount", new NativeFunction(1, args
+        environment.define("rowCount", new NativeFunction(1, "csvStr", args
                 -> (double) parseCsv(String.valueOf(args.get(0))).size()));
     }
 }

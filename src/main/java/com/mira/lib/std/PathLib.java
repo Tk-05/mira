@@ -26,7 +26,7 @@ public class PathLib implements Lib {
     @Override
     public void loadLib(Environment environment) {
 
-        environment.define("join", new NativeFunction(-1, args -> {
+        environment.define("join", new NativeFunction(-1, "...parts", args -> {
             if (args.isEmpty()) {
                 return "";
             }
@@ -37,29 +37,29 @@ public class PathLib implements Lib {
             return result.toString();
         }));
 
-        environment.define("normalize", new NativeFunction(1, args
+        environment.define("normalize", new NativeFunction(1, "path", args
                 -> Path.of(str(args.get(0))).normalize().toString()));
 
-        environment.define("resolve", new NativeFunction(2, args
+        environment.define("resolve", new NativeFunction(2, "base, rel", args
                 -> Path.of(str(args.get(0))).resolve(str(args.get(1))).toString()));
 
-        environment.define("relative", new NativeFunction(2, args
+        environment.define("relative", new NativeFunction(2, "from, to", args
                 -> Path.of(str(args.get(0))).relativize(Path.of(str(args.get(1)))).toString()));
 
-        environment.define("absolute", new NativeFunction(1, args
+        environment.define("absolute", new NativeFunction(1, "path", args
                 -> Path.of(str(args.get(0))).toAbsolutePath().toString()));
 
-        environment.define("parent", new NativeFunction(1, args -> {
+        environment.define("parent", new NativeFunction(1, "path", args -> {
             Path parent = Path.of(str(args.get(0))).getParent();
             return parent != null ? parent.toString() : "";
         }));
 
-        environment.define("fileName", new NativeFunction(1, args -> {
+        environment.define("fileName", new NativeFunction(1, "path", args -> {
             Path name = Path.of(str(args.get(0))).getFileName();
             return name != null ? name.toString() : "";
         }));
 
-        environment.define("stem", new NativeFunction(1, args -> {
+        environment.define("stem", new NativeFunction(1, "path", args -> {
             Path p = Path.of(str(args.get(0)));
             Path name = p.getFileName();
             if (name == null) {
@@ -70,7 +70,7 @@ public class PathLib implements Lib {
             return dot > 0 ? s.substring(0, dot) : s;
         }));
 
-        environment.define("extension", new NativeFunction(1, args -> {
+        environment.define("extension", new NativeFunction(1, "path", args -> {
             Path p = Path.of(str(args.get(0)));
             Path name = p.getFileName();
             if (name == null) {
@@ -81,10 +81,10 @@ public class PathLib implements Lib {
             return dot > 0 ? s.substring(dot + 1) : "";
         }));
 
-        environment.define("isAbsolute", new NativeFunction(1, args
+        environment.define("isAbsolute", new NativeFunction(1, "path", args
                 -> Path.of(str(args.get(0))).isAbsolute()));
 
-        environment.define("split", new NativeFunction(1, args -> {
+        environment.define("split", new NativeFunction(1, "path", args -> {
             Path p = Path.of(str(args.get(0)));
             List<Expression> parts = new ArrayList<>();
             for (Path part : p) {

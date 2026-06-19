@@ -21,43 +21,43 @@ public class NumberLib implements Lib {
     @Override
     public void loadLib(Environment environment) {
 
-        environment.define("toFixed", new NativeFunction(2, args -> {
+        environment.define("toFixed", new NativeFunction(2, "n, decimals", args -> {
             double n = toDouble(args.get(0));
             int decimals = (int) toDouble(args.get(1));
             return String.format(Locale.US, "%." + decimals + "f", n);
         }));
 
-        environment.define("toHex", new NativeFunction(1, args
+        environment.define("toHex", new NativeFunction(1, "n", args
                 -> Long.toHexString(toLong(args.get(0))).toUpperCase(Locale.US)));
 
-        environment.define("toBinary", new NativeFunction(1, args
+        environment.define("toBinary", new NativeFunction(1, "n", args
                 -> Long.toBinaryString(toLong(args.get(0)))));
 
-        environment.define("toOctal", new NativeFunction(1, args
+        environment.define("toOctal", new NativeFunction(1, "n", args
                 -> Long.toOctalString(toLong(args.get(0)))));
 
-        environment.define("toScientific", new NativeFunction(2, args -> {
+        environment.define("toScientific", new NativeFunction(2, "n, decimals", args -> {
             double n = toDouble(args.get(0));
             int decimals = (int) toDouble(args.get(1));
             return String.format(Locale.US, "%." + decimals + "e", n);
         }));
 
-        environment.define("withCommas", new NativeFunction(1, args -> {
+        environment.define("withCommas", new NativeFunction(1, "n", args -> {
             double n = toDouble(args.get(0));
             DecimalFormat df = new DecimalFormat("#,##0.##", DecimalFormatSymbols.getInstance(Locale.US));
             return df.format(n);
         }));
 
-        environment.define("fromHex", new NativeFunction(1, args
+        environment.define("fromHex", new NativeFunction(1, "str", args
                 -> (double) Long.parseLong(String.valueOf(args.get(0)), 16)));
 
-        environment.define("fromBinary", new NativeFunction(1, args
+        environment.define("fromBinary", new NativeFunction(1, "str", args
                 -> (double) Long.parseLong(String.valueOf(args.get(0)), 2)));
 
-        environment.define("fromOctal", new NativeFunction(1, args
+        environment.define("fromOctal", new NativeFunction(1, "str", args
                 -> (double) Long.parseLong(String.valueOf(args.get(0)), 8)));
 
-        environment.define("isInteger", new NativeFunction(1, args -> {
+        environment.define("isInteger", new NativeFunction(1, "n", args -> {
             double n = toDouble(args.get(0));
             return n == java.lang.Math.floor(n) && !Double.isInfinite(n);
         }));

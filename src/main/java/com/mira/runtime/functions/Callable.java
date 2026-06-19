@@ -9,4 +9,8 @@ public interface Callable {
     Object call(Interpreter interpreter, List<Object> arguments);
 
     int getArity();
+
+    default String getParamHint() {
+        return "";
+    }
 }

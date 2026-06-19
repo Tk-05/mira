@@ -54,12 +54,12 @@ public class Toml implements Lib {
     @Override
     public void loadLib(Environment environment) {
 
-        environment.define("parse", new NativeFunction(1, args -> {
+        environment.define("parse", new NativeFunction(1, "tomlStr", args -> {
             Map<String, Object> parsed = TomlParser.parse(String.valueOf(args.get(0)));
             return tomlToMap(parsed);
         }));
 
-        environment.define("parseFile", new NativeFunction(1, args -> {
+        environment.define("parseFile", new NativeFunction(1, "path", args -> {
             try {
                 String content = Files.readString(Path.of(String.valueOf(args.get(0))));
                 return tomlToMap(TomlParser.parse(content));
@@ -68,7 +68,7 @@ public class Toml implements Lib {
             }
         }));
 
-        environment.define("get", new NativeFunction(2, args -> {
+        environment.define("get", new NativeFunction(2, "map, key", args -> {
             if (!(args.get(0) instanceof MapExpression map)) {
                 throw new RuntimeException("toml.get: expected map");
             }
@@ -77,7 +77,7 @@ public class Toml implements Lib {
             return val != null ? val : NullValue.INSTANCE;
         }));
 
-        environment.define("getArray", new NativeFunction(2, args -> {
+        environment.define("getArray", new NativeFunction(2, "map, key", args -> {
             if (!(args.get(0) instanceof MapExpression map)) {
                 throw new RuntimeException("toml.getArray: expected map");
             }
@@ -89,7 +89,7 @@ public class Toml implements Lib {
             return new ListExpression(new ArrayList<>());
         }));
 
-        environment.define("has", new NativeFunction(2, args -> {
+        environment.define("has", new NativeFunction(2, "map, key", args -> {
             if (!(args.get(0) instanceof MapExpression map)) {
                 return false;
             }

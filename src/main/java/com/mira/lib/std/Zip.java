@@ -50,7 +50,7 @@ public class Zip implements Lib {
     @Override
     public void loadLib(Environment environment) {
 
-        environment.define("gzipCompress", new NativeFunction(1, args -> {
+        environment.define("gzipCompress", new NativeFunction(1, "bytes", args -> {
             try {
                 ByteArrayOutputStream bos = new ByteArrayOutputStream();
                 try (GZIPOutputStream gz = new GZIPOutputStream(bos)) {
@@ -62,7 +62,7 @@ public class Zip implements Lib {
             }
         }));
 
-        environment.define("gzipDecompress", new NativeFunction(1, args -> {
+        environment.define("gzipDecompress", new NativeFunction(1, "bytes", args -> {
             try {
                 ByteArrayInputStream bis = new ByteArrayInputStream(toBytes(args.get(0)).getData());
                 ByteArrayOutputStream bos = new ByteArrayOutputStream();
@@ -75,7 +75,7 @@ public class Zip implements Lib {
             }
         }));
 
-        environment.define("deflate", new NativeFunction(1, args -> {
+        environment.define("deflate", new NativeFunction(1, "bytes", args -> {
             try {
                 ByteArrayOutputStream bos = new ByteArrayOutputStream();
                 try (DeflaterOutputStream dos = new DeflaterOutputStream(bos, new Deflater())) {
@@ -87,7 +87,7 @@ public class Zip implements Lib {
             }
         }));
 
-        environment.define("inflate", new NativeFunction(1, args -> {
+        environment.define("inflate", new NativeFunction(1, "bytes", args -> {
             try {
                 ByteArrayInputStream bis = new ByteArrayInputStream(toBytes(args.get(0)).getData());
                 ByteArrayOutputStream bos = new ByteArrayOutputStream();
@@ -100,7 +100,7 @@ public class Zip implements Lib {
             }
         }));
 
-        environment.define("createZip", new NativeFunction(2, args -> {
+        environment.define("createZip", new NativeFunction(2, "outputPath, paths", args -> {
             try {
                 Path outputPath = Path.of(String.valueOf(args.get(0)));
                 List<String> filePaths = toStringList(args.get(1));
@@ -121,7 +121,7 @@ public class Zip implements Lib {
             }
         }));
 
-        environment.define("extractZip", new NativeFunction(2, args -> {
+        environment.define("extractZip", new NativeFunction(2, "zipPath, outputDir", args -> {
             try {
                 Path zipPath = Path.of(String.valueOf(args.get(0)));
                 Path outputDir = Path.of(String.valueOf(args.get(1)));

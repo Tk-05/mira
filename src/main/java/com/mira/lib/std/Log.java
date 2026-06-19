@@ -38,27 +38,27 @@ public class Log implements Lib {
     @Override
     public void loadLib(Environment environment) {
 
-        environment.define("debug", new NativeFunction(1, args -> {
+        environment.define("debug", new NativeFunction(1, "message", args -> {
             emit(LEVEL_DEBUG, "[DEBUG]", String.valueOf(args.get(0)), false);
             return NullValue.INSTANCE;
         }));
 
-        environment.define("info", new NativeFunction(1, args -> {
+        environment.define("info", new NativeFunction(1, "message", args -> {
             emit(LEVEL_INFO, "[INFO]", String.valueOf(args.get(0)), false);
             return NullValue.INSTANCE;
         }));
 
-        environment.define("warn", new NativeFunction(1, args -> {
+        environment.define("warn", new NativeFunction(1, "message", args -> {
             emit(LEVEL_WARN, "[WARN]", String.valueOf(args.get(0)), true);
             return NullValue.INSTANCE;
         }));
 
-        environment.define("error", new NativeFunction(1, args -> {
+        environment.define("error", new NativeFunction(1, "message", args -> {
             emit(LEVEL_ERROR, "[ERROR]", String.valueOf(args.get(0)), true);
             return NullValue.INSTANCE;
         }));
 
-        environment.define("setLevel", new NativeFunction(1, args -> {
+        environment.define("setLevel", new NativeFunction(1, "level", args -> {
             currentLevel = switch (String.valueOf(args.get(0)).toLowerCase()) {
                 case "debug" ->
                     LEVEL_DEBUG;
@@ -74,7 +74,7 @@ public class Log implements Lib {
             return NullValue.INSTANCE;
         }));
 
-        environment.define("toFile", new NativeFunction(1, args -> {
+        environment.define("toFile", new NativeFunction(1, "path", args -> {
             try {
                 if (fileWriter != null) {
                     fileWriter.close();

@@ -28,19 +28,19 @@ public class Crypto implements Lib {
     @Override
     public void loadLib(Environment environment) {
 
-        environment.define("md5", new NativeFunction(1, args
+        environment.define("md5", new NativeFunction(1, "str", args
                 -> digest("MD5", String.valueOf(args.get(0)))));
 
-        environment.define("sha1", new NativeFunction(1, args
+        environment.define("sha1", new NativeFunction(1, "str", args
                 -> digest("SHA-1", String.valueOf(args.get(0)))));
 
-        environment.define("sha256", new NativeFunction(1, args
+        environment.define("sha256", new NativeFunction(1, "str", args
                 -> digest("SHA-256", String.valueOf(args.get(0)))));
 
-        environment.define("sha512", new NativeFunction(1, args
+        environment.define("sha512", new NativeFunction(1, "str", args
                 -> digest("SHA-512", String.valueOf(args.get(0)))));
 
-        environment.define("hmacSha256", new NativeFunction(2, args -> {
+        environment.define("hmacSha256", new NativeFunction(2, "key, message", args -> {
             try {
                 String key = String.valueOf(args.get(0));
                 String message = String.valueOf(args.get(1));

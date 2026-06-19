@@ -7,6 +7,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
@@ -17,6 +20,7 @@ import org.eclipse.lsp4j.CompletionItemKind;
 
 import com.mira.lexer.Tokenizer;
 import com.mira.lib.Lib;
+import com.mira.lib.LibIndex;
 import com.mira.parser.Parser;
 import com.mira.parser.nodes.Node;
 import com.mira.parser.nodes.Parameter;
@@ -25,6 +29,7 @@ import com.mira.parser.nodes.expression.Expression.ObjectExpression;
 import com.mira.parser.nodes.statement.Statement.ComptimeBlock;
 import com.mira.parser.nodes.statement.Statement.FuncDecl;
 import com.mira.parser.nodes.statement.Statement.VarDecl;
+import com.mira.runtime.functions.Callable;
 import com.mira.runtime.functions.NativeFunction;
 import com.mira.runtime.interpreter.Environment;
 
@@ -43,342 +48,27 @@ public class CompletionProvider {
             "readFile", "writeFile", "args"
     );
 
-    private static final Map<String, String> STDLIB_PARAMS = Map.ofEntries(
-            // string
-            Map.entry("charAt", "str, index"),
-            Map.entry("indexOf", "str, sub"),
-            Map.entry("trim", "str"),
-            Map.entry("split", "str, delimiter"),
-            Map.entry("substr", "str, start, end"),
-            Map.entry("strEqual", "a, b"),
-            Map.entry("replace", "str, old, new"),
-            Map.entry("upper", "str"),
-            Map.entry("lower", "str"),
-            Map.entry("startsWith", "str, prefix"),
-            Map.entry("endsWith", "str, suffix"),
-            Map.entry("contains", "col, val"),
-            Map.entry("repeat", "str, n"),
-            Map.entry("toNumber", "str"),
-            Map.entry("padLeft", "str, width"),
-            Map.entry("padRight", "str, width"),
-            Map.entry("isNumeric", "str"),
-            // collection
-            Map.entry("size", "col"),
-            Map.entry("push", "col, val"),
-            Map.entry("pop", "col"),
-            Map.entry("first", "col"),
-            Map.entry("last", "col"),
-            Map.entry("slice", "col, start, end"),
-            Map.entry("reverse", "col"),
-            Map.entry("concat", "col1, col2"),
-            Map.entry("flatten", "col"),
-            Map.entry("join", "col, sep"),
-            Map.entry("newList", ""),
-            Map.entry("remove", "col, index"),
-            Map.entry("map", "col, fn"),
-            Map.entry("filter", "col, fn"),
-            Map.entry("reduce", "col, fn, init"),
-            Map.entry("any", "col, fn"),
-            Map.entry("all", "col, fn"),
-            Map.entry("count", "col, fn"),
-            Map.entry("sortBy", "col, fn"),
-            Map.entry("sort", "col"),
-            Map.entry("unique", "col"),
-            Map.entry("sum", "col"),
-            Map.entry("avg", "col"),
-            Map.entry("zip", "col1, col2"),
-            Map.entry("fill", "n, val"),
-            Map.entry("min", "col"),
-            Map.entry("max", "col"),
-            Map.entry("take", "col, n"),
-            Map.entry("drop", "col, n"),
-            Map.entry("findFirst", "col, fn"),
-            Map.entry("chunk", "col, size"),
-            Map.entry("groupBy", "col, fn"),
-            // map
-            Map.entry("newMap", ""),
-            Map.entry("mapSize", "map"),
-            Map.entry("mapHas", "map, key"),
-            Map.entry("mapRemove", "map, key"),
-            Map.entry("mapKeys", "map"),
-            Map.entry("mapValues", "map"),
-            Map.entry("mapSet", "map, key, value"),
-            Map.entry("mapGet", "map, key"),
-            Map.entry("mapEntries", "map"),
-            Map.entry("mapMerge", "map1, map2"),
-            Map.entry("mapFromLists", "keys, values"),
-            // math
-            Map.entry("pow", "base, exp"),
-            Map.entry("abs", "x"),
-            Map.entry("rand", ""),
-            Map.entry("randInt", "min, max"),
-            Map.entry("round", "x"),
-            Map.entry("floor", "x"),
-            Map.entry("ceil", "x"),
-            Map.entry("sqrt", "x"),
-            Map.entry("cbrt", "x"),
-            Map.entry("log", "x"),
-            Map.entry("log10", "x"),
-            Map.entry("log2", "x"),
-            Map.entry("sin", "x"),
-            Map.entry("cos", "x"),
-            Map.entry("tan", "x"),
-            Map.entry("asin", "x"),
-            Map.entry("acos", "x"),
-            Map.entry("atan", "x"),
-            Map.entry("atan2", "y, x"),
-            Map.entry("toRad", "deg"),
-            Map.entry("toDeg", "rad"),
-            Map.entry("sign", "x"),
-            Map.entry("clamp", "val, min, max"),
-            Map.entry("isNaN", "x"),
-            Map.entry("isInf", "x"),
-            Map.entry("gcd", "a, b"),
-            Map.entry("lcm", "a, b"),
-            Map.entry("factorial", "n"),
-            Map.entry("trunc", "x"),
-            Map.entry("hypot", "a, b"),
-            // net
-            Map.entry("httpGet", "url"),
-            Map.entry("httpPost", "url, body, contentType"),
-            Map.entry("httpPut", "url, body, contentType"),
-            Map.entry("httpDelete", "url"),
-            Map.entry("httpStatus", "url"),
-            Map.entry("httpHeader", "url, header"),
-            Map.entry("httpDownload", "url, path"),
-            Map.entry("urlEncode", "str"),
-            Map.entry("urlDecode", "str"),
-            // io
-            Map.entry("readFile", "path"),
-            Map.entry("writeFile", "path, content"),
-            Map.entry("fileExists", "path"),
-            Map.entry("appendFile", "path, content"),
-            Map.entry("listDir", "path"),
-            Map.entry("mkdir", "path"),
-            Map.entry("deleteFile", "path"),
-            // dateTime
-            Map.entry("now", ""),
-            Map.entry("timestamp", ""),
-            Map.entry("timestampMs", ""),
-            Map.entry("dateFormat", "date, pattern"),
-            Map.entry("year", ""),
-            Map.entry("month", ""),
-            Map.entry("day", ""),
-            Map.entry("hour", ""),
-            Map.entry("minute", ""),
-            Map.entry("second", ""),
-            Map.entry("dayOfWeek", ""),
-            Map.entry("dayOfYear", ""),
-            Map.entry("secondsSince", "date"),
-            Map.entry("fromEpoch", "seconds"),
-            Map.entry("addDays", "date, n"),
-            Map.entry("dateDiff", "date1, date2"),
-            Map.entry("isLeapYear", "year"),
-            // shell
-            Map.entry("execute", "command"),
-            Map.entry("executeCode", "code"),
-            Map.entry("getenv", "name"),
-            Map.entry("hasenv", "name"),
-            Map.entry("osName", ""),
-            Map.entry("isWindows", ""),
-            Map.entry("isLinux", ""),
-            Map.entry("isMac", ""),
-            Map.entry("cwd", ""),
-            Map.entry("username", ""),
-            Map.entry("homedir", ""),
-            // json
-            Map.entry("jsonGet", "json, key"),
-            Map.entry("jsonHas", "json, key"),
-            Map.entry("jsonArray", "json, key"),
-            Map.entry("jsonBuild", "keys, values"),
-            Map.entry("jsonFormat", "json"),
-            Map.entry("jsonNested", "json, parent, key"),
-            Map.entry("jsonIndexOf", "list, val"),
-            Map.entry("jsonKeys", "json"),
-            Map.entry("jsonSize", "json"),
-            Map.entry("jsonSet", "json, key, value"),
-            // regex
-            Map.entry("matches", "pattern, str"),
-            Map.entry("contains_regex", "pattern, str"),
-            Map.entry("replaceAll", "pattern, str, replacement"),
-            Map.entry("replaceFirst", "pattern, str, replacement"),
-            Map.entry("split_regex", "pattern, str"),
-            Map.entry("capture", "pattern, str"),
-            Map.entry("countMatches", "pattern, str"),
-            // process
-            Map.entry("processStart", "command"),
-            Map.entry("processAlive", "process"),
-            Map.entry("processWait", "process"),
-            Map.entry("processKill", "process"),
-            Map.entry("processOutput", "process"),
-            Map.entry("processExitCode", "process"),
-            Map.entry("pid", ""),
-            Map.entry("listProcesses", ""),
-            Map.entry("processInfo", "pid"),
-            Map.entry("sleep", "ms"),
-            // thread
-            Map.entry("newMutex", ""),
-            // bytes (only entries not already covered above)
-            Map.entry("newBytes", "size"),
-            Map.entry("fromString", "str"),
-            Map.entry("fromList", "list"),
-            Map.entry("fromHex", "hex"),
-            Map.entry("fromBase64", "str"),
-            Map.entry("toList", "b"),
-            Map.entry("toHex", "b"),
-            Map.entry("toBase64", "b"),
-            // crypto
-            Map.entry("md5", "str"),
-            Map.entry("sha1", "str"),
-            Map.entry("sha256", "str"),
-            Map.entry("sha512", "str"),
-            Map.entry("hmacSha256", "key, message"),
-            Map.entry("uuid", ""),
-            Map.entry("uuidNoDashes", ""),
-            // path
-            Map.entry("normalize", "path"),
-            Map.entry("resolve", "base, rel"),
-            Map.entry("relative", "from, to"),
-            Map.entry("absolute", "path"),
-            Map.entry("parent", "path"),
-            Map.entry("fileName", "path"),
-            Map.entry("stem", "path"),
-            Map.entry("extension", "path"),
-            Map.entry("isAbsolute", "path"),
-            // csv
-            Map.entry("parse", "csvStr"),
-            Map.entry("parseWithHeaders", "csvStr"),
-            Map.entry("stringify", "data"),
-            Map.entry("column", "data, index"),
-            Map.entry("parseRow", "line"),
-            Map.entry("rowCount", "csvStr"),
-            // term
-            Map.entry("red", "text"),
-            Map.entry("green", "text"),
-            Map.entry("yellow", "text"),
-            Map.entry("blue", "text"),
-            Map.entry("magenta", "text"),
-            Map.entry("cyan", "text"),
-            Map.entry("white", "text"),
-            Map.entry("bold", "text"),
-            Map.entry("dim", "text"),
-            Map.entry("italic", "text"),
-            Map.entry("underline", "text"),
-            Map.entry("stripAnsi", "text"),
-            Map.entry("clear", ""),
-            // zip
-            Map.entry("gzipCompress", "bytes"),
-            Map.entry("gzipDecompress", "bytes"),
-            Map.entry("deflate", "bytes"),
-            Map.entry("inflate", "bytes"),
-            Map.entry("createZip", "outputPath, paths"),
-            Map.entry("extractZip", "zipPath, outputDir"),
-            // toml
-            Map.entry("parseFile", "path"),
-            Map.entry("get", "map, key"),
-            Map.entry("getArray", "map, key"),
-            Map.entry("has", "map, key"),
-            // random
-            Map.entry("seed", "n"),
-            Map.entry("next", ""),
-            Map.entry("nextInt", "min, max"),
-            Map.entry("nextFloat", "min, max"),
-            Map.entry("nextBool", ""),
-            Map.entry("nextGaussian", ""),
-            Map.entry("shuffle", "list"),
-            Map.entry("pick", "list"),
-            Map.entry("sample", "list, n"),
-            // url
-            Map.entry("build", "scheme, host, path, query"),
-            Map.entry("getParam", "urlStr, key"),
-            Map.entry("getParams", "urlStr"),
-            Map.entry("encode", "str"),
-            Map.entry("decode", "str"),
-            Map.entry("isValid", "str"),
-            // number
-            Map.entry("toFixed", "n, decimals"),
-            Map.entry("toBinary", "n"),
-            Map.entry("toOctal", "n"),
-            Map.entry("toScientific", "n, decimals"),
-            Map.entry("withCommas", "n"),
-            Map.entry("fromBinary", "str"),
-            Map.entry("fromOctal", "str"),
-            Map.entry("isInteger", "n"),
-            // set
-            Map.entry("newSet", ""),
-            Map.entry("add", "set, value"),
-            Map.entry("union", "set1, set2"),
-            Map.entry("intersection", "set1, set2"),
-            Map.entry("difference", "set1, set2"),
-            // log
-            Map.entry("debug", "message"),
-            Map.entry("info", "message"),
-            Map.entry("warn", "message"),
-            Map.entry("error", "message"),
-            Map.entry("setLevel", "level"),
-            Map.entry("toFile", "path"),
-            // time
-            Map.entry("elapsed", "startMs"),
-            Map.entry("format", "ms"),
-            Map.entry("fromSeconds", "s"),
-            Map.entry("fromMinutes", "m"),
-            Map.entry("fromHours", "h")
-    );
+    private static final Map<String, List<String>> STDLIB;
+    private static final Map<String, String> STDLIB_PARAMS;
 
-    private static final Map<String, List<String>> STDLIB = Map.ofEntries(
-            Map.entry("string", List.of("charAt", "indexOf", "trim", "split", "substr", "strEqual", "replace",
-                    "upper", "lower", "startsWith", "endsWith", "contains", "repeat",
-                    "toNumber", "padLeft", "padRight", "isNumeric")),
-            Map.entry("collection", List.of("size", "push", "pop", "first", "last", "contains", "indexOf",
-                    "slice", "reverse", "concat", "flatten", "join", "newList", "remove",
-                    "map", "filter", "reduce", "any", "all", "count", "sortBy",
-                    "sort", "unique", "sum", "avg", "zip", "fill", "min", "max",
-                    "take", "drop", "findFirst", "chunk", "groupBy")),
-            Map.entry("map", List.of("newMap", "mapSize", "mapHas", "mapRemove", "mapKeys", "mapValues",
-                    "mapSet", "mapGet", "mapEntries", "mapMerge", "mapFromLists")),
-            Map.entry("math", List.of("pow", "max", "min", "abs", "rand", "randInt", "round", "floor",
-                    "ceil", "sqrt", "cbrt", "log", "log10", "log2", "sin", "cos", "tan",
-                    "asin", "acos", "atan", "atan2", "toRad", "toDeg", "sign", "clamp",
-                    "isNaN", "isInf", "pi", "e", "inf", "nan",
-                    "gcd", "lcm", "factorial", "trunc", "hypot")),
-            Map.entry("net", List.of("httpGet", "httpPost", "httpStatus", "httpHeader", "httpDownload",
-                    "httpPut", "httpDelete", "urlEncode", "urlDecode")),
-            Map.entry("json", List.of("jsonGet", "jsonHas", "jsonArray", "jsonBuild", "jsonFormat",
-                    "jsonNested", "jsonIndexOf", "jsonKeys", "jsonSize", "jsonSet")),
-            Map.entry("dateTime", List.of("now", "timestamp", "timestampMs", "dateFormat", "year", "month",
-                    "day", "hour", "minute", "second", "dayOfWeek", "dayOfYear",
-                    "secondsSince", "fromEpoch", "addDays", "dateDiff", "isLeapYear")),
-            Map.entry("shell", List.of("execute", "executeCode", "getenv", "hasenv", "osName",
-                    "isWindows", "isLinux", "isMac", "cwd", "username", "homedir")),
-            Map.entry("io", List.of("readFile", "writeFile", "fileExists", "appendFile", "listDir",
-                    "mkdir", "deleteFile")),
-            Map.entry("regex", List.of("matches", "contains", "findFirst", "findAll", "replaceAll",
-                    "replaceFirst", "split", "capture", "countMatches")),
-            Map.entry("process", List.of("processStart", "processAlive", "processWait", "processKill",
-                    "processOutput", "processExitCode", "pid", "listProcesses",
-                    "processInfo", "sleep")),
-            Map.entry("thread", List.of("newMutex")),
-            Map.entry("bytes", List.of("newBytes", "fromString", "fromList", "fromHex", "fromBase64",
-                    "size", "get", "set", "slice", "concat", "copy", "fill",
-                    "toString", "toList", "toHex", "toBase64", "readFile", "writeFile")),
-            Map.entry("crypto", List.of("md5", "sha1", "sha256", "sha512", "hmacSha256", "uuid", "uuidNoDashes")),
-            Map.entry("path", List.of("join", "normalize", "resolve", "relative", "absolute", "parent",
-                    "fileName", "stem", "extension", "isAbsolute", "split")),
-            Map.entry("csv", List.of("parse", "parseWithHeaders", "stringify", "column", "parseRow", "rowCount")),
-            Map.entry("term", List.of("red", "green", "yellow", "blue", "magenta", "cyan", "white",
-                    "bold", "dim", "italic", "underline", "stripAnsi", "clear")),
-            Map.entry("zip", List.of("gzipCompress", "gzipDecompress", "deflate", "inflate", "createZip", "extractZip")),
-            Map.entry("toml", List.of("parse", "parseFile", "get", "getArray", "has")),
-            Map.entry("random", List.of("seed", "next", "nextInt", "nextFloat", "nextBool", "nextGaussian",
-                    "shuffle", "pick", "sample")),
-            Map.entry("url", List.of("parse", "build", "getParam", "getParams", "encode", "decode", "isValid")),
-            Map.entry("number", List.of("toFixed", "toHex", "toBinary", "toOctal", "toScientific",
-                    "withCommas", "fromHex", "fromBinary", "fromOctal", "isInteger")),
-            Map.entry("set", List.of("newSet", "add", "remove", "has", "size", "union", "intersection",
-                    "difference", "toList", "fromList")),
-            Map.entry("log", List.of("debug", "info", "warn", "error", "setLevel", "toFile")),
-            Map.entry("time", List.of("now", "elapsed", "sleep", "format", "fromSeconds", "fromMinutes", "fromHours"))
-    );
+    static {
+        Map<String, List<String>> stdlib = new LinkedHashMap<>();
+        Map<String, String> params = new HashMap<>();
+        for (Map.Entry<String, Lib> entry : LibIndex.STDLIB_LIBS.entrySet()) {
+            Environment env = new Environment();
+            entry.getValue().loadLib(env);
+            List<String> fns = new ArrayList<>(env.getDefinedNames());
+            stdlib.put(entry.getKey(), fns);
+            for (String fn : fns) {
+                Object val = env.getOrNull(fn);
+                if (val instanceof Callable c && !c.getParamHint().isEmpty()) {
+                    params.putIfAbsent(fn, c.getParamHint());
+                }
+            }
+        }
+        STDLIB = Collections.unmodifiableMap(stdlib);
+        STDLIB_PARAMS = Collections.unmodifiableMap(params);
+    }
 
     public static List<CompletionItem> provide(List<Node> ast, String documentUri) {
         List<CompletionItem> items = new ArrayList<>();

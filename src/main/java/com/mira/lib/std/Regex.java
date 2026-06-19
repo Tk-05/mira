@@ -22,26 +22,26 @@ public class Regex implements Lib {
     @Override
     public void loadLib(Environment environment) {
 
-        environment.define("matches", new NativeFunction(2, args -> {
+        environment.define("matches", new NativeFunction(2, "pattern, str", args -> {
             String input = String.valueOf(args.get(0));
             String pattern = String.valueOf(args.get(1));
             return input.matches(pattern);
         }));
 
-        environment.define("contains", new NativeFunction(2, args -> {
+        environment.define("contains", new NativeFunction(2, "pattern, str", args -> {
             String input = String.valueOf(args.get(0));
             String pattern = String.valueOf(args.get(1));
             return Pattern.compile(pattern).matcher(input).find();
         }));
 
-        environment.define("findFirst", new NativeFunction(2, args -> {
+        environment.define("findFirst", new NativeFunction(2, "pattern, str", args -> {
             String input = String.valueOf(args.get(0));
             String pattern = String.valueOf(args.get(1));
             Matcher m = Pattern.compile(pattern).matcher(input);
             return m.find() ? m.group() : "";
         }));
 
-        environment.define("findAll", new NativeFunction(2, args -> {
+        environment.define("findAll", new NativeFunction(2, "pattern, str", args -> {
             String input = String.valueOf(args.get(0));
             String pattern = String.valueOf(args.get(1));
             Matcher m = Pattern.compile(pattern).matcher(input);
@@ -52,21 +52,21 @@ public class Regex implements Lib {
             return new ListExpression(results);
         }));
 
-        environment.define("replaceAll", new NativeFunction(3, args -> {
+        environment.define("replaceAll", new NativeFunction(3, "pattern, str, replacement", args -> {
             String input = String.valueOf(args.get(0));
             String pattern = String.valueOf(args.get(1));
             String replacement = String.valueOf(args.get(2));
             return input.replaceAll(pattern, replacement);
         }));
 
-        environment.define("replaceFirst", new NativeFunction(3, args -> {
+        environment.define("replaceFirst", new NativeFunction(3, "pattern, str, replacement", args -> {
             String input = String.valueOf(args.get(0));
             String pattern = String.valueOf(args.get(1));
             String replacement = String.valueOf(args.get(2));
             return input.replaceFirst(pattern, replacement);
         }));
 
-        environment.define("split", new NativeFunction(2, args -> {
+        environment.define("split", new NativeFunction(2, "pattern, str", args -> {
             String input = String.valueOf(args.get(0));
             String pattern = String.valueOf(args.get(1));
             String[] parts = input.split(pattern);
@@ -77,7 +77,7 @@ public class Regex implements Lib {
             return new ListExpression(results);
         }));
 
-        environment.define("capture", new NativeFunction(2, args -> {
+        environment.define("capture", new NativeFunction(2, "pattern, str", args -> {
             String input = String.valueOf(args.get(0));
             String pattern = String.valueOf(args.get(1));
             Matcher m = Pattern.compile(pattern).matcher(input);
@@ -91,7 +91,7 @@ public class Regex implements Lib {
             return new ListExpression(groups);
         }));
 
-        environment.define("countMatches", new NativeFunction(2, args -> {
+        environment.define("countMatches", new NativeFunction(2, "pattern, str", args -> {
             String input = String.valueOf(args.get(0));
             String pattern = String.valueOf(args.get(1));
             Matcher m = Pattern.compile(pattern).matcher(input);

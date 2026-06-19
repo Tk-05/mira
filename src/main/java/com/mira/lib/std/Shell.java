@@ -13,7 +13,7 @@ public class Shell implements Lib {
     @Override
     public void loadLib(Environment environment) {
 
-        environment.define("execute", new NativeFunction(1, args -> {
+        environment.define("execute", new NativeFunction(1, "command", args -> {
             String command = String.valueOf(args.get(0));
             try {
                 ProcessBuilder pb = new ProcessBuilder();
@@ -44,7 +44,7 @@ public class Shell implements Lib {
             }
         }));
 
-        environment.define("executeCode", new NativeFunction(1, args -> {
+        environment.define("executeCode", new NativeFunction(1, "code", args -> {
             String command = String.valueOf(args.get(0));
             try {
                 ProcessBuilder pb = new ProcessBuilder();
@@ -65,13 +65,13 @@ public class Shell implements Lib {
             }
         }));
 
-        environment.define("getenv", new NativeFunction(1, args -> {
+        environment.define("getenv", new NativeFunction(1, "name", args -> {
             String name = String.valueOf(args.get(0));
             String value = System.getenv(name);
             return value != null ? value : "";
         }));
 
-        environment.define("hasenv", new NativeFunction(1, args -> {
+        environment.define("hasenv", new NativeFunction(1, "name", args -> {
             String name = String.valueOf(args.get(0));
             return System.getenv(name) != null;
         }));
