@@ -852,6 +852,10 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                         funcDecl.isAsync(),
                         globalEnvironment));
 
+        if (funcDecl.isPublic()) {
+            globalEnvironment.markPublic(funcDecl.getName());
+        }
+
         return null;
     }
 
@@ -1137,13 +1141,21 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
         if (expr.getRight() instanceof NamespaceCallExpression nsCall) {
             Object namespaceObj = localEnvironment != null ? localEnvironment.getOrNull(nsCall.getAlias()) : null;
-            if (namespaceObj == null) namespaceObj = globalEnvironment.get(nsCall.getAlias());
-            if (!(namespaceObj instanceof Namespace namespace)) throw new NotCallableError(nsCall.getAlias() + "." + nsCall.getFunctionName());
+            if (namespaceObj == null) {
+                namespaceObj = globalEnvironment.get(nsCall.getAlias());
+            }
+            if (!(namespaceObj instanceof Namespace namespace)) {
+                throw new NotCallableError(nsCall.getAlias() + "." + nsCall.getFunctionName());
+            }
             Object callee = namespace.get(nsCall.getFunctionName());
-            if (!(callee instanceof Callable callable)) throw new NotCallableError(nsCall.getAlias() + "." + nsCall.getFunctionName());
+            if (!(callee instanceof Callable callable)) {
+                throw new NotCallableError(nsCall.getAlias() + "." + nsCall.getFunctionName());
+            }
             List<Object> arguments = new ArrayList<>();
             arguments.add(piped);
-            for (Expression arg : nsCall.getArguments()) arguments.add(arg.accept(this));
+            for (Expression arg : nsCall.getArguments()) {
+                arguments.add(arg.accept(this));
+            }
             return (T) callable.call(this, arguments);
         }
 
@@ -1512,6 +1524,10 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             throw e;
         }
 
+        if (varDecl.isPublic()) {
+            env.markPublic(varDecl.getName());
+        }
+
         return null;
     }
 
@@ -1522,6 +1538,9 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             enumEnv.defineConst(entry.getKey(), entry.getValue());
         }
         globalEnvironment.defineConst(stmt.getIdentifier(), enumEnv);
+        if (stmt.isPublic()) {
+            globalEnvironment.markPublic(stmt.getIdentifier());
+        }
         return null;
     }
 

@@ -255,6 +255,9 @@ public class AstFormatter implements ExprVisitor<String>, StmtVisitor<String> {
             default ->
                 sb.append(imp.getModule());
         }
+        if (imp.isSelective() && imp.getSelectedFunctions() != null && !imp.getSelectedFunctions().isEmpty()) {
+            sb.append(" {").append(String.join(", ", imp.getSelectedFunctions())).append("}");
+        }
         if (imp.getNamespace() != null) {
             sb.append(" as ").append(imp.getNamespace());
         }
@@ -360,16 +363,20 @@ public class AstFormatter implements ExprVisitor<String>, StmtVisitor<String> {
 
     @Override
     public String visitVarDecl(VarDecl stmt) {
+        String pub = stmt.isPublic() ? "pub " : "";
         String prefix = stmt.isConst() ? "const" : "var";
         if (stmt.getInitializer() != null) {
-            return prefix + " " + stmt.getName() + " : " + formatExpr(stmt.getInitializer()) + ";";
+            return pub + prefix + " " + stmt.getName() + " : " + formatExpr(stmt.getInitializer()) + ";";
         }
-        return prefix + " " + stmt.getName() + ";";
+        return pub + prefix + " " + stmt.getName() + ";";
     }
 
     @Override
     public String visitFuncDecl(FuncDecl stmt) {
         StringBuilder sb = new StringBuilder();
+        if (stmt.isPublic()) {
+            sb.append("pub ");
+        }
         if (stmt.isAsync()) {
             sb.append("async ");
         }
@@ -499,7 +506,8 @@ public class AstFormatter implements ExprVisitor<String>, StmtVisitor<String> {
 
     @Override
     public String visitEnum(EnumDecl stmt) {
-        StringBuilder sb = new StringBuilder("enum ").append(stmt.getIdentifier()).append(" {\n");
+        String pub = stmt.isPublic() ? "pub " : "";
+        StringBuilder sb = new StringBuilder(pub + "enum ").append(stmt.getIdentifier()).append(" {\n");
         indentLevel++;
         List<String> entries = List.copyOf(stmt.getValues().keySet());
         for (int i = 0; i < entries.size(); i++) {

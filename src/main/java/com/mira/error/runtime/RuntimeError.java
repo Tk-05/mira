@@ -282,4 +282,22 @@ public class RuntimeError extends MiraError {
                     "Use an index between 0 and " + (size - 1));
         }
     }
+
+    public static class PrivateSymbolImportError extends RuntimeError {
+
+        public PrivateSymbolImportError(String symbol, String module) {
+            super("E230",
+                    "Cannot import private symbol '" + symbol + "' from module '" + module + "'",
+                    "Mark the declaration with 'pub' in the module to make it importable");
+        }
+    }
+
+    public static class ModuleSymbolNotFoundError extends RuntimeError {
+
+        public ModuleSymbolNotFoundError(String symbol, String module) {
+            super("E231",
+                    "Symbol '" + symbol + "' not found in module '" + module + "'",
+                    "Check the spelling and make sure the symbol is declared with 'pub' in the module");
+        }
+    }
 }

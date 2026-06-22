@@ -22,12 +22,18 @@ public abstract class Statement implements Node {
         private final String name;
         private final Expression initializer;
         private final boolean isConst;
+        private final boolean isPublic;
         public int nameColumn = 0;
 
         public VarDecl(String name, Expression initializer, boolean isConst) {
+            this(name, initializer, isConst, false);
+        }
+
+        public VarDecl(String name, Expression initializer, boolean isConst, boolean isPublic) {
             this.name = name;
             this.initializer = initializer;
             this.isConst = isConst;
+            this.isPublic = isPublic;
         }
 
         @Override
@@ -46,6 +52,10 @@ public abstract class Statement implements Node {
         public boolean isConst() {
             return isConst;
         }
+
+        public boolean isPublic() {
+            return isPublic;
+        }
     }
 
     public static class FuncDecl extends Statement {
@@ -56,26 +66,33 @@ public abstract class Statement implements Node {
         private final String variadicParam;
         private final boolean isAsync;
         private final boolean isPure;
+        private final boolean isPublic;
         public int nameColumn = 0;
 
         public FuncDecl(String name, List<Parameter> parameters,
                 List<Node> body, String variadicParam) {
-            this(name, parameters, body, variadicParam, false, false);
+            this(name, parameters, body, variadicParam, false, false, false);
         }
 
         public FuncDecl(String name, List<Parameter> parameters,
                 List<Node> body, String variadicParam, boolean isAsync) {
-            this(name, parameters, body, variadicParam, isAsync, false);
+            this(name, parameters, body, variadicParam, isAsync, false, false);
         }
 
         public FuncDecl(String name, List<Parameter> parameters,
                 List<Node> body, String variadicParam, boolean isAsync, boolean isPure) {
+            this(name, parameters, body, variadicParam, isAsync, isPure, false);
+        }
+
+        public FuncDecl(String name, List<Parameter> parameters,
+                List<Node> body, String variadicParam, boolean isAsync, boolean isPure, boolean isPublic) {
             this.name = name;
             this.parameters = parameters;
             this.body = body;
             this.variadicParam = variadicParam;
             this.isAsync = isAsync;
             this.isPure = isPure;
+            this.isPublic = isPublic;
         }
 
         public boolean isAsync() {
@@ -84,6 +101,10 @@ public abstract class Statement implements Node {
 
         public boolean isPure() {
             return isPure;
+        }
+
+        public boolean isPublic() {
+            return isPublic;
         }
 
         public String getName() {
@@ -465,10 +486,16 @@ public abstract class Statement implements Node {
 
         private final Map<String, Object> values;
         private final String identifier;
+        private final boolean isPublic;
 
         public EnumDecl(Map<String, Object> values, String identifier) {
+            this(values, identifier, false);
+        }
+
+        public EnumDecl(Map<String, Object> values, String identifier, boolean isPublic) {
             this.values = values;
             this.identifier = identifier;
+            this.isPublic = isPublic;
         }
 
         @Override
@@ -482,6 +509,10 @@ public abstract class Statement implements Node {
 
         public String getIdentifier() {
             return identifier;
+        }
+
+        public boolean isPublic() {
+            return isPublic;
         }
     }
 

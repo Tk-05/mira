@@ -42,7 +42,8 @@ public class Vocabulary {
             "pure",
             "comptime",
             "test",
-            "static_assert"
+            "static_assert",
+            "pub"
     );
 
     public static final Set<String> COMPARISON_OPERATORS = Set.of("==", "!=", "<", ">", "<=", ">=");

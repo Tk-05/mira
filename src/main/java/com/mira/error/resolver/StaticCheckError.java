@@ -185,4 +185,24 @@ public class StaticCheckError extends MiraError {
                     "Use a list '{...}', a tuple '[...]', or a range expression as the collection");
         }
     }
+
+    public static class PrivateImportError extends StaticCheckError {
+
+        public PrivateImportError(String symbol, String module, int line, int column) {
+            super("E318",
+                    "Cannot import private symbol '" + symbol + "' from module '" + module + "'",
+                    line, column, symbol.length(),
+                    "Mark the declaration with 'pub' in '" + module + "' to make it importable");
+        }
+    }
+
+    public static class UnknownModuleSymbolError extends StaticCheckError {
+
+        public UnknownModuleSymbolError(String symbol, String module, int line, int column) {
+            super("E319",
+                    "Symbol '" + symbol + "' is not defined in module '" + module + "'",
+                    line, column, symbol.length(),
+                    "Check the spelling and make sure the symbol is declared in '" + module + "'");
+        }
+    }
 }

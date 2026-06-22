@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.nio.file.Paths;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.mira.build.BuildDispatcher;
@@ -200,7 +201,7 @@ public class Main {
             }
 
             if (!Flags.skipStaticCheck) {
-                new StaticCheck().check(asts);
+                new StaticCheck(Set.of(), Flags.inputPath.get()).check(asts);
                 WarningCollector.flush();
                 ModuleChecker.check(asts, new LinkedHashSet<>());
             }
