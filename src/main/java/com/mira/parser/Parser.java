@@ -942,6 +942,7 @@ public class Parser {
                     if (n instanceof Statement s) {
                         s.line = line;
                         s.column = column;
+                        s.endLine = lastConsumed != null ? lastConsumed.getLine() : 0;
                     }
                 }
                 return decls;
@@ -955,6 +956,7 @@ public class Parser {
                     if (n instanceof Statement s) {
                         s.line = line;
                         s.column = column;
+                        s.endLine = lastConsumed != null ? lastConsumed.getLine() : 0;
                     }
                 }
                 return decls;
@@ -1067,7 +1069,7 @@ public class Parser {
         if (node instanceof Statement stmt) {
             stmt.line = line;
             stmt.column = column;
-            stmt.endLine = lastClosingBraceLine;
+            stmt.endLine = lastConsumed != null ? lastConsumed.getLine() : lastClosingBraceLine;
         }
         return List.of(node);
     }

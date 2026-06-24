@@ -271,6 +271,10 @@ public class AstFormatter implements ExprVisitor<String>, StmtVisitor<String> {
     }
 
     private String formatBody(List<Node> body) {
+        return formatBody(body, -1);
+    }
+
+    private String formatBody(List<Node> body, int bodyOpenLine) {
         if (body == null || body.isEmpty()) {
             return "{}";
         }
@@ -282,21 +286,34 @@ public class AstFormatter implements ExprVisitor<String>, StmtVisitor<String> {
             if (formatted != null && !formatted.isBlank()) {
                 int currStartLine = nodeStartLine(node);
                 int currEndLine = (node instanceof Statement s && s.endLine > 0) ? s.endLine : currStartLine;
-                if (prevEndLine >= 0 && currStartLine > 0) {
-                    int firstCommentLine = Integer.MAX_VALUE;
-                    for (int cl = prevEndLine + 1; cl < currStartLine; cl++) {
-                        if (!standaloneComments.getOrDefault(cl, List.of()).isEmpty()) {
-                            firstCommentLine = cl;
-                            break;
+                if (currStartLine > 0) {
+                    // For the first node, use bodyOpenLine as the range start if known.
+                    int rangeStart = prevEndLine >= 0 ? prevEndLine + 1
+                            : (bodyOpenLine >= 0 ? bodyOpenLine + 1 : -1);
+                    if (rangeStart >= 0) {
+                        int firstCommentLine = Integer.MAX_VALUE;
+                        for (int cl = rangeStart; cl < currStartLine; cl++) {
+                            if (!standaloneComments.getOrDefault(cl, List.of()).isEmpty()) {
+                                firstCommentLine = cl;
+                                break;
+                            }
                         }
-                    }
-                    if (firstCommentLine < Integer.MAX_VALUE) {
-                        if (firstCommentLine - prevEndLine >= 2) {
+                        if (firstCommentLine < Integer.MAX_VALUE) {
+                            if (prevEndLine >= 0 && firstCommentLine - prevEndLine >= 2) {
+                                sb.append("\n");
+                            }
+                            appendComments(sb, rangeStart, currStartLine - 1, indent());
+                        } else if (prevEndLine >= 0 && currStartLine - prevEndLine >= 2) {
                             sb.append("\n");
                         }
-                        appendComments(sb, prevEndLine + 1, currStartLine - 1, indent());
-                    } else if (currStartLine - prevEndLine >= 2) {
+                    } else if (prevEndLine >= 0 && currStartLine - prevEndLine >= 2) {
                         sb.append("\n");
+                    }
+                    // Block comments sitting on the same line as this node but before
+                    // the code (e.g. `/* comment */ return x;`) are stored as standalone.
+                    // Emit them on their own line before the node.
+                    for (String comment : standaloneComments.getOrDefault(currStartLine, List.of())) {
+                        sb.append(indent()).append(comment).append("\n");
                     }
                 }
                 if (formatted.contains("\n") && currEndLine > currStartLine) {
@@ -386,7 +403,7 @@ public class AstFormatter implements ExprVisitor<String>, StmtVisitor<String> {
         }
         sb.append("fn ").append(stmt.getName())
                 .append("(").append(formatParams(stmt.getParameters(), stmt.getVariadicParam())).append(") ");
-        sb.append(formatBody(stmt.getBody()));
+        sb.append(formatBody(stmt.getBody(), stmt.line));
         return sb.toString();
     }
 
@@ -417,7 +434,7 @@ public class AstFormatter implements ExprVisitor<String>, StmtVisitor<String> {
     public String visitIf(If stmt) {
         StringBuilder sb = new StringBuilder();
         sb.append("if (").append(formatExpr(stmt.getCondition())).append(") ");
-        sb.append(formatBody(stmt.getThenBody()));
+        sb.append(formatBody(stmt.getThenBody(), stmt.line));
         if (stmt.getElseBody() != null && !stmt.getElseBody().isEmpty()) {
             sb.append(" else ");
             if (stmt.getElseBody().size() == 1 && stmt.getElseBody().get(0) instanceof If) {
@@ -456,7 +473,7 @@ public class AstFormatter implements ExprVisitor<String>, StmtVisitor<String> {
             sb.append(post);
         }
         sb.append(") ");
-        sb.append(formatBody(stmt.getBody()));
+        sb.append(formatBody(stmt.getBody(), stmt.line));
         return sb.toString();
     }
 
@@ -465,22 +482,22 @@ public class AstFormatter implements ExprVisitor<String>, StmtVisitor<String> {
         VarDecl iter = stmt.getIterator();
         String iterName = iter.getName();
         if ("_".equals(iterName) && iter.getInitializer() == null) {
-            return "for (" + formatExpr(stmt.getCollection()) + ") " + formatBody(stmt.getBody());
+            return "for (" + formatExpr(stmt.getCollection()) + ") " + formatBody(stmt.getBody(), stmt.line);
         }
         if (stmt.getCollection() instanceof RangeExpression) {
             return "for (var " + iterName + " in " + formatExpr(stmt.getCollection()) + ") "
-                    + formatBody(stmt.getBody());
+                    + formatBody(stmt.getBody(), stmt.line);
         }
         return "foreach (var " + iterName + " in " + formatExpr(stmt.getCollection()) + ") "
-                + formatBody(stmt.getBody());
+                + formatBody(stmt.getBody(), stmt.line);
     }
 
     @Override
     public String visitWhile(While stmt) {
         if (stmt.getDoModifier()) {
-            return "do " + formatBody(stmt.getBody()) + " while (" + formatExpr(stmt.getCondition()) + ");";
+            return "do " + formatBody(stmt.getBody(), stmt.line) + " while (" + formatExpr(stmt.getCondition()) + ");";
         }
-        return "while (" + formatExpr(stmt.getCondition()) + ") " + formatBody(stmt.getBody());
+        return "while (" + formatExpr(stmt.getCondition()) + ") " + formatBody(stmt.getBody(), stmt.line);
     }
 
     @Override
@@ -495,7 +512,7 @@ public class AstFormatter implements ExprVisitor<String>, StmtVisitor<String> {
 
     @Override
     public String visitBlock(Block stmt) {
-        return formatBody(stmt.getBody());
+        return formatBody(stmt.getBody(), stmt.line);
     }
 
     @Override
@@ -541,7 +558,7 @@ public class AstFormatter implements ExprVisitor<String>, StmtVisitor<String> {
     @Override
     public String visitTryCatch(TryCatch stmt) {
         StringBuilder sb = new StringBuilder("try ");
-        sb.append(formatBody(stmt.getTryBody()));
+        sb.append(formatBody(stmt.getTryBody(), stmt.line));
         for (var clause : stmt.getCatchClauses()) {
             sb.append(" catch (");
             if (clause.getTypeFilter() != null) {
@@ -571,12 +588,12 @@ public class AstFormatter implements ExprVisitor<String>, StmtVisitor<String> {
 
     @Override
     public String visitLock(Lock stmt) {
-        return "lock (" + formatExpr(stmt.getMutex()) + ") " + formatBody(stmt.getBody());
+        return "lock (" + formatExpr(stmt.getMutex()) + ") " + formatBody(stmt.getBody(), stmt.line);
     }
 
     @Override
     public String visitComptimeBlock(ComptimeBlock stmt) {
-        return "comptime " + formatBody(stmt.getBody());
+        return "comptime " + formatBody(stmt.getBody(), stmt.line);
     }
 
     @Override
@@ -763,7 +780,7 @@ public class AstFormatter implements ExprVisitor<String>, StmtVisitor<String> {
             sb.append("async ");
         }
         sb.append("fn (").append(params).append(") ");
-        sb.append(formatBody(body));
+        sb.append(formatBody(body, expression.line));
         return (T) sb.toString();
     }
 
@@ -810,6 +827,6 @@ public class AstFormatter implements ExprVisitor<String>, StmtVisitor<String> {
     @Override
     public <T> T visitExecBlock(ExecBlock expression) {
         String keyword = expression.isIsolated() ? "exec isolated " : "exec ";
-        return (T) (keyword + formatBody(expression.getBody()));
+        return (T) (keyword + formatBody(expression.getBody(), expression.line));
     }
 }

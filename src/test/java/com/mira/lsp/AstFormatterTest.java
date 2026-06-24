@@ -244,4 +244,111 @@ public class AstFormatterTest {
                 """;
         assertEquals(source, fmt(source));
     }
+
+    @Test
+    void noSpuriousBlankLineAfterMultiLineVarDecl() {
+        String input = """
+                fn foo() {
+                    var x : add(
+                        1,
+                        2
+                    );
+                    return $x;
+                }
+                """;
+        String expected = """
+                fn foo() {
+                    var x : add(1, 2);
+                    return $x;
+                }
+                """;
+        assertEquals(expected, fmt(input));
+    }
+
+    @Test
+    void blankLinePreservedAfterMultiLineVarDecl() {
+        String input = """
+                fn foo() {
+                    var x : add(
+                        1,
+                        2
+                    );
+
+                    return $x;
+                }
+                """;
+        String expected = """
+                fn foo() {
+                    var x : add(1, 2);
+
+                    return $x;
+                }
+                """;
+        assertEquals(expected, fmt(input));
+    }
+
+    @Test
+    void noSpuriousBlankLineAfterIfBlock() {
+        String source = """
+                fn foo() {
+                    if (true) {
+                        return 1;
+                    }
+                    return 2;
+                }
+                """;
+        assertEquals(source, fmt(source));
+    }
+
+    @Test
+    void blankLinePreservedAfterIfBlock() {
+        String source = """
+                fn foo() {
+                    if (true) {
+                        return 1;
+                    }
+
+                    return 2;
+                }
+                """;
+        assertEquals(source, fmt(source));
+    }
+
+    @Test
+    void lineCommentBeforeFirstStatement() {
+        String source = """
+                fn foo() {
+                    // init
+                    return 1;
+                }
+                """;
+        assertEquals(source, fmt(source));
+    }
+
+    @Test
+    void blockCommentBeforeFirstStatement() {
+        String source = """
+                fn foo() {
+                    /* init */
+                    return 1;
+                }
+                """;
+        assertEquals(source, fmt(source));
+    }
+
+    @Test
+    void blockCommentOnSameLineAsStatement() {
+        String input = """
+                fn foo() {
+                    /* setup */ return 1;
+                }
+                """;
+        String expected = """
+                fn foo() {
+                    /* setup */
+                    return 1;
+                }
+                """;
+        assertEquals(expected, fmt(input));
+    }
 }
