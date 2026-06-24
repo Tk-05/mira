@@ -40,7 +40,7 @@ public class CompletionProvider {
             "in", "break", "continue", "switch", "case", "default", "do",
             "try", "catch", "finally", "throw", "import", "module", "as",
             "enum", "async", "await", "typeof", "spawn", "pure", "lock", "true", "false", "null",
-            "exec", "exec isolated", "comptime", "static_assert"
+            "exec", "exec isolated", "comptime", "static_assert", "pub"
     );
 
     private static final List<String> GLOBALS = List.of(
@@ -197,12 +197,12 @@ public class CompletionProvider {
             String src = Files.readString(modulePath);
             List<Node> modAst = new Parser().parseTokens(new Tokenizer().tokenize(src, false));
             for (Node n : modAst) {
-                if (n instanceof FuncDecl f && !f.getName().equals("main")) {
+                if (n instanceof FuncDecl f && !f.getName().equals("main") && f.isPublic()) {
                     String params = f.getParameters().stream()
                             .map(Parameter::name)
                             .collect(Collectors.joining(", "));
                     items.add(namespaceItem(alias, f.getName(), params, f.isPure()));
-                } else if (n instanceof VarDecl v) {
+                } else if (n instanceof VarDecl v && v.isPublic()) {
                     CompletionItem item = new CompletionItem(alias + "." + v.getName());
                     item.setKind(CompletionItemKind.Variable);
                     item.setDetail((v.isConst() ? "const" : "var") + " " + v.getName());

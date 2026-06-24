@@ -1,5 +1,6 @@
 package com.mira.resolver;
 
+import java.nio.file.Path;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
@@ -21,16 +22,22 @@ import com.mira.error.resolver.StaticCheckError.LiteralNotCallableError;
 import com.mira.error.resolver.StaticCheckError.MissingModuleDeclarationError;
 import com.mira.error.resolver.StaticCheckError.NotIterableStaticError;
 import com.mira.error.resolver.StaticCheckError.PostUnaryStaticError;
+import com.mira.error.resolver.StaticCheckError.PrivateAccessError;
+import com.mira.error.resolver.StaticCheckError.PrivateImportError;
 import com.mira.error.resolver.StaticCheckError.RangeStepZeroStaticError;
 import com.mira.error.resolver.StaticCheckError.ReturnOutsideFunctionError;
 import com.mira.error.resolver.StaticCheckError.StaticAssertRuntimeValueError;
 import com.mira.error.resolver.StaticCheckError.UndeclaredVariableError;
 import com.mira.error.resolver.StaticCheckError.UndefinedFunctionError;
+import com.mira.error.resolver.StaticCheckError.UndefinedModuleSymbolError;
+import com.mira.error.resolver.StaticCheckError.UnknownModuleSymbolError;
 import com.mira.error.resolver.StaticCheckError.UnknownNamespaceError;
+import com.mira.lexer.Tokenizer;
 import com.mira.lexer.token.TokenType;
 import com.mira.lib.LibIndex;
 import com.mira.linter.LintScope;
 import com.mira.linter.LintScope.VarInfo;
+import com.mira.parser.Parser;
 import com.mira.parser.nodes.Node;
 import com.mira.parser.nodes.expression.Expression.AccessExpression;
 import com.mira.parser.nodes.expression.Expression.ArrayExpression;
@@ -91,13 +98,22 @@ public class StaticCheck {
     private final Map<String, int[]> knownArities = new HashMap<>();
     private boolean isModule = false;
     private final Set<String> externallyUsed;
+    private Path sourcePath;
+    private final Set<String> checkedModuleImports = new HashSet<>();
+    private final Map<String, Map<String, Boolean>> moduleAliasSymbols = new HashMap<>();
+    private final Map<String, String> moduleAliasFileName = new HashMap<>();
 
     public StaticCheck() {
         this(Set.of());
     }
 
     public StaticCheck(Set<String> externallyUsed) {
+        this(externallyUsed, null);
+    }
+
+    public StaticCheck(Set<String> externallyUsed, java.nio.file.Path sourcePath) {
         this.externallyUsed = externallyUsed;
+        this.sourcePath = sourcePath;
         knownFunctions.addAll(LibIndex.INTERNAL_NAMES);
         LibIndex.GLOBAL_ARITIES.forEach((name, arity) -> {
             if (arity >= 0) {
@@ -414,6 +430,15 @@ public class StaticCheck {
                 String alias = e.getAlias();
                 if (!knownNamespaces.contains(alias)) {
                     errors.add(new UnknownNamespaceError(alias, e.getLine(), 0));
+                } else if (moduleAliasSymbols.containsKey(alias)) {
+                    Map<String, Boolean> declared = moduleAliasSymbols.get(alias);
+                    String fn = e.getFunctionName();
+                    String modFile = moduleAliasFileName.get(alias);
+                    if (!declared.containsKey(fn)) {
+                        errors.add(new UndefinedModuleSymbolError(fn, modFile, e.getLine(), e.getColumn()));
+                    } else if (!declared.get(fn)) {
+                        errors.add(new PrivateAccessError(fn, modFile, e.getLine(), e.getColumn()));
+                    }
                 }
                 scope.markUsed(alias);
                 e.getArguments().forEach(this::resolveExpr);
@@ -422,8 +447,24 @@ public class StaticCheck {
                 resolveExpr(e.getReference());
                 e.getIndecies().forEach(this::resolveExpr);
             }
-            case FieldAccessExpression e ->
+            case FieldAccessExpression e -> {
                 resolveExpr(e.getObject());
+                String possibleAlias = e.getObject().toString();
+                if (moduleAliasSymbols.containsKey(possibleAlias)) {
+                    Map<String, Boolean> declared = moduleAliasSymbols.get(possibleAlias);
+                    String field = e.getField();
+                    String modFile = moduleAliasFileName.get(possibleAlias);
+                    int line = e.getObject().line;
+                    int column = e.getObject() instanceof DumbExpression de
+                            ? de.getColumn() + de.getValue().length() + 1
+                            : 0;
+                    if (!declared.containsKey(field)) {
+                        errors.add(new UndefinedModuleSymbolError(field, modFile, line, column));
+                    } else if (!declared.get(field)) {
+                        errors.add(new PrivateAccessError(field, modFile, line, column));
+                    }
+                }
+            }
             case MethodCallExpression e -> {
                 resolveExpr(e.getObject());
                 e.getArguments().forEach(this::resolveExpr);
@@ -763,13 +804,24 @@ public class StaticCheck {
 
     private void preDeclareImport(ImportExpression expr) {
         if (expr.isSelective()) {
-            for (String fn : expr.getSelectedFunctions()) {
-                scope.declareImport(fn, expr.line);
-                knownFunctions.add(fn);
+            if (expr.isExternalModule()) {
+                checkSelectiveModuleImport(expr);
+            }
+            if (expr.getNamespace() != null) {
+                scope.declareImport(expr.getNamespace(), expr.line);
+                knownNamespaces.add(expr.getNamespace());
+            } else {
+                for (String fn : expr.getSelectedFunctions()) {
+                    scope.declareImport(fn, expr.line);
+                    knownFunctions.add(fn);
+                }
             }
         } else if (expr.getNamespace() != null) {
             scope.declareImport(expr.getNamespace(), expr.line);
             knownNamespaces.add(expr.getNamespace());
+            if (expr.isExternalModule()) {
+                loadModuleSymbolsForAlias(expr);
+            }
         } else {
             String libName = expr.getModule().replace("\"", "");
             knownFunctions.addAll(LibIndex.getFunctionNames(libName));
@@ -778,6 +830,92 @@ public class StaticCheck {
                     knownArities.put(name, new int[]{arity, arity});
                 }
             });
+        }
+    }
+
+    private void checkSelectiveModuleImport(ImportExpression expr) {
+        if (!checkedModuleImports.add(expr.getModule())) {
+            return;
+        }
+        java.nio.file.Path base = sourcePath != null
+                ? sourcePath.getParent()
+                : (com.mira.Flags.inputPath.get() != null ? com.mira.Flags.inputPath.get().getParent() : null);
+        if (base == null) {
+            return;
+        }
+
+        String rawPath = expr.getModule().replace("\"", "");
+        java.nio.file.Path modulePath = base.resolve(rawPath).normalize();
+        if (!java.nio.file.Files.exists(modulePath)) {
+            return;
+        }
+
+        try {
+            String src = java.nio.file.Files.readString(modulePath);
+            List<Node> modAst = new Parser().parseTokens(new Tokenizer().tokenize(src, false));
+
+            Map<String, Boolean> declared = new HashMap<>();
+            for (Node n : modAst) {
+                switch (n) {
+                    case FuncDecl fd ->
+                        declared.put(fd.getName(), fd.isPublic());
+                    case VarDecl vd ->
+                        declared.put(vd.getName(), vd.isPublic());
+                    case EnumDecl ed ->
+                        declared.put(ed.getIdentifier(), ed.isPublic());
+                    default -> {
+                    }
+                }
+            }
+
+            String moduleName = modulePath.getFileName().toString();
+            for (String name : expr.getSelectedFunctions()) {
+                if (!declared.containsKey(name)) {
+                    errors.add(new UnknownModuleSymbolError(name, moduleName, expr.line, 0));
+                } else if (!declared.get(name)) {
+                    errors.add(new PrivateImportError(name, moduleName, expr.line, 0));
+                }
+            }
+        } catch (Exception ignored) {
+        }
+    }
+
+    private void loadModuleSymbolsForAlias(ImportExpression expr) {
+        java.nio.file.Path base = sourcePath != null
+                ? sourcePath.getParent()
+                : (com.mira.Flags.inputPath.get() != null ? com.mira.Flags.inputPath.get().getParent() : null);
+        if (base == null) {
+            return;
+        }
+
+        String rawPath = expr.getModule().replace("\"", "");
+        java.nio.file.Path modulePath = base.resolve(rawPath).normalize();
+        if (!java.nio.file.Files.exists(modulePath)) {
+            return;
+        }
+
+        try {
+            String src = java.nio.file.Files.readString(modulePath);
+            List<Node> modAst = new Parser().parseTokens(new Tokenizer().tokenize(src, false));
+
+            Map<String, Boolean> declared = new HashMap<>();
+            for (Node n : modAst) {
+                switch (n) {
+                    case FuncDecl fd ->
+                        declared.put(fd.getName(), fd.isPublic());
+                    case VarDecl vd ->
+                        declared.put(vd.getName(), vd.isPublic());
+                    case EnumDecl ed ->
+                        declared.put(ed.getIdentifier(), ed.isPublic());
+                    default -> {
+                    }
+                }
+            }
+
+            String alias = expr.getNamespace();
+            moduleAliasSymbols.put(alias, declared);
+            moduleAliasFileName.put(alias, modulePath.getFileName().toString());
+        } catch (Exception ignored) {
         }
     }
 

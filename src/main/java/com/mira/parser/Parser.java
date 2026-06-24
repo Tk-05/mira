@@ -625,7 +625,9 @@ public class Parser {
         String alias = aliasToken.getLexeme();
         int callLine = aliasToken.getLine();
         matchLexeme(".");
-        String functionName = matchExpression().getLexeme();
+        var fnToken = matchExpression();
+        String functionName = fnToken.getLexeme();
+        int callColumn = fnToken.getColumn();
         matchLexeme("(");
 
         List<Expression> args = new ArrayList<>();
@@ -639,7 +641,7 @@ public class Parser {
         }
 
         matchLexeme(")");
-        return new NamespaceCallExpression(alias, functionName, args, callLine);
+        return new NamespaceCallExpression(alias, functionName, args, callLine, callColumn);
     }
 
     private Expression parseObjectExpression() {
@@ -867,23 +869,38 @@ public class Parser {
         if (peek().getLexeme().equals("module")) {
             consume();
             String path = matchExpression().getLexeme();
+            List<String> selected = null;
+            if (peek().getLexeme().equals("{")) {
+                consume();
+                selected = new ArrayList<>();
+                selected.add(matchExpression().getLexeme());
+                while (peek().getLexeme().equals(",")) {
+                    consume();
+                    selected.add(matchExpression().getLexeme());
+                }
+                matchLexeme("}");
+            }
             String alias = null;
             if (peek().getLexeme().equals("as")) {
                 consume();
                 alias = matchExpression().getLexeme();
             }
-            return new ImportExpression(new DumbExpression(new Token(TokenType.STRING_LITERAL, path, 0, 0)), alias, ImportKind.MODULE);
+            return new ImportExpression(new DumbExpression(new Token(TokenType.STRING_LITERAL, path, 0, 0)), alias, ImportKind.MODULE, selected);
         }
 
         Expression libExpr = new DumbExpression(matchExpression());
         List<String> selected = null;
-        if (peek().getLexeme().equals(":")) {
+        if (peek().getLexeme().equals(":") || peek().getLexeme().equals("{")) {
+            boolean hasBrace = peek().getLexeme().equals("{");
             consume();
             selected = new ArrayList<>();
             selected.add(matchExpression().getLexeme());
             while (peek().getLexeme().equals(",")) {
                 consume();
                 selected.add(matchExpression().getLexeme());
+            }
+            if (hasBrace) {
+                matchLexeme("}");
             }
         }
         String libAlias = null;
@@ -915,13 +932,22 @@ public class Parser {
             return List.of(comptimeBlock);
         }
 
+        boolean isPublic = false;
+        if (peek().getLexeme().equals("pub") && peek().getTokenType() == com.mira.lexer.token.TokenType.KEYWORD) {
+            if (parsingDepth != 0) {
+                throw new UnexpectedToken(peek(), "'pub' is only allowed at the top level, not inside functions or blocks");
+            }
+            consume();
+            isPublic = true;
+        }
+
         if (peek().getLexeme().equals("pure") && peek().getTokenType() == com.mira.lexer.token.TokenType.KEYWORD) {
             consume();
             if (!peek().getLexeme().equals("fn")) {
                 throw new UnexpectedToken(peek(), "Expected 'fn' after 'pure'");
             }
             increaseDepth();
-            node = parseFuncDecl(false, true);
+            node = parseFuncDecl(false, true, isPublic);
             decreaseDepth();
             if (node instanceof Statement stmt) {
                 stmt.line = line;
@@ -933,7 +959,7 @@ public class Parser {
 
         switch (peek().getLexeme()) {
             case "var" -> {
-                List<Node> decls = parseVarDecl(false);
+                List<Node> decls = parseVarDecl(false, isPublic);
                 if (expectSemicolon) {
                     matchLexeme(";");
                 }
@@ -946,7 +972,7 @@ public class Parser {
                 return decls;
             }
             case "const" -> {
-                List<Node> decls = parseVarDecl(true);
+                List<Node> decls = parseVarDecl(true, isPublic);
                 if (expectSemicolon) {
                     matchLexeme(";");
                 }
@@ -960,7 +986,7 @@ public class Parser {
             }
             case "fn" -> {
                 increaseDepth();
-                node = parseFuncDecl(false);
+                node = parseFuncDecl(false, false, isPublic);
                 decreaseDepth();
             }
             case "async" -> {
@@ -969,7 +995,7 @@ public class Parser {
                     throw new UnexpectedToken(peek(), "Expected 'fn' after 'async'");
                 }
                 increaseDepth();
-                node = parseFuncDecl(true, false);
+                node = parseFuncDecl(true, false, isPublic);
                 decreaseDepth();
             }
             case "return" -> {
@@ -1029,7 +1055,7 @@ public class Parser {
                 node = parseSwitch();
             }
             case "enum" -> {
-                node = parseEnumDecl();
+                node = parseEnumDecl(isPublic);
             }
             case "try" -> {
                 node = parseTryCatch();
@@ -1106,6 +1132,10 @@ public class Parser {
     }
 
     private List<Node> parseVarDecl(boolean isConst) {
+        return parseVarDecl(isConst, false);
+    }
+
+    private List<Node> parseVarDecl(boolean isConst, boolean isPublic) {
         consume();
         if (peek().getLexeme().equals("(")) {
             consume();
@@ -1136,7 +1166,7 @@ public class Parser {
                     && !peek().getLexeme().equals(")") && !peek().getLexeme().equals(",")) {
                 throw new UnexpectedToken(peek(), "Unexpected token");
             }
-            VarDecl vd = new VarDecl(identifier, initializer, isConst);
+            VarDecl vd = new VarDecl(identifier, initializer, isConst, isPublic);
             vd.nameColumn = nameToken.getColumn();
             decls.add(vd);
             if (peek().getLexeme().equals(",") && !peekOffset(1).getLexeme().equals("var")) {
@@ -1172,10 +1202,14 @@ public class Parser {
     }
 
     private Node parseFuncDecl(boolean isAsync) {
-        return parseFuncDecl(isAsync, false);
+        return parseFuncDecl(isAsync, false, false);
     }
 
     private Node parseFuncDecl(boolean isAsync, boolean isPure) {
+        return parseFuncDecl(isAsync, isPure, false);
+    }
+
+    private Node parseFuncDecl(boolean isAsync, boolean isPure, boolean isPublic) {
         Token kwToken = matchLexeme("fn");
         requireNotIncomplete(kwToken, "name(params) { body }");
         Token nameToken = matchExpression();
@@ -1189,7 +1223,7 @@ public class Parser {
         Token open = matchLexeme("{");
         List<Node> body = parseBlockBody(open);
 
-        FuncDecl decl = new FuncDecl(name, parameters, body, variadicHolder[0], isAsync, isPure);
+        FuncDecl decl = new FuncDecl(name, parameters, body, variadicHolder[0], isAsync, isPure, isPublic);
         decl.line = kwToken.getLine();
         decl.nameColumn = nameToken.getColumn();
         return decl;
@@ -1668,6 +1702,10 @@ public class Parser {
     }
 
     private Node parseEnumDecl() {
+        return parseEnumDecl(false);
+    }
+
+    private Node parseEnumDecl(boolean isPublic) {
         matchLexeme("enum");
         String identifier = matchType(TokenType.EXPRESSION).getLexeme();
         matchLexeme("{");
@@ -1696,6 +1734,6 @@ public class Parser {
 
         matchLexeme("}");
 
-        return new EnumDecl(values, identifier);
+        return new EnumDecl(values, identifier, isPublic);
     }
 }

@@ -65,7 +65,7 @@ java -jar target/mira-RELEASE.jar
 The Mira JAR includes a built-in LSP server. Start it with `--lsp` over stdin/stdout. The VS Code extension in `lsp/` connects automatically and provides:
 
 - Syntax highlighting
-- Real-time error and warning diagnostics (including all static analysis errors E301–E307)
+- Real-time error and warning diagnostics (including static analysis errors E301–E307, E318–E319)
 - Code completion (keywords, globals, local functions and variables, stdlib namespaces)
 - Hover info (function signatures, variable kinds, keyword documentation)
 - Go-to-definition (functions and variables in the current file and imported modules)

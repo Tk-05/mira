@@ -17,6 +17,7 @@ public class Environment {
     private final Map<String, Object> values;
     private final Set<String> constants = new HashSet<>();
     private final Set<String> declaredFunctions = new HashSet<>();
+    private final Set<String> publicDeclarations = new HashSet<>();
 
     public Environment() {
         this.parent = null;
@@ -200,9 +201,20 @@ public class Environment {
         return Collections.unmodifiableMap(values);
     }
 
+    public void markPublic(String name) {
+        publicDeclarations.add(name);
+    }
+
+    public boolean isPublicDeclaration(String name) {
+        return publicDeclarations.contains(name);
+    }
+
     public void copyDeclarationsTo(Environment target, Set<String> exclude) {
         for (String name : values.keySet()) {
             if (exclude.contains(name)) {
+                continue;
+            }
+            if (!publicDeclarations.contains(name)) {
                 continue;
             }
             Object value = values.get(name);

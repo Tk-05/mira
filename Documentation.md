@@ -2,7 +2,7 @@
 
 ## Table of Contents
 
-1. [Program Structure](#program-structure)
+1. [Program Structure](#program-structure) — Module Declaration, Comments, Imports, Module Visibility, Native JAR Extensions
 2. [Values](#values) — Variables, Destructuring, Literals
 3. [Expressions](#expressions) — Operators, `??`, `?.`, Ternary, Pipe
 4. [Data Structures](#data-structures) — List, Array, Object, Map, Range
@@ -47,16 +47,20 @@ var x : /* inline block */ 10;
 ### Imports
 
 ```
-import <lib>;                                   // Standard library (global scope)
-import <lib> as <alias>;                        // Standard library under alias
-import <lib>: <fn1>, <fn2>;                     // Selective import (global scope)
-import <lib>: <fn1>, <fn2> as <alias>;          // Selective import under alias
-import module "./path/to/file.mira";            // File import (global scope)
-import module "./path/to/file.mira" as <alias>; // File import under alias
-import native "./path/to/lib.jar" as <alias>;   // Native JAR extension (alias required)
+import <lib>;                                                       // Standard library (global scope)
+import <lib> as <alias>;                                            // Standard library under alias
+import <lib>: <sym1>, <sym2>;                                        // Selective stdlib import with colon (global scope)
+import <lib>: <sym1>, <sym2> as <alias>;                            // Selective stdlib import with colon under alias
+import <lib> {<sym1>, <sym2>};                                      // Selective stdlib import with braces (global scope)
+import <lib> {<sym1>, <sym2>} as <alias>;                           // Selective stdlib import with braces under alias
+import module "./path/to/file.mira";                                // File import — all pub symbols (global scope)
+import module "./path/to/file.mira" as <alias>;                     // File import — all pub symbols under alias
+import module "./path/to/file.mira" {<name1>, <name2>};             // Partial file import — named pub symbols (global scope)
+import module "./path/to/file.mira" {<name1>, <name2>} as <alias>;  // Partial file import under alias
+import native "./path/to/lib.jar" as <alias>;                       // Native JAR extension (alias required)
 ```
 
-When a lib is imported without an alias, all its functions are available globally. When imported with an alias, functions are accessed via `<alias>.<function>(...)`.
+When a lib is imported without an alias, all its symbols are available globally. When imported with an alias, symbols are accessed via `<alias>.<name>(...)`.
 
 If two libs imported without an alias define a function with the same name, a conflict error is thrown. Use aliases to resolve it:
 
@@ -67,6 +71,49 @@ import collection as col; // avoids conflict with 'indexOf'
 trim($text);
 col.indexOf($list, "x");
 ```
+
+### Module Visibility
+
+Module files use `pub` to mark declarations as exportable. Declarations without `pub` are **private** and are never made available to importing files.
+
+```
+module MyMod;
+
+pub fn greet(name) { return "hello " $name; }   // exported
+fn helper() { return "internal"; }              // private — not visible to importers
+pub const MAX : 100;                             // exported
+pub enum Color { Red, Green, Blue }              // exported
+```
+
+`pub` applies to `fn`, `const`, `var`, and `enum` declarations. It is only valid at the top level of a module — using `pub` inside a function body is a parse error.
+
+When a module is imported without partial braces, only `pub`-marked symbols are copied into the importing scope. Private symbols remain hidden regardless of how the file is imported.
+
+**Partial import — selecting specific symbols:**
+
+```
+import module "./utils.mira" {greet, MAX};          // only greet and MAX (global scope)
+import module "./utils.mira" {greet} as utils;      // only greet, under utils.greet(...)
+```
+
+Requesting a private symbol throws `E230 PrivateSymbolImportError`. Requesting a symbol that does not exist throws `E231 ModuleSymbolNotFoundError`. Both are also caught at static-check time (E318 / E319) without running the program.
+
+**Selective stdlib imports** use the same brace syntax. The selected names can be functions, constants, or any other symbol the library exposes:
+
+```
+import string {trim, split};         // only trim and split in global scope
+import string {trim} as str;         // only trim, accessed as str.trim(...)
+import string: trim, split;          // colon syntax — equivalent to braces
+```
+
+**Errors:**
+
+| Error                              | Kind          | Cause                                                              |
+| ---------------------------------- | ------------- | ------------------------------------------------------------------ |
+| `E230 PrivateSymbolImportError`    | Runtime       | Selective import requested a symbol that is not marked `pub`       |
+| `E231 ModuleSymbolNotFoundError`   | Runtime       | Selective import requested a symbol that does not exist in the module |
+| `E318 PrivateImportError`          | Static check  | Same as E230, detected at analysis time before the program runs    |
+| `E319 UnknownModuleSymbolError`    | Static check  | Same as E231, detected at analysis time before the program runs    |
 
 ### Native JAR Extensions
 
@@ -2561,8 +2608,8 @@ Additionally, for each open file the server provides:
 
 - **Local variables** declared with `var` or `const` — shown as `$name`
 - **Local functions** declared with `fn` — shown with their parameter list
-- **Imported stdlib functions** — shown as `alias.function(params)` when imported with an alias
-- **Imported module functions** — parsed from the imported `.mira` file and shown with full signatures
+- **Imported stdlib symbols** — shown as `alias.name(params)` when imported with an alias; only the selected symbols when using brace or colon syntax
+- **Imported module symbols** — parsed from the imported `.mira` file; only `pub`-marked symbols are shown
 
 Example — after `import math as m;`, typing `m.` suggests:
 
