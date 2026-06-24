@@ -261,15 +261,23 @@ public class StaticCheck {
         for (Node node : ast) {
             switch (node) {
                 case FuncDecl f -> {
-                    scope.declareFunction(f.getName(), f.line, f.nameColumn);
-                    knownFunctions.add(f.getName());
-                    if (f.getVariadicParam() == null) {
-                        knownArities.put(f.getName(), new int[]{f.getArity(), f.getMaxArity()});
+                    if (scope.isDeclaredInCurrentScope(f.getName())) {
+                        errors.add(new DuplicateDeclarationError(f.getName(), f.line, f.nameColumn));
+                    } else {
+                        scope.declareFunction(f.getName(), f.line, f.nameColumn);
+                        knownFunctions.add(f.getName());
+                        if (f.getVariadicParam() == null) {
+                            knownArities.put(f.getName(), new int[]{f.getArity(), f.getMaxArity()});
+                        }
                     }
                 }
                 case EnumDecl e -> {
-                    scope.declare(e.getIdentifier(), e.line, 0, true);
-                    scope.markUsed(e.getIdentifier());
+                    if (scope.isDeclaredInCurrentScope(e.getIdentifier())) {
+                        errors.add(new DuplicateDeclarationError(e.getIdentifier(), e.line, 0));
+                    } else {
+                        scope.declare(e.getIdentifier(), e.line, 0, true);
+                        scope.markUsed(e.getIdentifier());
+                    }
                 }
                 case ImportExpression imp ->
                     preDeclareImport(imp);
@@ -801,7 +809,11 @@ public class StaticCheck {
             errors.add(new NotIterableStaticError(stmt.line, 0));
         }
         for (String name : stmt.getNames()) {
-            scope.declare(name, stmt.line, 0, false);
+            if (scope.isDeclaredInCurrentScope(name)) {
+                errors.add(new DuplicateDeclarationError(name, stmt.line, 0));
+            } else {
+                scope.declare(name, stmt.line, 0, false);
+            }
         }
     }
 

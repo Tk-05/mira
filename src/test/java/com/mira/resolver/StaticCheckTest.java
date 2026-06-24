@@ -182,6 +182,24 @@ public class StaticCheckTest {
     }
 
     @Test
+    void duplicateFunctionDeclaration() {
+        List<MiraError> errors = errorsFor("fn foo() {} fn foo() {}");
+        assertTrue(hasCode(errors, "E306"));
+    }
+
+    @Test
+    void duplicateEnumDeclaration() {
+        List<MiraError> errors = errorsFor("enum Foo { A } enum Foo { B }");
+        assertTrue(hasCode(errors, "E306"));
+    }
+
+    @Test
+    void duplicateDestructureDeclaration() {
+        List<MiraError> errors = errorsFor("var (x, y) : {1, 2}; var (x, z) : {3, 4};");
+        assertTrue(hasCode(errors, "E306"));
+    }
+
+    @Test
     void arityMismatchTooMany() {
         List<MiraError> errors = errorsFor("println(1, 2);");
         assertTrue(hasCode(errors, "E307"));
