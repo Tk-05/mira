@@ -168,7 +168,7 @@ public class Main {
         runFile(new AtomicBoolean(false));
     }
 
-    public static void runFile(AtomicBoolean stopping) {
+    public static boolean runFile(AtomicBoolean stopping) {
         long start = System.currentTimeMillis();
 
         String readFile;
@@ -178,7 +178,7 @@ public class Main {
             if (!stopping.get()) {
                 System.err.println(DiagnosticFormatter.formatFileError(Flags.inputPath.get(), e));
             }
-            return;
+            return false;
         }
 
         Flags.fileName = Flags.inputPath.get().getFileName().toString();
@@ -202,8 +202,11 @@ public class Main {
 
             if (!Flags.skipStaticCheck) {
                 new StaticCheck(Set.of(), Flags.inputPath.get()).check(asts);
+                boolean moduleErrors = ModuleChecker.check(asts, new LinkedHashSet<>());
                 WarningCollector.flush();
-                ModuleChecker.check(asts, new LinkedHashSet<>());
+                if (moduleErrors) {
+                    return false;
+                }
             }
 
             if (Flags.libInfo) {
@@ -211,12 +214,12 @@ public class Main {
             }
 
             if (Flags.exitBeforeInterpreter) {
-                return;
+                return true;
             }
 
             if (Flags.testMode) {
                 TestRunner.runPrePass(asts, Flags.args);
-                return;
+                return true;
             }
 
             if (Flags.packageJar && !Flags.compile) {
@@ -225,7 +228,7 @@ public class Main {
 
             if (Flags.compile) {
                 new CompileRunner().run(asts);
-                return;
+                return true;
             }
 
             if (Flags.mainFunction) {
@@ -254,19 +257,21 @@ public class Main {
         } catch (MultipleParserErrors mpe) {
             WarningCollector.clear();
             if (stopping.get() || Thread.currentThread().isInterrupted()) {
-                return;
+                return false;
             }
             mpe.getErrors().forEach(e -> System.err.println(DiagnosticFormatter.format(e)));
+            return false;
         } catch (MultipleStaticCheckErrors mre) {
             WarningCollector.clear();
             if (stopping.get() || Thread.currentThread().isInterrupted()) {
-                return;
+                return false;
             }
             mre.getErrors().forEach(e -> System.err.println(DiagnosticFormatter.format(e)));
+            return false;
         } catch (Exception e) {
             WarningCollector.clear();
             if (stopping.get() || Thread.currentThread().isInterrupted()) {
-                return;
+                return false;
             }
             System.err.println(DiagnosticFormatter.format(e));
             if (Flags.crashDump) {
@@ -276,6 +281,8 @@ public class Main {
                     interpreter.dumpState(e, System.err);
                 }
             }
+            return false;
         }
+        return true;
     }
 }

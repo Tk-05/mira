@@ -37,7 +37,11 @@ public class BuildRunner {
         }
         runHook(ctx, ctx.config().build().preBuild());
         long start = System.currentTimeMillis();
-        Main.runFile(new AtomicBoolean(false));
+        boolean ok = Main.runFile(new AtomicBoolean(false));
+        if (!ok) {
+            System.err.println(DiagnosticFormatter.formatFail("build failed"));
+            System.exit(1);
+        }
         if (Flags.compile) {
             System.out.println(DiagnosticFormatter.formatInfo(
                     "finished in " + (System.currentTimeMillis() - start) + " ms"));

@@ -13,6 +13,7 @@ import java.util.stream.Stream;
 
 import com.mira.Flags;
 import com.mira.Main;
+import com.mira.error.DiagnosticFormatter;
 
 public class Commands {
 
@@ -128,7 +129,11 @@ public class Commands {
             Flags.args = programArgs;
         }
         BuildRunner.runHook(ctx, ctx.config().build().preRun());
-        Main.runFile(new AtomicBoolean(false));
+        boolean ok = Main.runFile(new AtomicBoolean(false));
+        if (!ok) {
+            System.err.println(DiagnosticFormatter.formatFail("run failed"));
+            System.exit(1);
+        }
         BuildRunner.runHook(ctx, ctx.config().build().postRun());
     }
 
@@ -143,7 +148,7 @@ public class Commands {
         if (ctx.config().test() != null) {
             BuildRunner.runTest(ctx);
         } else {
-            System.out.println(com.mira.error.DiagnosticFormatter.formatInfo(
+            System.out.println(DiagnosticFormatter.formatInfo(
                     "no [test] section defined — skipping tests"));
         }
     }
