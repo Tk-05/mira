@@ -225,4 +225,14 @@ public class StaticCheckError extends MiraError {
                     "Check the spelling and make sure the symbol is declared with 'pub' in '" + module + "'");
         }
     }
+
+    public static class FieldAccessOnNonObjectError extends StaticCheckError {
+
+        public FieldAccessOnNonObjectError(String field, String actualType, int line, int column) {
+            super("E320",
+                    "Cannot access field '" + field + "' on " + actualType + " (expected object)",
+                    line, column, field.length(),
+                    "Make sure the value is an object literal before using '.' field access");
+        }
+    }
 }

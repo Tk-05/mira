@@ -38,6 +38,7 @@ public final class ModuleChecker {
         String[] savedSourceLines = Flags.sourceLines;
 
         boolean hadErrors = false;
+        List<String> pendingErrors = new ArrayList<>();
         for (ParsedModule module : allModules.values()) {
             Set<String> externalCalls = new LinkedHashSet<>();
             ModuleResolver.collectExternalCalls(rootAst, rootPath, module.path(), externalCalls);
@@ -54,7 +55,9 @@ public final class ModuleChecker {
                 WarningCollector.flush();
             } catch (MultipleStaticCheckErrors mse) {
                 WarningCollector.flush();
-                mse.getErrors().forEach(e -> System.err.println(DiagnosticFormatter.format(e)));
+                mse.getErrors().stream()
+                        .map(DiagnosticFormatter::format)
+                        .forEach(pendingErrors::add);
                 hadErrors = true;
             } catch (Exception ignored) {
             } finally {
@@ -63,6 +66,7 @@ public final class ModuleChecker {
                 Flags.sourceLines = savedSourceLines;
             }
         }
+        pendingErrors.forEach(msg -> System.err.println(msg));
         return hadErrors;
     }
 

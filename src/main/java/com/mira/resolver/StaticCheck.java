@@ -18,6 +18,7 @@ import com.mira.error.resolver.StaticCheckError.ConstReassignmentError;
 import com.mira.error.resolver.StaticCheckError.ContinueOutsideLoopError;
 import com.mira.error.resolver.StaticCheckError.DivisionByZeroStaticError;
 import com.mira.error.resolver.StaticCheckError.DuplicateDeclarationError;
+import com.mira.error.resolver.StaticCheckError.FieldAccessOnNonObjectError;
 import com.mira.error.resolver.StaticCheckError.LiteralNotCallableError;
 import com.mira.error.resolver.StaticCheckError.MissingModuleDeclarationError;
 import com.mira.error.resolver.StaticCheckError.NotIterableStaticError;
@@ -102,6 +103,7 @@ public class StaticCheck {
     private final Set<String> checkedModuleImports = new HashSet<>();
     private final Map<String, Map<String, Boolean>> moduleAliasSymbols = new HashMap<>();
     private final Map<String, String> moduleAliasFileName = new HashMap<>();
+    private final Map<String, Node> varLiteralTypes = new HashMap<>();
 
     public StaticCheck() {
         this(Set.of());
@@ -460,6 +462,23 @@ public class StaticCheck {
             }
             case FieldAccessExpression e -> {
                 resolveExpr(e.getObject());
+                Node literalBase = resolveLiteralBase(e.getObject());
+                if (literalBase != null && !(literalBase instanceof ObjectExpression)) {
+                    String typeName = switch (literalBase) {
+                        case ListExpression ignored ->
+                            "list";
+                        case ArrayExpression ignored ->
+                            "array";
+                        case MapExpression ignored ->
+                            "map";
+                        default ->
+                            "non-object value";
+                    };
+                    int line = e.getObject().line;
+                    int col = e.getObject() instanceof DumbExpression de
+                            ? de.getColumn() + de.getValue().length() + 1 : 0;
+                    errors.add(new FieldAccessOnNonObjectError(e.getField(), typeName, line, col));
+                }
                 String possibleAlias = e.getObject().toString();
                 if (moduleAliasSymbols.containsKey(possibleAlias)) {
                     Map<String, Boolean> declared = moduleAliasSymbols.get(possibleAlias);
@@ -633,6 +652,9 @@ public class StaticCheck {
                     stmt.line, stmt.nameColumn, stmt.getName().length());
         }
         scope.declare(stmt.getName(), stmt.line, stmt.nameColumn, stmt.isConst(), inComptimeBlock && stmt.isConst());
+        if (stmt.getInitializer() != null && isKnownLiteral(stmt.getInitializer())) {
+            varLiteralTypes.put(stmt.getName(), stmt.getInitializer());
+        }
     }
 
     private void resolveStaticAssert(StaticAssert stmt) {
@@ -1092,6 +1114,27 @@ public class StaticCheck {
         }
         char first = expr.getValue().charAt(0);
         return Character.isLetter(first) || first == '_';
+    }
+
+    private static boolean isKnownLiteral(Node n) {
+        return n instanceof ListExpression
+                || n instanceof ArrayExpression
+                || n instanceof MapExpression
+                || n instanceof ObjectExpression
+                || (n instanceof DumbExpression d && !isIdentifier(d));
+    }
+
+    private Node resolveLiteralBase(Node objectExpr) {
+        if (isKnownLiteral(objectExpr)) {
+            return objectExpr;
+        }
+        if (objectExpr instanceof UnaryExpression u
+                && "$".equals(u.getOperation().getLexeme())
+                && u.getRight() instanceof DumbExpression d
+                && isIdentifier(d)) {
+            return varLiteralTypes.get(d.getValue());
+        }
+        return null;
     }
 
     private static boolean isNonIterableLiteral(Node n) {

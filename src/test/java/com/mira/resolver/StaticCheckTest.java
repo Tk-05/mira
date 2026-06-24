@@ -194,6 +194,23 @@ public class StaticCheckTest {
     }
 
     @Test
+    void fieldAccessOnList() {
+        List<MiraError> errors = errorsFor("var a : {1, 2}; println($a.x);");
+        assertTrue(hasCode(errors, "E320"));
+    }
+
+    @Test
+    void fieldAccessOnDirectLiteral() {
+        List<MiraError> errors = errorsFor("println({1, 2}.x);");
+        assertTrue(hasCode(errors, "E320"));
+    }
+
+    @Test
+    void fieldAccessOnObjectIsClean() {
+        assertClean("var a : { var name : \"hi\"; }; println($a.name);");
+    }
+
+    @Test
     void duplicateDestructureDeclaration() {
         List<MiraError> errors = errorsFor("var (x, y) : {1, 2}; var (x, z) : {3, 4};");
         assertTrue(hasCode(errors, "E306"));
