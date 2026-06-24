@@ -182,7 +182,7 @@ fn render(tex, cx, cy, zoom, step, maxIter, w, h, pal, isJulia, jre, jim, isNewt
     ray.EndTextureMode();
 }
 
-fn run() {
+pub fn run() {
     ray.SetConfigFlags(ray.FLAG_WINDOW_RESIZABLE);
     ray.InitWindow(800, 600, "Fractals");
     ray.SetTargetFPS(60);

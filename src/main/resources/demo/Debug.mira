@@ -103,9 +103,7 @@ fn main() {
 
     println($label);
 
-    function(fn () {
-        return println("Hello Lambda");
-    });
+    function(() -> println("Hello Lambda"));
 
     println(typeof 1);
     println(outer());
