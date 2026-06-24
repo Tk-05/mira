@@ -707,20 +707,30 @@ public abstract class Expression implements Node {
         private final List<Node> body;
         private final String variadicParam;
         private final boolean isAsync;
+        private final boolean isArrow;
 
         public LambdaExpression(List<Parameter> parameters, List<Node> body, String variadicParam) {
-            this(parameters, body, variadicParam, false);
+            this(parameters, body, variadicParam, false, false);
         }
 
         public LambdaExpression(List<Parameter> parameters, List<Node> body, String variadicParam, boolean isAsync) {
+            this(parameters, body, variadicParam, isAsync, false);
+        }
+
+        public LambdaExpression(List<Parameter> parameters, List<Node> body, String variadicParam, boolean isAsync, boolean isArrow) {
             this.parameters = parameters;
             this.body = body;
             this.variadicParam = variadicParam;
             this.isAsync = isAsync;
+            this.isArrow = isArrow;
         }
 
         public boolean isAsync() {
             return isAsync;
+        }
+
+        public boolean isArrow() {
+            return isArrow;
         }
 
         public List<Parameter> getParameters() {

@@ -62,6 +62,7 @@ import com.mira.parser.nodes.statement.Statement.VarDestructure;
 import com.mira.parser.nodes.statement.Statement.While;
 import com.mira.runtime.visitors.ExprVisitor;
 import com.mira.runtime.visitors.StmtVisitor;
+import com.mira.vocabulary.Vocabulary;
 
 @SuppressWarnings("unchecked")
 public class AstFormatter implements ExprVisitor<String>, StmtVisitor<String> {
@@ -392,6 +393,9 @@ public class AstFormatter implements ExprVisitor<String>, StmtVisitor<String> {
     @Override
     public String visitReturn(Return stmt) {
         if (stmt.getValue() != null) {
+            if (stmt.getValue() instanceof DumbExpression dumb && dumb.getLine() == -1) {
+                return "return;";
+            }
             return "return " + formatExpr(stmt.getValue()) + ";";
         }
         return "return;";
@@ -399,6 +403,13 @@ public class AstFormatter implements ExprVisitor<String>, StmtVisitor<String> {
 
     @Override
     public String visitAssign(Assign stmt) {
+        if (stmt.getExpression() instanceof BinaryExpression bin) {
+            String binOp = bin.getOperator().getLexeme();
+            if (Vocabulary.COMPOUND_ASSIGNMENT_OPERATORS.contains(binOp + ":")
+                    && formatExpr(bin.getLeft()).equals(formatExpr(stmt.getReference()))) {
+                return formatExpr(stmt.getReference()) + " " + binOp + ": " + formatExpr(bin.getRight()) + ";";
+            }
+        }
         return formatExpr(stmt.getReference()) + " : " + formatExpr(stmt.getExpression()) + ";";
     }
 
@@ -611,11 +622,30 @@ public class AstFormatter implements ExprVisitor<String>, StmtVisitor<String> {
     @Override
     public <T> T visitBinaryExpr(BinaryExpression expression) {
         String op = expression.getOperator().getLexeme();
+        int outerPrec = Vocabulary.OPERATOR_PRECEDENCE.getOrDefault(op, 0);
+
         String left = formatExpr(expression.getLeft());
+        if (expression.getLeft() instanceof BinaryExpression leftBin) {
+            int innerPrec = Vocabulary.OPERATOR_PRECEDENCE.getOrDefault(leftBin.getOperator().getLexeme(), 0);
+            if (innerPrec < outerPrec) {
+                left = "(" + left + ")";
+            }
+        }
         if (op.equals("|>") && expression.getLeft() instanceof ComplexExpression) {
             left = "(" + left + ")";
         }
-        return (T) (left + " " + op + " " + formatExpr(expression.getRight()));
+
+        String right = formatExpr(expression.getRight());
+        if (expression.getRight() instanceof BinaryExpression rightBin) {
+            int rightPrec = Vocabulary.OPERATOR_PRECEDENCE.getOrDefault(rightBin.getOperator().getLexeme(), 0);
+            boolean needsParens = rightPrec < outerPrec
+                    || (rightPrec == outerPrec && (op.equals("-") || op.equals("/") || op.equals("%") || op.equals("\\%")));
+            if (needsParens) {
+                right = "(" + right + ")";
+            }
+        }
+
+        return (T) (left + " " + op + " " + right);
     }
 
     @Override
@@ -724,8 +754,7 @@ public class AstFormatter implements ExprVisitor<String>, StmtVisitor<String> {
         List<Node> body = expression.getBody();
         String params = formatParams(expression.getParameters(), expression.getVariadicParam());
 
-        if (!expression.isAsync() && body.size() == 1
-                && body.get(0) instanceof Return ret && ret.getValue() != null) {
+        if (expression.isArrow() && body.size() == 1 && body.get(0) instanceof Return ret && ret.getValue() != null) {
             return (T) ("(" + params + ") -> " + formatExpr(ret.getValue()));
         }
 

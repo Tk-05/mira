@@ -108,8 +108,8 @@ fn main() {
     println(typeof 1);
     println(outer());
     var i : 10;
-    $i : $i \% 5;
-    $i : $i ** 2;
+    $i \%: 5;
+    $i **: 2;
 
     switch ($i) {
         case (1) {
@@ -196,7 +196,7 @@ fn main() {
 
         foreach (var element in $list) {
             foreach (var inner in $element) {
-                $ret : $ret + $inner;
+                $ret +: $inner;
             }
         }
 

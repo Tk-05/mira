@@ -370,32 +370,7 @@ public class Parser {
     }
 
     private int binaryOperatorBP(String op) {
-        return switch (op) {
-            case "|>", "||", "??" ->
-                1;
-            case "&&" ->
-                2;
-            case "|" ->
-                3;
-            case "^" ->
-                4;
-            case "&" ->
-                5;
-            case "==", "!=" ->
-                6;
-            case "<", ">", "<=", ">=" ->
-                7;
-            case "<<", ">>" ->
-                8;
-            case "+", "-" ->
-                9;
-            case "*", "/", "%", "\\%" ->
-                10;
-            case "**" ->
-                11;
-            default ->
-                0;
-        };
+        return Vocabulary.OPERATOR_PRECEDENCE.getOrDefault(op, 0);
     }
 
     private Expression parsePrimary() {
@@ -842,7 +817,7 @@ public class Parser {
             body.add(new Return(result));
         }
 
-        return new LambdaExpression(parameters, body, variadicHolder[0], false);
+        return new LambdaExpression(parameters, body, variadicHolder[0], false, true);
     }
 
     private Node parseImportExpression() {

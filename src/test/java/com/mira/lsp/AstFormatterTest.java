@@ -112,8 +112,13 @@ public class AstFormatterTest {
     }
 
     @Test
-    void arrowLambdaCanonicalForm() {
-        assertEquals("var f : (x) -> $x + 1;\n", fmt("var f : fn (x) { return $x + 1; };"));
+    void fnLambdaPreserved() {
+        assertEquals("var f : fn (x) {\n    return $x + 1;\n};\n", fmt("var f : fn (x) { return $x + 1; };"));
+    }
+
+    @Test
+    void arrowLambdaPreserved() {
+        assertEquals("var f : (x) -> $x + 1;\n", fmt("var f : (x) -> $x + 1;"));
     }
 
     @Test
