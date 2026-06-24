@@ -243,9 +243,12 @@ public class StaticCheck {
     }
 
     public void check(List<Node> ast) {
-        if (ast.isEmpty() || !(ast.getFirst() instanceof ModuleDecl)) {
+        if (ast.isEmpty()) {
             errors.add(new MissingModuleDeclarationError());
             throw new MultipleStaticCheckErrors(errors);
+        }
+        if (!(ast.getFirst() instanceof ModuleDecl)) {
+            errors.add(new MissingModuleDeclarationError());
         }
         scope.push();
         isModule = true;

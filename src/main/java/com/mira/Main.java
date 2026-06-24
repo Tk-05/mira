@@ -201,10 +201,17 @@ public class Main {
             }
 
             if (!Flags.skipStaticCheck) {
-                new StaticCheck(Set.of(), Flags.inputPath.get()).check(asts);
+                boolean mainErrors = false;
+                try {
+                    new StaticCheck(Set.of(), Flags.inputPath.get()).check(asts);
+                } catch (MultipleStaticCheckErrors mre) {
+                    WarningCollector.clear();
+                    mre.getErrors().forEach(e -> System.err.println(DiagnosticFormatter.format(e)));
+                    mainErrors = true;
+                }
                 boolean moduleErrors = ModuleChecker.check(asts, new LinkedHashSet<>());
                 WarningCollector.flush();
-                if (moduleErrors) {
+                if (mainErrors || moduleErrors) {
                     return false;
                 }
             }

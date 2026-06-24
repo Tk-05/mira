@@ -1,6 +1,7 @@
 package com.mira.lsp;
 
 import java.nio.file.Path;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -10,7 +11,6 @@ import org.eclipse.lsp4j.CompletionItem;
 import org.eclipse.lsp4j.CompletionList;
 import org.eclipse.lsp4j.CompletionParams;
 import org.eclipse.lsp4j.DefinitionParams;
-import org.eclipse.lsp4j.Diagnostic;
 import org.eclipse.lsp4j.DidChangeTextDocumentParams;
 import org.eclipse.lsp4j.DidCloseTextDocumentParams;
 import org.eclipse.lsp4j.DidOpenTextDocumentParams;
@@ -51,7 +51,7 @@ public class DocumentService implements TextDocumentService {
         String content = params.getTextDocument().getText();
         documents.put(uri, content);
         updateAstCache(uri, content);
-        server.publishDiagnostics(uri, analyze(uri, content));
+        reanalyzeAll();
     }
 
     @Override
@@ -60,7 +60,7 @@ public class DocumentService implements TextDocumentService {
         String content = params.getContentChanges().get(0).getText();
         documents.put(uri, content);
         updateAstCache(uri, content);
-        server.publishDiagnostics(uri, analyze(uri, content));
+        reanalyzeAll();
     }
 
     @Override
@@ -127,9 +127,17 @@ public class DocumentService implements TextDocumentService {
         }
     }
 
-    private List<Diagnostic> analyze(String uri, String content) {
-        Path filePath = uriToPath(uri);
-        return DiagnosticCollector.collect(content, filePath);
+    private void reanalyzeAll() {
+        Map<Path, String> openDocuments = new HashMap<>();
+        documents.forEach((docUri, docContent) -> {
+            Path p = uriToPath(docUri);
+            if (p != null) {
+                openDocuments.put(p, docContent);
+            }
+        });
+        documents.forEach((docUri, docContent)
+                -> server.publishDiagnostics(docUri,
+                        DiagnosticCollector.collect(docContent, uriToPath(docUri), openDocuments)));
     }
 
     private static Path uriToPath(String uri) {
