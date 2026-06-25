@@ -156,16 +156,6 @@ public class StaticCheckError extends MiraError {
         }
     }
 
-    public static class DivisionByZeroStaticError extends StaticCheckError {
-
-        public DivisionByZeroStaticError(int line, int column) {
-            super("E315",
-                    "Division by zero",
-                    line, column, 1,
-                    "The divisor is the literal 0 — this will always produce Infinity at runtime");
-        }
-    }
-
     public static class LiteralNotCallableError extends StaticCheckError {
 
         public LiteralNotCallableError(String value, int line, int column) {
@@ -233,6 +223,36 @@ public class StaticCheckError extends MiraError {
                     "Cannot access field '" + field + "' on " + actualType + " (expected object)",
                     line, column, field.length(),
                     "Make sure the value is an object literal before using '.' field access");
+        }
+    }
+
+    public static class ImmutableCollectionStaticError extends StaticCheckError {
+
+        public ImmutableCollectionStaticError(String name, int line, int column) {
+            super("E321",
+                    "Cannot modify element of constant '" + name + "'",
+                    line, column, name.length(),
+                    "Declare with 'var' instead of 'const' if the collection needs to be modified");
+        }
+    }
+
+    public static class PostExprNaNStaticError extends StaticCheckError {
+
+        public PostExprNaNStaticError(String name, int line, int column) {
+            super("E322",
+                    "Cannot apply numeric increment/decrement to '$" + name + "' — it is not a number",
+                    line, column, name.length(),
+                    "Make sure '" + name + "' holds a numeric value before using '++' or '--'");
+        }
+    }
+
+    public static class UndefinedObjectFieldStaticError extends StaticCheckError {
+
+        public UndefinedObjectFieldStaticError(String field, String objectVar, int line, int column) {
+            super("E323",
+                    "Field '" + field + "' does not exist on '" + objectVar + "'",
+                    line, column, field.length(),
+                    "Check the object literal for available fields");
         }
     }
 }

@@ -13,6 +13,7 @@ import com.mira.error.resolver.MultipleStaticCheckErrors;
 import com.mira.lexer.Tokenizer;
 import com.mira.parser.Parser;
 import com.mira.parser.nodes.Node;
+import com.mira.warning.WarningCollector;
 
 public class StaticCheckTest {
 
@@ -272,5 +273,89 @@ public class StaticCheckTest {
     void staticAssertMixedComptimeAndRuntimeProducesE311() {
         List<MiraError> errors = errorsFor("comptime { const A : 1; } var b : 2; static_assert($A + $b > 0);");
         assertTrue(hasCode(errors, "E311"));
+    }
+
+    @Test
+    void constArrayIndexAssignProducesE321() {
+        List<MiraError> errors = errorsFor("const arr : [1, 2, 3]; $arr[0] : 9;");
+        assertTrue(hasCode(errors, "E321"));
+    }
+
+    @Test
+    void constObjectFieldAssignProducesE321() {
+        List<MiraError> errors = errorsFor("const obj : { var x : 1; }; $obj.x : 99;");
+        assertTrue(hasCode(errors, "E321"));
+    }
+
+    @Test
+    void varArrayIndexAssignIsValid() {
+        assertClean("var arr : [1, 2, 3]; $arr[0] : 9;");
+    }
+
+    @Test
+    void rangeStepZeroViaVarProducesE313() {
+        List<MiraError> errors = errorsFor("var step : 0; for(var i in <1..10, $step>) { }");
+        assertTrue(hasCode(errors, "E313"));
+    }
+
+    @Test
+    void rangeStepNonZeroVarIsValid() {
+        assertClean("var step : 2; for(var i in <1..10, $step>) { }");
+    }
+
+    @Test
+    void divisionByZeroLiteralProducesWarning() {
+        WarningCollector.clear();
+        assertClean("var r : 10 / 0;");
+        assertTrue(WarningCollector.getWarnings().stream()
+                .anyMatch(w -> w.message().contains("Division by zero")));
+        WarningCollector.clear();
+    }
+
+    @Test
+    void divisionByZeroViaVarProducesWarning() {
+        WarningCollector.clear();
+        assertClean("var d : 0; var r : 10 / $d;");
+        assertTrue(WarningCollector.getWarnings().stream()
+                .anyMatch(w -> w.message().contains("Division by zero")));
+        WarningCollector.clear();
+    }
+
+    @Test
+    void divisionByNonZeroVarIsValid() {
+        assertClean("var d : 2; var r : 10 / $d;");
+    }
+
+    @Test
+    void incrementStringVarProducesE322() {
+        List<MiraError> errors = errorsFor("var s : \"hello\"; $s++;");
+        assertTrue(hasCode(errors, "E322"));
+    }
+
+    @Test
+    void incrementListVarProducesE322() {
+        List<MiraError> errors = errorsFor("var lst : {1, 2}; $lst++;");
+        assertTrue(hasCode(errors, "E322"));
+    }
+
+    @Test
+    void incrementNumericVarIsValid() {
+        assertClean("var n : 5; $n++;");
+    }
+
+    @Test
+    void accessUndefinedFieldOnKnownObjectProducesE323() {
+        List<MiraError> errors = errorsFor("var o : { var x : 1; }; var y : $o.z;");
+        assertTrue(hasCode(errors, "E323"));
+    }
+
+    @Test
+    void accessDefinedFieldOnKnownObjectIsValid() {
+        assertClean("var o : { var x : 1; }; var y : $o.x;");
+    }
+
+    @Test
+    void optionalAccessUndefinedFieldIsValid() {
+        assertClean("var o : { var x : 1; }; var y : $o?.z;");
     }
 }

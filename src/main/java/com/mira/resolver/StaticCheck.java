@@ -16,12 +16,13 @@ import com.mira.error.resolver.StaticCheckError.ArityMismatchError;
 import com.mira.error.resolver.StaticCheckError.BreakOutsideLoopError;
 import com.mira.error.resolver.StaticCheckError.ConstReassignmentError;
 import com.mira.error.resolver.StaticCheckError.ContinueOutsideLoopError;
-import com.mira.error.resolver.StaticCheckError.DivisionByZeroStaticError;
 import com.mira.error.resolver.StaticCheckError.DuplicateDeclarationError;
 import com.mira.error.resolver.StaticCheckError.FieldAccessOnNonObjectError;
+import com.mira.error.resolver.StaticCheckError.ImmutableCollectionStaticError;
 import com.mira.error.resolver.StaticCheckError.LiteralNotCallableError;
 import com.mira.error.resolver.StaticCheckError.MissingModuleDeclarationError;
 import com.mira.error.resolver.StaticCheckError.NotIterableStaticError;
+import com.mira.error.resolver.StaticCheckError.PostExprNaNStaticError;
 import com.mira.error.resolver.StaticCheckError.PostUnaryStaticError;
 import com.mira.error.resolver.StaticCheckError.PrivateAccessError;
 import com.mira.error.resolver.StaticCheckError.PrivateImportError;
@@ -31,6 +32,7 @@ import com.mira.error.resolver.StaticCheckError.StaticAssertRuntimeValueError;
 import com.mira.error.resolver.StaticCheckError.UndeclaredVariableError;
 import com.mira.error.resolver.StaticCheckError.UndefinedFunctionError;
 import com.mira.error.resolver.StaticCheckError.UndefinedModuleSymbolError;
+import com.mira.error.resolver.StaticCheckError.UndefinedObjectFieldStaticError;
 import com.mira.error.resolver.StaticCheckError.UnknownModuleSymbolError;
 import com.mira.error.resolver.StaticCheckError.UnknownNamespaceError;
 import com.mira.lexer.Tokenizer;
@@ -385,6 +387,14 @@ public class StaticCheck {
                             e.getOperation().getColumn()));
                 } else {
                     resolveExpr(e.getRight());
+                    DumbExpression varD = extractVarRef(e.getRight());
+                    if (varD != null) {
+                        Node literal = varLiteralTypes.get(varD.getValue());
+                        if (literal != null && isNonNumericLiteral(literal)) {
+                            errors.add(new PostExprNaNStaticError(
+                                    varD.getValue(), varD.getLine(), varD.getColumn()));
+                        }
+                    }
                 }
             }
             case UnaryExpression e when "$".equals(e.getOperation().getLexeme()) -> {
@@ -429,8 +439,12 @@ public class StaticCheck {
                 resolveExpr(e.getLeft());
                 resolveExpr(e.getRight());
                 if (isZeroLiteral(e.getRight())) {
-                    errors.add(new DivisionByZeroStaticError(
-                            e.getOperator().getLine(), e.getOperator().getColumn()));
+                    WarningCollector.emit(WarningLevel.WARNING, "Division by zero", e.getOperator());
+                } else {
+                    DumbExpression varD = extractVarRef(e.getRight());
+                    if (varD != null && isZeroLiteral(varLiteralTypes.get(varD.getValue()))) {
+                        WarningCollector.emit(WarningLevel.WARNING, "Division by zero", e.getOperator());
+                    }
                 }
             }
             case BinaryExpression e -> {
@@ -478,6 +492,17 @@ public class StaticCheck {
                     int col = e.getObject() instanceof DumbExpression de
                             ? de.getColumn() + de.getValue().length() + 1 : 0;
                     errors.add(new FieldAccessOnNonObjectError(e.getField(), typeName, line, col));
+                } else if (!e.isOptional() && literalBase instanceof ObjectExpression objExpr) {
+                    String field = e.getField();
+                    boolean fieldExists = objExpr.getVarDecls().stream().anyMatch(v -> field.equals(v.getName()))
+                            || objExpr.getMethods().stream().anyMatch(m -> field.equals(m.getName()));
+                    if (!fieldExists) {
+                        DumbExpression varRef = extractVarRef(e.getObject());
+                        String objectName = varRef != null ? varRef.getValue() : "object";
+                        int line = e.getObject().line;
+                        int col = varRef != null ? varRef.getColumn() + varRef.getValue().length() + 1 : 0;
+                        errors.add(new UndefinedObjectFieldStaticError(field, objectName, line, col));
+                    }
                 }
                 String possibleAlias = e.getObject().toString();
                 if (moduleAliasSymbols.containsKey(possibleAlias)) {
@@ -569,6 +594,11 @@ public class StaticCheck {
                     if (isZeroLiteral(e.getStepsize())) {
                         DumbExpression d = (DumbExpression) e.getStepsize();
                         errors.add(new RangeStepZeroStaticError(d.getLine(), d.getColumn()));
+                    } else {
+                        DumbExpression varD = extractVarRef(e.getStepsize());
+                        if (varD != null && isZeroLiteral(varLiteralTypes.get(varD.getValue()))) {
+                            errors.add(new RangeStepZeroStaticError(varD.getLine(), varD.getColumn()));
+                        }
                     }
                 }
             }
@@ -733,6 +763,16 @@ public class StaticCheck {
                 scope.markUsed(name);
             }
         } else {
+            DumbExpression rootRef = null;
+            if (stmt.getReference() instanceof AccessExpression ae) {
+                rootRef = extractVarRef(ae.getReference());
+            } else if (stmt.getReference() instanceof FieldAccessExpression fae) {
+                rootRef = extractVarRef(fae.getObject());
+            }
+            if (rootRef != null && scope.isDeclared(rootRef.getValue()) && scope.isConst(rootRef.getValue())) {
+                errors.add(new ImmutableCollectionStaticError(
+                        rootRef.getValue(), rootRef.getLine(), rootRef.getColumn()));
+            }
             resolveExpr(stmt.getReference());
         }
         resolveExpr(stmt.getExpression());
@@ -1135,6 +1175,24 @@ public class StaticCheck {
             return varLiteralTypes.get(d.getValue());
         }
         return null;
+    }
+
+    private static DumbExpression extractVarRef(Node expr) {
+        if (expr instanceof UnaryExpression u
+                && "$".equals(u.getOperation().getLexeme())
+                && u.getRight() instanceof DumbExpression d
+                && isIdentifier(d)) {
+            return d;
+        }
+        return null;
+    }
+
+    private static boolean isNonNumericLiteral(Node n) {
+        if (n instanceof ListExpression || n instanceof ArrayExpression
+                || n instanceof MapExpression || n instanceof ObjectExpression) {
+            return true;
+        }
+        return n instanceof DumbExpression d && d.getTokenType() == TokenType.STRING_LITERAL;
     }
 
     private static boolean isNonIterableLiteral(Node n) {
