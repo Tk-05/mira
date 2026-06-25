@@ -71,6 +71,38 @@ public class Process implements Lib {
             }
         }));
 
+        environment.define("processDone", new NativeFunction(1, "process", args -> {
+            double id = Double.parseDouble(String.valueOf(args.get(0)));
+            java.lang.Process p = processes.get(id);
+            if (p == null) {
+                return true;
+            }
+            return !p.isAlive();
+        }));
+
+        environment.define("processReadPartial", new NativeFunction(1, "process", args -> {
+            double id = Double.parseDouble(String.valueOf(args.get(0)));
+            java.lang.Process p = processes.get(id);
+            if (p == null) {
+                throw new RuntimeException("No process with id: " + id);
+            }
+            try {
+                java.io.InputStream is = p.getInputStream();
+                int available = is.available();
+                if (available <= 0) {
+                    return "";
+                }
+                byte[] buf = new byte[available];
+                int read = is.read(buf, 0, available);
+                if (read <= 0) {
+                    return "";
+                }
+                return new String(buf, 0, read, java.nio.charset.StandardCharsets.UTF_8);
+            } catch (IOException e) {
+                throw new RuntimeException("processReadPartial failed: " + e.getMessage());
+            }
+        }));
+
         environment.define("processKill", new NativeFunction(1, "process", args -> {
             double id = Double.parseDouble(String.valueOf(args.get(0)));
             java.lang.Process p = processes.get(id);
