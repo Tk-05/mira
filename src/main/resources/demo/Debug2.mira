@@ -1,5 +1,16 @@
 module Debug2;
 
+var static a;
+const static b;
+
+var a : struct {
+
+};
+
+struct name : {
+
+};
+
 pub fn hello(name) {
     return hello $name;
 }

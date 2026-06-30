@@ -22,7 +22,7 @@ public record ProjectConfig(
 
     public record BuildConfig(
             Path outputDir, BuildMode mode, BuildMode runMode,
-            boolean main, String[] args,
+            boolean main, String[] args, JarBundle jarBundle,
             List<String> preBuild, List<String> postBuild,
             List<String> preRun, List<String> postRun) {
 
@@ -33,6 +33,10 @@ public record ProjectConfig(
 
     public enum BuildMode {
         INTERPRET, COMPILE, PACKAGE
+    }
+
+    public enum JarBundle {
+        SLIM, FULL
     }
 
     public record Dependency(Path path) {
@@ -53,7 +57,7 @@ public record ProjectConfig(
         Map<String, Object> deps = (Map<String, Object>) map.getOrDefault("dependencies", Map.of());
 
         checkUnknownKeys("[project]", project, Set.of("name", "version", "entry", "description", "authors"));
-        checkUnknownKeys("[build]", build, Set.of("mode", "run-mode", "main", "output", "args",
+        checkUnknownKeys("[build]", build, Set.of("mode", "run-mode", "main", "output", "args", "jar-bundle",
                 "pre-build", "post-build", "pre-run", "post-run"));
 
         String name = (String) project.getOrDefault("name", projectRoot.getFileName().toString());
@@ -71,6 +75,18 @@ public record ProjectConfig(
 
         String runModeStr = (String) build.get("run-mode");
         BuildMode runMode = runModeStr != null ? parseMode(runModeStr) : null;
+
+        String jarBundleStr = (String) build.get("jar-bundle");
+        if (mode == BuildMode.PACKAGE && jarBundleStr == null) {
+            throw new BuildException(
+                    "mira.toml: [build] jar-bundle is required when mode = \"package\" "
+                    + "(set jar-bundle = \"slim\" or \"full\")");
+        }
+        if (mode != BuildMode.PACKAGE && jarBundleStr != null) {
+            throw new BuildException(
+                    "mira.toml: [build] jar-bundle is only valid when mode = \"package\"");
+        }
+        JarBundle jarBundle = jarBundleStr != null ? parseJarBundle(jarBundleStr) : null;
 
         boolean mainFn = toBoolean(build.getOrDefault("main", false));
         String outputStr = (String) build.getOrDefault("output", "out");
@@ -132,7 +148,8 @@ public record ProjectConfig(
 
         return new ProjectConfig(
                 name, version, entry, description, authors,
-                new BuildConfig(outputDir, mode, runMode, mainFn, argsArr, preBuild, postBuild, preRun, postRun),
+                new BuildConfig(outputDir, mode, runMode, mainFn, argsArr, jarBundle,
+                        preBuild, postBuild, preRun, postRun),
                 testConfig,
                 dependencies,
                 tasks,
@@ -162,6 +179,18 @@ public record ProjectConfig(
                 BuildMode.PACKAGE;
             default ->
                 BuildMode.INTERPRET;
+        };
+    }
+
+    private static JarBundle parseJarBundle(String s) {
+        return switch (s) {
+            case "slim" ->
+                JarBundle.SLIM;
+            case "full" ->
+                JarBundle.FULL;
+            default ->
+                throw new BuildException(
+                        "mira.toml: unknown jar-bundle '" + s + "'. Expected: slim, full");
         };
     }
 

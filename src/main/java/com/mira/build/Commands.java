@@ -80,27 +80,17 @@ public class Commands {
     }
 
     public static void build(String[] args) {
-        ProjectConfig.BuildMode modeOverride = null;
-        boolean watch = false;
-        for (int i = 1; i < args.length; i++) {
-            if ("--mode".equals(args[i]) && i + 1 < args.length) {
-                modeOverride = parseBuildMode(args[++i]);
-            } else if ("--watch".equals(args[i])) {
-                watch = true;
-            }
-        }
+        boolean watch = Arrays.asList(args).contains("--watch");
+        BuildOverrides overrides = parseOverrides(args, 1);
         BuildContext ctx = requireContext();
-        BuildRunner.runBuild(ctx, modeOverride, watch);
+        BuildRunner.runBuild(ctx, overrides.mode(), overrides.jarBundle(), watch);
     }
 
     public static void run(String[] args) {
-        ProjectConfig.BuildMode modeOverride = null;
         String[] programArgs = null;
         String projectDir = null;
         for (int i = 1; i < args.length; i++) {
-            if ("--mode".equals(args[i]) && i + 1 < args.length) {
-                modeOverride = parseBuildMode(args[++i]);
-            } else if ("--project".equals(args[i]) && i + 1 < args.length) {
+            if ("--project".equals(args[i]) && i + 1 < args.length) {
                 projectDir = args[++i];
             } else if ("--no-warn".equals(args[i])) {
                 Flags.suppressWarnings = true;
@@ -109,15 +99,16 @@ public class Commands {
                 break;
             }
         }
+        BuildOverrides overrides = parseOverrides(args, 1);
 
         BuildContext ctx = projectDir != null
                 ? requireContext(Paths.get(projectDir).toAbsolutePath().normalize())
                 : requireContext();
-        ProjectConfig.BuildMode effectiveMode = modeOverride != null
-                ? modeOverride
+        ProjectConfig.BuildMode effectiveMode = overrides.mode() != null
+                ? overrides.mode()
                 : ctx.config().build().effectiveRunMode();
 
-        ctx.applyFlags(effectiveMode);
+        ctx.applyFlags(effectiveMode, overrides.jarBundle());
 
         if (effectiveMode == ProjectConfig.BuildMode.COMPILE
                 || effectiveMode == ProjectConfig.BuildMode.PACKAGE) {
@@ -143,8 +134,13 @@ public class Commands {
     }
 
     public static void release(String[] args) {
+        BuildOverrides overrides = parseOverrides(args, 1);
         BuildContext ctx = requireContext();
-        BuildRunner.runBuild(ctx, null, false);
+        release(ctx, overrides);
+    }
+
+    private static void release(BuildContext ctx, BuildOverrides overrides) {
+        BuildRunner.runBuild(ctx, overrides.mode(), overrides.jarBundle(), false);
         if (ctx.config().test() != null) {
             BuildRunner.runTest(ctx);
         } else {
@@ -168,6 +164,7 @@ public class Commands {
 
     static void clean(String[] args, Path startDir) {
         boolean buildAfter = args.length >= 2 && "build".equals(args[1]);
+        boolean releaseAfter = args.length >= 2 && "release".equals(args[1]);
         BuildContext ctx = requireContext(startDir);
         Path outputDir = ctx.config().build().outputDir();
         if (Files.exists(outputDir)) {
@@ -177,18 +174,35 @@ public class Commands {
             } catch (IOException e) {
                 throw new BuildException("Cannot clean output directory: " + e.getMessage());
             }
-        } else if (!buildAfter) {
+        } else if (!buildAfter && !releaseAfter) {
             System.out.println("Nothing to clean (output directory does not exist).");
         }
         if (buildAfter) {
-            ProjectConfig.BuildMode modeOverride = null;
-            for (int i = 2; i < args.length; i++) {
-                if ("--mode".equals(args[i]) && i + 1 < args.length) {
-                    modeOverride = parseBuildMode(args[++i]);
-                }
-            }
-            BuildRunner.runBuild(ctx, modeOverride, false);
+            BuildOverrides overrides = parseOverrides(args, 2);
+            BuildRunner.runBuild(ctx, overrides.mode(), overrides.jarBundle(), false);
+        } else if (releaseAfter) {
+            BuildOverrides overrides = parseOverrides(args, 2);
+            release(ctx, overrides);
         }
+    }
+
+    private record BuildOverrides(ProjectConfig.BuildMode mode, ProjectConfig.JarBundle jarBundle) {
+
+    }
+
+    private static BuildOverrides parseOverrides(String[] args, int from) {
+        ProjectConfig.BuildMode mode = null;
+        ProjectConfig.JarBundle jarBundle = null;
+        for (int i = from; i < args.length; i++) {
+            if ("--mode".equals(args[i]) && i + 1 < args.length) {
+                mode = parseBuildMode(args[++i]);
+            } else if ("--slim".equals(args[i])) {
+                jarBundle = ProjectConfig.JarBundle.SLIM;
+            } else if ("--full".equals(args[i])) {
+                jarBundle = ProjectConfig.JarBundle.FULL;
+            }
+        }
+        return new BuildOverrides(mode, jarBundle);
     }
 
     private static BuildContext requireContext() {

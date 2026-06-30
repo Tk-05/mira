@@ -5,8 +5,13 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Enumeration;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.jar.JarEntry;
+import java.util.jar.JarFile;
 
 import org.junit.jupiter.api.AfterEach;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -221,7 +226,7 @@ public class BuildSystemIntegrationTest {
 
     @Test
     void applyFlagsPackageMode() throws IOException {
-        writeMinimalProject("pkg-app", "package", false);
+        writeMinimalProject("pkg-app", "package", false, "full");
         ProjectConfig cfg = ProjectLoader.find(projectDir).orElseThrow();
         BuildContext ctx = new BuildContext(cfg, List.of());
 
@@ -229,6 +234,40 @@ public class BuildSystemIntegrationTest {
 
         assertTrue(Flags.compile);
         assertTrue(Flags.packageJar);
+        assertFalse(Flags.slimJar);
+    }
+
+    @Test
+    void applyFlagsPackageModeSlim() throws IOException {
+        writeMinimalProject("pkg-app-slim", "package", false, "slim");
+        ProjectConfig cfg = ProjectLoader.find(projectDir).orElseThrow();
+        BuildContext ctx = new BuildContext(cfg, List.of());
+
+        ctx.applyFlags(null);
+
+        assertTrue(Flags.compile);
+        assertTrue(Flags.packageJar);
+        assertTrue(Flags.slimJar);
+    }
+
+    @Test
+    void packageModeWithoutJarBundleThrows() throws IOException {
+        writeToml(projectDir, "no-bundle", "src/main.mira", "package", false);
+        Files.createDirectories(projectDir.resolve("src"));
+        Files.writeString(projectDir.resolve("src/main.mira"), "module main;\nfn main() { print(\"hi\"); }\n");
+
+        BuildException ex = assertThrows(BuildException.class,
+                () -> ProjectLoader.find(projectDir).orElseThrow());
+        assertTrue(ex.getMessage().contains("jar-bundle"));
+    }
+
+    @Test
+    void jarBundleWithNonPackageModeThrows() throws IOException {
+        writeMinimalProject("interpret-with-bundle", "interpret", false, "slim");
+
+        BuildException ex = assertThrows(BuildException.class,
+                () -> ProjectLoader.find(projectDir).orElseThrow());
+        assertTrue(ex.getMessage().contains("jar-bundle"));
     }
 
     @Test
@@ -301,6 +340,86 @@ public class BuildSystemIntegrationTest {
     }
 
     @Test
+    void packageSlimModeExcludesToolchainAndAsm() throws Exception {
+        writeMinimalProject("slim-pkg", "package", false, "slim");
+
+        BuildContext ctx = Commands.requireContext(projectDir);
+        ctx.applyFlags(ProjectConfig.BuildMode.PACKAGE, ProjectConfig.JarBundle.SLIM);
+        boolean ok = Main.runFile(new AtomicBoolean(false));
+        assertTrue(ok);
+
+        Path jarPath = projectDir.resolve("out/main.jar");
+        assertTrue(Files.exists(jarPath));
+
+        Set<String> entries = new HashSet<>();
+        try (JarFile jf = new JarFile(jarPath.toFile())) {
+            Enumeration<JarEntry> en = jf.entries();
+            while (en.hasMoreElements()) {
+                entries.add(en.nextElement().getName());
+            }
+        }
+
+        assertTrue(entries.stream().noneMatch(n -> n.startsWith("com/mira/lsp/")));
+        assertTrue(entries.stream().noneMatch(n -> n.startsWith("com/mira/dap/")));
+        assertTrue(entries.stream().noneMatch(n -> n.startsWith("com/mira/repl/")));
+        assertTrue(entries.stream().noneMatch(n -> n.startsWith("com/mira/debugger/")));
+        assertTrue(entries.stream().noneMatch(n -> n.startsWith("org/eclipse/lsp4j/")));
+        assertTrue(entries.stream().noneMatch(n -> n.startsWith("org/objectweb/asm/")));
+
+        assertTrue(entries.stream().anyMatch(n -> n.startsWith("com/mira/lib/std/")));
+        assertTrue(entries.stream().anyMatch(n -> n.startsWith("com/mira/runtime/")));
+    }
+
+    @Test
+    void packageSlimModeJarRunsCorrectly() throws Exception {
+        writeToml(projectDir, "slim-run", "src/main.mira", "package", true, "slim");
+        Files.createDirectories(projectDir.resolve("src"));
+        Files.writeString(projectDir.resolve("src/main.mira"),
+                "module main;\nfn main() { print(\"slim-ok\"); }\n");
+
+        BuildContext ctx = Commands.requireContext(projectDir);
+        ctx.applyFlags(ProjectConfig.BuildMode.PACKAGE, ProjectConfig.JarBundle.SLIM);
+        boolean ok = Main.runFile(new AtomicBoolean(false));
+        assertTrue(ok);
+
+        Path jarPath = projectDir.resolve("out/main.jar");
+        assertTrue(Files.exists(jarPath));
+
+        Process process = new ProcessBuilder("java", "-jar", jarPath.toAbsolutePath().toString())
+                .redirectErrorStream(true)
+                .start();
+        String output = new String(process.getInputStream().readAllBytes());
+        int exitCode = process.waitFor();
+
+        assertEquals(0, exitCode, "jar exited with non-zero status. Output: " + output);
+        assertTrue(output.contains("slim-ok"), "Output: " + output);
+    }
+
+    @Test
+    void packageSlimModeEvalStillWorks() throws Exception {
+        writeToml(projectDir, "slim-eval", "src/main.mira", "package", true, "slim");
+        Files.createDirectories(projectDir.resolve("src"));
+        Files.writeString(projectDir.resolve("src/main.mira"),
+                "module main;\nfn main() { print(eval(\"1 + 2\")); }\n");
+
+        BuildContext ctx = Commands.requireContext(projectDir);
+        ctx.applyFlags(ProjectConfig.BuildMode.PACKAGE, ProjectConfig.JarBundle.SLIM);
+        boolean ok = Main.runFile(new AtomicBoolean(false));
+        assertTrue(ok);
+
+        Path jarPath = projectDir.resolve("out/main.jar");
+
+        Process process = new ProcessBuilder("java", "-jar", jarPath.toAbsolutePath().toString())
+                .redirectErrorStream(true)
+                .start();
+        String output = new String(process.getInputStream().readAllBytes());
+        int exitCode = process.waitFor();
+
+        assertEquals(0, exitCode, "jar exited with non-zero status. Output: " + output);
+        assertTrue(output.contains("3"), "Output: " + output);
+    }
+
+    @Test
     void runWithoutTomlThrows() {
         assertThrows(BuildException.class,
                 () -> Commands.requireContext(projectDir));
@@ -308,18 +427,28 @@ public class BuildSystemIntegrationTest {
 
     private void writeToml(Path dir, String name, String entry, String mode, boolean main)
             throws IOException {
+        writeToml(dir, name, entry, mode, main, null);
+    }
+
+    private void writeToml(Path dir, String name, String entry, String mode, boolean main, String jarBundle)
+            throws IOException {
         String content = "[project]\n"
                 + "name = \"" + name + "\"\n"
                 + "version = \"0.1.0\"\n"
                 + "entry = \"" + entry + "\"\n"
                 + "\n[build]\n"
                 + "mode = \"" + mode + "\"\n"
-                + "main = " + main + "\n";
+                + "main = " + main + "\n"
+                + (jarBundle != null ? "jar-bundle = \"" + jarBundle + "\"\n" : "");
         Files.writeString(dir.resolve("mira.toml"), content);
     }
 
     private Path writeMinimalProject(String name, String mode, boolean main) throws IOException {
-        writeToml(projectDir, name, "src/main.mira", mode, main);
+        return writeMinimalProject(name, mode, main, null);
+    }
+
+    private Path writeMinimalProject(String name, String mode, boolean main, String jarBundle) throws IOException {
+        writeToml(projectDir, name, "src/main.mira", mode, main, jarBundle);
         Path entry = projectDir.resolve("src/main.mira");
         Files.createDirectories(entry.getParent());
         Files.writeString(entry, "module main;\nfn main() { print(\"hi\"); }\n");

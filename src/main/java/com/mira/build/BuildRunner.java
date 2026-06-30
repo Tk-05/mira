@@ -23,7 +23,12 @@ import com.mira.testing.TestRunner;
 public class BuildRunner {
 
     public static void runBuild(BuildContext ctx, ProjectConfig.BuildMode modeOverride, boolean watch) {
-        ctx.applyFlags(modeOverride);
+        runBuild(ctx, modeOverride, null, watch);
+    }
+
+    public static void runBuild(BuildContext ctx, ProjectConfig.BuildMode modeOverride,
+            ProjectConfig.JarBundle jarBundleOverride, boolean watch) {
+        ctx.applyFlags(modeOverride, jarBundleOverride);
         if (watch) {
             new HotReloader(Flags.inputPath.get()).run();
             return;

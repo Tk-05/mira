@@ -96,10 +96,50 @@ public class ProjectConfigTest {
     void buildModePackage() {
         Map<String, Object> map = Map.of(
                 "project", section("entry", "main.mira"),
-                "build", section("mode", "package")
+                "build", section("mode", "package", "jar-bundle", "full")
         );
         ProjectConfig cfg = ProjectConfig.fromMap(map, root);
         assertEquals(ProjectConfig.BuildMode.PACKAGE, cfg.build().mode());
+        assertEquals(ProjectConfig.JarBundle.FULL, cfg.build().jarBundle());
+    }
+
+    @Test
+    void buildModePackageSlimBundle() {
+        Map<String, Object> map = Map.of(
+                "project", section("entry", "main.mira"),
+                "build", section("mode", "package", "jar-bundle", "slim")
+        );
+        ProjectConfig cfg = ProjectConfig.fromMap(map, root);
+        assertEquals(ProjectConfig.JarBundle.SLIM, cfg.build().jarBundle());
+    }
+
+    @Test
+    void buildModePackageWithoutJarBundleThrows() {
+        Map<String, Object> map = Map.of(
+                "project", section("entry", "main.mira"),
+                "build", section("mode", "package")
+        );
+        BuildException ex = assertThrows(BuildException.class, () -> ProjectConfig.fromMap(map, root));
+        assertTrue(ex.getMessage().contains("jar-bundle"));
+    }
+
+    @Test
+    void jarBundleWithoutPackageModeThrows() {
+        Map<String, Object> map = Map.of(
+                "project", section("entry", "main.mira"),
+                "build", section("mode", "interpret", "jar-bundle", "slim")
+        );
+        BuildException ex = assertThrows(BuildException.class, () -> ProjectConfig.fromMap(map, root));
+        assertTrue(ex.getMessage().contains("jar-bundle"));
+    }
+
+    @Test
+    void unknownJarBundleThrows() {
+        Map<String, Object> map = Map.of(
+                "project", section("entry", "main.mira"),
+                "build", section("mode", "package", "jar-bundle", "bogus")
+        );
+        assertThrows(BuildException.class, () -> ProjectConfig.fromMap(map, root));
     }
 
     @Test
@@ -163,7 +203,7 @@ public class ProjectConfigTest {
     void runModeIndependentOfBuildMode() {
         Map<String, Object> map = Map.of(
                 "project", section("entry", "main.mira"),
-                "build", section("mode", "package", "run-mode", "compile")
+                "build", section("mode", "package", "run-mode", "compile", "jar-bundle", "full")
         );
         ProjectConfig cfg = ProjectConfig.fromMap(map, root);
         assertEquals(ProjectConfig.BuildMode.PACKAGE, cfg.build().mode());
