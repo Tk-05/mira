@@ -181,7 +181,18 @@ public class Compiler {
                 boolean hasAlias = alias != null && !alias.isBlank();
                 mv.visitFieldInsn(org.objectweb.asm.Opcodes.GETSTATIC, className, "GLOBALS", ENV_D);
                 mv.visitLdcInsn(ie.getKind().name());
-                mv.visitLdcInsn(ie.getModule());
+                String moduleArg = ie.getModule();
+                if (ie.getKind() == Expression.ImportExpression.ImportKind.NATIVE) {
+                    Path candidate = Path.of(moduleArg);
+                    if (!candidate.isAbsolute()) {
+                        Path ip = Flags.inputPath.get();
+                        if (ip != null) {
+                            moduleArg = ip.toAbsolutePath().getParent()
+                                    .resolve(candidate).normalize().toString();
+                        }
+                    }
+                }
+                mv.visitLdcInsn(moduleArg);
                 if (hasAlias) {
                     mv.visitLdcInsn(alias);
                 } else {
