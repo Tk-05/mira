@@ -58,17 +58,17 @@ public class Bytes implements Lib {
     @Override
     public void loadLib(Environment environment) {
 
-        environment.define("newBytes", new NativeFunction(1, args -> {
+        environment.define("newBytes", new NativeFunction(1, "size", args -> {
             int size = toIndex(args.get(0));
             return new BytesValue(size);
         }));
 
-        environment.define("fromString", new NativeFunction(1, args -> {
+        environment.define("fromString", new NativeFunction(1, "str", args -> {
             String s = String.valueOf(args.get(0));
             return new BytesValue(s.getBytes(StandardCharsets.UTF_8));
         }));
 
-        environment.define("fromList", new NativeFunction(1, args -> {
+        environment.define("fromList", new NativeFunction(1, "list", args -> {
             List<Object> nums = toNumberList(args.get(0));
             byte[] data = new byte[nums.size()];
             for (int i = 0; i < nums.size(); i++) {
@@ -77,34 +77,34 @@ public class Bytes implements Lib {
             return new BytesValue(data);
         }));
 
-        environment.define("fromHex", new NativeFunction(1, args -> {
+        environment.define("fromHex", new NativeFunction(1, "hex", args -> {
             String hex = String.valueOf(args.get(0));
             return new BytesValue(HexFormat.of().parseHex(hex));
         }));
 
-        environment.define("fromBase64", new NativeFunction(1, args -> {
+        environment.define("fromBase64", new NativeFunction(1, "str", args -> {
             String encoded = String.valueOf(args.get(0));
             return new BytesValue(Base64.getDecoder().decode(encoded));
         }));
 
-        environment.define("size", new NativeFunction(1, args -> {
+        environment.define("size", new NativeFunction(1, "b", args -> {
             return (double) toBytes(args.get(0)).size();
         }));
 
-        environment.define("get", new NativeFunction(2, args -> {
+        environment.define("get", new NativeFunction(2, "b, index", args -> {
             byte[] data = toBytes(args.get(0)).getData();
             int index = toIndex(args.get(1));
             return (double) (data[index] & 0xFF);
         }));
 
-        environment.define("set", new NativeFunction(3, args -> {
+        environment.define("set", new NativeFunction(3, "b, index, value", args -> {
             byte[] data = toBytes(args.get(0)).getData().clone();
             int index = toIndex(args.get(1));
             data[index] = (byte) toIndex(args.get(2));
             return new BytesValue(data);
         }));
 
-        environment.define("slice", new NativeFunction(3, args -> {
+        environment.define("slice", new NativeFunction(3, "b, start, end", args -> {
             byte[] data = toBytes(args.get(0)).getData();
             int start = toIndex(args.get(1));
             int end = toIndex(args.get(2));
@@ -113,7 +113,7 @@ public class Bytes implements Lib {
             return new BytesValue(slice);
         }));
 
-        environment.define("concat", new NativeFunction(2, args -> {
+        environment.define("concat", new NativeFunction(2, "b1, b2", args -> {
             byte[] a = toBytes(args.get(0)).getData();
             byte[] b = toBytes(args.get(1)).getData();
             byte[] result = new byte[a.length + b.length];
@@ -122,11 +122,11 @@ public class Bytes implements Lib {
             return new BytesValue(result);
         }));
 
-        environment.define("copy", new NativeFunction(1, args -> {
+        environment.define("copy", new NativeFunction(1, "b", args -> {
             return new BytesValue(toBytes(args.get(0)).getData());
         }));
 
-        environment.define("fill", new NativeFunction(2, args -> {
+        environment.define("fill", new NativeFunction(2, "b, value", args -> {
             byte[] data = toBytes(args.get(0)).getData().clone();
             byte val = (byte) toIndex(args.get(1));
             for (int i = 0; i < data.length; i++) {
@@ -135,11 +135,11 @@ public class Bytes implements Lib {
             return new BytesValue(data);
         }));
 
-        environment.define("toString", new NativeFunction(1, args -> {
+        environment.define("toString", new NativeFunction(1, "b", args -> {
             return new String(toBytes(args.get(0)).getData(), StandardCharsets.UTF_8);
         }));
 
-        environment.define("toList", new NativeFunction(1, args -> {
+        environment.define("toList", new NativeFunction(1, "b", args -> {
             byte[] data = toBytes(args.get(0)).getData();
             List<Expression> members = new ArrayList<>(data.length);
             for (byte b : data) {
@@ -148,15 +148,15 @@ public class Bytes implements Lib {
             return new ListExpression(members);
         }));
 
-        environment.define("toHex", new NativeFunction(1, args -> {
+        environment.define("toHex", new NativeFunction(1, "b", args -> {
             return HexFormat.of().formatHex(toBytes(args.get(0)).getData());
         }));
 
-        environment.define("toBase64", new NativeFunction(1, args -> {
+        environment.define("toBase64", new NativeFunction(1, "b", args -> {
             return Base64.getEncoder().encodeToString(toBytes(args.get(0)).getData());
         }));
 
-        environment.define("readFile", new NativeFunction(1, args -> {
+        environment.define("readFile", new NativeFunction(1, "path", args -> {
             try {
                 byte[] data = Files.readAllBytes(Paths.get(String.valueOf(args.get(0))));
                 return new BytesValue(data);
@@ -165,7 +165,7 @@ public class Bytes implements Lib {
             }
         }));
 
-        environment.define("writeFile", new NativeFunction(2, args -> {
+        environment.define("writeFile", new NativeFunction(2, "path, b", args -> {
             try {
                 Files.write(Paths.get(String.valueOf(args.get(0))),
                         toBytes(args.get(1)).getData());

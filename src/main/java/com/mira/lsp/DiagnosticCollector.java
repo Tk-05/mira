@@ -6,6 +6,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import org.eclipse.lsp4j.Diagnostic;
@@ -28,7 +29,7 @@ import com.mira.warning.WarningLevel;
 
 public class DiagnosticCollector {
 
-    public static List<Diagnostic> collect(String source, Path filePath) {
+    public static List<Diagnostic> collect(String source, Path filePath, Map<Path, String> openDocuments) {
         List<Diagnostic> result = new ArrayList<>();
         WarningCollector.clear();
         try {
@@ -36,9 +37,9 @@ public class DiagnosticCollector {
             List<Node> ast = new Parser().parseTokens(tokens);
             try {
                 Set<String> externalCalls = filePath != null
-                        ? collectExternalCalls(ast, filePath)
+                        ? collectExternalCalls(ast, filePath, openDocuments)
                         : Set.of();
-                new StaticCheck(externalCalls).check(ast);
+                new StaticCheck(externalCalls, filePath, openDocuments).check(ast);
             } catch (MultipleStaticCheckErrors mre) {
                 mre.getErrors().forEach(e -> result.add(fromError(e, DiagnosticSeverity.Error)));
             }
@@ -54,7 +55,7 @@ public class DiagnosticCollector {
         return result;
     }
 
-    private static Set<String> collectExternalCalls(List<Node> ast, Path filePath) {
+    private static Set<String> collectExternalCalls(List<Node> ast, Path filePath, Map<Path, String> openDocuments) {
         Set<String> externalCalls = new LinkedHashSet<>();
         Path dir = filePath.getParent();
         if (dir == null) {
@@ -65,7 +66,7 @@ public class DiagnosticCollector {
                     .filter(p -> p.toString().endsWith(".mira") && !p.equals(filePath))
                     .forEach(callerPath -> {
                         try {
-                            String src = Files.readString(callerPath);
+                            String src = openDocuments.getOrDefault(callerPath, Files.readString(callerPath));
                             List<Node> callerAst = new Parser().parseTokens(
                                     new Tokenizer().tokenize(src, false));
                             ModuleResolver.collectExternalCalls(callerAst, callerPath, filePath, externalCalls);
@@ -96,8 +97,11 @@ public class DiagnosticCollector {
     private static Diagnostic fromWarning(Warning w) {
         int line = Math.max(w.line() - 1, 0);
         int col = Math.max(w.column() - 1, 0);
-        int endCol = col + Math.max(1, w.span());
-        Range range = new Range(new Position(line, col), new Position(line, endCol));
+        int endLine = w.endLine() > 0 ? Math.max(w.endLine() - 1, 0) : line;
+        Position end = endLine > line
+                ? new Position(endLine + 1, 0)
+                : new Position(line, col + Math.max(1, w.span()));
+        Range range = new Range(new Position(line, col), end);
         DiagnosticSeverity sev = w.level() == WarningLevel.WARNING
                 ? DiagnosticSeverity.Warning : DiagnosticSeverity.Information;
         return new Diagnostic(range, w.message(), sev, "mira");

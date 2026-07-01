@@ -23,6 +23,9 @@ import com.mira.parser.nodes.expression.Expression.MapExpression;
 import com.mira.parser.nodes.expression.Expression.MethodCallExpression;
 import com.mira.parser.nodes.expression.Expression.NamespaceCallExpression;
 import com.mira.parser.nodes.expression.Expression.ObjectExpression;
+import com.mira.parser.nodes.expression.Expression.StructExpression;
+import com.mira.parser.nodes.expression.Expression.AssignExpression;
+import com.mira.parser.nodes.expression.Expression.StructInitExpression;
 import com.mira.parser.nodes.expression.Expression.RangeExpression;
 import com.mira.parser.nodes.expression.Expression.TernaryExpression;
 import com.mira.parser.nodes.expression.Expression.ExecBlock;
@@ -134,6 +137,13 @@ public class AstPrinter implements ExprVisitor<String>, StmtVisitor<String> {
     }
 
     @Override
+    public <T> T visitAssignExpression(AssignExpression expression) {
+        return (T) (pad() + "AssignExpr"
+                + child(expression.getReference())
+                + child(expression.getValue()));
+    }
+
+    @Override
     public <T> T visitTernaryExpr(TernaryExpression expression) {
         return (T) (pad() + "Ternary [?:]"
                 + child(expression.getCondition())
@@ -216,6 +226,32 @@ public class AstPrinter implements ExprVisitor<String>, StmtVisitor<String> {
             sb.append('\n').append(visitFuncDecl(f));
         }
         depth--;
+        return (T) sb.toString();
+    }
+
+    @Override
+    public <T> T visitStructExpression(StructExpression expression) {
+        StringBuilder sb = new StringBuilder(pad() + "Struct");
+        depth++;
+        for (VarDecl v : expression.getVarDecls()) {
+            sb.append('\n').append(visitVarDecl(v));
+        }
+        for (FuncDecl f : expression.getMethods()) {
+            sb.append('\n').append(visitFuncDecl(f));
+        }
+        depth--;
+        return (T) sb.toString();
+    }
+
+    @Override
+    public <T> T visitStructInitExpression(StructInitExpression expression) {
+        StringBuilder sb = new StringBuilder(pad() + "StructInit"
+                + child(expression.getTarget()));
+        for (Map.Entry<String, Expression> e : expression.getOverrides().entrySet()) {
+            depth++;
+            sb.append('\n').append(pad()).append(e.getKey()).append(':').append(child(e.getValue()));
+            depth--;
+        }
         return (T) sb.toString();
     }
 

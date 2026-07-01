@@ -9,6 +9,7 @@ import java.util.Set;
 import com.mira.lib.LibIndex;
 import com.mira.parser.nodes.Node;
 import com.mira.parser.nodes.expression.Expression.AccessExpression;
+import com.mira.parser.nodes.expression.Expression.AssignExpression;
 import com.mira.parser.nodes.expression.Expression.AwaitExpression;
 import com.mira.parser.nodes.expression.Expression.ArrayExpression;
 import com.mira.parser.nodes.expression.Expression.BinaryExpression;
@@ -21,6 +22,8 @@ import com.mira.parser.nodes.expression.Expression.ListExpression;
 import com.mira.parser.nodes.expression.Expression.MethodCallExpression;
 import com.mira.parser.nodes.expression.Expression.NamespaceCallExpression;
 import com.mira.parser.nodes.expression.Expression.ObjectExpression;
+import com.mira.parser.nodes.expression.Expression.StructExpression;
+import com.mira.parser.nodes.expression.Expression.StructInitExpression;
 import com.mira.parser.nodes.expression.Expression.RangeExpression;
 import com.mira.parser.nodes.expression.Expression.UnaryExpression;
 import com.mira.parser.nodes.statement.Statement.Assign;
@@ -106,6 +109,15 @@ public class PurityAnalyzer {
                 o.getVarDecls().stream()
                 .allMatch(v -> v.getInitializer() == null || isNodePure(v.getInitializer(), pure))
                 && o.getMethods().stream().allMatch(m -> isBodyPure(m.getBody(), pure));
+            case StructExpression s ->
+                s.getVarDecls().stream()
+                .allMatch(v -> v.getInitializer() == null || isNodePure(v.getInitializer(), pure))
+                && s.getMethods().stream().allMatch(m -> isBodyPure(m.getBody(), pure));
+            case StructInitExpression si ->
+                isNodePure(si.getTarget(), pure)
+                && si.getOverrides().values().stream().allMatch(v -> isNodePure(v, pure));
+            case AssignExpression ae ->
+                false;
             case LambdaExpression lam ->
                 isBodyPure(lam.getBody(), pure);
             case RangeExpression r ->

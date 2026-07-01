@@ -22,17 +22,53 @@ public class Json implements Lib {
 
     @Override
     public void loadLib(Environment environment) {
-        environment.define("jsonGet", new NativeFunction(2, args -> {
+        environment.define("jsonGet", new NativeFunction(2, "json, key", args -> {
             String json = String.valueOf(args.get(0));
             String key = String.valueOf(args.get(1));
             try {
+                // Match quoted strings (with escape handling), numbers, booleans
                 Matcher m = Pattern
-                        .compile("\"" + Pattern.quote(key) + "\"\\s*:\\s*(?:\"([^\"]*)\"|([\\d.eE+\\-]+)|(true|false|null))")
+                        .compile("\"" + Pattern.quote(key) + "\"\\s*:\\s*(?:\"((?:[^\"\\\\]|\\\\.)*)\"|([\\d.eE+\\-]+)|(true|false|null))")
                         .matcher(json);
                 if (m.find()) {
                     for (int i = 1; i <= m.groupCount(); i++) {
                         if (m.group(i) != null) {
-                            return m.group(i);
+                            String v = m.group(i);
+                            // Unescape escaped quotes and backslashes for group 1 (quoted string)
+                            if (i == 1) {
+                                v = v.replace("\\\"", "\"").replace("\\\\", "\\");
+                            }
+                            return v;
+                        }
+                    }
+                }
+                // Fall back to extracting a nested JSON object or array
+                Matcher nm = Pattern.compile("\"" + Pattern.quote(key) + "\"\\s*:\\s*([\\{\\[])").matcher(json);
+                if (nm.find()) {
+                    int start = nm.start(1);
+                    char open = json.charAt(start);
+                    char close = open == '{' ? '}' : ']';
+                    int depth = 0;
+                    boolean inStr = false;
+                    for (int i = start; i < json.length(); i++) {
+                        char c = json.charAt(i);
+                        if (c == '\\' && inStr) {
+                            i++;
+                            continue;
+                        }
+                        if (c == '"') {
+                            inStr = !inStr;
+                            continue;
+                        }
+                        if (!inStr) {
+                            if (c == open) {
+                                depth++; 
+                            }else if (c == close) {
+                                depth--;
+                                if (depth == 0) {
+                                    return json.substring(start, i + 1);
+                                }
+                            }
                         }
                     }
                 }
@@ -42,13 +78,13 @@ public class Json implements Lib {
             }
         }));
 
-        environment.define("jsonHas", new NativeFunction(2, args -> {
+        environment.define("jsonHas", new NativeFunction(2, "json, key", args -> {
             String json = String.valueOf(args.get(0));
             String key = String.valueOf(args.get(1));
             return json.contains("\"" + key + "\"");
         }));
 
-        environment.define("jsonArray", new NativeFunction(2, args -> {
+        environment.define("jsonArray", new NativeFunction(2, "json, key", args -> {
             String json = String.valueOf(args.get(0));
             String key = String.valueOf(args.get(1));
             try {
@@ -76,7 +112,7 @@ public class Json implements Lib {
             }
         }));
 
-        environment.define("jsonBuild", new NativeFunction(2, args -> {
+        environment.define("jsonBuild", new NativeFunction(2, "keys, values", args -> {
             if (!(args.get(0) instanceof ListExpression keys)
                     || !(args.get(1) instanceof ListExpression values)) {
                 throw new RuntimeException("jsonBuild requires two lists");
@@ -91,11 +127,13 @@ public class Json implements Lib {
             for (int i = 0; i < k.size(); i++) {
                 String key = k.get(i) instanceof DumbExpression d ? String.valueOf(d.getValue()) : String.valueOf(k.get(i));
                 String val = v.get(i) instanceof DumbExpression d ? String.valueOf(d.getValue()) : String.valueOf(v.get(i));
-                sb.append("\"").append(key).append("\":");
+                sb.append("\"").append(key.replace("\\", "\\\\").replace("\"", "\\\"")).append("\":");
                 if (val.matches("-?\\d+(\\.\\d+)?") || val.equals("true") || val.equals("false") || val.equals("null")) {
                     sb.append(val);
+                } else if (val.startsWith("{") || val.startsWith("[")) {
+                    sb.append(val);  // nested JSON — store raw, not quoted
                 } else {
-                    sb.append("\"").append(val).append("\"");
+                    sb.append("\"").append(val.replace("\\", "\\\\").replace("\"", "\\\"")).append("\"");
                 }
                 if (i < k.size() - 1) {
                     sb.append(",");
@@ -105,7 +143,7 @@ public class Json implements Lib {
             return sb.toString();
         }));
 
-        environment.define("jsonFormat", new NativeFunction(1, args -> {
+        environment.define("jsonFormat", new NativeFunction(1, "json", args -> {
             String json = String.valueOf(args.get(0));
             StringBuilder sb = new StringBuilder();
             int indent = 0;
@@ -141,7 +179,7 @@ public class Json implements Lib {
             return sb.toString();
         }));
 
-        environment.define("jsonNested", new NativeFunction(3, args -> {
+        environment.define("jsonNested", new NativeFunction(3, "json, parent, key", args -> {
             String json = String.valueOf(args.get(0));
             String parentKey = String.valueOf(args.get(1));
             String arrayKey = String.valueOf(args.get(2));
@@ -178,7 +216,7 @@ public class Json implements Lib {
             }
         }));
 
-        environment.define("jsonIndexOf", new NativeFunction(2, args -> {
+        environment.define("jsonIndexOf", new NativeFunction(2, "list, val", args -> {
             if (!(args.get(0) instanceof ListExpression list)) {
                 throw new RuntimeException("jsonIndexOf: first argument must be a list");
             }
@@ -195,7 +233,7 @@ public class Json implements Lib {
             return (double) -1;
         }));
 
-        environment.define("jsonKeys", new NativeFunction(1, args -> {
+        environment.define("jsonKeys", new NativeFunction(1, "json", args -> {
             String json = String.valueOf(args.get(0)).trim();
             List<Expression> members = new ArrayList<>();
             int start = json.indexOf('{');
@@ -238,7 +276,7 @@ public class Json implements Lib {
             return new ListExpression(members);
         }));
 
-        environment.define("jsonSize", new NativeFunction(1, args -> {
+        environment.define("jsonSize", new NativeFunction(1, "json", args -> {
             String json = String.valueOf(args.get(0)).trim();
             if (json.startsWith("{")) {
                 int count = 0;
@@ -300,7 +338,7 @@ public class Json implements Lib {
             return 0.0;
         }));
 
-        environment.define("jsonSet", new NativeFunction(3, args -> {
+        environment.define("jsonSet", new NativeFunction(3, "json, key, value", args -> {
             String json = String.valueOf(args.get(0));
             String key = String.valueOf(args.get(1));
             Object value = args.get(2);
@@ -312,7 +350,12 @@ public class Json implements Lib {
             } else if (value == null || value.toString().equals("null")) {
                 valStr = "null";
             } else {
-                valStr = "\"" + String.valueOf(value) + "\"";
+                String s = String.valueOf(value);
+                if (s.startsWith("{") || s.startsWith("[")) {
+                    valStr = s;  // nested JSON — store raw, not quoted
+                } else {
+                    valStr = "\"" + s.replace("\\", "\\\\").replace("\"", "\\\"") + "\"";
+                }
             }
             String keyPattern = "\"" + Pattern.quote(key) + "\"\\s*:\\s*(?:\"[^\"]*\"|[^,}\\]]+)";
             String replacement = "\"" + key + "\": " + valStr;

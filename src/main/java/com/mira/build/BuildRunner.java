@@ -1,13 +1,12 @@
 package com.mira.build;
 
 import java.io.IOException;
-import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.PathMatcher;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -24,7 +23,12 @@ import com.mira.testing.TestRunner;
 public class BuildRunner {
 
     public static void runBuild(BuildContext ctx, ProjectConfig.BuildMode modeOverride, boolean watch) {
-        ctx.applyFlags(modeOverride);
+        runBuild(ctx, modeOverride, null, watch);
+    }
+
+    public static void runBuild(BuildContext ctx, ProjectConfig.BuildMode modeOverride,
+            ProjectConfig.JarBundle jarBundleOverride, boolean watch) {
+        ctx.applyFlags(modeOverride, jarBundleOverride);
         if (watch) {
             new HotReloader(Flags.inputPath.get()).run();
             return;
@@ -38,7 +42,11 @@ public class BuildRunner {
         }
         runHook(ctx, ctx.config().build().preBuild());
         long start = System.currentTimeMillis();
-        Main.runFile(new AtomicBoolean(false));
+        boolean ok = Main.runFile(new AtomicBoolean(false));
+        if (!ok) {
+            System.err.println(DiagnosticFormatter.formatFail("build failed"));
+            System.exit(1);
+        }
         if (Flags.compile) {
             System.out.println(DiagnosticFormatter.formatInfo(
                     "finished in " + (System.currentTimeMillis() - start) + " ms"));
@@ -122,15 +130,50 @@ public class BuildRunner {
     }
 
     private static List<Path> findTestFiles(Path root, String pattern) {
-        PathMatcher matcher = FileSystems.getDefault().getPathMatcher("glob:" + pattern);
+        Pattern compiled = Pattern.compile(globToRegex(pattern));
         try (Stream<Path> stream = Files.walk(root)) {
             return stream
                     .filter(Files::isRegularFile)
-                    .filter(p -> matcher.matches(root.relativize(p)))
+                    .filter(p -> {
+                        String rel = root.relativize(p).toString().replace(java.io.File.separatorChar, '/');
+                        return compiled.matcher(rel).matches();
+                    })
                     .sorted()
                     .collect(Collectors.toCollection(ArrayList::new));
         } catch (IOException e) {
             return new ArrayList<>();
         }
+    }
+
+    private static String globToRegex(String glob) {
+        glob = glob.replace('\\', '/');
+        StringBuilder sb = new StringBuilder("^");
+        int i = 0;
+        while (i < glob.length()) {
+            char c = glob.charAt(i);
+            if (c == '*' && i + 1 < glob.length() && glob.charAt(i + 1) == '*') {
+                i += 2;
+                if (i < glob.length() && glob.charAt(i) == '/') {
+                    i++;
+                    sb.append("(.*/)?");
+                } else {
+                    sb.append(".*");
+                }
+            } else if (c == '*') {
+                sb.append("[^/]*");
+                i++;
+            } else if (c == '?') {
+                sb.append("[^/]");
+                i++;
+            } else if (".()[]{}+^$|\\".indexOf(c) >= 0) {
+                sb.append('\\').append(c);
+                i++;
+            } else {
+                sb.append(c);
+                i++;
+            }
+        }
+        sb.append("$");
+        return sb.toString();
     }
 }

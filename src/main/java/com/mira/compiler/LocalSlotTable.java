@@ -1,8 +1,10 @@
 package com.mira.compiler;
 
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Deque;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 public class LocalSlotTable {
@@ -47,5 +49,18 @@ public class LocalSlotTable {
 
     public int current() {
         return nextSlot;
+    }
+
+    public List<String> getCaptureList() {
+        List<Map.Entry<String, Integer>> all = new ArrayList<>();
+        for (Map<String, Integer> scope : scopeStack) {
+            for (Map.Entry<String, Integer> e : scope.entrySet()) {
+                if (!e.getKey().startsWith("$$")) {
+                    all.add(e);
+                }
+            }
+        }
+        all.sort(Map.Entry.comparingByValue());
+        return all.stream().map(Map.Entry::getKey).toList();
     }
 }

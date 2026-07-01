@@ -25,9 +25,11 @@ import com.mira.Flags;
 import com.mira.error.MiraError;
 import com.mira.error.runtime.RuntimeError;
 import com.mira.error.runtime.RuntimeError.LibImportConflictError;
+import com.mira.error.runtime.RuntimeError.ModuleSymbolNotFoundError;
 import com.mira.error.runtime.RuntimeError.NativeLibLoadError;
 import com.mira.error.runtime.RuntimeError.NativeLibNoImplementationError;
 import com.mira.error.runtime.RuntimeError.NativeLibNotFoundError;
+import com.mira.error.runtime.RuntimeError.PrivateSymbolImportError;
 import com.mira.lexer.Tokenizer;
 import com.mira.lexer.token.Token;
 import com.mira.lib.Lib;
@@ -285,7 +287,31 @@ public class ImportResolver {
                 interpreter.loadASTIntoContext(ast, modulePrivateEnv);
             }
 
-            if (hasAlias) {
+            if (importExpression.isSelective()) {
+                List<String> names = importExpression.getSelectedFunctions();
+                for (String name : names) {
+                    if (!modulePrivateEnv.exists(name)) {
+                        throw new ModuleSymbolNotFoundError(name, importExpression.getModule());
+                    }
+                    if (!modulePrivateEnv.isPublicDeclaration(name)) {
+                        throw new PrivateSymbolImportError(name, importExpression.getModule());
+                    }
+                }
+                if (hasAlias) {
+                    Namespace ns = new Namespace(alias);
+                    for (String name : names) {
+                        ns.define(name, modulePrivateEnv.get(name));
+                    }
+                    resolvedModules.put(moduleKey, ns);
+                    synchronized (environment) {
+                        environment.define(alias, ns);
+                    }
+                } else {
+                    for (String name : names) {
+                        environment.define(name, modulePrivateEnv.get(name));
+                    }
+                }
+            } else if (hasAlias) {
                 Namespace publicNamespace = new Namespace(alias);
                 modulePrivateEnv.copyDeclarationsTo(publicNamespace, importedSymbols);
                 resolvedModules.put(moduleKey, publicNamespace);

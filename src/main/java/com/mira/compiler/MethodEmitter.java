@@ -52,6 +52,9 @@ import com.mira.parser.nodes.expression.Expression.MapExpression;
 import com.mira.parser.nodes.expression.Expression.MethodCallExpression;
 import com.mira.parser.nodes.expression.Expression.NamespaceCallExpression;
 import com.mira.parser.nodes.expression.Expression.ObjectExpression;
+import com.mira.parser.nodes.expression.Expression.StructExpression;
+import com.mira.parser.nodes.expression.Expression.AssignExpression;
+import com.mira.parser.nodes.expression.Expression.StructInitExpression;
 import com.mira.parser.nodes.expression.Expression.RangeExpression;
 import com.mira.parser.nodes.expression.Expression.SwitchExpression;
 import com.mira.parser.nodes.expression.Expression.TernaryExpression;
@@ -91,6 +94,16 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
     private static final String ENV_D = ClassEmitter.ENV_DESC;
     private static final String OBJ = "java/lang/Object";
     private static final String OBJ_D = "Ljava/lang/Object;";
+    private static final String STRUCT_TEMPLATE_D = "Lcom/mira/runtime/StructTemplate;";
+
+    private static final String RS = "com/mira/compiler/ReturnSignal";
+    private static final String BS = "com/mira/compiler/BreakSignal";
+    private static final String CS = "com/mira/compiler/ContinueSignal";
+    private static final int SPLIT_THRESHOLD = 40_000;
+
+    boolean splitEnabled = false;
+    boolean methodEnded = false;
+    private int emitBodyDepth = 0;
 
     public MethodEmitter(CompilerContext ctx, ClassEmitter ce) {
         this.ctx = ctx;
@@ -185,8 +198,63 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
     }
 
     public void emitBody(List<Node> body) {
-        for (Node node : body) {
-            emitNode(node);
+        emitBodyDepth++;
+        boolean canSplit = splitEnabled && emitBodyDepth == 1;
+        for (int i = 0; i < body.size(); i++) {
+            if (canSplit && ctx.instrBytes[0] >= SPLIT_THRESHOLD) {
+                emitSplitContinuation(body.subList(i, body.size()));
+                emitBodyDepth--;
+                return;
+            }
+            emitNode(body.get(i));
+        }
+        emitBodyDepth--;
+    }
+
+    private void emitSplitContinuation(java.util.List<Node> remaining) {
+        List<String> captureNames = ctx.slots.getCaptureList();
+        int captureCount = captureNames.size();
+        String helperName = "mira$split$" + (ctx.lambdaCounter[0]++);
+
+        // Build Object[] with all current locals and call the continuation helper
+        emitIntConst(captureCount);
+        mv.visitTypeInsn(ANEWARRAY, OBJ);
+        for (int i = 0; i < captureCount; i++) {
+            mv.visitInsn(DUP);
+            emitIntConst(i);
+            mv.visitVarInsn(ALOAD, ctx.slots.slotOf(captureNames.get(i)));
+            mv.visitInsn(AASTORE);
+        }
+        mv.visitMethodInsn(INVOKESTATIC, ctx.className, helperName, ClassEmitter.FN_DESC, false);
+        mv.visitInsn(ARETURN);
+        mv.visitMaxs(0, 0);
+        mv.visitEnd();
+        methodEnded = true;
+
+        // Open continuation method, unpack captures, emit remaining statements
+        int[] hInstrBytes = {0};
+        MethodVisitor hRawMv = ce.openFunction(helperName);
+        hRawMv.visitCode();
+        ByteCountingMV hmv = new ByteCountingMV(hRawMv, hInstrBytes);
+        LocalSlotTable hSlots = new LocalSlotTable(1);
+        for (int i = 0; i < captureCount; i++) {
+            String name = captureNames.get(i);
+            int slot = hSlots.allocate(name);
+            hmv.visitVarInsn(ALOAD, 0);
+            emitIntConst(hmv, i);
+            hmv.visitInsn(AALOAD);
+            hmv.visitVarInsn(ASTORE, slot);
+        }
+        CompilerContext hCtx = new CompilerContext(ctx.className, hmv, hSlots,
+                ctx.knownFunctions, ctx.lambdaCounter, false, hInstrBytes);
+        MethodEmitter hme = new MethodEmitter(hCtx, ce);
+        hme.splitEnabled = true;
+        hme.emitBody(remaining);
+        if (!hme.methodEnded) {
+            hmv.visitMethodInsn(INVOKESTATIC, RT, "nullVal", "()" + OBJ_D, false);
+            hmv.visitInsn(ARETURN);
+            hmv.visitMaxs(0, 0);
+            hmv.visitEnd();
         }
     }
 
@@ -533,12 +601,27 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
         String lambdaClass = ctx.className + "$Lambda$" + n;
         int arity = lambda.getArity();
 
-        MethodVisitor lmv = ce.openFunction(methodName);
-        lmv.visitCode();
+        List<String> captureNames = ctx.isTopLevel ? List.of() : ctx.slots.getCaptureList();
+        int captureCount = captureNames.size();
+
+        MethodVisitor lRawMv = ce.openFunction(methodName);
+        lRawMv.visitCode();
+        int[] lInstrBytes = {0};
+        ByteCountingMV lmv = new ByteCountingMV(lRawMv, lInstrBytes);
         LocalSlotTable lSlots = new LocalSlotTable(1);
         CompilerContext lCtx = new CompilerContext(ctx.className, lmv, lSlots,
-                ctx.knownFunctions, ctx.lambdaCounter, false);
+                ctx.knownFunctions, ctx.lambdaCounter, false, lInstrBytes);
         MethodEmitter lme = new MethodEmitter(lCtx, ce);
+        lme.splitEnabled = true;
+
+        // Load captured outer-scope variables from the front of the combined args array
+        for (int ci = 0; ci < captureCount; ci++) {
+            int slot = lSlots.allocate(captureNames.get(ci));
+            lmv.visitVarInsn(ALOAD, 0);
+            emitIntConst(lmv, ci);
+            lmv.visitInsn(AALOAD);
+            lmv.visitVarInsn(ASTORE, slot);
+        }
 
         List<Parameter> params = lambda.getParameters();
         for (int i = 0; i < params.size(); i++) {
@@ -548,10 +631,10 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
                 Label useDefault = new Label(), useDefaultAfterPop = new Label(), done = new Label();
                 lmv.visitVarInsn(ALOAD, 0);
                 lmv.visitInsn(org.objectweb.asm.Opcodes.ARRAYLENGTH);
-                emitIntConst(lmv, i + 1);
+                emitIntConst(lmv, captureCount + i + 1);
                 lmv.visitJumpInsn(org.objectweb.asm.Opcodes.IF_ICMPLT, useDefault);
                 lmv.visitVarInsn(ALOAD, 0);
-                emitIntConst(lmv, i);
+                emitIntConst(lmv, captureCount + i);
                 lmv.visitInsn(AALOAD);
                 lmv.visitInsn(DUP);
                 lmv.visitMethodInsn(INVOKESTATIC, RT, "isNullValue", "(Ljava/lang/Object;)Z", false);
@@ -564,7 +647,7 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
                 lmv.visitLabel(done);
             } else {
                 lmv.visitVarInsn(ALOAD, 0);
-                emitIntConst(lmv, i);
+                emitIntConst(lmv, captureCount + i);
                 lmv.visitInsn(AALOAD);
             }
             lmv.visitVarInsn(ASTORE, slot);
@@ -573,31 +656,60 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
         if (lambda.getVariadicParam() != null) {
             int slot = lSlots.allocate(lambda.getVariadicParam());
             lmv.visitVarInsn(ALOAD, 0);
-            emitIntConst(lmv, params.size());
+            emitIntConst(lmv, captureCount + params.size());
             lmv.visitMethodInsn(INVOKESTATIC, RT, "variadicTail",
                     "([Ljava/lang/Object;I)Ljava/lang/Object;", false);
             lmv.visitVarInsn(ASTORE, slot);
         }
 
         lme.emitBody(lambda.getBody());
-        lmv.visitMethodInsn(INVOKESTATIC, RT, "nullVal", "()" + OBJ_D, false);
-        lmv.visitInsn(ARETURN);
-        lmv.visitMaxs(0, 0);
-        lmv.visitEnd();
+        if (!lme.methodEnded) {
+            lmv.visitMethodInsn(INVOKESTATIC, RT, "nullVal", "()" + OBJ_D, false);
+            lmv.visitInsn(ARETURN);
+            lmv.visitMaxs(0, 0);
+            lmv.visitEnd();
+        }
 
         String syncClass = lambdaClass + (lambda.isAsync() ? "$sync" : "");
-        ce.emitLambdaClass(syncClass, ctx.className, methodName, arity);
+        if (captureCount > 0) {
+            ce.emitLambdaClassWithCaptures(syncClass, ctx.className, methodName, arity);
+        } else {
+            ce.emitLambdaClass(syncClass, ctx.className, methodName, arity);
+        }
 
         String visibleClass = syncClass;
         if (lambda.isAsync()) {
-            ce.emitAsyncLambdaClass(lambdaClass, syncClass, arity);
+            if (captureCount > 0) {
+                ce.emitAsyncLambdaClassWithCaptures(lambdaClass, syncClass, arity);
+            } else {
+                ce.emitAsyncLambdaClass(lambdaClass, syncClass, arity);
+            }
             visibleClass = lambdaClass;
         }
 
-        mv.visitTypeInsn(NEW, visibleClass);
-        mv.visitInsn(DUP);
-        emitIntConst(arity);
-        mv.visitMethodInsn(INVOKESPECIAL, visibleClass, "<init>", "(I)V", false);
+        if (captureCount > 0) {
+            // Build the captures array from the current local slots
+            emitIntConst(captureCount);
+            mv.visitTypeInsn(ANEWARRAY, "java/lang/Object");
+            for (int ci = 0; ci < captureCount; ci++) {
+                mv.visitInsn(DUP);
+                emitIntConst(ci);
+                mv.visitVarInsn(ALOAD, ctx.slots.slotOf(captureNames.get(ci)));
+                mv.visitInsn(AASTORE);
+            }
+            int capturesSlot = ctx.slots.allocateTemp();
+            mv.visitVarInsn(ASTORE, capturesSlot);
+            mv.visitTypeInsn(NEW, visibleClass);
+            mv.visitInsn(DUP);
+            emitIntConst(arity);
+            mv.visitVarInsn(ALOAD, capturesSlot);
+            mv.visitMethodInsn(INVOKESPECIAL, visibleClass, "<init>", "(I[Ljava/lang/Object;)V", false);
+        } else {
+            mv.visitTypeInsn(NEW, visibleClass);
+            mv.visitInsn(DUP);
+            emitIntConst(arity);
+            mv.visitMethodInsn(INVOKESPECIAL, visibleClass, "<init>", "(I)V", false);
+        }
         return null;
     }
 
@@ -761,6 +873,76 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
         return null;
     }
 
+    @Override
+    public <T> T visitStructExpression(StructExpression expression) {
+        mv.visitMethodInsn(INVOKESTATIC, RT, "makeObject", "()" + ENV_D, false);
+        int envSlot = ctx.slots.allocate("$$structdefaults$" + ctx.lambdaCounter[0]);
+        mv.visitVarInsn(ASTORE, envSlot);
+
+        for (VarDecl field : expression.getVarDecls()) {
+            mv.visitVarInsn(ALOAD, envSlot);
+            mv.visitLdcInsn(field.getName());
+            if (field.getInitializer() != null) {
+                field.getInitializer().accept(this);
+            } else {
+                emitNullVal();
+            }
+            String defineMethod = field.isConst() ? "defineConst" : "define";
+            mv.visitMethodInsn(INVOKEVIRTUAL, ENV, defineMethod,
+                    "(Ljava/lang/String;" + OBJ_D + ")V", false);
+        }
+
+        for (FuncDecl method : expression.getMethods()) {
+            int n = ctx.lambdaCounter[0]++;
+            String mName = "mira$lambda$" + n;
+            String lClass = ctx.className + "$Lambda$" + n;
+            emitMethodAsLambda(method, mName, lClass);
+            mv.visitVarInsn(ALOAD, envSlot);
+            mv.visitLdcInsn(method.getName());
+            mv.visitTypeInsn(NEW, lClass);
+            mv.visitInsn(DUP);
+            emitIntConst(method.getArity());
+            mv.visitMethodInsn(INVOKESPECIAL, lClass, "<init>", "(I)V", false);
+            mv.visitMethodInsn(INVOKEVIRTUAL, ENV, "define",
+                    "(Ljava/lang/String;" + OBJ_D + ")V", false);
+        }
+
+        mv.visitVarInsn(ALOAD, envSlot);
+        mv.visitMethodInsn(INVOKESTATIC, RT, "makeStructTemplate",
+                "(" + ENV_D + ")" + STRUCT_TEMPLATE_D, false);
+        return null;
+    }
+
+    @Override
+    public <T> T visitStructInitExpression(StructInitExpression expression) {
+        expression.getTarget().accept(this);
+
+        List<String> names = new java.util.ArrayList<>(expression.getOverrides().keySet());
+        List<Expression> values = new java.util.ArrayList<>(expression.getOverrides().values());
+
+        emitIntConst(names.size());
+        mv.visitTypeInsn(ANEWARRAY, "java/lang/String");
+        for (int i = 0; i < names.size(); i++) {
+            mv.visitInsn(DUP);
+            emitIntConst(i);
+            mv.visitLdcInsn(names.get(i));
+            mv.visitInsn(AASTORE);
+        }
+
+        emitIntConst(values.size());
+        mv.visitTypeInsn(ANEWARRAY, OBJ);
+        for (int i = 0; i < values.size(); i++) {
+            mv.visitInsn(DUP);
+            emitIntConst(i);
+            values.get(i).accept(this);
+            mv.visitInsn(AASTORE);
+        }
+
+        mv.visitMethodInsn(INVOKESTATIC, RT, "makeStructInstance",
+                "(" + OBJ_D + "[Ljava/lang/String;[" + OBJ_D + ")" + ENV_D, false);
+        return null;
+    }
+
     private void emitMethodAsLambda(FuncDecl method, String mName, String lClass) {
         MethodVisitor lmv = ce.openFunction(mName);
         lmv.visitCode();
@@ -915,38 +1097,82 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
         String mName = "mira$lambda$" + n;
         String lClass = ctx.className + "$Lambda$" + n;
 
-        MethodVisitor lmv = ce.openFunction(mName);
-        lmv.visitCode();
+        List<String> captureNames = ctx.isTopLevel ? List.of() : ctx.slots.getCaptureList();
+        int captureCount = captureNames.size();
+
+        MethodVisitor lRawMv2 = ce.openFunction(mName);
+        lRawMv2.visitCode();
+        int[] lInstrBytes2 = {0};
+        ByteCountingMV lmv = new ByteCountingMV(lRawMv2, lInstrBytes2);
         LocalSlotTable lSlots = new LocalSlotTable(1);
         CompilerContext lCtx = new CompilerContext(ctx.className, lmv, lSlots,
-                ctx.knownFunctions, ctx.lambdaCounter, false);
+                ctx.knownFunctions, ctx.lambdaCounter, false, lInstrBytes2);
         MethodEmitter lme = new MethodEmitter(lCtx, ce);
+        lme.splitEnabled = true;
+
+        // Load captured outer-scope variables from the front of the combined args array
+        for (int ci = 0; ci < captureCount; ci++) {
+            int slot = lSlots.allocate(captureNames.get(ci));
+            lmv.visitVarInsn(ALOAD, 0);
+            emitIntConst(lmv, ci);
+            lmv.visitInsn(AALOAD);
+            lmv.visitVarInsn(ASTORE, slot);
+        }
+
         List<Parameter> params = stmt.getParameters();
         for (int i = 0; i < params.size(); i++) {
             int slot = lSlots.allocate(params.get(i).name());
             lmv.visitVarInsn(ALOAD, 0);
-            emitIntConst(lmv, i);
+            emitIntConst(lmv, captureCount + i);
             lmv.visitInsn(AALOAD);
             lmv.visitVarInsn(ASTORE, slot);
         }
         lme.emitBody(stmt.getBody());
-        lmv.visitMethodInsn(INVOKESTATIC, RT, "nullVal", "()" + OBJ_D, false);
-        lmv.visitInsn(ARETURN);
-        lmv.visitMaxs(0, 0);
-        lmv.visitEnd();
+        if (!lme.methodEnded) {
+            lmv.visitMethodInsn(INVOKESTATIC, RT, "nullVal", "()" + OBJ_D, false);
+            lmv.visitInsn(ARETURN);
+            lmv.visitMaxs(0, 0);
+            lmv.visitEnd();
+        }
         String syncClass = lClass + (stmt.isAsync() ? "$sync" : "");
-        ce.emitLambdaClass(syncClass, ctx.className, mName, stmt.getArity());
+        if (captureCount > 0) {
+            ce.emitLambdaClassWithCaptures(syncClass, ctx.className, mName, stmt.getArity());
+        } else {
+            ce.emitLambdaClass(syncClass, ctx.className, mName, stmt.getArity());
+        }
 
         String visibleClass = syncClass;
         if (stmt.isAsync()) {
-            ce.emitAsyncLambdaClass(lClass, syncClass, stmt.getArity());
+            if (captureCount > 0) {
+                ce.emitAsyncLambdaClassWithCaptures(lClass, syncClass, stmt.getArity());
+            } else {
+                ce.emitAsyncLambdaClass(lClass, syncClass, stmt.getArity());
+            }
             visibleClass = lClass;
         }
 
-        mv.visitTypeInsn(NEW, visibleClass);
-        mv.visitInsn(DUP);
-        emitIntConst(stmt.getArity());
-        mv.visitMethodInsn(INVOKESPECIAL, visibleClass, "<init>", "(I)V", false);
+        if (captureCount > 0) {
+            emitIntConst(captureCount);
+            mv.visitTypeInsn(ANEWARRAY, "java/lang/Object");
+            for (int ci = 0; ci < captureCount; ci++) {
+                mv.visitInsn(DUP);
+                emitIntConst(ci);
+                mv.visitVarInsn(ALOAD, ctx.slots.slotOf(captureNames.get(ci)));
+                mv.visitInsn(AASTORE);
+            }
+            int capturesSlot = ctx.slots.allocateTemp();
+            mv.visitVarInsn(ASTORE, capturesSlot);
+            mv.visitTypeInsn(NEW, visibleClass);
+            mv.visitInsn(DUP);
+            emitIntConst(stmt.getArity());
+            mv.visitVarInsn(ALOAD, capturesSlot);
+            mv.visitMethodInsn(INVOKESPECIAL, visibleClass, "<init>", "(I[Ljava/lang/Object;)V", false);
+        } else {
+            mv.visitTypeInsn(NEW, visibleClass);
+            mv.visitInsn(DUP);
+            emitIntConst(stmt.getArity());
+            mv.visitMethodInsn(INVOKESPECIAL, visibleClass, "<init>", "(I)V", false);
+        }
 
         if (ctx.isTopLevel) {
             int tmp = ctx.slots.allocate("$$fn_" + stmt.getName());
@@ -1006,6 +1232,30 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
     }
 
     @Override
+    public <T> T visitAssignExpression(AssignExpression e) {
+        if (e.getReference() instanceof UnaryExpression ue
+                && ue.getOperation().getLexeme().equals("$")) {
+            String name = ((DumbExpression) ue.getRight()).getValue();
+            Integer slot = ctx.slots.slotOf(name);
+            int tmp = ctx.slots.allocateTemp();
+            e.getValue().accept(this);
+            mv.visitVarInsn(ASTORE, tmp);
+            if (!ctx.isTopLevel && slot != null) {
+                mv.visitVarInsn(ALOAD, tmp);
+                mv.visitVarInsn(ASTORE, slot);
+            } else {
+                emitGlobals();
+                mv.visitLdcInsn(name);
+                mv.visitVarInsn(ALOAD, tmp);
+                mv.visitMethodInsn(INVOKEVIRTUAL, ENV, "assign",
+                        "(Ljava/lang/String;" + OBJ_D + ")V", false);
+            }
+            mv.visitVarInsn(ALOAD, tmp);
+        }
+        return null;
+    }
+
+    @Override
     public Void visitReturn(Return ret) {
         if (ret.getValue() != null) {
             ret.getValue().accept(this);
@@ -1021,6 +1271,15 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
             mv.visitVarInsn(ALOAD, tmpSlot);
             mv.visitMethodInsn(INVOKESPECIAL, sig, "<init>", "(Ljava/lang/Object;)V", false);
             mv.visitInsn(ATHROW);
+        } else if (ctx.isPartialExtract) {
+            // Wrap return value in ReturnSignal so the calling switch/if can propagate it
+            int tmpSlot = ctx.slots.allocateTemp();
+            mv.visitVarInsn(ASTORE, tmpSlot);
+            mv.visitTypeInsn(NEW, RS);
+            mv.visitInsn(DUP);
+            mv.visitVarInsn(ALOAD, tmpSlot);
+            mv.visitMethodInsn(INVOKESPECIAL, RS, "<init>", "(Ljava/lang/Object;)V", false);
+            mv.visitInsn(ARETURN);
         } else {
             mv.visitInsn(ARETURN);
         }
@@ -1199,6 +1458,11 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
     @Override
     public Void visitBreak(Break stmt) {
         if (ctx.breakStack.isEmpty()) {
+            if (ctx.isPartialExtract) {
+                mv.visitFieldInsn(GETSTATIC, BS, "INSTANCE", "L" + BS + ";");
+                mv.visitInsn(ARETURN);
+                return null;
+            }
             throw new RuntimeException("break outside loop");
         }
         mv.visitJumpInsn(GOTO, ctx.breakStack.peek());
@@ -1208,6 +1472,11 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
     @Override
     public Void visitContinue(Continue stmt) {
         if (ctx.continueStack.isEmpty()) {
+            if (ctx.isPartialExtract) {
+                mv.visitFieldInsn(GETSTATIC, CS, "INSTANCE", "L" + CS + ";");
+                mv.visitInsn(ARETURN);
+                return null;
+            }
             throw new RuntimeException("continue outside loop");
         }
         mv.visitJumpInsn(GOTO, ctx.continueStack.peek());
@@ -1233,7 +1502,11 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
         Label switchEnd = new Label();
         ctx.breakStack.push(switchEnd);
 
+        boolean extractCases = false;
         for (Statement.SwitchCase sc : stmt.getCases()) {
+            if (splitEnabled && !extractCases && ctx.instrBytes[0] >= SPLIT_THRESHOLD) {
+                extractCases = true;
+            }
             Label skip = new Label();
             mv.visitVarInsn(ALOAD, subjSlot);
             sc.getValue().accept(this);
@@ -1241,21 +1514,104 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
                     "(" + OBJ_D + OBJ_D + ")" + OBJ_D, false);
             emitIsTruthy();
             mv.visitJumpInsn(IFEQ, skip);
-            ctx.slots.enterScope();
-            emitBody(sc.getBody());
-            ctx.slots.exitScope();
+            if (extractCases) {
+                extractSwitchCaseBody(sc.getBody(), switchEnd);
+            } else {
+                ctx.slots.enterScope();
+                emitBody(sc.getBody());
+                ctx.slots.exitScope();
+            }
             mv.visitJumpInsn(GOTO, switchEnd);
             mv.visitLabel(skip);
         }
         if (stmt.getDefaultBody() != null) {
-            ctx.slots.enterScope();
-            emitBody(stmt.getDefaultBody());
-            ctx.slots.exitScope();
+            if (extractCases) {
+                extractSwitchCaseBody(stmt.getDefaultBody(), switchEnd);
+            } else {
+                ctx.slots.enterScope();
+                emitBody(stmt.getDefaultBody());
+                ctx.slots.exitScope();
+            }
         }
 
         mv.visitLabel(switchEnd);
         ctx.breakStack.pop();
         return null;
+    }
+
+    private void extractSwitchCaseBody(List<Node> body, Label switchEnd) {
+        List<String> captureNames = ctx.slots.getCaptureList();
+        int captureCount = captureNames.size();
+        String helperName = "mira$split$" + (ctx.lambdaCounter[0]++);
+
+        // Build capture array and invoke helper
+        emitIntConst(captureCount);
+        mv.visitTypeInsn(ANEWARRAY, OBJ);
+        for (int i = 0; i < captureCount; i++) {
+            mv.visitInsn(DUP);
+            emitIntConst(i);
+            mv.visitVarInsn(ALOAD, ctx.slots.slotOf(captureNames.get(i)));
+            mv.visitInsn(AASTORE);
+        }
+        mv.visitMethodInsn(INVOKESTATIC, ctx.className, helperName, ClassEmitter.FN_DESC, false);
+
+        // Store result and check control-flow signals
+        int resultSlot = ctx.slots.allocateTemp();
+        mv.visitVarInsn(ASTORE, resultSlot);
+
+        Label notReturn = new Label();
+        mv.visitVarInsn(ALOAD, resultSlot);
+        mv.visitTypeInsn(org.objectweb.asm.Opcodes.INSTANCEOF, RS);
+        mv.visitJumpInsn(IFEQ, notReturn);
+        mv.visitVarInsn(ALOAD, resultSlot);
+        mv.visitTypeInsn(org.objectweb.asm.Opcodes.CHECKCAST, RS);
+        mv.visitFieldInsn(org.objectweb.asm.Opcodes.GETFIELD, RS, "value", OBJ_D);
+        mv.visitInsn(ARETURN);
+        mv.visitLabel(notReturn);
+
+        Label notBreak = new Label();
+        mv.visitVarInsn(ALOAD, resultSlot);
+        mv.visitTypeInsn(org.objectweb.asm.Opcodes.INSTANCEOF, BS);
+        mv.visitJumpInsn(IFEQ, notBreak);
+        mv.visitJumpInsn(GOTO, switchEnd);
+        mv.visitLabel(notBreak);
+
+        if (!ctx.continueStack.isEmpty()) {
+            Label notContinue = new Label();
+            mv.visitVarInsn(ALOAD, resultSlot);
+            mv.visitTypeInsn(org.objectweb.asm.Opcodes.INSTANCEOF, CS);
+            mv.visitJumpInsn(IFEQ, notContinue);
+            mv.visitJumpInsn(GOTO, ctx.continueStack.peek());
+            mv.visitLabel(notContinue);
+        }
+        // Normal completion: fall through; visitSwitch will emit GOTO switchEnd
+
+        // Compile helper method
+        int[] hInstrBytes = {0};
+        MethodVisitor hRawMv = ce.openFunction(helperName);
+        hRawMv.visitCode();
+        ByteCountingMV hmv = new ByteCountingMV(hRawMv, hInstrBytes);
+        LocalSlotTable hSlots = new LocalSlotTable(1);
+        for (int i = 0; i < captureCount; i++) {
+            String name = captureNames.get(i);
+            int slot = hSlots.allocate(name);
+            hmv.visitVarInsn(ALOAD, 0);
+            emitIntConst(hmv, i);
+            hmv.visitInsn(AALOAD);
+            hmv.visitVarInsn(ASTORE, slot);
+        }
+        CompilerContext hCtx = new CompilerContext(ctx.className, hmv, hSlots,
+                ctx.knownFunctions, ctx.lambdaCounter, false, hInstrBytes);
+        hCtx.isPartialExtract = true;
+        MethodEmitter hme = new MethodEmitter(hCtx, ce);
+        hme.splitEnabled = true;
+        hme.emitBody(body);
+        if (!hme.methodEnded) {
+            hmv.visitMethodInsn(INVOKESTATIC, RT, "nullVal", "()" + OBJ_D, false);
+            hmv.visitInsn(ARETURN);
+            hmv.visitMaxs(0, 0);
+            hmv.visitEnd();
+        }
     }
 
     @Override

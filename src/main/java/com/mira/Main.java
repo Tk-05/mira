@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.nio.file.Paths;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.mira.build.BuildDispatcher;
@@ -15,6 +16,7 @@ import com.mira.error.resolver.MultipleStaticCheckErrors;
 import com.mira.lexer.Tokenizer;
 import com.mira.lexer.token.Token;
 import com.mira.lib.LibIndex;
+import com.mira.lsp.AstFormatter;
 import com.mira.lsp.Launcher;
 import com.mira.parser.Parser;
 import com.mira.parser.nodes.Node;
@@ -48,6 +50,25 @@ public class Main {
                     com.mira.dap.DapLauncher.launch();
                 } catch (Exception e) {
                     System.err.println("DAP server error: " + e.getMessage());
+                }
+                return;
+            }
+
+            if (args[0].equals("--fmt")) {
+                if (args.length < 2) {
+                    System.err.println("Usage: mira --fmt <file.mira>");
+                    System.exit(1);
+                    return;
+                }
+                try {
+                    java.nio.file.Path fmtPath = Paths.get(args[1]).toAbsolutePath().normalize();
+                    String fmtSource = FileLoader.readFileFromPath(fmtPath.toString());
+                    String fmtResult = AstFormatter.format(fmtSource);
+                    java.nio.file.Files.writeString(fmtPath, fmtResult);
+                    System.out.println("Formatted: " + fmtPath);
+                } catch (Exception e) {
+                    System.err.println("Format error: " + e.getMessage());
+                    System.exit(1);
                 }
                 return;
             }
@@ -116,6 +137,8 @@ public class Main {
                         Flags.packageJar = true;
                     case "-nsc" ->
                         Flags.skipStaticCheck = true;
+                    case "-no-warn" ->
+                        Flags.suppressWarnings = true;
                     default -> {
                         System.err.println(DiagnosticFormatter.formatError("'" + args[i] + "' is not a known flag"));
                         System.err.println("Use -h for help.");
@@ -145,7 +168,7 @@ public class Main {
         runFile(new AtomicBoolean(false));
     }
 
-    public static void runFile(AtomicBoolean stopping) {
+    public static boolean runFile(AtomicBoolean stopping) {
         long start = System.currentTimeMillis();
 
         String readFile;
@@ -155,7 +178,7 @@ public class Main {
             if (!stopping.get()) {
                 System.err.println(DiagnosticFormatter.formatFileError(Flags.inputPath.get(), e));
             }
-            return;
+            return false;
         }
 
         Flags.fileName = Flags.inputPath.get().getFileName().toString();
@@ -178,9 +201,19 @@ public class Main {
             }
 
             if (!Flags.skipStaticCheck) {
-                new StaticCheck().check(asts);
+                boolean mainErrors = false;
+                try {
+                    new StaticCheck(Set.of(), Flags.inputPath.get()).check(asts);
+                } catch (MultipleStaticCheckErrors mre) {
+                    WarningCollector.clear();
+                    mre.getErrors().forEach(e -> System.err.println(DiagnosticFormatter.format(e)));
+                    mainErrors = true;
+                }
+                boolean moduleErrors = ModuleChecker.check(asts, new LinkedHashSet<>());
                 WarningCollector.flush();
-                ModuleChecker.check(asts, new LinkedHashSet<>());
+                if (mainErrors || moduleErrors) {
+                    return false;
+                }
             }
 
             if (Flags.libInfo) {
@@ -188,12 +221,12 @@ public class Main {
             }
 
             if (Flags.exitBeforeInterpreter) {
-                return;
+                return true;
             }
 
             if (Flags.testMode) {
                 TestRunner.runPrePass(asts, Flags.args);
-                return;
+                return true;
             }
 
             if (Flags.packageJar && !Flags.compile) {
@@ -202,7 +235,7 @@ public class Main {
 
             if (Flags.compile) {
                 new CompileRunner().run(asts);
-                return;
+                return true;
             }
 
             if (Flags.mainFunction) {
@@ -231,19 +264,21 @@ public class Main {
         } catch (MultipleParserErrors mpe) {
             WarningCollector.clear();
             if (stopping.get() || Thread.currentThread().isInterrupted()) {
-                return;
+                return false;
             }
             mpe.getErrors().forEach(e -> System.err.println(DiagnosticFormatter.format(e)));
+            return false;
         } catch (MultipleStaticCheckErrors mre) {
             WarningCollector.clear();
             if (stopping.get() || Thread.currentThread().isInterrupted()) {
-                return;
+                return false;
             }
             mre.getErrors().forEach(e -> System.err.println(DiagnosticFormatter.format(e)));
+            return false;
         } catch (Exception e) {
             WarningCollector.clear();
             if (stopping.get() || Thread.currentThread().isInterrupted()) {
-                return;
+                return false;
             }
             System.err.println(DiagnosticFormatter.format(e));
             if (Flags.crashDump) {
@@ -253,6 +288,8 @@ public class Main {
                     interpreter.dumpState(e, System.err);
                 }
             }
+            return false;
         }
+        return true;
     }
 }

@@ -1,12 +1,14 @@
 package com.mira.runtime.visitors;
 
 import com.mira.parser.nodes.expression.Expression.AccessExpression;
+import com.mira.parser.nodes.expression.Expression.AssignExpression;
 import com.mira.parser.nodes.expression.Expression.ArrayExpression;
 import com.mira.parser.nodes.expression.Expression.AwaitExpression;
 import com.mira.parser.nodes.expression.Expression.BinaryExpression;
 import com.mira.parser.nodes.expression.Expression.CallExpression;
 import com.mira.parser.nodes.expression.Expression.ComplexExpression;
 import com.mira.parser.nodes.expression.Expression.DumbExpression;
+import com.mira.parser.nodes.expression.Expression.ExecBlock;
 import com.mira.parser.nodes.expression.Expression.FieldAccessExpression;
 import com.mira.parser.nodes.expression.Expression.LambdaExpression;
 import com.mira.parser.nodes.expression.Expression.ListExpression;
@@ -15,14 +17,17 @@ import com.mira.parser.nodes.expression.Expression.MethodCallExpression;
 import com.mira.parser.nodes.expression.Expression.NamespaceCallExpression;
 import com.mira.parser.nodes.expression.Expression.ObjectExpression;
 import com.mira.parser.nodes.expression.Expression.RangeExpression;
+import com.mira.parser.nodes.expression.Expression.StructExpression;
+import com.mira.parser.nodes.expression.Expression.StructInitExpression;
+import com.mira.parser.nodes.expression.Expression.SwitchExpression;
 import com.mira.parser.nodes.expression.Expression.TernaryExpression;
 import com.mira.parser.nodes.expression.Expression.ThrownException;
-import com.mira.parser.nodes.expression.Expression.SwitchExpression;
 import com.mira.parser.nodes.expression.Expression.TypeofExpression;
-import com.mira.parser.nodes.expression.Expression.ExecBlock;
 import com.mira.parser.nodes.expression.Expression.UnaryExpression;
 
 public interface ExprVisitor<T> {
+
+    public <T> T visitAssignExpression(AssignExpression expression);
 
     public <T> T visitBinaryExpr(BinaryExpression expression);
 
@@ -45,6 +50,10 @@ public interface ExprVisitor<T> {
     public <T> T visitRangeExpression(RangeExpression expression);
 
     public <T> T visitObjectExpression(ObjectExpression expression);
+
+    public <T> T visitStructExpression(StructExpression expression);
+
+    public <T> T visitStructInitExpression(StructInitExpression expression);
 
     public <T> T visitFieldAccessExpression(FieldAccessExpression expression);
 

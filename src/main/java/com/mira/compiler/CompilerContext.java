@@ -28,6 +28,9 @@ public class CompilerContext {
     public int objectEnvSlot = -1;
     public int blockDepth = 0;
 
+    public int[] instrBytes = {0};
+    public boolean isPartialExtract = false;
+
     public CompilerContext(String className, MethodVisitor mv, LocalSlotTable slots,
             Set<String> knownFunctions, int[] lambdaCounter, boolean isTopLevel) {
         this.className = className;
@@ -36,5 +39,12 @@ public class CompilerContext {
         this.knownFunctions = knownFunctions;
         this.lambdaCounter = lambdaCounter;
         this.isTopLevel = isTopLevel;
+    }
+
+    public CompilerContext(String className, MethodVisitor mv, LocalSlotTable slots,
+            Set<String> knownFunctions, int[] lambdaCounter, boolean isTopLevel,
+            int[] instrBytes) {
+        this(className, mv, slots, knownFunctions, lambdaCounter, isTopLevel);
+        this.instrBytes = instrBytes;
     }
 }

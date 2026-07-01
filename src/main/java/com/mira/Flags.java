@@ -28,8 +28,10 @@ public class Flags {
     public static boolean dumpByteCode = false;
     public static Path outputDir = null;
     public static boolean packageJar = false;
+    public static boolean slimJar = false;
 
     public static List<Path> dependencyRoots = new ArrayList<>();
 
     public static boolean skipStaticCheck = false;
+    public static boolean suppressWarnings = false;
 }

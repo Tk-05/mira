@@ -13,6 +13,7 @@ import com.mira.error.resolver.MultipleStaticCheckErrors;
 import com.mira.lexer.Tokenizer;
 import com.mira.parser.Parser;
 import com.mira.parser.nodes.Node;
+import com.mira.warning.WarningCollector;
 
 public class StaticCheckTest {
 
@@ -182,6 +183,41 @@ public class StaticCheckTest {
     }
 
     @Test
+    void duplicateFunctionDeclaration() {
+        List<MiraError> errors = errorsFor("fn foo() {} fn foo() {}");
+        assertTrue(hasCode(errors, "E306"));
+    }
+
+    @Test
+    void duplicateEnumDeclaration() {
+        List<MiraError> errors = errorsFor("enum Foo { A } enum Foo { B }");
+        assertTrue(hasCode(errors, "E306"));
+    }
+
+    @Test
+    void fieldAccessOnList() {
+        List<MiraError> errors = errorsFor("var a : {1, 2}; println($a.x);");
+        assertTrue(hasCode(errors, "E320"));
+    }
+
+    @Test
+    void fieldAccessOnDirectLiteral() {
+        List<MiraError> errors = errorsFor("println({1, 2}.x);");
+        assertTrue(hasCode(errors, "E320"));
+    }
+
+    @Test
+    void fieldAccessOnObjectIsClean() {
+        assertClean("var a : { var name : \"hi\"; }; println($a.name);");
+    }
+
+    @Test
+    void duplicateDestructureDeclaration() {
+        List<MiraError> errors = errorsFor("var (x, y) : {1, 2}; var (x, z) : {3, 4};");
+        assertTrue(hasCode(errors, "E306"));
+    }
+
+    @Test
     void arityMismatchTooMany() {
         List<MiraError> errors = errorsFor("println(1, 2);");
         assertTrue(hasCode(errors, "E307"));
@@ -204,5 +240,229 @@ public class StaticCheckTest {
         List<MiraError> errors = errorsFor("println($a); println($b);");
         assertEquals(2, errors.size());
         assertTrue(errors.stream().allMatch(e -> "E301".equals(e.getErrorCode())));
+    }
+
+    @Test
+    void staticAssertWithLiteralIsClean() {
+        assertClean("static_assert(true);");
+    }
+
+    @Test
+    void staticAssertWithLiteralExprIsClean() {
+        assertClean("static_assert(1 == 1);");
+    }
+
+    @Test
+    void staticAssertWithComptimeConstIsClean() {
+        assertClean("comptime { const SIZE : 64; } static_assert($SIZE > 0);");
+    }
+
+    @Test
+    void staticAssertWithRuntimeVarProducesE311() {
+        List<MiraError> errors = errorsFor("var x : 5; static_assert($x > 0);");
+        assertTrue(hasCode(errors, "E311"));
+    }
+
+    @Test
+    void staticAssertWithFunctionParamProducesE311() {
+        List<MiraError> errors = errorsFor("fn check(x) { static_assert($x > 0); } check(1);");
+        assertTrue(hasCode(errors, "E311"));
+    }
+
+    @Test
+    void staticAssertMixedComptimeAndRuntimeProducesE311() {
+        List<MiraError> errors = errorsFor("comptime { const A : 1; } var b : 2; static_assert($A + $b > 0);");
+        assertTrue(hasCode(errors, "E311"));
+    }
+
+    @Test
+    void constArrayIndexAssignProducesE321() {
+        List<MiraError> errors = errorsFor("const arr : [1, 2, 3]; $arr[0] : 9;");
+        assertTrue(hasCode(errors, "E321"));
+    }
+
+    @Test
+    void constObjectFieldAssignProducesE321() {
+        List<MiraError> errors = errorsFor("const obj : { var x : 1; }; $obj.x : 99;");
+        assertTrue(hasCode(errors, "E321"));
+    }
+
+    @Test
+    void varArrayIndexAssignIsValid() {
+        assertClean("var arr : [1, 2, 3]; $arr[0] : 9;");
+    }
+
+    @Test
+    void rangeStepZeroViaVarProducesE313() {
+        List<MiraError> errors = errorsFor("var step : 0; for(var i in <1..10, $step>) { }");
+        assertTrue(hasCode(errors, "E313"));
+    }
+
+    @Test
+    void rangeStepNonZeroVarIsValid() {
+        assertClean("var step : 2; for(var i in <1..10, $step>) { }");
+    }
+
+    @Test
+    void divisionByZeroLiteralProducesWarning() {
+        WarningCollector.clear();
+        assertClean("var r : 10 / 0;");
+        assertTrue(WarningCollector.getWarnings().stream()
+                .anyMatch(w -> w.message().contains("Division by zero")));
+        WarningCollector.clear();
+    }
+
+    @Test
+    void divisionByZeroViaVarProducesWarning() {
+        WarningCollector.clear();
+        assertClean("var d : 0; var r : 10 / $d;");
+        assertTrue(WarningCollector.getWarnings().stream()
+                .anyMatch(w -> w.message().contains("Division by zero")));
+        WarningCollector.clear();
+    }
+
+    @Test
+    void divisionByNonZeroVarIsValid() {
+        assertClean("var d : 2; var r : 10 / $d;");
+    }
+
+    @Test
+    void incrementStringVarProducesE322() {
+        List<MiraError> errors = errorsFor("var s : \"hello\"; $s++;");
+        assertTrue(hasCode(errors, "E322"));
+    }
+
+    @Test
+    void incrementListVarProducesE322() {
+        List<MiraError> errors = errorsFor("var lst : {1, 2}; $lst++;");
+        assertTrue(hasCode(errors, "E322"));
+    }
+
+    @Test
+    void incrementNumericVarIsValid() {
+        assertClean("var n : 5; $n++;");
+    }
+
+    @Test
+    void accessUndefinedFieldOnKnownObjectProducesE323() {
+        List<MiraError> errors = errorsFor("var o : { var x : 1; }; var y : $o.z;");
+        assertTrue(hasCode(errors, "E323"));
+    }
+
+    @Test
+    void accessDefinedFieldOnKnownObjectIsValid() {
+        assertClean("var o : { var x : 1; }; var y : $o.x;");
+    }
+
+    @Test
+    void optionalAccessUndefinedFieldIsValid() {
+        assertClean("var o : { var x : 1; }; var y : $o?.z;");
+    }
+
+    @Test
+    void accessExistingFieldOnStructTemplateIsValid() {
+        assertClean("var point : struct { var x : 0; var y : 0; }; var p : $point{}; print($p.x);");
+    }
+
+    @Test
+    void accessNonexistentFieldOnStructTemplateIsE323() {
+        List<MiraError> errors = errorsFor("var point : struct { var x; var y; }; print($point.z);");
+        assertTrue(hasCode(errors, "E323"));
+    }
+
+    @Test
+    void accessNonexistentFieldOnStructInstanceIsE323() {
+        List<MiraError> errors = errorsFor("var point : struct { var x; var y; }; var p : $point{}; print($p.z);");
+        assertTrue(hasCode(errors, "E323"));
+    }
+
+    @Test
+    void accessExistingMethodOnStructTemplateIsValid() {
+        assertClean("var counter : struct { var count : 0; fn get() { return $this.count; } }; var c : $counter{}; $c.get();");
+    }
+
+    @Test
+    void assignStructInstancePropagatesTypeForFieldCheck() {
+        List<MiraError> errors = errorsFor("var point : struct { var x; var y; }; var q; $q : $point{}; print($q.z);");
+        assertTrue(hasCode(errors, "E323"));
+    }
+
+    @Test
+    void assignStructInstanceThenValidFieldIsClean() {
+        assertClean("var point : struct { var x; var y; }; var q; $q : $point{}; print($q.x);");
+    }
+
+    @Test
+    void assignInsideBranchDoesNotPropagate() {
+        assertClean("var point : struct { var x; }; var q; if (true) { $q : $point{}; } print($q.z);");
+    }
+
+    @Test
+    void reassignToNonStructInvalidatesFieldCheck() {
+        List<MiraError> errors = errorsFor("var point : struct { var x; }; var q : $point{}; $q : 42; print($q.x);");
+        assertTrue(hasCode(errors, "E320"));
+    }
+
+    @Test
+    void accessNonexistentFieldOnStructInstanceWithOverridesIsE323() {
+        List<MiraError> errors = errorsFor("var point : struct { var x : 0; var y : 0; }; var origin : $point{$x : 0, $y : 5}; println($origin.z);");
+        assertTrue(hasCode(errors, "E323"));
+    }
+
+    @Test
+    void accessNonexistentFieldOnFunctionParamViaCallSiteIsE323() {
+        List<MiraError> errors = errorsFor(
+                "var point : struct { var x; var y; }; var origin : $point{}; "
+                + "fn hello(name) { println($name.z); } hello($origin);");
+        assertTrue(hasCode(errors, "E323"));
+    }
+
+    @Test
+    void accessExistingFieldOnFunctionParamViaCallSiteIsClean() {
+        assertClean(
+                "var point : struct { var x; var y; }; var origin : $point{}; "
+                + "fn hello(name) { println($name.x); } hello($origin);");
+    }
+
+    @Test
+    void accessNonexistentFieldInReturnComplexExprIsE323() {
+        List<MiraError> errors = errorsFor(
+                "var point : struct { var x; var y; }; var origin : $point{}; "
+                + "fn hello(name) { return hello $name.z; } hello($origin);");
+        assertTrue(hasCode(errors, "E323"));
+    }
+
+    @Test
+    void paramTypeFollowedThroughNestedCallIsE323() {
+        List<MiraError> errors = errorsFor(
+                "var point : struct { var x; var y; }; var origin : $point{}; "
+                + "fn hello(name) { hello2($name); } "
+                + "fn hello2(name) { $name.z; } "
+                + "hello($origin);");
+        assertTrue(hasCode(errors, "E323"));
+    }
+
+    @Test
+    void paramTypeFollowedThroughNestedCallValidFieldIsClean() {
+        assertClean(
+                "var point : struct { var x; var y; }; var origin : $point{}; "
+                + "fn hello(name) { hello2($name); } "
+                + "fn hello2(name) { $name.x; } "
+                + "hello($origin);");
+    }
+
+    @Test
+    void recursiveFunctionDoesNotCauseInfiniteLoop() {
+        List<MiraError> errors = errorsFor(
+                "var point : struct { var x; }; var origin : $point{}; "
+                + "fn recurse(name) { recurse($name); $name.z; } recurse($origin);");
+        assertTrue(hasCode(errors, "E323"));
+    }
+
+    @Test
+    void fieldAccessOnStringParamIsE320() {
+        List<MiraError> errors = errorsFor(
+                "fn hello(name) { println($name.z); } hello(\"test\");");
+        assertTrue(hasCode(errors, "E320"));
     }
 }

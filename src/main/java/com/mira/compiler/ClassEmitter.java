@@ -13,12 +13,12 @@ import static org.objectweb.asm.Opcodes.ALOAD;
 import static org.objectweb.asm.Opcodes.ARETURN;
 import static org.objectweb.asm.Opcodes.DUP;
 import static org.objectweb.asm.Opcodes.GETFIELD;
-import static org.objectweb.asm.Opcodes.NEW;
 import static org.objectweb.asm.Opcodes.ILOAD;
 import static org.objectweb.asm.Opcodes.INVOKEINTERFACE;
 import static org.objectweb.asm.Opcodes.INVOKESPECIAL;
 import static org.objectweb.asm.Opcodes.INVOKESTATIC;
 import static org.objectweb.asm.Opcodes.IRETURN;
+import static org.objectweb.asm.Opcodes.NEW;
 import static org.objectweb.asm.Opcodes.PUTFIELD;
 import static org.objectweb.asm.Opcodes.RETURN;
 import static org.objectweb.asm.Opcodes.V21;
@@ -106,6 +106,109 @@ public class ClassEmitter {
 
         lcw.visitEnd();
         extraClasses.put(lambdaClassName, lcw.toByteArray());
+    }
+
+    public void emitLambdaClassWithCaptures(String lambdaClassName, String outerClassName,
+            String methodName, int arity) {
+        ClassWriter lcw = new ClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS);
+        lcw.visit(V21, ACC_PUBLIC | ACC_FINAL, lambdaClassName, null,
+                "java/lang/Object", new String[]{"com/mira/runtime/functions/Callable"});
+
+        lcw.visitField(ACC_PRIVATE | ACC_FINAL, "arity", "I", null, null).visitEnd();
+        lcw.visitField(ACC_PRIVATE | ACC_FINAL, "captures", "[Ljava/lang/Object;", null, null).visitEnd();
+
+        MethodVisitor init = lcw.visitMethod(ACC_PUBLIC, "<init>", "(I[Ljava/lang/Object;)V", null, null);
+        init.visitCode();
+        init.visitVarInsn(ALOAD, 0);
+        init.visitMethodInsn(INVOKESPECIAL, "java/lang/Object", "<init>", "()V", false);
+        init.visitVarInsn(ALOAD, 0);
+        init.visitVarInsn(ILOAD, 1);
+        init.visitFieldInsn(PUTFIELD, lambdaClassName, "arity", "I");
+        init.visitVarInsn(ALOAD, 0);
+        init.visitVarInsn(ALOAD, 2);
+        init.visitFieldInsn(PUTFIELD, lambdaClassName, "captures", "[Ljava/lang/Object;");
+        init.visitInsn(RETURN);
+        init.visitMaxs(0, 0);
+        init.visitEnd();
+
+        MethodVisitor ga = lcw.visitMethod(ACC_PUBLIC, "getArity", "()I", null, null);
+        ga.visitCode();
+        ga.visitVarInsn(ALOAD, 0);
+        ga.visitFieldInsn(GETFIELD, lambdaClassName, "arity", "I");
+        ga.visitInsn(IRETURN);
+        ga.visitMaxs(0, 0);
+        ga.visitEnd();
+
+        MethodVisitor call = lcw.visitMethod(ACC_PUBLIC, "call",
+                "(Lcom/mira/runtime/interpreter/Interpreter;Ljava/util/List;)Ljava/lang/Object;",
+                null, null);
+        call.visitCode();
+        call.visitVarInsn(ALOAD, 0);
+        call.visitFieldInsn(GETFIELD, lambdaClassName, "captures", "[Ljava/lang/Object;");
+        call.visitVarInsn(ALOAD, 2);
+        call.visitMethodInsn(INVOKEINTERFACE, "java/util/List", "toArray", "()[Ljava/lang/Object;", true);
+        call.visitMethodInsn(INVOKESTATIC, RT_NAME, "concatArrays",
+                "([Ljava/lang/Object;[Ljava/lang/Object;)[Ljava/lang/Object;", false);
+        call.visitMethodInsn(INVOKESTATIC, outerClassName, methodName, FN_DESC, false);
+        call.visitInsn(ARETURN);
+        call.visitMaxs(0, 0);
+        call.visitEnd();
+
+        lcw.visitEnd();
+        extraClasses.put(lambdaClassName, lcw.toByteArray());
+    }
+
+    public void emitAsyncLambdaClassWithCaptures(String asyncClassName, String syncClassName, int arity) {
+        ClassWriter acw = new ClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS);
+        acw.visit(V21, ACC_PUBLIC | ACC_FINAL, asyncClassName, null,
+                "java/lang/Object", new String[]{"com/mira/runtime/functions/Callable"});
+
+        acw.visitField(ACC_PRIVATE | ACC_FINAL, "arity", "I", null, null).visitEnd();
+        acw.visitField(ACC_PRIVATE | ACC_FINAL, "captures", "[Ljava/lang/Object;", null, null).visitEnd();
+
+        MethodVisitor init = acw.visitMethod(ACC_PUBLIC, "<init>", "(I[Ljava/lang/Object;)V", null, null);
+        init.visitCode();
+        init.visitVarInsn(ALOAD, 0);
+        init.visitMethodInsn(INVOKESPECIAL, "java/lang/Object", "<init>", "()V", false);
+        init.visitVarInsn(ALOAD, 0);
+        init.visitVarInsn(ILOAD, 1);
+        init.visitFieldInsn(PUTFIELD, asyncClassName, "arity", "I");
+        init.visitVarInsn(ALOAD, 0);
+        init.visitVarInsn(ALOAD, 2);
+        init.visitFieldInsn(PUTFIELD, asyncClassName, "captures", "[Ljava/lang/Object;");
+        init.visitInsn(RETURN);
+        init.visitMaxs(0, 0);
+        init.visitEnd();
+
+        MethodVisitor ga = acw.visitMethod(ACC_PUBLIC, "getArity", "()I", null, null);
+        ga.visitCode();
+        ga.visitVarInsn(ALOAD, 0);
+        ga.visitFieldInsn(GETFIELD, asyncClassName, "arity", "I");
+        ga.visitInsn(IRETURN);
+        ga.visitMaxs(0, 0);
+        ga.visitEnd();
+
+        MethodVisitor call = acw.visitMethod(ACC_PUBLIC, "call",
+                "(Lcom/mira/runtime/interpreter/Interpreter;Ljava/util/List;)Ljava/lang/Object;",
+                null, null);
+        call.visitCode();
+        call.visitTypeInsn(NEW, syncClassName);
+        call.visitInsn(DUP);
+        call.visitVarInsn(ALOAD, 0);
+        call.visitFieldInsn(GETFIELD, asyncClassName, "arity", "I");
+        call.visitVarInsn(ALOAD, 0);
+        call.visitFieldInsn(GETFIELD, asyncClassName, "captures", "[Ljava/lang/Object;");
+        call.visitMethodInsn(INVOKESPECIAL, syncClassName, "<init>", "(I[Ljava/lang/Object;)V", false);
+        call.visitVarInsn(ALOAD, 2);
+        call.visitMethodInsn(INVOKEINTERFACE, "java/util/List", "toArray", "()[Ljava/lang/Object;", true);
+        call.visitMethodInsn(INVOKESTATIC, RT_NAME, "asyncWrap",
+                "(Lcom/mira/runtime/functions/Callable;[Ljava/lang/Object;)Ljava/lang/Object;", false);
+        call.visitInsn(ARETURN);
+        call.visitMaxs(0, 0);
+        call.visitEnd();
+
+        acw.visitEnd();
+        extraClasses.put(asyncClassName, acw.toByteArray());
     }
 
     public void emitAsyncLambdaClass(String asyncClassName, String syncClassName, int arity) {

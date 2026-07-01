@@ -2,7 +2,7 @@
 
 ## Table of Contents
 
-1. [Program Structure](#program-structure)
+1. [Program Structure](#program-structure) — Module Declaration, Comments, Imports, Module Visibility, Native JAR Extensions
 2. [Values](#values) — Variables, Destructuring, Literals
 3. [Expressions](#expressions) — Operators, `??`, `?.`, Ternary, Pipe
 4. [Data Structures](#data-structures) — List, Array, Object, Map, Range
@@ -13,7 +13,7 @@
 9. [Objects with Methods](#objects-with-methods)
 10. [Enums](#enums)
 11. [Built-in Functions](#built-in-functions)
-12. [Standard Libraries](#standard-libraries)
+12. [Standard Libraries](#standard-libraries) — `string`, `collection`, `map`, `math`, `io`, `net`, `dateTime`, `json`, `regex`, `shell`, `process`, `bytes`, `crypto`, `path`, `csv`, `term`, `zip`, `toml`, `random`, `url`, `number`, `set`, `log`, `time`
 13. [Multithreading](#multithreading)
 14. [Build System](#build-system) — Projects, `mira.toml`, Commands, Dependencies
 15. [Compilation](#compilation)
@@ -47,16 +47,20 @@ var x : /* inline block */ 10;
 ### Imports
 
 ```
-import <lib>;                                   // Standard library (global scope)
-import <lib> as <alias>;                        // Standard library under alias
-import <lib>: <fn1>, <fn2>;                     // Selective import (global scope)
-import <lib>: <fn1>, <fn2> as <alias>;          // Selective import under alias
-import module "./path/to/file.mira";            // File import (global scope)
-import module "./path/to/file.mira" as <alias>; // File import under alias
-import native "./path/to/lib.jar" as <alias>;   // Native JAR extension (alias required)
+import <lib>;                                                       // Standard library (global scope)
+import <lib> as <alias>;                                            // Standard library under alias
+import <lib>: <sym1>, <sym2>;                                        // Selective stdlib import with colon (global scope)
+import <lib>: <sym1>, <sym2> as <alias>;                            // Selective stdlib import with colon under alias
+import <lib> {<sym1>, <sym2>};                                      // Selective stdlib import with braces (global scope)
+import <lib> {<sym1>, <sym2>} as <alias>;                           // Selective stdlib import with braces under alias
+import module "./path/to/file.mira";                                // File import — all pub symbols (global scope)
+import module "./path/to/file.mira" as <alias>;                     // File import — all pub symbols under alias
+import module "./path/to/file.mira" {<name1>, <name2>};             // Partial file import — named pub symbols (global scope)
+import module "./path/to/file.mira" {<name1>, <name2>} as <alias>;  // Partial file import under alias
+import native "./path/to/lib.jar" as <alias>;                       // Native JAR extension (alias required)
 ```
 
-When a lib is imported without an alias, all its functions are available globally. When imported with an alias, functions are accessed via `<alias>.<function>(...)`.
+When a lib is imported without an alias, all its symbols are available globally. When imported with an alias, symbols are accessed via `<alias>.<name>(...)`.
 
 If two libs imported without an alias define a function with the same name, a conflict error is thrown. Use aliases to resolve it:
 
@@ -67,6 +71,49 @@ import collection as col; // avoids conflict with 'indexOf'
 trim($text);
 col.indexOf($list, "x");
 ```
+
+### Module Visibility
+
+Module files use `pub` to mark declarations as exportable. Declarations without `pub` are **private** and are never made available to importing files.
+
+```
+module MyMod;
+
+pub fn greet(name) { return "hello " $name; }   // exported
+fn helper() { return "internal"; }              // private — not visible to importers
+pub const MAX : 100;                             // exported
+pub enum Color { Red, Green, Blue }              // exported
+```
+
+`pub` applies to `fn`, `const`, `var`, and `enum` declarations. It is only valid at the top level of a module — using `pub` inside a function body is a parse error.
+
+When a module is imported without partial braces, only `pub`-marked symbols are copied into the importing scope. Private symbols remain hidden regardless of how the file is imported.
+
+**Partial import — selecting specific symbols:**
+
+```
+import module "./utils.mira" {greet, MAX};          // only greet and MAX (global scope)
+import module "./utils.mira" {greet} as utils;      // only greet, under utils.greet(...)
+```
+
+Requesting a private symbol throws `E230 PrivateSymbolImportError`. Requesting a symbol that does not exist throws `E231 ModuleSymbolNotFoundError`. Both are also caught at static-check time (E318 / E319) without running the program.
+
+**Selective stdlib imports** use the same brace syntax. The selected names can be functions, constants, or any other symbol the library exposes:
+
+```
+import string {trim, split};         // only trim and split in global scope
+import string {trim} as str;         // only trim, accessed as str.trim(...)
+import string: trim, split;          // colon syntax — equivalent to braces
+```
+
+**Errors:**
+
+| Error                            | Kind         | Cause                                                                 |
+| -------------------------------- | ------------ | --------------------------------------------------------------------- |
+| `E230 PrivateSymbolImportError`  | Runtime      | Selective import requested a symbol that is not marked `pub`          |
+| `E231 ModuleSymbolNotFoundError` | Runtime      | Selective import requested a symbol that does not exist in the module |
+| `E318 PrivateImportError`        | Static check | Same as E230, detected at analysis time before the program runs       |
+| `E319 UnknownModuleSymbolError`  | Static check | Same as E231, detected at analysis time before the program runs       |
 
 ### Native JAR Extensions
 
@@ -287,6 +334,13 @@ Ternaries can be nested:
 
 ```
 $x > 10 ? "high" : ($x > 5 ? "mid" : "low")
+```
+
+Both branches support string concatenation:
+
+```
+length($d) > 0 ? " (" $d ")" : ""
+$ok ? "Result: " $value "\n" : "n/a"
 ```
 
 ### Pipe Operator
@@ -1312,12 +1366,12 @@ A failing assertion produces a formatted diagnostic with the source location:
 
 ### Relation to `assert`
 
-| | `assert` | `static_assert` |
-|---|---|---|
-| Error code | E210 | E308 |
+|             | `assert`                    | `static_assert`                    |
+| ----------- | --------------------------- | ---------------------------------- |
+| Error code  | E210                        | E308                               |
 | Typical use | runtime checks inside tests | compile-time / precondition guards |
-| Message | optional | optional |
-| Scope | anywhere | anywhere |
+| Message     | optional                    | optional                           |
+| Scope       | anywhere                    | anywhere                           |
 
 ---
 
@@ -1748,18 +1802,20 @@ Constants: `pi`, `e`, `inf`, `nan`
 
 ### `process`
 
-| Function              | Description                                           |
-| --------------------- | ----------------------------------------------------- |
-| `processStart(cmd)`   | Starts a background process, returns an ID            |
-| `processAlive(id)`    | True if the process is still running                  |
-| `processWait(id)`     | Waits for the process to finish, returns exit code    |
-| `processKill(id)`     | Terminates the process                                |
-| `processOutput(id)`   | Returns buffered stdout of the process                |
-| `processExitCode(id)` | Returns the exit code of a finished process           |
-| `pid()`               | Returns the PID of the current process                |
-| `listProcesses()`     | Returns a list of all running PIDs                    |
-| `processInfo(pid)`    | Returns the command of a process by PID               |
-| `sleep(ms)`           | Pauses execution for the given number of milliseconds |
+| Function                 | Description                                                        |
+| ------------------------ | ------------------------------------------------------------------ |
+| `processStart(cmd)`      | Starts a background process, returns an ID                         |
+| `processAlive(id)`       | True if the process is still running                               |
+| `processDone(id)`        | True if the process has finished (returns true for unknown IDs)    |
+| `processWait(id)`        | Waits for the process to finish, returns exit code                 |
+| `processKill(id)`        | Terminates the process                                             |
+| `processOutput(id)`      | Returns buffered stdout of the process                             |
+| `processReadPartial(id)` | Reads available stdout non-blocking, returns `""` if nothing ready |
+| `processExitCode(id)`    | Returns the exit code of a finished process                        |
+| `pid()`                  | Returns the PID of the current process                             |
+| `listProcesses()`        | Returns a list of all running PIDs                                 |
+| `processInfo(pid)`       | Returns the command of a process by PID                            |
+| `sleep(ms)`              | Pauses execution for the given number of milliseconds              |
 
 ### `bytes`
 
@@ -1783,6 +1839,217 @@ Constants: `pi`, `e`, `inf`, `nan`
 | `toBase64(b)`          | Encodes bytes as a Base64 string                       |
 | `readFile(path)`       | Reads a file as raw bytes                              |
 | `writeFile(path, b)`   | Writes raw bytes to a file                             |
+
+### `crypto`
+
+Cryptographic hash functions and UUID generation. No external dependencies — uses Java's built-in `java.security` and `javax.crypto`.
+
+| Function                   | Description                                             |
+| -------------------------- | ------------------------------------------------------- |
+| `md5(str)`                 | Returns the MD5 hex digest of `str`                     |
+| `sha1(str)`                | Returns the SHA-1 hex digest                            |
+| `sha256(str)`              | Returns the SHA-256 hex digest (64 hex characters)      |
+| `sha512(str)`              | Returns the SHA-512 hex digest (128 hex characters)     |
+| `hmacSha256(key, message)` | HMAC-SHA256 of `message` signed with `key`              |
+| `uuid()`                   | Generates a random UUID v4 with dashes                  |
+| `uuidNoDashes()`           | Generates a random UUID v4 as a 32-character hex string |
+
+### `path`
+
+Cross-platform path manipulation. All functions return strings — they do not access the filesystem.
+
+| Function             | Description                                                   |
+| -------------------- | ------------------------------------------------------------- |
+| `join(...parts)`     | Joins path segments with the system separator (variadic)      |
+| `normalize(path)`    | Resolves `.` and `..` in a path without filesystem access     |
+| `resolve(base, rel)` | Resolves `rel` relative to `base`                             |
+| `relative(from, to)` | Returns `to` expressed relative to `from`                     |
+| `absolute(path)`     | Returns the absolute path (relative to the current directory) |
+| `parent(path)`       | Returns the parent directory, or `""` if none                 |
+| `fileName(path)`     | Returns the file name (last segment), or `""`                 |
+| `stem(path)`         | File name without its extension                               |
+| `extension(path)`    | Extension without the dot, or `""` if none                    |
+| `isAbsolute(path)`   | True if the path is absolute                                  |
+| `split(path)`        | Returns a list of all path segments                           |
+
+### `csv`
+
+CSV parsing and serialization. Handles quoted fields and embedded commas.
+
+| Function                   | Description                                                    |
+| -------------------------- | -------------------------------------------------------------- |
+| `parse(csvStr)`            | Parses CSV into a list of lists (each row = list of strings)   |
+| `parseWithHeaders(csvStr)` | Parses CSV into a list of maps; first row becomes the map keys |
+| `stringify(data)`          | Serializes a list of lists back into a CSV string              |
+| `column(data, index)`      | Extracts column `index` from all rows as a list                |
+| `parseRow(line)`           | Parses a single CSV line into a list (quoted-field-aware)      |
+| `rowCount(csvStr)`         | Returns the number of non-empty rows                           |
+
+### `term`
+
+ANSI terminal formatting. All functions wrap text in ANSI escape sequences and are pure string operations — they do not print anything themselves.
+
+| Function          | Description                                      |
+| ----------------- | ------------------------------------------------ |
+| `red(text)`       | Red foreground                                   |
+| `green(text)`     | Green foreground                                 |
+| `yellow(text)`    | Yellow foreground                                |
+| `blue(text)`      | Blue foreground                                  |
+| `magenta(text)`   | Magenta foreground                               |
+| `cyan(text)`      | Cyan foreground                                  |
+| `white(text)`     | White foreground                                 |
+| `bold(text)`      | Bold style                                       |
+| `dim(text)`       | Dim / faint style                                |
+| `italic(text)`    | Italic style                                     |
+| `underline(text)` | Underline style                                  |
+| `stripAnsi(text)` | Removes all ANSI escape codes from `text`        |
+| `clear()`         | Returns the ANSI sequence that clears the screen |
+
+Example:
+
+```
+import term as t;
+println(t.green("OK") " — " t.bold("done"));
+```
+
+### `zip`
+
+Compression and ZIP archive operations. Operates on `bytes` values.
+
+| Function                         | Description                                     |
+| -------------------------------- | ----------------------------------------------- |
+| `gzipCompress(bytes)`            | Compresses a bytes value with GZIP              |
+| `gzipDecompress(bytes)`          | Decompresses a GZIP-compressed bytes value      |
+| `deflate(bytes)`                 | Compresses with DEFLATE (raw)                   |
+| `inflate(bytes)`                 | Decompresses DEFLATE-compressed bytes           |
+| `createZip(outputPath, paths)`   | Creates a ZIP archive from a list of file paths |
+| `extractZip(zipPath, outputDir)` | Extracts a ZIP archive into the given directory |
+
+### `toml`
+
+Parses TOML configuration files. Uses Mira's built-in TOML parser — the same one used for `mira.toml`.
+
+| Function             | Description                                                    |
+| -------------------- | -------------------------------------------------------------- |
+| `parse(tomlStr)`     | Parses a TOML string, returns a map                            |
+| `parseFile(path)`    | Reads and parses a TOML file, returns a map                    |
+| `get(map, key)`      | Gets a value by key, or `null` if missing                      |
+| `getArray(map, key)` | Gets a value as a list, or an empty list if missing/wrong type |
+| `has(map, key)`      | True if `key` exists in the map                                |
+
+### `random`
+
+Stateful random number generation. The `Random` instance persists across calls within the same import scope.
+
+| Function              | Description                                               |
+| --------------------- | --------------------------------------------------------- |
+| `seed(n)`             | Seeds the RNG with integer `n` for reproducible sequences |
+| `next()`              | Returns a random float in `[0.0, 1.0)`                    |
+| `nextInt(min, max)`   | Returns a random integer in `[min, max)`                  |
+| `nextFloat(min, max)` | Returns a random float in `[min, max)`                    |
+| `nextBool()`          | Returns `true` or `false` with equal probability          |
+| `nextGaussian()`      | Returns a Gaussian-distributed value (μ=0, σ=1)           |
+| `shuffle(list)`       | Returns a randomly shuffled copy of the list              |
+| `pick(list)`          | Returns one random element from the list                  |
+| `sample(list, n)`     | Returns `n` unique random elements (without replacement)  |
+
+### `url`
+
+URL parsing, building, and encoding.
+
+| Function                           | Description                                                                                     |
+| ---------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `parse(urlStr)`                    | Parses a URL into a map with keys `scheme`, `host`, `port`, `path`, `query`, `fragment`, `user` |
+| `build(scheme, host, path, query)` | Assembles a URL string from its parts                                                           |
+| `getParam(urlStr, key)`            | Returns the value of query parameter `key`, or `null`                                           |
+| `getParams(urlStr)`                | Returns all query parameters as a map                                                           |
+| `encode(str)`                      | URL-encodes a string (percent-encoding)                                                         |
+| `decode(str)`                      | Decodes a percent-encoded string                                                                |
+| `isValid(str)`                     | True if `str` is a syntactically valid URL                                                      |
+
+### `number`
+
+Number formatting and base conversion.
+
+| Function                    | Description                                                         |
+| --------------------------- | ------------------------------------------------------------------- |
+| `toFixed(n, decimals)`      | Returns `n` formatted with exactly `decimals` decimal places        |
+| `toHex(n)`                  | Returns `n` as an uppercase hexadecimal string, e.g. `"FF"`         |
+| `toBinary(n)`               | Returns `n` as a binary string, e.g. `"1010"`                       |
+| `toOctal(n)`                | Returns `n` as an octal string, e.g. `"17"`                         |
+| `toScientific(n, decimals)` | Returns `n` in scientific notation, e.g. `"3.14e+10"`               |
+| `withCommas(n)`             | Returns `n` formatted with thousands separators, e.g. `"1,234,567"` |
+| `fromHex(str)`              | Parses a hex string into a number                                   |
+| `fromBinary(str)`           | Parses a binary string into a number                                |
+| `fromOctal(str)`            | Parses an octal string into a number                                |
+| `isInteger(n)`              | True if `n` has no fractional part                                  |
+
+### `set`
+
+Set operations on deduplicated lists. Sets are represented as plain lists with no duplicate elements. All mutating operations return a new set without modifying the input.
+
+| Function                   | Description                                             |
+| -------------------------- | ------------------------------------------------------- |
+| `newSet()`                 | Creates an empty set                                    |
+| `add(set, value)`          | Returns a new set with `value` added (no-op if present) |
+| `remove(set, value)`       | Returns a new set without `value`                       |
+| `has(set, value)`          | True if `value` is in the set                           |
+| `size(set)`                | Returns the number of elements                          |
+| `union(set1, set2)`        | Returns all elements from both sets (deduplicated)      |
+| `intersection(set1, set2)` | Returns only elements in both sets                      |
+| `difference(set1, set2)`   | Returns elements in `set1` that are not in `set2`       |
+| `toList(set)`              | Returns the set as a list                               |
+| `fromList(list)`           | Converts a list to a set (removes duplicates)           |
+
+### `log`
+
+Stateful logger with level filtering and optional file output. Each import scope has its own logger instance.
+
+| Function          | Description                                                          |
+| ----------------- | -------------------------------------------------------------------- |
+| `debug(message)`  | Prints `[DEBUG] message` to stdout (only if level ≤ `debug`)         |
+| `info(message)`   | Prints `[INFO] message` to stdout (only if level ≤ `info`)           |
+| `warn(message)`   | Prints `[WARN] message` to stderr (only if level ≤ `warn`)           |
+| `error(message)`  | Prints `[ERROR] message` to stderr (only if level ≤ `error`)         |
+| `setLevel(level)` | Sets the minimum log level: `"debug"`, `"info"`, `"warn"`, `"error"` |
+| `toFile(path)`    | Redirects all subsequent log output to the given file (append mode)  |
+
+Default level is `debug` — all messages are shown. Calling `setLevel("warn")` suppresses `debug` and `info` messages.
+
+Example:
+
+```
+import log as log;
+
+log.setLevel("info");
+log.debug("ignored");
+log.info("server started");
+log.warn("low memory");
+```
+
+### `time`
+
+Millisecond-precision timing utilities.
+
+| Function           | Description                                                     |
+| ------------------ | --------------------------------------------------------------- |
+| `now()`            | Returns the current time as milliseconds since the Unix epoch   |
+| `elapsed(startMs)` | Returns the milliseconds elapsed since `startMs`                |
+| `sleep(ms)`        | Pauses execution for `ms` milliseconds                          |
+| `format(ms)`       | Formats a duration: `"42ms"`, `"30s"`, `"2m 30s"`, `"1h 0m 0s"` |
+| `fromSeconds(s)`   | Converts seconds to milliseconds                                |
+| `fromMinutes(m)`   | Converts minutes to milliseconds                                |
+| `fromHours(h)`     | Converts hours to milliseconds                                  |
+
+Example — measure how long an operation takes:
+
+```
+import time as time;
+
+var start : time.now();
+doWork();
+println("took: " time.format(time.elapsed($start)));
+```
 
 ---
 
@@ -2242,6 +2509,27 @@ java -jar mira-RELEASE.jar script.mira -compile-run
 | `-o <dir>`     | Output directory for `.class` files and JAR (default: source directory) |
 | `-b`           | Dump disassembled bytecode of compiled classes to stdout                |
 
+### General flags
+
+Flags available for both single-file and build-system usage:
+
+| Flag              | Description                                                       |
+| ----------------- | ----------------------------------------------------------------- |
+| `-m`              | Call `main()` as the program entry point                          |
+| `-args <a,b,...>` | Pass comma-separated arguments to the program                     |
+| `-nsc`            | Skip the static check (linter / unused-variable analysis)         |
+| `-no-warn`        | Suppress all warnings and hints produced by the static checker    |
+| `-test`           | Run `test()` calls and print a pass/fail summary; exits 1 on fail |
+| `-debug`          | Launch the interactive debugger                                   |
+| `-watch`          | Re-run the program whenever the source file or its imports change |
+| `-crash`          | On error: print the Mira call stack and memory dump               |
+| `-crashFull`      | Like `-crash`, but also includes the Java stack trace             |
+| `-t`              | Dump the token stream to stdout                                   |
+| `-e`              | Exit after parsing and static check, before interpretation        |
+| `-ast`            | Print the AST to stdout                                           |
+| `-li`             | Show all loaded imports with their type and alias                 |
+| `-liFull`         | Like `-li`, but also lists every exported symbol per import       |
+
 ---
 
 ## IDE Integration (LSP)
@@ -2322,8 +2610,8 @@ Additionally, for each open file the server provides:
 
 - **Local variables** declared with `var` or `const` — shown as `$name`
 - **Local functions** declared with `fn` — shown with their parameter list
-- **Imported stdlib functions** — shown as `alias.function(params)` when imported with an alias
-- **Imported module functions** — parsed from the imported `.mira` file and shown with full signatures
+- **Imported stdlib symbols** — shown as `alias.name(params)` when imported with an alias; only the selected symbols when using brace or colon syntax
+- **Imported module symbols** — parsed from the imported `.mira` file; only `pub`-marked symbols are shown
 
 Example — after `import math as m;`, typing `m.` suggests:
 

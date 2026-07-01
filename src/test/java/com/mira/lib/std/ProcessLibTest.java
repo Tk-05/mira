@@ -218,6 +218,58 @@ public class ProcessLibTest {
     }
 
     @Test
+    @EnabledOnOs(OS.LINUX)
+    void testProcessDoneRunning() {
+        double id = startProcess("sleep 5");
+        assertEquals(false, call("processDone", id));
+        call("processKill", id);
+    }
+
+    @Test
+    @EnabledOnOs(OS.LINUX)
+    void testProcessDoneFinished() throws InterruptedException {
+        double id = startProcess("true");
+        Thread.sleep(200);
+        assertEquals(true, call("processDone", id));
+    }
+
+    @Test
+    void testProcessDoneUnknownIdReturnsTrue() {
+        assertEquals(true, call("processDone", 99999.0));
+    }
+
+    @Test
+    @EnabledOnOs(OS.LINUX)
+    void testProcessReadPartialReturnsString() throws InterruptedException {
+        double id = startProcess("echo hello");
+        Thread.sleep(200);
+        assertInstanceOf(String.class, call("processReadPartial", id));
+    }
+
+    @Test
+    @EnabledOnOs(OS.LINUX)
+    void testProcessReadPartialReadsOutput() throws InterruptedException {
+        double id = startProcess("echo hello");
+        Thread.sleep(200);
+        String output = (String) call("processReadPartial", id);
+        assertTrue(output.contains("hello"));
+    }
+
+    @Test
+    @EnabledOnOs(OS.LINUX)
+    void testProcessReadPartialNonBlocking() {
+        double id = startProcess("sleep 5");
+        String output = (String) call("processReadPartial", id);
+        assertEquals("", output);
+        call("processKill", id);
+    }
+
+    @Test
+    void testProcessReadPartialUnknownIdThrows() {
+        assertThrows(RuntimeException.class, () -> call("processReadPartial", 99999.0));
+    }
+
+    @Test
     void testPidReturnsDouble() {
         assertInstanceOf(Double.class, call("pid"));
     }

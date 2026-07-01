@@ -12,6 +12,7 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -103,6 +104,7 @@ public class CompileRunner {
             }
 
             Map<String, String> nativeLibClasses = new LinkedHashMap<>();
+            List<byte[]> nativeClassBytes = new ArrayList<>();
             for (Map.Entry<String, byte[]> e : result.nativeJars().entrySet()) {
                 String basename = Path.of(e.getKey()).getFileName().toString();
                 try (JarInputStream jis = new JarInputStream(new ByteArrayInputStream(e.getValue()))) {
@@ -118,6 +120,9 @@ public class CompileRunner {
                         byte[] entryBytes = jis.readAllBytes();
                         if (name.equals("META-INF/services/com.mira.lib.Lib")) {
                             libClassName = new String(entryBytes, StandardCharsets.UTF_8).strip();
+                        }
+                        if (name.endsWith(".class")) {
+                            nativeClassBytes.add(entryBytes);
                         }
                         writeJarEntry(jos, name, entryBytes, written);
                         jis.closeEntry();
@@ -136,7 +141,20 @@ public class CompileRunner {
                         props.toString().getBytes(StandardCharsets.UTF_8), written);
             }
 
-            if (miraSource.toString().endsWith(".jar")) {
+            if (Flags.slimJar) {
+                Map<String, byte[]> allEntries = miraSource.toString().endsWith(".jar")
+                        ? collectJarEntries(miraSource)
+                        : collectDirEntries(miraSource);
+                Set<String> seeds = new HashSet<>(result.lambdaClasses().keySet());
+                seeds.add(result.className());
+                seeds.add(ClassEmitter.ENV_NAME);
+                seeds.add(ClassEmitter.RT_NAME);
+                seeds.add("com/mira/runtime/interpreter/ImportResolver");
+                for (byte[] nativeClass : nativeClassBytes) {
+                    seeds.addAll(ClassReachabilityScanner.trackedReferences(nativeClass));
+                }
+                mergeSlim(jos, allEntries, written, seeds);
+            } else if (miraSource.toString().endsWith(".jar")) {
                 mergeFromJar(jos, miraSource, written);
             } else {
                 mergeFromDirectory(jos, miraSource, miraSource, written);
@@ -145,6 +163,76 @@ public class CompileRunner {
 
         System.out.println("  jar    : " + jarPath.toAbsolutePath());
         System.out.println("  run    : java -jar " + jarPath.getFileName());
+    }
+
+    private static Map<String, byte[]> collectJarEntries(Path sourceJar) throws IOException {
+        Map<String, byte[]> entries = new LinkedHashMap<>();
+        try (JarFile jf = new JarFile(sourceJar.toFile())) {
+            var jarEntries = jf.entries();
+            while (jarEntries.hasMoreElements()) {
+                JarEntry entry = jarEntries.nextElement();
+                String name = entry.getName();
+                if (entry.isDirectory() || name.equals("META-INF/MANIFEST.MF")) {
+                    continue;
+                }
+                if (name.startsWith("META-INF/")
+                        && (name.endsWith(".SF") || name.endsWith(".DSA") || name.endsWith(".RSA"))) {
+                    continue;
+                }
+                try (var is = jf.getInputStream(entry)) {
+                    entries.put(name, is.readAllBytes());
+                }
+            }
+        }
+        return entries;
+    }
+
+    private static Map<String, byte[]> collectDirEntries(Path root) throws IOException {
+        Map<String, byte[]> entries = new LinkedHashMap<>();
+        collectDirEntries(root, root, entries);
+        return entries;
+    }
+
+    private static void collectDirEntries(Path root, Path current, Map<String, byte[]> entries) throws IOException {
+        try (var stream = Files.list(current)) {
+            for (Path child : stream.toList()) {
+                if (Files.isDirectory(child)) {
+                    collectDirEntries(root, child, entries);
+                } else {
+                    String name = root.relativize(child).toString().replace('\\', '/');
+                    entries.put(name, Files.readAllBytes(child));
+                }
+            }
+        }
+    }
+
+    private static void mergeSlim(JarOutputStream jos, Map<String, byte[]> allEntries,
+            Set<String> written, Set<String> seeds) throws IOException {
+        Map<String, byte[]> classUniverse = new HashMap<>();
+        for (Map.Entry<String, byte[]> e : allEntries.entrySet()) {
+            String name = e.getKey();
+            if (name.endsWith(".class")) {
+                String internalName = name.substring(0, name.length() - ".class".length());
+                if (ClassReachabilityScanner.isTracked(internalName)) {
+                    classUniverse.put(internalName, e.getValue());
+                }
+            }
+        }
+
+        Set<String> reachable = ClassReachabilityScanner.reachableClasses(classUniverse, seeds);
+
+        for (Map.Entry<String, byte[]> e : allEntries.entrySet()) {
+            String name = e.getKey();
+            if (name.endsWith(".class")) {
+                String internalName = name.substring(0, name.length() - ".class".length());
+                if (ClassReachabilityScanner.isTracked(internalName) && !reachable.contains(internalName)) {
+                    continue;
+                }
+            } else if (ClassReachabilityScanner.isTracked(name)) {
+                continue;
+            }
+            writeJarEntry(jos, name, e.getValue(), written);
+        }
     }
 
     private static void writeJarEntry(JarOutputStream jos, String name,

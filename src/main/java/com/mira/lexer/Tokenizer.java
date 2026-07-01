@@ -162,6 +162,8 @@ public class Tokenizer {
                         valueBuilder.append('\n');
                     case 't' ->
                         valueBuilder.append('\t');
+                    case 'r' ->
+                        valueBuilder.append('\r');
                     case '"' ->
                         valueBuilder.append('"');
                     case '\\' ->

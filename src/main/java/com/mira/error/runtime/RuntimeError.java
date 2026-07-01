@@ -282,4 +282,40 @@ public class RuntimeError extends MiraError {
                     "Use an index between 0 and " + (size - 1));
         }
     }
+
+    public static class PrivateSymbolImportError extends RuntimeError {
+
+        public PrivateSymbolImportError(String symbol, String module) {
+            super("E230",
+                    "Cannot import private symbol '" + symbol + "' from module '" + module + "'",
+                    "Mark the declaration with 'pub' in the module to make it importable");
+        }
+    }
+
+    public static class ModuleSymbolNotFoundError extends RuntimeError {
+
+        public ModuleSymbolNotFoundError(String symbol, String module) {
+            super("E231",
+                    "Symbol '" + symbol + "' not found in module '" + module + "'",
+                    "Check the spelling and make sure the symbol is declared with 'pub' in the module");
+        }
+    }
+
+    public static class NotAStructTemplateError extends RuntimeError {
+
+        public NotAStructTemplateError() {
+            super("E232",
+                    "Value is not a struct template and cannot be instantiated",
+                    "Make sure the target was declared with 'struct { ... }' before instantiating it");
+        }
+    }
+
+    public static class UnknownStructFieldError extends RuntimeError {
+
+        public UnknownStructFieldError(String field) {
+            super("E233",
+                    "Struct has no field '" + field + "'",
+                    "Check the spelling, or add the field to the 'struct { ... }' template");
+        }
+    }
 }

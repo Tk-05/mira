@@ -50,15 +50,15 @@ public class StaticCheckError extends MiraError {
 
     public static class BreakOutsideLoopError extends StaticCheckError {
 
-        public BreakOutsideLoopError(int line) {
-            super("E305", "'break' used outside of a loop", line, 0, 5, null);
+        public BreakOutsideLoopError(int line, int column) {
+            super("E305", "'break' used outside of a loop", line, column, 5, null);
         }
     }
 
     public static class ContinueOutsideLoopError extends StaticCheckError {
 
-        public ContinueOutsideLoopError(int line) {
-            super("E305", "'continue' used outside of a loop", line, 0, 8, null);
+        public ContinueOutsideLoopError(int line, int column) {
+            super("E305", "'continue' used outside of a loop", line, column, 8, null);
         }
     }
 
@@ -74,10 +74,10 @@ public class StaticCheckError extends MiraError {
 
     public static class StaticAssertFailedError extends StaticCheckError {
 
-        public StaticAssertFailedError(String userMessage, int line) {
+        public StaticAssertFailedError(String userMessage, int line, int column) {
             super("E308",
                     "static assertion failed" + (userMessage != null ? ": " + userMessage : ""),
-                    line, 0, "static_assert".length(), null);
+                    line, column, "static_assert".length(), null);
         }
     }
 
@@ -113,6 +113,146 @@ public class StaticCheckError extends MiraError {
                     "Module name mismatch in '" + file + "': expected '" + expected + "' but found '" + found + "'",
                     line, 0, found.length(),
                     "Rename either the file or the 'module' declaration so they match");
+        }
+    }
+
+    public static class StaticAssertRuntimeValueError extends StaticCheckError {
+
+        public StaticAssertRuntimeValueError(String name, int line, int column) {
+            super("E311",
+                    "'static_assert' requires a compile-time expression, but '$" + name + "' is a runtime variable",
+                    line, column, name.length(),
+                    "Declare the variable inside a 'comptime { }' block to use it in static_assert");
+        }
+    }
+
+    public static class PostUnaryStaticError extends StaticCheckError {
+
+        public PostUnaryStaticError(String op, int line, int column) {
+            super("E312",
+                    "'" + op + "' can only be applied to a variable reference",
+                    line, column, op.length(),
+                    "Use '$variable" + op + "' to increment or decrement a variable");
+        }
+    }
+
+    public static class RangeStepZeroStaticError extends StaticCheckError {
+
+        public RangeStepZeroStaticError(int line, int column) {
+            super("E313",
+                    "Range step cannot be zero",
+                    line, column, 1,
+                    "Use a non-zero step value, e.g. '<0..10, 2>'");
+        }
+    }
+
+    public static class ReturnOutsideFunctionError extends StaticCheckError {
+
+        public ReturnOutsideFunctionError(int line, int column) {
+            super("E314",
+                    "'return' used outside of a function",
+                    line, column, "return".length(),
+                    "Move this 'return' inside a function body");
+        }
+    }
+
+    public static class LiteralNotCallableError extends StaticCheckError {
+
+        public LiteralNotCallableError(String value, int line, int column) {
+            super("E316",
+                    "'" + value + "' is a literal and cannot be called as a function",
+                    line, column, value.length(),
+                    "Only functions and lambdas can be called with '()'");
+        }
+    }
+
+    public static class NotIterableStaticError extends StaticCheckError {
+
+        public NotIterableStaticError(int line, int column) {
+            super("E317",
+                    "Value is not iterable — expected a list, tuple, or range",
+                    line, column, 1,
+                    "Use a list '{...}', a tuple '[...]', or a range expression as the collection");
+        }
+    }
+
+    public static class PrivateImportError extends StaticCheckError {
+
+        public PrivateImportError(String symbol, String module, int line, int column) {
+            super("E318",
+                    "Cannot import private symbol '" + symbol + "' from module '" + module + "'",
+                    line, column, symbol.length(),
+                    "Mark the declaration with 'pub' in '" + module + "' to make it importable");
+        }
+    }
+
+    public static class UnknownModuleSymbolError extends StaticCheckError {
+
+        public UnknownModuleSymbolError(String symbol, String module, int line, int column) {
+            super("E319",
+                    "Symbol '" + symbol + "' is not defined in module '" + module + "'",
+                    line, column, symbol.length(),
+                    "Check the spelling and make sure the symbol is declared in '" + module + "'");
+        }
+    }
+
+    public static class PrivateAccessError extends StaticCheckError {
+
+        public PrivateAccessError(String symbol, String module, int line, int column) {
+            super("E318",
+                    "'" + symbol + "' is private in module '" + module + "'",
+                    line, column, symbol.length(),
+                    "Mark the declaration with 'pub' in '" + module + "' to make it accessible");
+        }
+    }
+
+    public static class UndefinedModuleSymbolError extends StaticCheckError {
+
+        public UndefinedModuleSymbolError(String symbol, String module, int line, int column) {
+            super("E319",
+                    "'" + symbol + "' is not defined in module '" + module + "'",
+                    line, column, symbol.length(),
+                    "Check the spelling and make sure the symbol is declared with 'pub' in '" + module + "'");
+        }
+    }
+
+    public static class FieldAccessOnNonObjectError extends StaticCheckError {
+
+        public FieldAccessOnNonObjectError(String field, String actualType, int line, int column) {
+            super("E320",
+                    "Cannot access field '" + field + "' on " + actualType + " (expected object)",
+                    line, column, field.length(),
+                    "Make sure the value is an object literal before using '.' field access");
+        }
+    }
+
+    public static class ImmutableCollectionStaticError extends StaticCheckError {
+
+        public ImmutableCollectionStaticError(String name, int line, int column) {
+            super("E321",
+                    "Cannot modify element of constant '" + name + "'",
+                    line, column, name.length(),
+                    "Declare with 'var' instead of 'const' if the collection needs to be modified");
+        }
+    }
+
+    public static class PostExprNaNStaticError extends StaticCheckError {
+
+        public PostExprNaNStaticError(String name, int line, int column) {
+            super("E322",
+                    "Cannot apply numeric increment/decrement to '$" + name + "' — it is not a number",
+                    line, column, name.length(),
+                    "Make sure '" + name + "' holds a numeric value before using '++' or '--'");
+        }
+    }
+
+    public static class UndefinedObjectFieldStaticError extends StaticCheckError {
+
+        public UndefinedObjectFieldStaticError(String field, String objectVar, int line, int column) {
+            super("E323",
+                    "Field '" + field + "' does not exist on '" + objectVar + "'",
+                    line, column, field.length(),
+                    "Check the object literal for available fields");
         }
     }
 }

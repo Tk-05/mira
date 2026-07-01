@@ -41,7 +41,10 @@ public class Collection implements Lib {
             }
             return s;
         }
-        return e;
+        if (e instanceof ArrayExpression || e instanceof ListExpression || e instanceof MapExpression) {
+            return e;
+        }
+        return e.accept(null);
     }
 
     private static boolean isTruthy(Object val) {
@@ -104,11 +107,11 @@ public class Collection implements Lib {
     @Override
     public void loadLib(Environment environment) {
 
-        environment.define("size", new NativeFunction(1, args -> {
+        environment.define("size", new NativeFunction(1, "col", args -> {
             return (double) toMembers(args.get(0)).size();
         }));
 
-        environment.define("push", new NativeFunction(2, args -> {
+        environment.define("push", new NativeFunction(2, "col, val", args -> {
             if (!(args.get(0) instanceof ListExpression list)) {
                 throw new RuntimeException("push requires a list");
             }
@@ -116,7 +119,7 @@ public class Collection implements Lib {
             return list;
         }));
 
-        environment.define("pop", new NativeFunction(1, args -> {
+        environment.define("pop", new NativeFunction(1, "col", args -> {
             if (!(args.get(0) instanceof ListExpression list)) {
                 throw new RuntimeException("pop requires a list");
             }
@@ -128,7 +131,7 @@ public class Collection implements Lib {
             return list;
         }));
 
-        environment.define("first", new NativeFunction(1, args -> {
+        environment.define("first", new NativeFunction(1, "col", args -> {
             List<Expression> members = toMembers(args.get(0));
             if (members.isEmpty()) {
                 throw new RuntimeException("first on empty collection");
@@ -136,7 +139,7 @@ public class Collection implements Lib {
             return members.get(0);
         }));
 
-        environment.define("last", new NativeFunction(1, args -> {
+        environment.define("last", new NativeFunction(1, "col", args -> {
             List<Expression> members = toMembers(args.get(0));
             if (members.isEmpty()) {
                 throw new RuntimeException("last on empty collection");
@@ -144,14 +147,14 @@ public class Collection implements Lib {
             return members.get(members.size() - 1);
         }));
 
-        environment.define("contains", new NativeFunction(2, args -> {
+        environment.define("contains", new NativeFunction(2, "col, val", args -> {
             String target = String.valueOf(args.get(1));
             return toMembers(args.get(0)).stream()
                     .map(e -> e instanceof DumbExpression d ? String.valueOf(d.getValue()) : String.valueOf(e))
                     .anyMatch(target::equals);
         }));
 
-        environment.define("indexOf", new NativeFunction(2, args -> {
+        environment.define("indexOf", new NativeFunction(2, "col, val", args -> {
             String target = String.valueOf(args.get(1));
             List<Expression> members = toMembers(args.get(0));
             for (int i = 0; i < members.size(); i++) {
@@ -164,27 +167,27 @@ public class Collection implements Lib {
             return -1.0;
         }));
 
-        environment.define("slice", new NativeFunction(3, args -> {
+        environment.define("slice", new NativeFunction(3, "col, start, end", args -> {
             List<Expression> members = toMembers(args.get(0));
             int from = (int) Double.parseDouble(String.valueOf(args.get(1)));
             int to = (int) Double.parseDouble(String.valueOf(args.get(2)));
             return new ListExpression(new ArrayList<>(members.subList(from, to)));
         }));
 
-        environment.define("reverse", new NativeFunction(1, args -> {
+        environment.define("reverse", new NativeFunction(1, "col", args -> {
             List<Expression> members = new ArrayList<>(toMembers(args.get(0)));
             Collections.reverse(members);
             return new ListExpression(members);
         }));
 
-        environment.define("concat", new NativeFunction(2, args -> {
+        environment.define("concat", new NativeFunction(2, "col1, col2", args -> {
             List<Expression> a = new ArrayList<>(toMembers(args.get(0)));
             List<Expression> b = new ArrayList<>(toMembers(args.get(1)));
             a.addAll(b);
             return new ListExpression(a);
         }));
 
-        environment.define("flatten", new NativeFunction(1, args -> {
+        environment.define("flatten", new NativeFunction(1, "col", args -> {
             List<Expression> result = new ArrayList<>();
             for (Expression e : toMembers(args.get(0))) {
                 switch (e) {
@@ -199,7 +202,7 @@ public class Collection implements Lib {
             return new ListExpression(result);
         }));
 
-        environment.define("join", new NativeFunction(2, args -> {
+        environment.define("join", new NativeFunction(2, "col, sep", args -> {
             String separator = String.valueOf(args.get(1));
             List<Expression> members = toMembers(args.get(0));
             StringBuilder sb = new StringBuilder();
@@ -217,7 +220,7 @@ public class Collection implements Lib {
             return new ListExpression(new ArrayList<>());
         }));
 
-        environment.define("remove", new NativeFunction(2, args -> {
+        environment.define("remove", new NativeFunction(2, "col, index", args -> {
             if (!(args.get(0) instanceof ListExpression list)) {
                 throw new RuntimeException("remove requires a list");
             }
@@ -230,6 +233,11 @@ public class Collection implements Lib {
             @Override
             public int getArity() {
                 return 2;
+            }
+
+            @Override
+            public String getParamHint() {
+                return "col, fn";
             }
 
             @Override
@@ -248,6 +256,11 @@ public class Collection implements Lib {
             @Override
             public int getArity() {
                 return 2;
+            }
+
+            @Override
+            public String getParamHint() {
+                return "col, fn";
             }
 
             @Override
@@ -271,6 +284,11 @@ public class Collection implements Lib {
             }
 
             @Override
+            public String getParamHint() {
+                return "col, fn, init";
+            }
+
+            @Override
             public Object call(Interpreter interpreter, List<Object> arguments) {
                 List<Expression> members = toMembers(arguments.get(0));
                 Callable fn = (Callable) arguments.get(1);
@@ -286,6 +304,11 @@ public class Collection implements Lib {
             @Override
             public int getArity() {
                 return 2;
+            }
+
+            @Override
+            public String getParamHint() {
+                return "col, fn";
             }
 
             @Override
@@ -308,6 +331,11 @@ public class Collection implements Lib {
             }
 
             @Override
+            public String getParamHint() {
+                return "col, fn";
+            }
+
+            @Override
             public Object call(Interpreter interpreter, List<Object> arguments) {
                 List<Expression> members = toMembers(arguments.get(0));
                 Callable fn = (Callable) arguments.get(1);
@@ -324,6 +352,11 @@ public class Collection implements Lib {
             @Override
             public int getArity() {
                 return 2;
+            }
+
+            @Override
+            public String getParamHint() {
+                return "col, fn";
             }
 
             @Override
@@ -344,6 +377,11 @@ public class Collection implements Lib {
             @Override
             public int getArity() {
                 return 2;
+            }
+
+            @Override
+            public String getParamHint() {
+                return "col, fn";
             }
 
             @Override
@@ -370,6 +408,11 @@ public class Collection implements Lib {
             }
 
             @Override
+            public String getParamHint() {
+                return "col, fn";
+            }
+
+            @Override
             public Object call(Interpreter interpreter, List<Object> arguments) {
                 List<Expression> members = toMembers(arguments.get(0));
                 Callable fn = (Callable) arguments.get(1);
@@ -389,6 +432,11 @@ public class Collection implements Lib {
             }
 
             @Override
+            public String getParamHint() {
+                return "col, fn";
+            }
+
+            @Override
             public Object call(Interpreter interpreter, List<Object> arguments) {
                 List<Expression> members = toMembers(arguments.get(0));
                 Callable fn = (Callable) arguments.get(1);
@@ -405,7 +453,7 @@ public class Collection implements Lib {
             }
         });
 
-        environment.define("sort", new NativeFunction(1, args -> {
+        environment.define("sort", new NativeFunction(1, "col", args -> {
             List<Expression> members = new ArrayList<>(toMembers(args.get(0)));
             members.sort((a, b) -> {
                 String sa = a instanceof DumbExpression d ? String.valueOf(d.getValue()) : String.valueOf(a);
@@ -419,7 +467,7 @@ public class Collection implements Lib {
             return new ListExpression(members);
         }));
 
-        environment.define("unique", new NativeFunction(1, args -> {
+        environment.define("unique", new NativeFunction(1, "col", args -> {
             List<Expression> members = toMembers(args.get(0));
             List<Expression> result = new ArrayList<>();
             LinkedHashSet<String> seen = new LinkedHashSet<>();
@@ -432,7 +480,7 @@ public class Collection implements Lib {
             return new ListExpression(result);
         }));
 
-        environment.define("sum", new NativeFunction(1, args -> {
+        environment.define("sum", new NativeFunction(1, "col", args -> {
             double total = 0;
             for (Expression e : toMembers(args.get(0))) {
                 String v = e instanceof DumbExpression d ? String.valueOf(d.getValue()) : String.valueOf(e);
@@ -441,7 +489,7 @@ public class Collection implements Lib {
             return total;
         }));
 
-        environment.define("avg", new NativeFunction(1, args -> {
+        environment.define("avg", new NativeFunction(1, "col", args -> {
             List<Expression> members = toMembers(args.get(0));
             if (members.isEmpty()) {
                 throw new RuntimeException("avg on empty collection");
@@ -454,7 +502,7 @@ public class Collection implements Lib {
             return total / members.size();
         }));
 
-        environment.define("zip", new NativeFunction(2, args -> {
+        environment.define("zip", new NativeFunction(2, "col1, col2", args -> {
             List<Expression> a = toMembers(args.get(0));
             List<Expression> b = toMembers(args.get(1));
             int len = java.lang.Math.min(a.size(), b.size());
@@ -468,7 +516,7 @@ public class Collection implements Lib {
             return new ListExpression(result);
         }));
 
-        environment.define("fill", new NativeFunction(2, args -> {
+        environment.define("fill", new NativeFunction(2, "n, val", args -> {
             int n = (int) Double.parseDouble(String.valueOf(args.get(0)));
             Object val = args.get(1);
             List<Expression> result = new ArrayList<>();
@@ -478,7 +526,7 @@ public class Collection implements Lib {
             return new ListExpression(result);
         }));
 
-        environment.define("min", new NativeFunction(1, args -> {
+        environment.define("min", new NativeFunction(1, "col", args -> {
             List<Expression> members = toMembers(args.get(0));
             if (members.isEmpty()) {
                 throw new RuntimeException("min on empty collection");
@@ -491,7 +539,7 @@ public class Collection implements Lib {
             return min;
         }));
 
-        environment.define("max", new NativeFunction(1, args -> {
+        environment.define("max", new NativeFunction(1, "col", args -> {
             List<Expression> members = toMembers(args.get(0));
             if (members.isEmpty()) {
                 throw new RuntimeException("max on empty collection");
@@ -504,19 +552,19 @@ public class Collection implements Lib {
             return max;
         }));
 
-        environment.define("take", new NativeFunction(2, args -> {
+        environment.define("take", new NativeFunction(2, "col, n", args -> {
             List<Expression> members = toMembers(args.get(0));
             int n = (int) Double.parseDouble(String.valueOf(args.get(1)));
             return new ListExpression(new ArrayList<>(members.subList(0, java.lang.Math.min(n, members.size()))));
         }));
 
-        environment.define("drop", new NativeFunction(2, args -> {
+        environment.define("drop", new NativeFunction(2, "col, n", args -> {
             List<Expression> members = toMembers(args.get(0));
             int n = (int) Double.parseDouble(String.valueOf(args.get(1)));
             return new ListExpression(new ArrayList<>(members.subList(java.lang.Math.min(n, members.size()), members.size())));
         }));
 
-        environment.define("chunk", new NativeFunction(2, args -> {
+        environment.define("chunk", new NativeFunction(2, "col, size", args -> {
             List<Expression> members = toMembers(args.get(0));
             int size = (int) Double.parseDouble(String.valueOf(args.get(1)));
             if (size <= 0) {

@@ -28,7 +28,7 @@ public class Net implements Lib {
     @Override
     public void loadLib(Environment environment) {
 
-        environment.define("httpGet", new NativeFunction(1, args -> {
+        environment.define("httpGet", new NativeFunction(1, "url", args -> {
             String url = String.valueOf(args.get(0));
             try {
                 HttpRequest request = HttpRequest.newBuilder()
@@ -42,7 +42,7 @@ public class Net implements Lib {
             }
         }));
 
-        environment.define("httpPost", new NativeFunction(3, args -> {
+        environment.define("httpPost", new NativeFunction(3, "url, body, contentType", args -> {
             String url = String.valueOf(args.get(0));
             String body = String.valueOf(args.get(1));
             String contentType = String.valueOf(args.get(2));
@@ -59,7 +59,7 @@ public class Net implements Lib {
             }
         }));
 
-        environment.define("httpStatus", new NativeFunction(1, args -> {
+        environment.define("httpStatus", new NativeFunction(1, "url", args -> {
             String url = String.valueOf(args.get(0));
             try {
                 HttpRequest request = HttpRequest.newBuilder()
@@ -73,7 +73,7 @@ public class Net implements Lib {
             }
         }));
 
-        environment.define("httpHeader", new NativeFunction(2, args -> {
+        environment.define("httpHeader", new NativeFunction(2, "url, header", args -> {
             String url = String.valueOf(args.get(0));
             String header = String.valueOf(args.get(1));
             try {
@@ -88,7 +88,7 @@ public class Net implements Lib {
             }
         }));
 
-        environment.define("httpDownload", new NativeFunction(2, args -> {
+        environment.define("httpDownload", new NativeFunction(2, "url, path", args -> {
             String url = String.valueOf(args.get(0));
             String path = String.valueOf(args.get(1));
             try {
@@ -103,7 +103,7 @@ public class Net implements Lib {
             }
         }));
 
-        environment.define("httpPut", new NativeFunction(3, args -> {
+        environment.define("httpPut", new NativeFunction(3, "url, body, contentType", args -> {
             String url = String.valueOf(args.get(0));
             String body = String.valueOf(args.get(1));
             String contentType = String.valueOf(args.get(2));
@@ -120,7 +120,7 @@ public class Net implements Lib {
             }
         }));
 
-        environment.define("httpDelete", new NativeFunction(1, args -> {
+        environment.define("httpDelete", new NativeFunction(1, "url", args -> {
             String url = String.valueOf(args.get(0));
             try {
                 HttpRequest request = HttpRequest.newBuilder()
@@ -134,10 +134,10 @@ public class Net implements Lib {
             }
         }));
 
-        environment.define("urlEncode", new NativeFunction(1, args
+        environment.define("urlEncode", new NativeFunction(1, "str", args
                 -> java.net.URLEncoder.encode(String.valueOf(args.get(0)), java.nio.charset.StandardCharsets.UTF_8)));
 
-        environment.define("urlDecode", new NativeFunction(1, args
+        environment.define("urlDecode", new NativeFunction(1, "str", args
                 -> java.net.URLDecoder.decode(String.valueOf(args.get(0)), java.nio.charset.StandardCharsets.UTF_8)));
     }
 }

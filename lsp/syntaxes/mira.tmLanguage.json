@@ -54,7 +54,7 @@
     },
     "keywords-declaration": {
       "name": "keyword.declaration.mira",
-      "match": "\\b(fn|var|const|async|pure|module|import|enum|native|as|comptime|test)\\b"
+      "match": "\\b(fn|var|const|async|pure|module|import|enum|struct|native|as|comptime|test|pub)\\b"
     },
     "keywords-operator": {
       "name": "keyword.operator.word.mira",
@@ -90,7 +90,7 @@
     },
     "operators": {
       "name": "keyword.operator.mira",
-      "match": "->|\\?\\?|\\|>|:|==|!=|<=|>=|<|>|\\+\\+|--|\\*\\*:|\\*\\*|\\+:|-:|\\*:|/:|%:|&:|\\|:|\\^:|\\+|-|\\*|/|%|\\^|&(?!&)|\\|(?!\\|)|&&|\\|\\|"
+      "match": "->|\\.\\.|\\?\\?|\\|>|:|==|!=|<=|>=|<|>|\\+\\+|--|\\*\\*:|\\*\\*|\\+:|-:|\\*:|/:|%:|&:|\\|:|\\^:|\\+|-|\\*|/|%|\\^|&(?!&)|\\|(?!\\|)|&&|\\|\\|"
     }
   }
 }

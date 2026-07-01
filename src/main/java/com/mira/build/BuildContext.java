@@ -25,6 +25,10 @@ public class BuildContext {
     }
 
     public void applyFlags(ProjectConfig.BuildMode modeOverride) {
+        applyFlags(modeOverride, null);
+    }
+
+    public void applyFlags(ProjectConfig.BuildMode modeOverride, ProjectConfig.JarBundle jarBundleOverride) {
         ProjectConfig.BuildConfig bc = config.build();
         ProjectConfig.BuildMode mode = modeOverride != null ? modeOverride : bc.mode();
 
@@ -43,5 +47,17 @@ public class BuildContext {
         Flags.compile = mode == ProjectConfig.BuildMode.COMPILE || mode == ProjectConfig.BuildMode.PACKAGE;
         Flags.packageJar = mode == ProjectConfig.BuildMode.PACKAGE;
         Flags.outputDir = Flags.compile ? bc.outputDir() : null;
+
+        if (Flags.packageJar) {
+            ProjectConfig.JarBundle jarBundle = jarBundleOverride != null ? jarBundleOverride : bc.jarBundle();
+            if (jarBundle == null) {
+                throw new BuildException(
+                        "Build mode 'package' requires jar-bundle to be set "
+                        + "(mira.toml [build] jar-bundle = \"slim\" or \"full\", or pass --slim/--full)");
+            }
+            Flags.slimJar = jarBundle == ProjectConfig.JarBundle.SLIM;
+        } else {
+            Flags.slimJar = false;
+        }
     }
 }

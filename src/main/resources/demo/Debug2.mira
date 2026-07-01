@@ -1,5 +1,26 @@
 module Debug2;
 
-fn hello(name) {
-    return hello $name;
+var point : struct {
+    var x;
+    var y;
+};
+
+var abc : {
+    var aaa;
+};
+
+var origin : $point{$x : 0, $y : 5};
+
+hello($origin);
+
+pub fn hello(name) {
+    println($name.x);
+
+    hello2($name.x);
+
+    return hello $name.x;
+}
+
+fn hello2(name) {
+    $name;
 }

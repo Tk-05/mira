@@ -6,8 +6,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-import com.mira.Main;
-
 public class FileLoader {
 
     public static String readFileFromPath(String path) throws IOException {
@@ -16,7 +14,7 @@ public class FileLoader {
     }
 
     public static String readFileFromClassPath(String path) throws IOException {
-        try (InputStream is = Main.class.getClassLoader().getResourceAsStream(path)) {
+        try (InputStream is = FileLoader.class.getClassLoader().getResourceAsStream(path)) {
             if (is == null) {
                 throw new IOException("File was not found!");
             }

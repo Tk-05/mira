@@ -19,7 +19,6 @@
         "src/main/resources/demo/Debug.mira",
         "-m",
         "-li",
-        "-lint",
         "-crash",
         "-compile-run"
       ]

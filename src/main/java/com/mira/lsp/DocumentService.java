@@ -1,6 +1,7 @@
 package com.mira.lsp;
 
 import java.nio.file.Path;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -10,7 +11,6 @@ import org.eclipse.lsp4j.CompletionItem;
 import org.eclipse.lsp4j.CompletionList;
 import org.eclipse.lsp4j.CompletionParams;
 import org.eclipse.lsp4j.DefinitionParams;
-import org.eclipse.lsp4j.Diagnostic;
 import org.eclipse.lsp4j.DidChangeTextDocumentParams;
 import org.eclipse.lsp4j.DidCloseTextDocumentParams;
 import org.eclipse.lsp4j.DidOpenTextDocumentParams;
@@ -22,6 +22,8 @@ import org.eclipse.lsp4j.Location;
 import org.eclipse.lsp4j.LocationLink;
 import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.Range;
+import org.eclipse.lsp4j.SemanticTokens;
+import org.eclipse.lsp4j.SemanticTokensParams;
 import org.eclipse.lsp4j.TextEdit;
 import org.eclipse.lsp4j.jsonrpc.messages.Either;
 import org.eclipse.lsp4j.services.TextDocumentService;
@@ -49,7 +51,7 @@ public class DocumentService implements TextDocumentService {
         String content = params.getTextDocument().getText();
         documents.put(uri, content);
         updateAstCache(uri, content);
-        server.publishDiagnostics(uri, analyze(uri, content));
+        reanalyzeAll();
     }
 
     @Override
@@ -58,7 +60,7 @@ public class DocumentService implements TextDocumentService {
         String content = params.getContentChanges().get(0).getText();
         documents.put(uri, content);
         updateAstCache(uri, content);
-        server.publishDiagnostics(uri, analyze(uri, content));
+        reanalyzeAll();
     }
 
     @Override
@@ -77,7 +79,7 @@ public class DocumentService implements TextDocumentService {
     public CompletableFuture<List<? extends TextEdit>> formatting(DocumentFormattingParams params) {
         String uri = params.getTextDocument().getUri();
         String content = documents.getOrDefault(uri, "");
-        String formatted = Formatter.format(content);
+        String formatted = AstFormatter.format(content);
         int lineCount = content.split("\n", -1).length;
         Range fullRange = new Range(new Position(0, 0), new Position(lineCount, 0));
         return CompletableFuture.completedFuture(List.of(new TextEdit(fullRange, formatted)));
@@ -100,6 +102,13 @@ public class DocumentService implements TextDocumentService {
     }
 
     @Override
+    public CompletableFuture<SemanticTokens> semanticTokensFull(SemanticTokensParams params) {
+        String uri = params.getTextDocument().getUri();
+        List<Node> ast = astCache.getOrDefault(uri, List.of());
+        return CompletableFuture.completedFuture(SemanticTokenProvider.provide(ast));
+    }
+
+    @Override
     public CompletableFuture<Either<List<? extends Location>, List<? extends LocationLink>>> definition(DefinitionParams params) {
         String uri = params.getTextDocument().getUri();
         List<Node> ast = astCache.getOrDefault(uri, List.of());
@@ -118,9 +127,17 @@ public class DocumentService implements TextDocumentService {
         }
     }
 
-    private List<Diagnostic> analyze(String uri, String content) {
-        Path filePath = uriToPath(uri);
-        return DiagnosticCollector.collect(content, filePath);
+    private void reanalyzeAll() {
+        Map<Path, String> openDocuments = new HashMap<>();
+        documents.forEach((docUri, docContent) -> {
+            Path p = uriToPath(docUri);
+            if (p != null) {
+                openDocuments.put(p, docContent);
+            }
+        });
+        documents.forEach((docUri, docContent)
+                -> server.publishDiagnostics(docUri,
+                        DiagnosticCollector.collect(docContent, uriToPath(docUri), openDocuments)));
     }
 
     private static Path uriToPath(String uri) {

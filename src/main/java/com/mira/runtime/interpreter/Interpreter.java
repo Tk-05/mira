@@ -19,8 +19,10 @@ import com.mira.error.runtime.RuntimeError.ImmutableCollectionError;
 import com.mira.error.runtime.RuntimeError.IndexOutOfBoundsError;
 import com.mira.error.runtime.RuntimeError.LocalCallableError;
 import com.mira.error.runtime.RuntimeError.NotANamespaceError;
+import com.mira.error.runtime.RuntimeError.NotAStructTemplateError;
 import com.mira.error.runtime.RuntimeError.NotCallableError;
 import com.mira.error.runtime.RuntimeError.NotIterableError;
+import com.mira.error.runtime.RuntimeError.UnknownStructFieldError;
 import com.mira.error.runtime.RuntimeError.PostExprNaNError;
 import com.mira.error.runtime.RuntimeError.PostUnaryError;
 import com.mira.error.runtime.RuntimeError.RangeStepZeroError;
@@ -48,6 +50,9 @@ import com.mira.parser.nodes.expression.Expression.MethodCallExpression;
 import com.mira.parser.nodes.expression.Expression.Mutability;
 import com.mira.parser.nodes.expression.Expression.NamespaceCallExpression;
 import com.mira.parser.nodes.expression.Expression.ObjectExpression;
+import com.mira.parser.nodes.expression.Expression.StructExpression;
+import com.mira.parser.nodes.expression.Expression.AssignExpression;
+import com.mira.parser.nodes.expression.Expression.StructInitExpression;
 import com.mira.parser.nodes.expression.Expression.RangeExpression;
 import com.mira.parser.nodes.expression.Expression.SwitchExpression;
 import com.mira.parser.nodes.expression.Expression.TernaryExpression;
@@ -78,6 +83,7 @@ import com.mira.parser.nodes.statement.Statement.VarDecl;
 import com.mira.parser.nodes.statement.Statement.VarDestructure;
 import com.mira.parser.nodes.statement.Statement.While;
 import com.mira.runtime.ComptimeExecutor;
+import com.mira.runtime.StructTemplate;
 import com.mira.runtime.functions.BreakSignal;
 import com.mira.runtime.functions.Callable;
 import com.mira.runtime.functions.ContinueSignal;
@@ -474,9 +480,13 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             if (cached != null) {
                 return (T) cached;
             }
-            Number parsed = parseNumber(value);
-            expression.setCachedValue(parsed);
-            return (T) parsed;
+            try {
+                Number parsed = parseNumber(value);
+                expression.setCachedValue(parsed);
+                return (T) parsed;
+            } catch (NumberFormatException e) {
+                return (T) value;
+            }
         }
         return (T) value;
     }
@@ -848,6 +858,10 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                         funcDecl.isAsync(),
                         globalEnvironment));
 
+        if (funcDecl.isPublic()) {
+            globalEnvironment.markPublic(funcDecl.getName());
+        }
+
         return null;
     }
 
@@ -866,7 +880,27 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
     @Override
     public <T> T visitListExpr(ListExpression expression) {
-        return (T) expression;
+        List<Expression> evaluated = new ArrayList<>();
+        for (Expression member : expression.getMembers()) {
+            Object result = member.accept(this);
+            if (result instanceof Expression e) {
+                evaluated.add(e);
+            } else {
+                final Object captured = result;
+                evaluated.add(new Expression() {
+                    @Override
+                    public <T2> T2 accept(ExprVisitor<T2> visitor) {
+                        return (T2) captured;
+                    }
+
+                    @Override
+                    public String toString() {
+                        return String.valueOf(captured);
+                    }
+                });
+            }
+        }
+        return (T) new ListExpression(evaluated);
     }
 
     @Override
@@ -1108,8 +1142,83 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         return (T) objectEnv;
     }
 
+    @Override
+    public <T> T visitStructExpression(StructExpression expression) {
+        Environment defaults = new Environment();
+
+        for (VarDecl field : expression.getVarDecls()) {
+            Object value = field.getInitializer() != null
+                    ? field.getInitializer().accept(this)
+                    : null;
+
+            if (field.isConst()) {
+                defaults.defineConst(field.getName(), value);
+            } else {
+                defaults.define(field.getName(), value);
+            }
+        }
+
+        for (FuncDecl method : expression.getMethods()) {
+            Function fn = new Function(defaults, method.getBody(), method.getParameters(),
+                    method.getArity(), method.getMaxArity(), method.getVariadicParam(), globalEnvironment);
+            defaults.define(method.getName(), fn);
+        }
+
+        return (T) new StructTemplate(defaults, expression.getMethods());
+    }
+
+    @Override
+    public <T> T visitStructInitExpression(StructInitExpression expression) {
+        Object targetValue = expression.getTarget().accept(this);
+        if (!(targetValue instanceof StructTemplate template)) {
+            throw new NotAStructTemplateError();
+        }
+
+        Environment instanceEnv = template.getDefaults().copyShallow();
+
+        for (FuncDecl method : template.getMethods()) {
+            Function fn = new Function(instanceEnv, method.getBody(), method.getParameters(),
+                    method.getArity(), method.getMaxArity(), method.getVariadicParam(), globalEnvironment);
+            instanceEnv.forceDefine(method.getName(), fn);
+        }
+
+        if (!instanceEnv.exists("this")) {
+            instanceEnv.define("this", instanceEnv);
+        }
+
+        for (Map.Entry<String, Expression> override : expression.getOverrides().entrySet()) {
+            String name = override.getKey();
+            if (!instanceEnv.exists(name)) {
+                throw new UnknownStructFieldError(name);
+            }
+            instanceEnv.forceDefine(name, override.getValue().accept(this));
+        }
+
+        return (T) instanceEnv;
+    }
+
     private <T> T visitPipeExpr(BinaryExpression expr) {
         Object piped = expr.getLeft().accept(this);
+
+        if (expr.getRight() instanceof NamespaceCallExpression nsCall) {
+            Object namespaceObj = localEnvironment != null ? localEnvironment.getOrNull(nsCall.getAlias()) : null;
+            if (namespaceObj == null) {
+                namespaceObj = globalEnvironment.get(nsCall.getAlias());
+            }
+            if (!(namespaceObj instanceof Namespace namespace)) {
+                throw new NotCallableError(nsCall.getAlias() + "." + nsCall.getFunctionName());
+            }
+            Object callee = namespace.get(nsCall.getFunctionName());
+            if (!(callee instanceof Callable callable)) {
+                throw new NotCallableError(nsCall.getAlias() + "." + nsCall.getFunctionName());
+            }
+            List<Object> arguments = new ArrayList<>();
+            arguments.add(piped);
+            for (Expression arg : nsCall.getArguments()) {
+                arguments.add(arg.accept(this));
+            }
+            return (T) callable.call(this, arguments);
+        }
 
         if (!(expr.getRight() instanceof CallExpression call)) {
             throw new NotCallableError("right-hand side of |> must be a call expression");
@@ -1471,9 +1580,13 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             }
         } catch (com.mira.error.MiraError e) {
             if (e.getLine() < 0) {
-                e.withLocation(varDecl.line, 0);
+                e.withLocation(varDecl.line, varDecl.nameColumn);
             }
             throw e;
+        }
+
+        if (varDecl.isPublic()) {
+            env.markPublic(varDecl.getName());
         }
 
         return null;
@@ -1486,6 +1599,9 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             enumEnv.defineConst(entry.getKey(), entry.getValue());
         }
         globalEnvironment.defineConst(stmt.getIdentifier(), enumEnv);
+        if (stmt.isPublic()) {
+            globalEnvironment.markPublic(stmt.getIdentifier());
+        }
         return null;
     }
 
@@ -1534,7 +1650,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         if (!resolveLoopCondition(condition)) {
             String msg = stmt.getMessage() != null
                     ? String.valueOf(stmt.getMessage().accept(this)) : null;
-            throw new StaticAssertFailedError(msg, stmt.line);
+            throw new StaticAssertFailedError(msg, stmt.line, stmt.column);
         }
         return null;
     }
@@ -1583,9 +1699,9 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                             }
                             referencedObject = switch (members.get(i)) {
                                 case ArrayExpression innerArray ->
-                                    innerArray.accept(this);
+                                    innerArray;
                                 case ListExpression innerList ->
-                                    innerList.accept(this);
+                                    innerList;
                                 default ->
                                     throw new ImmutableCollectionError();
                             };
@@ -1598,7 +1714,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                             }
                             referencedObject = switch (members.get(i)) {
                                 case ListExpression innerList ->
-                                    innerList.accept(this);
+                                    innerList;
                                 default ->
                                     throw new ImmutableCollectionError();
                             };
@@ -1610,11 +1726,12 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
                 if (referencedObject instanceof Mutability mutability) {
                     if (mutability.isMutable()) {
+                        Object evaluatedRhs = assign.getExpression().accept(this);
                         Expression assignment;
-                        if (assign.getExpression() instanceof CallExpression callExpression) {
-                            assignment = new DumbExpression(new Token(TokenType.EXPRESSION, String.valueOf(callExpression.accept(this)), 0, 0));
+                        if (evaluatedRhs instanceof Expression e) {
+                            assignment = e;
                         } else {
-                            assignment = assign.getExpression();
+                            assignment = new DumbExpression(new Token(TokenType.EXPRESSION, String.valueOf(evaluatedRhs), 0, 0));
                         }
 
                         switch (referencedObject) {
@@ -1676,6 +1793,30 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         }
 
         return null;
+    }
+
+    @Override
+    public <T> T visitAssignExpression(AssignExpression e) {
+        if (e.getReference() instanceof UnaryExpression u) {
+            String name = String.valueOf(u.getRight().accept(this));
+            Object value = e.getValue().accept(this);
+            int line = u.getOperation().getLine();
+            int col = u.getOperation().getColumn();
+            try {
+                if (localEnvironment != null && localEnvironment.existsInChain(name)) {
+                    localEnvironment.assign(name, value);
+                } else {
+                    globalEnvironment.assign(name, value);
+                }
+            } catch (com.mira.error.MiraError err) {
+                if (err.getLine() < 0) {
+                    err.withLocation(line, col);
+                }
+                throw err;
+            }
+            return (T) value;
+        }
+        throw new AssertionError("Unsupported assignment target in assign expression");
     }
 
     @Override
@@ -1832,7 +1973,8 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                     }
                 }
                 case ListExpression list -> {
-                    for (Expression expr : list.getMembers()) {
+                    List<Expression> snapshot = new ArrayList<>(list.getMembers());
+                    for (Expression expr : snapshot) {
                         Object value = expr.accept(this);
                         try {
                             runBodyWithIterator(iteratorName, value, stmt.getBody());
@@ -2108,6 +2250,8 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             return (T) NullValue.INSTANCE;
         } catch (ReturnSignal signal) {
             return (T) signal.getValue();
+        } catch (ThrowSignal signal) {
+            throw signal;
         } finally {
             localEnvironment = prevLocal;
         }

@@ -181,7 +181,18 @@ public class Compiler {
                 boolean hasAlias = alias != null && !alias.isBlank();
                 mv.visitFieldInsn(org.objectweb.asm.Opcodes.GETSTATIC, className, "GLOBALS", ENV_D);
                 mv.visitLdcInsn(ie.getKind().name());
-                mv.visitLdcInsn(ie.getModule());
+                String moduleArg = ie.getModule();
+                if (ie.getKind() == Expression.ImportExpression.ImportKind.NATIVE) {
+                    Path candidate = Path.of(moduleArg);
+                    if (!candidate.isAbsolute()) {
+                        Path ip = Flags.inputPath.get();
+                        if (ip != null) {
+                            moduleArg = ip.toAbsolutePath().getParent()
+                                    .resolve(candidate).normalize().toString();
+                        }
+                    }
+                }
+                mv.visitLdcInsn(moduleArg);
                 if (hasAlias) {
                     mv.visitLdcInsn(alias);
                 } else {
@@ -302,13 +313,16 @@ public class Compiler {
         boolean isPure = pureFunctions.contains(fd.getName()) && !fd.isAsync();
         String implName = isPure ? "mira$" + fd.getName() + "$impl" : "mira$" + fd.getName();
 
-        MethodVisitor mv = ce.openFunction(implName);
-        mv.visitCode();
+        MethodVisitor rawMv = ce.openFunction(implName);
+        rawMv.visitCode();
+        int[] instrBytes = {0};
+        ByteCountingMV mv = new com.mira.compiler.ByteCountingMV(rawMv, instrBytes);
 
         LocalSlotTable slots = new LocalSlotTable(1);
         CompilerContext ctx = new CompilerContext(className, mv, slots,
-                knownFunctions, lambdaCounter, false);
+                knownFunctions, lambdaCounter, false, instrBytes);
         MethodEmitter emitter = new MethodEmitter(ctx, ce);
+        emitter.splitEnabled = true;
 
         List<Parameter> params = fd.getParameters();
         for (int i = 0; i < params.size(); i++) {
@@ -350,10 +364,12 @@ public class Compiler {
 
         emitter.emitBody(fd.getBody());
 
-        mv.visitMethodInsn(INVOKESTATIC, RT, "nullVal", "()" + OBJ_D, false);
-        mv.visitInsn(ARETURN);
-        mv.visitMaxs(0, 0);
-        mv.visitEnd();
+        if (!emitter.methodEnded) {
+            mv.visitMethodInsn(INVOKESTATIC, RT, "nullVal", "()" + OBJ_D, false);
+            mv.visitInsn(ARETURN);
+            mv.visitMaxs(0, 0);
+            mv.visitEnd();
+        }
 
         if (isPure) {
             emitPureFunctionWrapper(ce, className, fd.getName());

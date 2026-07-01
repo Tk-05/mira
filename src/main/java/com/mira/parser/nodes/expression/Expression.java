@@ -107,6 +107,36 @@ public abstract class Expression implements Node {
         }
     }
 
+    public static class AssignExpression extends Expression {
+
+        private final Expression reference;
+        private final Expression value;
+
+        public AssignExpression(Expression reference, Expression value) {
+            this.reference = reference;
+            this.value = value;
+            this.line = reference.line;
+        }
+
+        public Expression getReference() {
+            return reference;
+        }
+
+        public Expression getValue() {
+            return value;
+        }
+
+        @Override
+        public <T> T accept(ExprVisitor<T> visitor) {
+            return visitor.visitAssignExpression(this);
+        }
+
+        @Override
+        public String toString() {
+            return reference + " : " + value;
+        }
+    }
+
     public static class ComplexExpression extends Expression {
 
         private final List<Expression> expressions;
@@ -353,12 +383,18 @@ public abstract class Expression implements Node {
         private final String functionName;
         private final List<Expression> arguments;
         private final int line;
+        private final int column;
 
         public NamespaceCallExpression(String alias, String functionName, List<Expression> arguments, int line) {
+            this(alias, functionName, arguments, line, 0);
+        }
+
+        public NamespaceCallExpression(String alias, String functionName, List<Expression> arguments, int line, int column) {
             this.alias = alias;
             this.functionName = functionName;
             this.arguments = arguments;
             this.line = line;
+            this.column = column;
         }
 
         public String getAlias() {
@@ -375,6 +411,10 @@ public abstract class Expression implements Node {
 
         public int getLine() {
             return line;
+        }
+
+        public int getColumn() {
+            return column;
         }
 
         @Override
@@ -453,6 +493,64 @@ public abstract class Expression implements Node {
 
         public List<FuncDecl> getMethods() {
             return methods;
+        }
+    }
+
+    public static class StructExpression extends Expression {
+
+        private final List<VarDecl> varDecls;
+        private final List<FuncDecl> methods;
+
+        public StructExpression(List<VarDecl> varDecls, List<FuncDecl> methods) {
+            this.varDecls = varDecls;
+            this.methods = methods;
+        }
+
+        @Override
+        public <T> T accept(ExprVisitor<T> visitor) {
+            return visitor.visitStructExpression(this);
+        }
+
+        @Override
+        public String toString() {
+            throw new UnsupportedOperationException("Unimplemented method 'toString'");
+        }
+
+        public List<VarDecl> getVarDecls() {
+            return varDecls;
+        }
+
+        public List<FuncDecl> getMethods() {
+            return methods;
+        }
+    }
+
+    public static class StructInitExpression extends Expression {
+
+        private final Expression target;
+        private final java.util.LinkedHashMap<String, Expression> overrides;
+
+        public StructInitExpression(Expression target, java.util.LinkedHashMap<String, Expression> overrides) {
+            this.target = target;
+            this.overrides = overrides;
+        }
+
+        @Override
+        public <T> T accept(ExprVisitor<T> visitor) {
+            return visitor.visitStructInitExpression(this);
+        }
+
+        @Override
+        public String toString() {
+            throw new UnsupportedOperationException("Unimplemented method 'toString'");
+        }
+
+        public Expression getTarget() {
+            return target;
+        }
+
+        public java.util.LinkedHashMap<String, Expression> getOverrides() {
+            return overrides;
         }
     }
 
@@ -697,20 +795,30 @@ public abstract class Expression implements Node {
         private final List<Node> body;
         private final String variadicParam;
         private final boolean isAsync;
+        private final boolean isArrow;
 
         public LambdaExpression(List<Parameter> parameters, List<Node> body, String variadicParam) {
-            this(parameters, body, variadicParam, false);
+            this(parameters, body, variadicParam, false, false);
         }
 
         public LambdaExpression(List<Parameter> parameters, List<Node> body, String variadicParam, boolean isAsync) {
+            this(parameters, body, variadicParam, isAsync, false);
+        }
+
+        public LambdaExpression(List<Parameter> parameters, List<Node> body, String variadicParam, boolean isAsync, boolean isArrow) {
             this.parameters = parameters;
             this.body = body;
             this.variadicParam = variadicParam;
             this.isAsync = isAsync;
+            this.isArrow = isArrow;
         }
 
         public boolean isAsync() {
             return isAsync;
+        }
+
+        public boolean isArrow() {
+            return isArrow;
         }
 
         public List<Parameter> getParameters() {

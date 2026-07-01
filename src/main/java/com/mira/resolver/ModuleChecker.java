@@ -29,7 +29,7 @@ public final class ModuleChecker {
     private ModuleChecker() {
     }
 
-    public static void check(List<Node> rootAst, Set<Path> visited) {
+    public static boolean check(List<Node> rootAst, Set<Path> visited) {
         Map<Path, ParsedModule> allModules = new LinkedHashMap<>();
         collectAllModules(rootAst, Flags.inputPath.get(), allModules, new LinkedHashSet<>(visited));
 
@@ -37,6 +37,8 @@ public final class ModuleChecker {
         String savedFileName = Flags.fileName;
         String[] savedSourceLines = Flags.sourceLines;
 
+        boolean hadErrors = false;
+        List<String> pendingErrors = new ArrayList<>();
         for (ParsedModule module : allModules.values()) {
             Set<String> externalCalls = new LinkedHashSet<>();
             ModuleResolver.collectExternalCalls(rootAst, rootPath, module.path(), externalCalls);
@@ -53,7 +55,10 @@ public final class ModuleChecker {
                 WarningCollector.flush();
             } catch (MultipleStaticCheckErrors mse) {
                 WarningCollector.flush();
-                mse.getErrors().forEach(e -> System.err.println(DiagnosticFormatter.format(e)));
+                mse.getErrors().stream()
+                        .map(DiagnosticFormatter::format)
+                        .forEach(pendingErrors::add);
+                hadErrors = true;
             } catch (Exception ignored) {
             } finally {
                 Flags.inputPath.set(rootPath);
@@ -61,6 +66,8 @@ public final class ModuleChecker {
                 Flags.sourceLines = savedSourceLines;
             }
         }
+        pendingErrors.forEach(msg -> System.err.println(msg));
+        return hadErrors;
     }
 
     public static Map<Path, List<Path>> collectDependencyGraph(List<Node> rootAst, Path rootPath) {

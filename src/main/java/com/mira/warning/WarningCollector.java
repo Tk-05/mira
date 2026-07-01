@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import com.mira.Flags;
 import com.mira.lexer.token.Token;
 
 public final class WarningCollector {
@@ -33,6 +34,10 @@ public final class WarningCollector {
         warnings.add(new Warning(level, message, line, column, span));
     }
 
+    public static void emit(WarningLevel level, String message, int line, int column, int span, int endLine) {
+        warnings.add(new Warning(level, message, line, column, span, endLine));
+    }
+
     public static List<Warning> getWarnings() {
         return Collections.unmodifiableList(warnings);
     }
@@ -42,8 +47,10 @@ public final class WarningCollector {
     }
 
     public static void flush() {
-        for (Warning w : warnings) {
-            System.err.println(w.format());
+        if (!Flags.suppressWarnings) {
+            for (Warning w : warnings) {
+                System.err.println(w.format());
+            }
         }
         warnings.clear();
     }
