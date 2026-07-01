@@ -51,6 +51,7 @@ import com.mira.parser.nodes.expression.Expression.Mutability;
 import com.mira.parser.nodes.expression.Expression.NamespaceCallExpression;
 import com.mira.parser.nodes.expression.Expression.ObjectExpression;
 import com.mira.parser.nodes.expression.Expression.StructExpression;
+import com.mira.parser.nodes.expression.Expression.AssignExpression;
 import com.mira.parser.nodes.expression.Expression.StructInitExpression;
 import com.mira.parser.nodes.expression.Expression.RangeExpression;
 import com.mira.parser.nodes.expression.Expression.SwitchExpression;
@@ -1792,6 +1793,30 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         }
 
         return null;
+    }
+
+    @Override
+    public <T> T visitAssignExpression(AssignExpression e) {
+        if (e.getReference() instanceof UnaryExpression u) {
+            String name = String.valueOf(u.getRight().accept(this));
+            Object value = e.getValue().accept(this);
+            int line = u.getOperation().getLine();
+            int col = u.getOperation().getColumn();
+            try {
+                if (localEnvironment != null && localEnvironment.existsInChain(name)) {
+                    localEnvironment.assign(name, value);
+                } else {
+                    globalEnvironment.assign(name, value);
+                }
+            } catch (com.mira.error.MiraError err) {
+                if (err.getLine() < 0) {
+                    err.withLocation(line, col);
+                }
+                throw err;
+            }
+            return (T) value;
+        }
+        throw new AssertionError("Unsupported assignment target in assign expression");
     }
 
     @Override

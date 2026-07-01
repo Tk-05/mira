@@ -1,6 +1,7 @@
 package com.mira.runtime.visitors;
 
 import com.mira.parser.nodes.expression.Expression.AccessExpression;
+import com.mira.parser.nodes.expression.Expression.AssignExpression;
 import com.mira.parser.nodes.expression.Expression.ArrayExpression;
 import com.mira.parser.nodes.expression.Expression.AwaitExpression;
 import com.mira.parser.nodes.expression.Expression.BinaryExpression;
@@ -25,6 +26,8 @@ import com.mira.parser.nodes.expression.Expression.TypeofExpression;
 import com.mira.parser.nodes.expression.Expression.UnaryExpression;
 
 public interface ExprVisitor<T> {
+
+    public <T> T visitAssignExpression(AssignExpression expression);
 
     public <T> T visitBinaryExpr(BinaryExpression expression);
 

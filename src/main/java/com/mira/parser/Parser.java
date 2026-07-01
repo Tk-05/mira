@@ -17,6 +17,7 @@ import com.mira.parser.nodes.Node;
 import com.mira.parser.nodes.Parameter;
 import com.mira.parser.nodes.expression.Expression;
 import com.mira.parser.nodes.expression.Expression.AccessExpression;
+import com.mira.parser.nodes.expression.Expression.AssignExpression;
 import com.mira.parser.nodes.expression.Expression.ArrayExpression;
 import com.mira.parser.nodes.expression.Expression.AwaitExpression;
 import com.mira.parser.nodes.expression.Expression.BinaryExpression;
@@ -296,6 +297,21 @@ public class Parser {
         }
     }
 
+    private Expression parseAssignmentExpression() {
+        Expression left = parsePratt(0);
+        if (left instanceof UnaryExpression u
+                && "$".equals(u.getOperation().getLexeme())
+                && u.getRight() instanceof DumbExpression d
+                && (Character.isLetter(d.getValue().charAt(0)) || d.getValue().charAt(0) == '_')
+                && peek().getLexeme().equals(":")
+                && peek().getTokenType() != TokenType.STRING_LITERAL) {
+            consume();
+            Expression val = parseAssignmentExpression();
+            return new AssignExpression(left, val);
+        }
+        return left;
+    }
+
     private Expression parseExpression() {
         List<Expression> items = new ArrayList<>();
 
@@ -304,7 +320,7 @@ public class Parser {
                 consume();
                 continue;
             }
-            Expression item = parsePratt(0);
+            Expression item = parseAssignmentExpression();
             items.add(item);
             if (item instanceof ExecBlock) {
                 break;

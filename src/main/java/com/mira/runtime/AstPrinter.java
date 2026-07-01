@@ -24,6 +24,7 @@ import com.mira.parser.nodes.expression.Expression.MethodCallExpression;
 import com.mira.parser.nodes.expression.Expression.NamespaceCallExpression;
 import com.mira.parser.nodes.expression.Expression.ObjectExpression;
 import com.mira.parser.nodes.expression.Expression.StructExpression;
+import com.mira.parser.nodes.expression.Expression.AssignExpression;
 import com.mira.parser.nodes.expression.Expression.StructInitExpression;
 import com.mira.parser.nodes.expression.Expression.RangeExpression;
 import com.mira.parser.nodes.expression.Expression.TernaryExpression;
@@ -133,6 +134,13 @@ public class AstPrinter implements ExprVisitor<String>, StmtVisitor<String> {
     public <T> T visitUnaryExpr(UnaryExpression expression) {
         return (T) (pad() + "Unary [" + expression.getOperation().getLexeme() + "]"
                 + child(expression.getRight()));
+    }
+
+    @Override
+    public <T> T visitAssignExpression(AssignExpression expression) {
+        return (T) (pad() + "AssignExpr"
+                + child(expression.getReference())
+                + child(expression.getValue()));
     }
 
     @Override

@@ -59,6 +59,7 @@ import com.mira.parser.nodes.expression.Expression.MethodCallExpression;
 import com.mira.parser.nodes.expression.Expression.NamespaceCallExpression;
 import com.mira.parser.nodes.expression.Expression.ObjectExpression;
 import com.mira.parser.nodes.expression.Expression.StructExpression;
+import com.mira.parser.nodes.expression.Expression.AssignExpression;
 import com.mira.parser.nodes.expression.Expression.StructInitExpression;
 import com.mira.parser.nodes.expression.Expression.RangeExpression;
 import com.mira.parser.nodes.expression.Expression.SwitchExpression;
@@ -604,6 +605,22 @@ public class StaticCheck {
                         }
                     }
                 }
+            }
+            case AssignExpression e -> {
+                if (e.getReference() instanceof UnaryExpression u
+                        && "$".equals(u.getOperation().getLexeme())
+                        && u.getRight() instanceof DumbExpression d
+                        && isIdentifier(d)) {
+                    String name = d.getValue();
+                    if (!scope.isDeclared(name)) {
+                        errors.add(new UndeclaredVariableError(name, d.getLine(), d.getColumn()));
+                    } else if (scope.isConst(name)) {
+                        errors.add(new ConstReassignmentError(name, d.getLine(), d.getColumn()));
+                    } else {
+                        scope.markUsed(name);
+                    }
+                }
+                resolveExpr(e.getValue());
             }
             case LambdaExpression e -> {
                 scope.push();

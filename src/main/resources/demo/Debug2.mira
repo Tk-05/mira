@@ -12,5 +12,7 @@ var abc : {
 var origin : $point{$x : 0, $y : 5};
 
 pub fn hello(name) {
-    return hello $name;
+    var a;
+
+    return $a;
 }

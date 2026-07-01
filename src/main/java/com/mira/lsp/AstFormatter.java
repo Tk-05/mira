@@ -32,6 +32,7 @@ import com.mira.parser.nodes.expression.Expression.MethodCallExpression;
 import com.mira.parser.nodes.expression.Expression.NamespaceCallExpression;
 import com.mira.parser.nodes.expression.Expression.ObjectExpression;
 import com.mira.parser.nodes.expression.Expression.StructExpression;
+import com.mira.parser.nodes.expression.Expression.AssignExpression;
 import com.mira.parser.nodes.expression.Expression.StructInitExpression;
 import com.mira.parser.nodes.expression.Expression.RangeExpression;
 import com.mira.parser.nodes.expression.Expression.SwitchExpression;
@@ -678,6 +679,11 @@ public class AstFormatter implements ExprVisitor<String>, StmtVisitor<String> {
             return (T) (op + right);
         }
         return (T) op;
+    }
+
+    @Override
+    public <T> T visitAssignExpression(AssignExpression expression) {
+        return (T) (formatExpr(expression.getReference()) + " : " + formatExpr(expression.getValue()));
     }
 
     @Override

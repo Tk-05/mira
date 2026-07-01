@@ -53,6 +53,7 @@ import com.mira.parser.nodes.expression.Expression.MethodCallExpression;
 import com.mira.parser.nodes.expression.Expression.NamespaceCallExpression;
 import com.mira.parser.nodes.expression.Expression.ObjectExpression;
 import com.mira.parser.nodes.expression.Expression.StructExpression;
+import com.mira.parser.nodes.expression.Expression.AssignExpression;
 import com.mira.parser.nodes.expression.Expression.StructInitExpression;
 import com.mira.parser.nodes.expression.Expression.RangeExpression;
 import com.mira.parser.nodes.expression.Expression.SwitchExpression;
@@ -1226,6 +1227,30 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
             }
             default ->
                 throw new RuntimeException("Unsupported assign target: " + assign.getReference());
+        }
+        return null;
+    }
+
+    @Override
+    public <T> T visitAssignExpression(AssignExpression e) {
+        if (e.getReference() instanceof UnaryExpression ue
+                && ue.getOperation().getLexeme().equals("$")) {
+            String name = ((DumbExpression) ue.getRight()).getValue();
+            Integer slot = ctx.slots.slotOf(name);
+            int tmp = ctx.slots.allocateTemp();
+            e.getValue().accept(this);
+            mv.visitVarInsn(ASTORE, tmp);
+            if (!ctx.isTopLevel && slot != null) {
+                mv.visitVarInsn(ALOAD, tmp);
+                mv.visitVarInsn(ASTORE, slot);
+            } else {
+                emitGlobals();
+                mv.visitLdcInsn(name);
+                mv.visitVarInsn(ALOAD, tmp);
+                mv.visitMethodInsn(INVOKEVIRTUAL, ENV, "assign",
+                        "(Ljava/lang/String;" + OBJ_D + ")V", false);
+            }
+            mv.visitVarInsn(ALOAD, tmp);
         }
         return null;
     }

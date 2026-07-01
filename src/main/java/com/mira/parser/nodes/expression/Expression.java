@@ -107,6 +107,36 @@ public abstract class Expression implements Node {
         }
     }
 
+    public static class AssignExpression extends Expression {
+
+        private final Expression reference;
+        private final Expression value;
+
+        public AssignExpression(Expression reference, Expression value) {
+            this.reference = reference;
+            this.value = value;
+            this.line = reference.line;
+        }
+
+        public Expression getReference() {
+            return reference;
+        }
+
+        public Expression getValue() {
+            return value;
+        }
+
+        @Override
+        public <T> T accept(ExprVisitor<T> visitor) {
+            return visitor.visitAssignExpression(this);
+        }
+
+        @Override
+        public String toString() {
+            return reference + " : " + value;
+        }
+    }
+
     public static class ComplexExpression extends Expression {
 
         private final List<Expression> expressions;
