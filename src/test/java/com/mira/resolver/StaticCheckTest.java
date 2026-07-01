@@ -380,4 +380,89 @@ public class StaticCheckTest {
     void accessExistingMethodOnStructTemplateIsValid() {
         assertClean("var counter : struct { var count : 0; fn get() { return $this.count; } }; var c : $counter{}; $c.get();");
     }
+
+    @Test
+    void assignStructInstancePropagatesTypeForFieldCheck() {
+        List<MiraError> errors = errorsFor("var point : struct { var x; var y; }; var q; $q : $point{}; print($q.z);");
+        assertTrue(hasCode(errors, "E323"));
+    }
+
+    @Test
+    void assignStructInstanceThenValidFieldIsClean() {
+        assertClean("var point : struct { var x; var y; }; var q; $q : $point{}; print($q.x);");
+    }
+
+    @Test
+    void assignInsideBranchDoesNotPropagate() {
+        assertClean("var point : struct { var x; }; var q; if (true) { $q : $point{}; } print($q.z);");
+    }
+
+    @Test
+    void reassignToNonStructInvalidatesFieldCheck() {
+        List<MiraError> errors = errorsFor("var point : struct { var x; }; var q : $point{}; $q : 42; print($q.x);");
+        assertTrue(hasCode(errors, "E320"));
+    }
+
+    @Test
+    void accessNonexistentFieldOnStructInstanceWithOverridesIsE323() {
+        List<MiraError> errors = errorsFor("var point : struct { var x : 0; var y : 0; }; var origin : $point{$x : 0, $y : 5}; println($origin.z);");
+        assertTrue(hasCode(errors, "E323"));
+    }
+
+    @Test
+    void accessNonexistentFieldOnFunctionParamViaCallSiteIsE323() {
+        List<MiraError> errors = errorsFor(
+                "var point : struct { var x; var y; }; var origin : $point{}; "
+                + "fn hello(name) { println($name.z); } hello($origin);");
+        assertTrue(hasCode(errors, "E323"));
+    }
+
+    @Test
+    void accessExistingFieldOnFunctionParamViaCallSiteIsClean() {
+        assertClean(
+                "var point : struct { var x; var y; }; var origin : $point{}; "
+                + "fn hello(name) { println($name.x); } hello($origin);");
+    }
+
+    @Test
+    void accessNonexistentFieldInReturnComplexExprIsE323() {
+        List<MiraError> errors = errorsFor(
+                "var point : struct { var x; var y; }; var origin : $point{}; "
+                + "fn hello(name) { return hello $name.z; } hello($origin);");
+        assertTrue(hasCode(errors, "E323"));
+    }
+
+    @Test
+    void paramTypeFollowedThroughNestedCallIsE323() {
+        List<MiraError> errors = errorsFor(
+                "var point : struct { var x; var y; }; var origin : $point{}; "
+                + "fn hello(name) { hello2($name); } "
+                + "fn hello2(name) { $name.z; } "
+                + "hello($origin);");
+        assertTrue(hasCode(errors, "E323"));
+    }
+
+    @Test
+    void paramTypeFollowedThroughNestedCallValidFieldIsClean() {
+        assertClean(
+                "var point : struct { var x; var y; }; var origin : $point{}; "
+                + "fn hello(name) { hello2($name); } "
+                + "fn hello2(name) { $name.x; } "
+                + "hello($origin);");
+    }
+
+    @Test
+    void recursiveFunctionDoesNotCauseInfiniteLoop() {
+        List<MiraError> errors = errorsFor(
+                "var point : struct { var x; }; var origin : $point{}; "
+                + "fn recurse(name) { recurse($name); $name.z; } recurse($origin);");
+        assertTrue(hasCode(errors, "E323"));
+    }
+
+    @Test
+    void fieldAccessOnStringParamIsE320() {
+        List<MiraError> errors = errorsFor(
+                "fn hello(name) { println($name.z); } hello(\"test\");");
+        assertTrue(hasCode(errors, "E320"));
+    }
 }

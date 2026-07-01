@@ -1,5 +1,6 @@
 package com.mira.resolver;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -42,8 +43,11 @@ import com.mira.linter.LintScope;
 import com.mira.linter.LintScope.VarInfo;
 import com.mira.parser.Parser;
 import com.mira.parser.nodes.Node;
+import com.mira.parser.nodes.Parameter;
+import com.mira.parser.nodes.expression.Expression;
 import com.mira.parser.nodes.expression.Expression.AccessExpression;
 import com.mira.parser.nodes.expression.Expression.ArrayExpression;
+import com.mira.parser.nodes.expression.Expression.AssignExpression;
 import com.mira.parser.nodes.expression.Expression.AwaitExpression;
 import com.mira.parser.nodes.expression.Expression.BinaryExpression;
 import com.mira.parser.nodes.expression.Expression.CallExpression;
@@ -58,10 +62,9 @@ import com.mira.parser.nodes.expression.Expression.MapExpression;
 import com.mira.parser.nodes.expression.Expression.MethodCallExpression;
 import com.mira.parser.nodes.expression.Expression.NamespaceCallExpression;
 import com.mira.parser.nodes.expression.Expression.ObjectExpression;
-import com.mira.parser.nodes.expression.Expression.StructExpression;
-import com.mira.parser.nodes.expression.Expression.AssignExpression;
-import com.mira.parser.nodes.expression.Expression.StructInitExpression;
 import com.mira.parser.nodes.expression.Expression.RangeExpression;
+import com.mira.parser.nodes.expression.Expression.StructExpression;
+import com.mira.parser.nodes.expression.Expression.StructInitExpression;
 import com.mira.parser.nodes.expression.Expression.SwitchExpression;
 import com.mira.parser.nodes.expression.Expression.TernaryExpression;
 import com.mira.parser.nodes.expression.Expression.ThrownException;
@@ -100,6 +103,7 @@ public class StaticCheck {
     private final List<MiraError> errors = new ArrayList<>();
     private int loopDepth = 0;
     private int functionDepth = 0;
+    private int branchDepth = 0;
     private boolean inComptimeBlock = false;
     private final Map<String, int[]> knownArities = new HashMap<>();
     private boolean isModule = false;
@@ -109,6 +113,8 @@ public class StaticCheck {
     private final Map<String, Map<String, Boolean>> moduleAliasSymbols = new HashMap<>();
     private final Map<String, String> moduleAliasFileName = new HashMap<>();
     private final Map<String, Node> varLiteralTypes = new HashMap<>();
+    private final Map<String, FuncDecl> userFuncDecls = new HashMap<>();
+    private Map<Path, String> openDocuments = Map.of();
 
     public StaticCheck() {
         this(Set.of());
@@ -118,15 +124,48 @@ public class StaticCheck {
         this(externallyUsed, null);
     }
 
-    public StaticCheck(Set<String> externallyUsed, java.nio.file.Path sourcePath) {
+    public StaticCheck(Set<String> externallyUsed, Path sourcePath) {
+        this(externallyUsed, sourcePath, Map.of());
+    }
+
+    public StaticCheck(Set<String> externallyUsed, Path sourcePath, Map<Path, String> openDocuments) {
         this.externallyUsed = externallyUsed;
         this.sourcePath = sourcePath;
+        this.openDocuments = openDocuments;
         knownFunctions.addAll(LibIndex.INTERNAL_NAMES);
         LibIndex.GLOBAL_ARITIES.forEach((name, arity) -> {
             if (arity >= 0) {
                 knownArities.put(name, new int[]{arity, arity});
             }
         });
+    }
+
+    private void loadExternalFuncDecls() {
+        if (sourcePath == null) {
+            return;
+        }
+        Path dir = sourcePath.getParent();
+        if (dir == null) {
+            return;
+        }
+        try {
+            Files.walk(dir)
+                    .filter(p -> p.toString().endsWith(".mira") && !p.equals(sourcePath))
+                    .forEach(p -> {
+                        try {
+                            String src = openDocuments.getOrDefault(p, Files.readString(p));
+                            List<Node> siblingAst = new Parser().parseTokens(
+                                    new Tokenizer().tokenize(src, false));
+                            for (Node node : siblingAst) {
+                                if (node instanceof FuncDecl f && f.isPublic()) {
+                                    userFuncDecls.putIfAbsent(f.getName(), f);
+                                }
+                            }
+                        } catch (Exception ignored) {
+                        }
+                    });
+        } catch (Exception ignored) {
+        }
     }
 
     public static Set<String> collectNamespaceCalls(List<Node> ast, String alias) {
@@ -240,6 +279,8 @@ public class StaticCheck {
                 queue.addAll(e.getMembers());
             case ListExpression e ->
                 queue.addAll(e.getMembers());
+            case ComplexExpression e ->
+                queue.addAll(e.getExpressions());
             case LambdaExpression e ->
                 queue.addAll(e.getBody());
             case ExecBlock e ->
@@ -273,6 +314,7 @@ public class StaticCheck {
                     } else {
                         scope.declareFunction(f.getName(), f.line, f.nameColumn);
                         knownFunctions.add(f.getName());
+                        userFuncDecls.put(f.getName(), f);
                         if (f.getVariadicParam() == null) {
                             knownArities.put(f.getName(), new int[]{f.getArity(), f.getMaxArity()});
                         }
@@ -295,6 +337,7 @@ public class StaticCheck {
 
         scope.markUsed("main");
         externallyUsed.forEach(scope::markUsed);
+        loadExternalFuncDecls();
 
         resolveNodes(ast);
         popScope();
@@ -472,6 +515,10 @@ public class StaticCheck {
                 }
                 scope.markUsed(alias);
                 e.getArguments().forEach(this::resolveExpr);
+                FuncDecl nsFn = userFuncDecls.get(e.getFunctionName());
+                if (nsFn != null && !e.getArguments().isEmpty()) {
+                    walkFuncWithParamTypes(nsFn, e.getArguments(), Map.of(), new HashSet<>(), e.getLine(), e.getColumn());
+                }
             }
             case AccessExpression e -> {
                 resolveExpr(e.getReference());
@@ -503,7 +550,7 @@ public class StaticCheck {
                     if (!fieldExists) {
                         DumbExpression varRef = extractVarRef(e.getObject());
                         String objectName = varRef != null ? varRef.getValue() : "object";
-                        int line = e.getObject().line;
+                        int line = varRef != null ? varRef.getLine() : e.getObject().line;
                         int col = varRef != null ? varRef.getColumn() + varRef.getValue().length() + 1 : 0;
                         errors.add(new UndefinedObjectFieldStaticError(field, objectName, line, col));
                     }
@@ -514,7 +561,7 @@ public class StaticCheck {
                     if (!fieldExists) {
                         DumbExpression varRef = extractVarRef(e.getObject());
                         String objectName = varRef != null ? varRef.getValue() : "struct";
-                        int line = e.getObject().line;
+                        int line = varRef != null ? varRef.getLine() : e.getObject().line;
                         int col = varRef != null ? varRef.getColumn() + varRef.getValue().length() + 1 : 0;
                         errors.add(new UndefinedObjectFieldStaticError(field, objectName, line, col));
                     }
@@ -618,6 +665,14 @@ public class StaticCheck {
                         errors.add(new ConstReassignmentError(name, d.getLine(), d.getColumn()));
                     } else {
                         scope.markUsed(name);
+                        if (loopDepth == 0 && functionDepth == 0 && branchDepth == 0) {
+                            Node rhsType = resolveRhsLiteralType(e.getValue());
+                            if (rhsType != null) {
+                                varLiteralTypes.put(name, rhsType);
+                            } else {
+                                varLiteralTypes.remove(name);
+                            }
+                        }
                     }
                 }
                 resolveExpr(e.getValue());
@@ -722,6 +777,10 @@ public class StaticCheck {
                             errors.add(new ArityMismatchError(name, min, max, actual,
                                     callee.getLine(), callee.getColumn()));
                         }
+                    }
+                    FuncDecl fn = userFuncDecls.get(name);
+                    if (fn != null && !expr.getArguments().isEmpty()) {
+                        checkCallParamFieldAccesses(fn, expr.getArguments());
                     }
                 }
             } else {
@@ -836,6 +895,14 @@ public class StaticCheck {
                 errors.add(new ConstReassignmentError(name, d.getLine(), d.getColumn()));
             } else {
                 scope.markUsed(name);
+                if (loopDepth == 0 && functionDepth == 0 && branchDepth == 0) {
+                    Node rhsType = resolveRhsLiteralType(stmt.getExpression());
+                    if (rhsType != null) {
+                        varLiteralTypes.put(name, rhsType);
+                    } else {
+                        varLiteralTypes.remove(name);
+                    }
+                }
             }
         } else {
             DumbExpression rootRef = null;
@@ -856,11 +923,15 @@ public class StaticCheck {
     private void resolveIf(If stmt) {
         resolveExpr(stmt.getCondition());
         scope.push();
+        branchDepth++;
         resolveBody(stmt.getThenBody());
+        branchDepth--;
         popScope();
         if (stmt.getElseBody() != null) {
             scope.push();
+            branchDepth++;
             resolveBody(stmt.getElseBody());
+            branchDepth--;
             popScope();
         }
     }
@@ -1240,6 +1311,20 @@ public class StaticCheck {
                 || (n instanceof DumbExpression d && !isIdentifier(d));
     }
 
+    private Node resolveRhsLiteralType(Node rhs) {
+        Node lit = resolveLiteralBase(rhs);
+        if (lit != null) {
+            return lit;
+        }
+        if (rhs instanceof StructInitExpression si) {
+            Node t = resolveLiteralBase(si.getTarget());
+            if (t instanceof StructExpression) {
+                return t;
+            }
+        }
+        return null;
+    }
+
     private Node resolveLiteralBase(Node objectExpr) {
         if (isKnownLiteral(objectExpr)) {
             return objectExpr;
@@ -1251,6 +1336,104 @@ public class StaticCheck {
             return varLiteralTypes.get(d.getValue());
         }
         return null;
+    }
+
+    private void checkCallParamFieldAccesses(FuncDecl fn, List<Expression> args) {
+        walkFuncWithParamTypes(fn, args, Map.of(), new HashSet<>(), 0, 0);
+    }
+
+    private void walkFuncWithParamTypes(FuncDecl fn, List<Expression> args,
+            Map<String, Node> callerParamTypes, Set<String> visited,
+            int callSiteLine, int callSiteCol) {
+        if (visited.contains(fn.getName())) {
+            return;
+        }
+        List<Parameter> params = fn.getParameters();
+        Map<String, Node> paramTypes = new HashMap<>();
+        for (int i = 0; i < Math.min(params.size(), args.size()); i++) {
+            Node type = resolveTypeWithParams(args.get(i), callerParamTypes);
+            if (type != null) {
+                paramTypes.put(params.get(i).name(), type);
+            }
+        }
+        if (paramTypes.isEmpty()) {
+            return;
+        }
+
+        Set<String> nextVisited = new HashSet<>(visited);
+        nextVisited.add(fn.getName());
+
+        Deque<Node> queue = new ArrayDeque<>(fn.getBody());
+        while (!queue.isEmpty()) {
+            Node n = queue.poll();
+            if (n == null) {
+                continue;
+            }
+            if (n instanceof FuncDecl || n instanceof LambdaExpression) {
+                continue;
+            }
+            if (n instanceof FieldAccessExpression fae && !fae.isOptional()) {
+                DumbExpression varRef = extractVarRef(fae.getObject());
+                if (varRef != null && paramTypes.containsKey(varRef.getValue())) {
+                    Node type = paramTypes.get(varRef.getValue());
+                    String field = fae.getField();
+                    int errLine = callSiteLine > 0 ? callSiteLine : varRef.getLine();
+                    int errCol = callSiteLine > 0 ? callSiteCol : varRef.getColumn() + varRef.getValue().length() + 1;
+                    switch (type) {
+                        case ObjectExpression objExpr -> {
+                            boolean exists = objExpr.getVarDecls().stream().anyMatch(v -> field.equals(v.getName()))
+                                    || objExpr.getMethods().stream().anyMatch(m -> field.equals(m.getName()));
+                            if (!exists) {
+                                errors.add(new UndefinedObjectFieldStaticError(field, varRef.getValue(), errLine, errCol));
+                            }
+                        }
+                        case StructExpression structExpr -> {
+                            boolean exists = structExpr.getVarDecls().stream().anyMatch(v -> field.equals(v.getName()))
+                                    || structExpr.getMethods().stream().anyMatch(m -> field.equals(m.getName()));
+                            if (!exists) {
+                                errors.add(new UndefinedObjectFieldStaticError(field, varRef.getValue(), errLine, errCol));
+                            }
+                        }
+                        default -> {
+                            String typeName = type instanceof ListExpression ? "list"
+                                    : type instanceof ArrayExpression ? "array"
+                                            : type instanceof MapExpression ? "map"
+                                                    : "non-object value";
+                            errors.add(new FieldAccessOnNonObjectError(field, typeName, errLine, errCol));
+                        }
+                    }
+                }
+                queue.add(fae.getObject());
+            } else {
+                if (n instanceof CallExpression ce
+                        && ce.getCallee() instanceof DumbExpression callee
+                        && isIdentifier(callee)) {
+                    FuncDecl calledFn = userFuncDecls.get(callee.getValue());
+                    if (calledFn != null && !ce.getArguments().isEmpty()) {
+                        walkFuncWithParamTypes(calledFn, ce.getArguments(), paramTypes, nextVisited, callSiteLine, callSiteCol);
+                    }
+                }
+                addChildrenNoFunctions(n, queue);
+            }
+        }
+    }
+
+    private Node resolveTypeWithParams(Expression arg, Map<String, Node> paramTypes) {
+        DumbExpression varRef = extractVarRef(arg);
+        if (varRef != null) {
+            Node fromParams = paramTypes.get(varRef.getValue());
+            if (fromParams != null) {
+                return fromParams;
+            }
+        }
+        return resolveRhsLiteralType(arg);
+    }
+
+    private static void addChildrenNoFunctions(Node node, Deque<Node> queue) {
+        if (node instanceof FuncDecl || node instanceof LambdaExpression) {
+            return;
+        }
+        addChildren(node, queue);
     }
 
     private static DumbExpression extractVarRef(Node expr) {

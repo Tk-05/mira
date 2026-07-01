@@ -39,7 +39,7 @@ public class DiagnosticCollector {
                 Set<String> externalCalls = filePath != null
                         ? collectExternalCalls(ast, filePath, openDocuments)
                         : Set.of();
-                new StaticCheck(externalCalls, filePath).check(ast);
+                new StaticCheck(externalCalls, filePath, openDocuments).check(ast);
             } catch (MultipleStaticCheckErrors mre) {
                 mre.getErrors().forEach(e -> result.add(fromError(e, DiagnosticSeverity.Error)));
             }
