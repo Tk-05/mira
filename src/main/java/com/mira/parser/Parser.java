@@ -33,6 +33,8 @@ import com.mira.parser.nodes.expression.Expression.MapExpression;
 import com.mira.parser.nodes.expression.Expression.MethodCallExpression;
 import com.mira.parser.nodes.expression.Expression.NamespaceCallExpression;
 import com.mira.parser.nodes.expression.Expression.ObjectExpression;
+import com.mira.parser.nodes.expression.Expression.StructExpression;
+import com.mira.parser.nodes.expression.Expression.StructInitExpression;
 import com.mira.parser.nodes.expression.Expression.RangeExpression;
 import com.mira.parser.nodes.expression.Expression.SwitchExpression;
 import com.mira.parser.nodes.expression.Expression.TernaryExpression;
@@ -415,6 +417,11 @@ public class Parser {
                 expr = first;
             }
 
+        } else if (current.getLexeme().equals("struct")
+                && current.getTokenType() == TokenType.KEYWORD) {
+            consume();
+            expr = parseStructExpression();
+
         } else if (current.getLexeme().equals("typeof")
                 && current.getTokenType() == TokenType.KEYWORD) {
             consume();
@@ -548,6 +555,11 @@ public class Parser {
     }
 
     private Expression maybeParseAccess(Expression base) {
+        if (peek().getLexeme().equals("{") && peek().getTokenType() != TokenType.STRING_LITERAL
+                && (peekOffset(1).getLexeme().equals("}")
+                || (peekOffset(1).getLexeme().equals("$") && peekOffset(3).getLexeme().equals(":")))) {
+            return parseStructInit(base);
+        }
         if (peek().getLexeme().equals("[") && peek().getTokenType() != TokenType.STRING_LITERAL
                 || peek().getLexeme().equals("{") && peek().getTokenType() != TokenType.STRING_LITERAL) {
             return parseAccessExpression(base);
@@ -620,6 +632,20 @@ public class Parser {
     }
 
     private Expression parseObjectExpression() {
+        FieldsAndMethods fm = parseFieldsAndMethods();
+        return new ObjectExpression(fm.fields(), fm.methods());
+    }
+
+    private Expression parseStructExpression() {
+        FieldsAndMethods fm = parseFieldsAndMethods();
+        return new StructExpression(fm.fields(), fm.methods());
+    }
+
+    private record FieldsAndMethods(List<VarDecl> fields, List<FuncDecl> methods) {
+
+    }
+
+    private FieldsAndMethods parseFieldsAndMethods() {
         matchLexeme("{");
         List<VarDecl> fields = new ArrayList<>();
         List<FuncDecl> methods = new ArrayList<>();
@@ -638,7 +664,24 @@ public class Parser {
         }
 
         matchLexeme("}");
-        return new ObjectExpression(fields, methods);
+        return new FieldsAndMethods(fields, methods);
+    }
+
+    private Expression parseStructInit(Expression target) {
+        matchLexeme("{");
+        LinkedHashMap<String, Expression> overrides = new LinkedHashMap<>();
+        while (!peek().getLexeme().equals("}")) {
+            matchLexeme("$");
+            String fieldName = matchIdentifier().getLexeme();
+            matchLexeme(":");
+            Expression value = parseExpression();
+            overrides.put(fieldName, value);
+            if (!peek().getLexeme().equals("}")) {
+                matchLexeme(",");
+            }
+        }
+        matchLexeme("}");
+        return new StructInitExpression(target, overrides);
     }
 
     private Expression parseAccessExpression(Expression accessedExpression) {

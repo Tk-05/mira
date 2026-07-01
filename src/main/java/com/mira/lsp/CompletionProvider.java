@@ -40,7 +40,7 @@ public class CompletionProvider {
             "in", "break", "continue", "switch", "case", "default", "do",
             "try", "catch", "finally", "throw", "import", "module", "as",
             "enum", "async", "await", "typeof", "spawn", "pure", "lock", "true", "false", "null",
-            "exec", "exec isolated", "comptime", "static_assert", "pub"
+            "exec", "exec isolated", "comptime", "static_assert", "pub", "struct"
     );
 
     private static final List<String> GLOBALS = List.of(

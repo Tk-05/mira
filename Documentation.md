@@ -108,12 +108,12 @@ import string: trim, split;          // colon syntax — equivalent to braces
 
 **Errors:**
 
-| Error                              | Kind          | Cause                                                              |
-| ---------------------------------- | ------------- | ------------------------------------------------------------------ |
-| `E230 PrivateSymbolImportError`    | Runtime       | Selective import requested a symbol that is not marked `pub`       |
-| `E231 ModuleSymbolNotFoundError`   | Runtime       | Selective import requested a symbol that does not exist in the module |
-| `E318 PrivateImportError`          | Static check  | Same as E230, detected at analysis time before the program runs    |
-| `E319 UnknownModuleSymbolError`    | Static check  | Same as E231, detected at analysis time before the program runs    |
+| Error                            | Kind         | Cause                                                                 |
+| -------------------------------- | ------------ | --------------------------------------------------------------------- |
+| `E230 PrivateSymbolImportError`  | Runtime      | Selective import requested a symbol that is not marked `pub`          |
+| `E231 ModuleSymbolNotFoundError` | Runtime      | Selective import requested a symbol that does not exist in the module |
+| `E318 PrivateImportError`        | Static check | Same as E230, detected at analysis time before the program runs       |
+| `E319 UnknownModuleSymbolError`  | Static check | Same as E231, detected at analysis time before the program runs       |
 
 ### Native JAR Extensions
 
@@ -1802,20 +1802,20 @@ Constants: `pi`, `e`, `inf`, `nan`
 
 ### `process`
 
-| Function              | Description                                           |
-| --------------------- | ----------------------------------------------------- |
-| `processStart(cmd)`        | Starts a background process, returns an ID                        |
-| `processAlive(id)`         | True if the process is still running                              |
-| `processDone(id)`          | True if the process has finished (returns true for unknown IDs)   |
-| `processWait(id)`          | Waits for the process to finish, returns exit code                |
-| `processKill(id)`          | Terminates the process                                            |
-| `processOutput(id)`        | Returns buffered stdout of the process                            |
-| `processReadPartial(id)`   | Reads available stdout non-blocking, returns `""` if nothing ready |
-| `processExitCode(id)`      | Returns the exit code of a finished process                       |
-| `pid()`                    | Returns the PID of the current process                            |
-| `listProcesses()`          | Returns a list of all running PIDs                                |
-| `processInfo(pid)`         | Returns the command of a process by PID                           |
-| `sleep(ms)`                | Pauses execution for the given number of milliseconds             |
+| Function                 | Description                                                        |
+| ------------------------ | ------------------------------------------------------------------ |
+| `processStart(cmd)`      | Starts a background process, returns an ID                         |
+| `processAlive(id)`       | True if the process is still running                               |
+| `processDone(id)`        | True if the process has finished (returns true for unknown IDs)    |
+| `processWait(id)`        | Waits for the process to finish, returns exit code                 |
+| `processKill(id)`        | Terminates the process                                             |
+| `processOutput(id)`      | Returns buffered stdout of the process                             |
+| `processReadPartial(id)` | Reads available stdout non-blocking, returns `""` if nothing ready |
+| `processExitCode(id)`    | Returns the exit code of a finished process                        |
+| `pid()`                  | Returns the PID of the current process                             |
+| `listProcesses()`        | Returns a list of all running PIDs                                 |
+| `processInfo(pid)`       | Returns the command of a process by PID                            |
+| `sleep(ms)`              | Pauses execution for the given number of milliseconds              |
 
 ### `bytes`
 

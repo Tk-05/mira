@@ -178,6 +178,13 @@ public class Environment {
         return parent;
     }
 
+    public Environment copyShallow() {
+        Environment copy = new Environment();
+        copy.values.putAll(this.values);
+        copy.constants.addAll(this.constants);
+        return copy;
+    }
+
     public Environment snapshot(Environment globalEnv) {
         if (this == globalEnv || parent == null) {
             return this;

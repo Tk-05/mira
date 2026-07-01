@@ -466,6 +466,64 @@ public abstract class Expression implements Node {
         }
     }
 
+    public static class StructExpression extends Expression {
+
+        private final List<VarDecl> varDecls;
+        private final List<FuncDecl> methods;
+
+        public StructExpression(List<VarDecl> varDecls, List<FuncDecl> methods) {
+            this.varDecls = varDecls;
+            this.methods = methods;
+        }
+
+        @Override
+        public <T> T accept(ExprVisitor<T> visitor) {
+            return visitor.visitStructExpression(this);
+        }
+
+        @Override
+        public String toString() {
+            throw new UnsupportedOperationException("Unimplemented method 'toString'");
+        }
+
+        public List<VarDecl> getVarDecls() {
+            return varDecls;
+        }
+
+        public List<FuncDecl> getMethods() {
+            return methods;
+        }
+    }
+
+    public static class StructInitExpression extends Expression {
+
+        private final Expression target;
+        private final java.util.LinkedHashMap<String, Expression> overrides;
+
+        public StructInitExpression(Expression target, java.util.LinkedHashMap<String, Expression> overrides) {
+            this.target = target;
+            this.overrides = overrides;
+        }
+
+        @Override
+        public <T> T accept(ExprVisitor<T> visitor) {
+            return visitor.visitStructInitExpression(this);
+        }
+
+        @Override
+        public String toString() {
+            throw new UnsupportedOperationException("Unimplemented method 'toString'");
+        }
+
+        public Expression getTarget() {
+            return target;
+        }
+
+        public java.util.LinkedHashMap<String, Expression> getOverrides() {
+            return overrides;
+        }
+    }
+
     public static class FieldAccessExpression extends Expression {
 
         private final Expression object;

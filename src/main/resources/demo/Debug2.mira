@@ -1,15 +1,17 @@
 module Debug2;
 
-var static a;
-const static b;
-
-var a : struct {
-
+var point : struct {
+    var x;
+    var y;
 };
 
-struct name : {
-
+var abc : {
+    var aaa;
 };
+
+var bbb : $abc.a;
+
+var origin : $point{$x : 0, $y : 5};
 
 pub fn hello(name) {
     return hello $name;

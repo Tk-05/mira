@@ -52,6 +52,8 @@ import com.mira.parser.nodes.expression.Expression.MapExpression;
 import com.mira.parser.nodes.expression.Expression.MethodCallExpression;
 import com.mira.parser.nodes.expression.Expression.NamespaceCallExpression;
 import com.mira.parser.nodes.expression.Expression.ObjectExpression;
+import com.mira.parser.nodes.expression.Expression.StructExpression;
+import com.mira.parser.nodes.expression.Expression.StructInitExpression;
 import com.mira.parser.nodes.expression.Expression.RangeExpression;
 import com.mira.parser.nodes.expression.Expression.SwitchExpression;
 import com.mira.parser.nodes.expression.Expression.TernaryExpression;
@@ -91,6 +93,7 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
     private static final String ENV_D = ClassEmitter.ENV_DESC;
     private static final String OBJ = "java/lang/Object";
     private static final String OBJ_D = "Ljava/lang/Object;";
+    private static final String STRUCT_TEMPLATE_D = "Lcom/mira/runtime/StructTemplate;";
 
     private static final String RS = "com/mira/compiler/ReturnSignal";
     private static final String BS = "com/mira/compiler/BreakSignal";
@@ -866,6 +869,76 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
                 "(Ljava/lang/String;" + OBJ_D + ")V", false);
 
         mv.visitVarInsn(ALOAD, objSlot);
+        return null;
+    }
+
+    @Override
+    public <T> T visitStructExpression(StructExpression expression) {
+        mv.visitMethodInsn(INVOKESTATIC, RT, "makeObject", "()" + ENV_D, false);
+        int envSlot = ctx.slots.allocate("$$structdefaults$" + ctx.lambdaCounter[0]);
+        mv.visitVarInsn(ASTORE, envSlot);
+
+        for (VarDecl field : expression.getVarDecls()) {
+            mv.visitVarInsn(ALOAD, envSlot);
+            mv.visitLdcInsn(field.getName());
+            if (field.getInitializer() != null) {
+                field.getInitializer().accept(this);
+            } else {
+                emitNullVal();
+            }
+            String defineMethod = field.isConst() ? "defineConst" : "define";
+            mv.visitMethodInsn(INVOKEVIRTUAL, ENV, defineMethod,
+                    "(Ljava/lang/String;" + OBJ_D + ")V", false);
+        }
+
+        for (FuncDecl method : expression.getMethods()) {
+            int n = ctx.lambdaCounter[0]++;
+            String mName = "mira$lambda$" + n;
+            String lClass = ctx.className + "$Lambda$" + n;
+            emitMethodAsLambda(method, mName, lClass);
+            mv.visitVarInsn(ALOAD, envSlot);
+            mv.visitLdcInsn(method.getName());
+            mv.visitTypeInsn(NEW, lClass);
+            mv.visitInsn(DUP);
+            emitIntConst(method.getArity());
+            mv.visitMethodInsn(INVOKESPECIAL, lClass, "<init>", "(I)V", false);
+            mv.visitMethodInsn(INVOKEVIRTUAL, ENV, "define",
+                    "(Ljava/lang/String;" + OBJ_D + ")V", false);
+        }
+
+        mv.visitVarInsn(ALOAD, envSlot);
+        mv.visitMethodInsn(INVOKESTATIC, RT, "makeStructTemplate",
+                "(" + ENV_D + ")" + STRUCT_TEMPLATE_D, false);
+        return null;
+    }
+
+    @Override
+    public <T> T visitStructInitExpression(StructInitExpression expression) {
+        expression.getTarget().accept(this);
+
+        List<String> names = new java.util.ArrayList<>(expression.getOverrides().keySet());
+        List<Expression> values = new java.util.ArrayList<>(expression.getOverrides().values());
+
+        emitIntConst(names.size());
+        mv.visitTypeInsn(ANEWARRAY, "java/lang/String");
+        for (int i = 0; i < names.size(); i++) {
+            mv.visitInsn(DUP);
+            emitIntConst(i);
+            mv.visitLdcInsn(names.get(i));
+            mv.visitInsn(AASTORE);
+        }
+
+        emitIntConst(values.size());
+        mv.visitTypeInsn(ANEWARRAY, OBJ);
+        for (int i = 0; i < values.size(); i++) {
+            mv.visitInsn(DUP);
+            emitIntConst(i);
+            values.get(i).accept(this);
+            mv.visitInsn(AASTORE);
+        }
+
+        mv.visitMethodInsn(INVOKESTATIC, RT, "makeStructInstance",
+                "(" + OBJ_D + "[Ljava/lang/String;[" + OBJ_D + ")" + ENV_D, false);
         return null;
     }
 

@@ -31,6 +31,8 @@ import com.mira.parser.nodes.expression.Expression.MapExpression;
 import com.mira.parser.nodes.expression.Expression.MethodCallExpression;
 import com.mira.parser.nodes.expression.Expression.NamespaceCallExpression;
 import com.mira.parser.nodes.expression.Expression.ObjectExpression;
+import com.mira.parser.nodes.expression.Expression.StructExpression;
+import com.mira.parser.nodes.expression.Expression.StructInitExpression;
 import com.mira.parser.nodes.expression.Expression.RangeExpression;
 import com.mira.parser.nodes.expression.Expression.SwitchExpression;
 import com.mira.parser.nodes.expression.Expression.TernaryExpression;
@@ -751,6 +753,29 @@ public class AstFormatter implements ExprVisitor<String>, StmtVisitor<String> {
         indentLevel--;
         sb.append(indent()).append("}");
         return (T) sb.toString();
+    }
+
+    @Override
+    public <T> T visitStructExpression(StructExpression expression) {
+        StringBuilder sb = new StringBuilder("struct {\n");
+        indentLevel++;
+        for (VarDecl vd : expression.getVarDecls()) {
+            sb.append(indent()).append(visitVarDecl(vd)).append("\n");
+        }
+        for (FuncDecl fd : expression.getMethods()) {
+            sb.append(indent()).append(visitFuncDecl(fd)).append("\n");
+        }
+        indentLevel--;
+        sb.append(indent()).append("}");
+        return (T) sb.toString();
+    }
+
+    @Override
+    public <T> T visitStructInitExpression(StructInitExpression expression) {
+        String overrides = expression.getOverrides().entrySet().stream()
+                .map(e -> "$" + e.getKey() + " : " + formatExpr(e.getValue()))
+                .collect(Collectors.joining(", "));
+        return (T) (formatExpr(expression.getTarget()) + "{" + overrides + "}");
     }
 
     @Override

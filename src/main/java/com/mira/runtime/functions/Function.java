@@ -8,7 +8,6 @@ import com.mira.parser.nodes.Node;
 import com.mira.parser.nodes.Parameter;
 import com.mira.parser.nodes.expression.Expression;
 import com.mira.parser.nodes.expression.Expression.ListExpression;
-import com.mira.parser.nodes.statement.Statement;
 import com.mira.runtime.interpreter.Environment;
 import com.mira.runtime.interpreter.Interpreter;
 import com.mira.runtime.values.NullValue;

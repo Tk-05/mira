@@ -10,15 +10,18 @@ import java.util.List;
 
 import com.mira.error.runtime.RuntimeError.FieldAccessError;
 import com.mira.error.runtime.RuntimeError.NotANamespaceError;
+import com.mira.error.runtime.RuntimeError.NotAStructTemplateError;
 import com.mira.error.runtime.RuntimeError.NotCallableError;
 import com.mira.error.runtime.RuntimeError.RangeStepZeroError;
 import com.mira.error.runtime.RuntimeError.TypeConversionError;
 import com.mira.error.runtime.RuntimeError.UnknownOperatorError;
+import com.mira.error.runtime.RuntimeError.UnknownStructFieldError;
 import com.mira.parser.nodes.expression.Expression;
 import com.mira.parser.nodes.expression.Expression.ArrayExpression;
 import com.mira.parser.nodes.expression.Expression.DumbExpression;
 import com.mira.parser.nodes.expression.Expression.ListExpression;
 import com.mira.parser.nodes.expression.Expression.MapExpression;
+import com.mira.runtime.StructTemplate;
 import com.mira.runtime.functions.Callable;
 import com.mira.runtime.functions.Promise;
 import com.mira.runtime.functions.ThrowSignal;
@@ -708,6 +711,28 @@ public final class Runtime {
 
     public static Environment makeObject() {
         return new Environment();
+    }
+
+    public static StructTemplate makeStructTemplate(Environment defaults) {
+        return new StructTemplate(defaults, List.of());
+    }
+
+    public static Environment makeStructInstance(Object templateObj, String[] overrideNames, Object[] overrideValues) {
+        if (!(templateObj instanceof StructTemplate template)) {
+            throw new NotAStructTemplateError();
+        }
+        Environment instanceEnv = template.getDefaults().copyShallow();
+        if (!instanceEnv.exists("this")) {
+            instanceEnv.define("this", instanceEnv);
+        }
+        for (int i = 0; i < overrideNames.length; i++) {
+            String name = overrideNames[i];
+            if (!instanceEnv.exists(name)) {
+                throw new UnknownStructFieldError(name);
+            }
+            instanceEnv.forceDefine(name, overrideValues[i]);
+        }
+        return instanceEnv;
     }
 
     public static Environment makeEnum(String[] keys, Object[] values) {

@@ -300,4 +300,22 @@ public class RuntimeError extends MiraError {
                     "Check the spelling and make sure the symbol is declared with 'pub' in the module");
         }
     }
+
+    public static class NotAStructTemplateError extends RuntimeError {
+
+        public NotAStructTemplateError() {
+            super("E232",
+                    "Value is not a struct template and cannot be instantiated",
+                    "Make sure the target was declared with 'struct { ... }' before instantiating it");
+        }
+    }
+
+    public static class UnknownStructFieldError extends RuntimeError {
+
+        public UnknownStructFieldError(String field) {
+            super("E233",
+                    "Struct has no field '" + field + "'",
+                    "Check the spelling, or add the field to the 'struct { ... }' template");
+        }
+    }
 }

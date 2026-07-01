@@ -19,8 +19,10 @@ import com.mira.error.runtime.RuntimeError.ImmutableCollectionError;
 import com.mira.error.runtime.RuntimeError.IndexOutOfBoundsError;
 import com.mira.error.runtime.RuntimeError.LocalCallableError;
 import com.mira.error.runtime.RuntimeError.NotANamespaceError;
+import com.mira.error.runtime.RuntimeError.NotAStructTemplateError;
 import com.mira.error.runtime.RuntimeError.NotCallableError;
 import com.mira.error.runtime.RuntimeError.NotIterableError;
+import com.mira.error.runtime.RuntimeError.UnknownStructFieldError;
 import com.mira.error.runtime.RuntimeError.PostExprNaNError;
 import com.mira.error.runtime.RuntimeError.PostUnaryError;
 import com.mira.error.runtime.RuntimeError.RangeStepZeroError;
@@ -48,6 +50,8 @@ import com.mira.parser.nodes.expression.Expression.MethodCallExpression;
 import com.mira.parser.nodes.expression.Expression.Mutability;
 import com.mira.parser.nodes.expression.Expression.NamespaceCallExpression;
 import com.mira.parser.nodes.expression.Expression.ObjectExpression;
+import com.mira.parser.nodes.expression.Expression.StructExpression;
+import com.mira.parser.nodes.expression.Expression.StructInitExpression;
 import com.mira.parser.nodes.expression.Expression.RangeExpression;
 import com.mira.parser.nodes.expression.Expression.SwitchExpression;
 import com.mira.parser.nodes.expression.Expression.TernaryExpression;
@@ -78,6 +82,7 @@ import com.mira.parser.nodes.statement.Statement.VarDecl;
 import com.mira.parser.nodes.statement.Statement.VarDestructure;
 import com.mira.parser.nodes.statement.Statement.While;
 import com.mira.runtime.ComptimeExecutor;
+import com.mira.runtime.StructTemplate;
 import com.mira.runtime.functions.BreakSignal;
 import com.mira.runtime.functions.Callable;
 import com.mira.runtime.functions.ContinueSignal;
@@ -1134,6 +1139,61 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         }
 
         return (T) objectEnv;
+    }
+
+    @Override
+    public <T> T visitStructExpression(StructExpression expression) {
+        Environment defaults = new Environment();
+
+        for (VarDecl field : expression.getVarDecls()) {
+            Object value = field.getInitializer() != null
+                    ? field.getInitializer().accept(this)
+                    : null;
+
+            if (field.isConst()) {
+                defaults.defineConst(field.getName(), value);
+            } else {
+                defaults.define(field.getName(), value);
+            }
+        }
+
+        for (FuncDecl method : expression.getMethods()) {
+            Function fn = new Function(defaults, method.getBody(), method.getParameters(),
+                    method.getArity(), method.getMaxArity(), method.getVariadicParam(), globalEnvironment);
+            defaults.define(method.getName(), fn);
+        }
+
+        return (T) new StructTemplate(defaults, expression.getMethods());
+    }
+
+    @Override
+    public <T> T visitStructInitExpression(StructInitExpression expression) {
+        Object targetValue = expression.getTarget().accept(this);
+        if (!(targetValue instanceof StructTemplate template)) {
+            throw new NotAStructTemplateError();
+        }
+
+        Environment instanceEnv = template.getDefaults().copyShallow();
+
+        for (FuncDecl method : template.getMethods()) {
+            Function fn = new Function(instanceEnv, method.getBody(), method.getParameters(),
+                    method.getArity(), method.getMaxArity(), method.getVariadicParam(), globalEnvironment);
+            instanceEnv.forceDefine(method.getName(), fn);
+        }
+
+        if (!instanceEnv.exists("this")) {
+            instanceEnv.define("this", instanceEnv);
+        }
+
+        for (Map.Entry<String, Expression> override : expression.getOverrides().entrySet()) {
+            String name = override.getKey();
+            if (!instanceEnv.exists(name)) {
+                throw new UnknownStructFieldError(name);
+            }
+            instanceEnv.forceDefine(name, override.getValue().accept(this));
+        }
+
+        return (T) instanceEnv;
     }
 
     private <T> T visitPipeExpr(BinaryExpression expr) {

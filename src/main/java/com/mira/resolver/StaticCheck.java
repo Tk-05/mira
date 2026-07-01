@@ -58,6 +58,8 @@ import com.mira.parser.nodes.expression.Expression.MapExpression;
 import com.mira.parser.nodes.expression.Expression.MethodCallExpression;
 import com.mira.parser.nodes.expression.Expression.NamespaceCallExpression;
 import com.mira.parser.nodes.expression.Expression.ObjectExpression;
+import com.mira.parser.nodes.expression.Expression.StructExpression;
+import com.mira.parser.nodes.expression.Expression.StructInitExpression;
 import com.mira.parser.nodes.expression.Expression.RangeExpression;
 import com.mira.parser.nodes.expression.Expression.SwitchExpression;
 import com.mira.parser.nodes.expression.Expression.TernaryExpression;
@@ -551,6 +553,32 @@ public class StaticCheck {
                     functionDepth--;
                     popScope();
                 }
+            }
+            case StructExpression e -> {
+                e.getVarDecls().stream()
+                        .filter(v -> v.getInitializer() != null)
+                        .forEach(v -> resolveExpr(v.getInitializer()));
+                for (var method : e.getMethods()) {
+                    scope.push();
+                    method.getParameters().forEach(p -> scope.declare(p.name(), method.line, 0, false));
+                    if (method.getVariadicParam() != null) {
+                        scope.declare(method.getVariadicParam(), method.line, 0, false);
+                    }
+                    scope.declare("this", 0, 0, false);
+                    scope.markUsed("this");
+                    e.getVarDecls().forEach(f -> {
+                        scope.declare(f.getName(), 0, 0, false);
+                        scope.markUsed(f.getName());
+                    });
+                    functionDepth++;
+                    resolveBody(method.getBody());
+                    functionDepth--;
+                    popScope();
+                }
+            }
+            case StructInitExpression e -> {
+                resolveExpr(e.getTarget());
+                e.getOverrides().values().forEach(this::resolveExpr);
             }
             case LambdaExpression e -> {
                 scope.push();
