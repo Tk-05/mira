@@ -358,4 +358,26 @@ public class StaticCheckTest {
     void optionalAccessUndefinedFieldIsValid() {
         assertClean("var o : { var x : 1; }; var y : $o?.z;");
     }
+
+    @Test
+    void accessExistingFieldOnStructTemplateIsValid() {
+        assertClean("var point : struct { var x : 0; var y : 0; }; var p : $point{}; print($p.x);");
+    }
+
+    @Test
+    void accessNonexistentFieldOnStructTemplateIsE323() {
+        List<MiraError> errors = errorsFor("var point : struct { var x; var y; }; print($point.z);");
+        assertTrue(hasCode(errors, "E323"));
+    }
+
+    @Test
+    void accessNonexistentFieldOnStructInstanceIsE323() {
+        List<MiraError> errors = errorsFor("var point : struct { var x; var y; }; var p : $point{}; print($p.z);");
+        assertTrue(hasCode(errors, "E323"));
+    }
+
+    @Test
+    void accessExistingMethodOnStructTemplateIsValid() {
+        assertClean("var counter : struct { var count : 0; fn get() { return $this.count; } }; var c : $counter{}; $c.get();");
+    }
 }

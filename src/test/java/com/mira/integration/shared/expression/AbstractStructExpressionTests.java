@@ -105,4 +105,5 @@ public abstract class AbstractStructExpressionTests {
                 var bad : $notATemplate{$a : 2};
                 """));
     }
+
 }

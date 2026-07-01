@@ -479,7 +479,8 @@ public class StaticCheck {
             case FieldAccessExpression e -> {
                 resolveExpr(e.getObject());
                 Node literalBase = resolveLiteralBase(e.getObject());
-                if (literalBase != null && !(literalBase instanceof ObjectExpression)) {
+                if (literalBase != null && !(literalBase instanceof ObjectExpression)
+                        && !(literalBase instanceof StructExpression)) {
                     String typeName = switch (literalBase) {
                         case ListExpression ignored ->
                             "list";
@@ -501,6 +502,17 @@ public class StaticCheck {
                     if (!fieldExists) {
                         DumbExpression varRef = extractVarRef(e.getObject());
                         String objectName = varRef != null ? varRef.getValue() : "object";
+                        int line = e.getObject().line;
+                        int col = varRef != null ? varRef.getColumn() + varRef.getValue().length() + 1 : 0;
+                        errors.add(new UndefinedObjectFieldStaticError(field, objectName, line, col));
+                    }
+                } else if (!e.isOptional() && literalBase instanceof StructExpression structExpr) {
+                    String field = e.getField();
+                    boolean fieldExists = structExpr.getVarDecls().stream().anyMatch(v -> field.equals(v.getName()))
+                            || structExpr.getMethods().stream().anyMatch(m -> field.equals(m.getName()));
+                    if (!fieldExists) {
+                        DumbExpression varRef = extractVarRef(e.getObject());
+                        String objectName = varRef != null ? varRef.getValue() : "struct";
                         int line = e.getObject().line;
                         int col = varRef != null ? varRef.getColumn() + varRef.getValue().length() + 1 : 0;
                         errors.add(new UndefinedObjectFieldStaticError(field, objectName, line, col));
@@ -579,6 +591,19 @@ public class StaticCheck {
             case StructInitExpression e -> {
                 resolveExpr(e.getTarget());
                 e.getOverrides().values().forEach(this::resolveExpr);
+                Node templateLiteral = resolveLiteralBase(e.getTarget());
+                if (templateLiteral instanceof StructExpression structExpr) {
+                    DumbExpression varRef = extractVarRef(e.getTarget());
+                    String templateName = varRef != null ? varRef.getValue() : "struct";
+                    for (var entry : e.getOverrides().entrySet()) {
+                        String key = entry.getKey();
+                        boolean exists = structExpr.getVarDecls().stream().anyMatch(v -> key.equals(v.getName()))
+                                || structExpr.getMethods().stream().anyMatch(m -> key.equals(m.getName()));
+                        if (!exists) {
+                            errors.add(new UndefinedObjectFieldStaticError(key, templateName, entry.getValue().line, 0));
+                        }
+                    }
+                }
             }
             case LambdaExpression e -> {
                 scope.push();
@@ -712,6 +737,11 @@ public class StaticCheck {
         scope.declare(stmt.getName(), stmt.line, stmt.nameColumn, stmt.isConst(), inComptimeBlock && stmt.isConst());
         if (stmt.getInitializer() != null && isKnownLiteral(stmt.getInitializer())) {
             varLiteralTypes.put(stmt.getName(), stmt.getInitializer());
+        } else if (stmt.getInitializer() instanceof StructInitExpression si) {
+            Node templateLiteral = resolveLiteralBase(si.getTarget());
+            if (templateLiteral instanceof StructExpression) {
+                varLiteralTypes.put(stmt.getName(), templateLiteral);
+            }
         }
     }
 
@@ -1189,6 +1219,7 @@ public class StaticCheck {
                 || n instanceof ArrayExpression
                 || n instanceof MapExpression
                 || n instanceof ObjectExpression
+                || n instanceof StructExpression
                 || (n instanceof DumbExpression d && !isIdentifier(d));
     }
 

@@ -9,8 +9,6 @@ var abc : {
     var aaa;
 };
 
-var bbb : $abc.a;
-
 var origin : $point{$x : 0, $y : 5};
 
 pub fn hello(name) {
