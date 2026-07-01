@@ -181,7 +181,9 @@ fn main() {
             print($i "\n");
         }
 
-        print(debug2.hello("test"));
+        print(debug2.hello({
+            var x : 69;
+        }));
 
         var list : [[0, 0, 0], [0, 0, 0], [0, 0, 69]];
 
