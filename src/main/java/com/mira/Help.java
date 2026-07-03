@@ -34,6 +34,7 @@ public class Help {
           -ast            Print AST
           -test           Run test() calls and print a pass/fail summary; exit 1 if any test fails
           -debug          Launch interactive debugger
+          -profile        Print a function- and line-level timing report after execution
           -o <dir>        Output directory for compiled bytecode
           -compile        Compile to JVM bytecode and write .class files
           -package        (used with -compile) Bundle compiled classes and the Mira runtime into a standalone fat JAR

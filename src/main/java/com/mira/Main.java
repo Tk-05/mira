@@ -139,6 +139,8 @@ public class Main {
                         Flags.skipStaticCheck = true;
                     case "-no-warn" ->
                         Flags.suppressWarnings = true;
+                    case "-profile" ->
+                        Flags.profile = true;
                     default -> {
                         System.err.println(DiagnosticFormatter.formatError("'" + args[i] + "' is not a known flag"));
                         System.err.println("Use -h for help.");
@@ -185,6 +187,9 @@ public class Main {
         Flags.sourceLines = readFile.split("\n", -1);
 
         Interpreter interpreter = new Interpreter();
+        if (Flags.profile) {
+            interpreter.setProfilingEnabled(true);
+        }
         try {
             Tokenizer tokenizer = new Tokenizer();
             List<Token> tokens = tokenizer.tokenize(readFile, false);
@@ -250,6 +255,11 @@ public class Main {
                 } finally {
                     WarningCollector.flush();
                 }
+            }
+
+            if (Flags.profile) {
+                interpreter.getProfiler().finishLineTracking();
+                interpreter.getProfiler().printReport(System.out);
             }
 
             if (Flags.testMode && !Flags.testsDone) {

@@ -20,6 +20,8 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import com.mira.Flags;
 import com.mira.error.MiraError;
@@ -52,6 +54,14 @@ public class ImportResolver {
     }
 
     private static final Internal internal = new Internal();
+    // Dedicated per-task virtual-thread executor for resolving aliased module imports.
+    // Nested aliased imports recursively submit further blocking (.join()) tasks here;
+    // using ForkJoinPool.commonPool() (bounded to availableProcessors()-1) for that
+    // starves out under enough recursive fan-out (every pool thread ends up blocked
+    // waiting on a child task with no free thread left to run it) - a real deadlock
+    // observed on projects with deep, widely shared aliased-import graphs. Virtual
+    // threads are cheap and unbounded, so blocking here never exhausts a shared pool.
+    private static final ExecutorService MODULE_EXECUTOR = Executors.newVirtualThreadPerTaskExecutor();
     private static final Map<String, CachedModule> astCache = new ConcurrentHashMap<>();
     private static final ConcurrentHashMap<String, CompletableFuture<Void>> moduleLoadFutures = new ConcurrentHashMap<>();
     private static final Set<String> loadedLibs = new HashSet<>();
@@ -128,7 +138,7 @@ public class ImportResolver {
                     .map(e -> CompletableFuture.runAsync(() -> {
                 Flags.inputPath.set(parentInputPath);
                 resolveModuleImport(new Interpreter(), e, environment);
-            }))
+            }, MODULE_EXECUTOR))
                     .toList();
             try {
                 CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new)).join();
@@ -246,7 +256,7 @@ public class ImportResolver {
             Path previousFile = Flags.inputPath.get();
             Flags.inputPath.set(modulePath);
 
-            validateModuleDeclaration(asts, importExpression);
+            String moduleName = validateModuleDeclaration(asts, importExpression);
 
             String alias = importExpression.getNamespace();
             boolean hasAlias = alias != null && !alias.isBlank();
@@ -268,8 +278,10 @@ public class ImportResolver {
 
             for (Node ast : moduleBody) {
                 switch (ast) {
-                    case FuncDecl fd ->
+                    case FuncDecl fd -> {
+                        interpreter.registerFunctionModule(fd.getName(), moduleName);
                         interpreter.loadASTIntoContext(fd, modulePrivateEnv);
+                    }
                     case EnumDecl ed ->
                         interpreter.loadASTIntoContext(ed, modulePrivateEnv);
                     case VarDecl vd when vd.isConst() ->

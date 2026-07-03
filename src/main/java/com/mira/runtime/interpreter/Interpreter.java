@@ -4,6 +4,7 @@ import java.io.PrintStream;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -22,19 +23,20 @@ import com.mira.error.runtime.RuntimeError.NotANamespaceError;
 import com.mira.error.runtime.RuntimeError.NotAStructTemplateError;
 import com.mira.error.runtime.RuntimeError.NotCallableError;
 import com.mira.error.runtime.RuntimeError.NotIterableError;
-import com.mira.error.runtime.RuntimeError.UnknownStructFieldError;
 import com.mira.error.runtime.RuntimeError.PostExprNaNError;
 import com.mira.error.runtime.RuntimeError.PostUnaryError;
 import com.mira.error.runtime.RuntimeError.RangeStepZeroError;
 import com.mira.error.runtime.RuntimeError.ReferenceIsImmutableError;
 import com.mira.error.runtime.RuntimeError.TypeConversionError;
 import com.mira.error.runtime.RuntimeError.UnknownOperatorError;
+import com.mira.error.runtime.RuntimeError.UnknownStructFieldError;
 import com.mira.lexer.token.Token;
 import com.mira.lexer.token.TokenType;
 import com.mira.parser.nodes.Node;
 import com.mira.parser.nodes.expression.Expression;
 import com.mira.parser.nodes.expression.Expression.AccessExpression;
 import com.mira.parser.nodes.expression.Expression.ArrayExpression;
+import com.mira.parser.nodes.expression.Expression.AssignExpression;
 import com.mira.parser.nodes.expression.Expression.AwaitExpression;
 import com.mira.parser.nodes.expression.Expression.BinaryExpression;
 import com.mira.parser.nodes.expression.Expression.CallExpression;
@@ -50,10 +52,9 @@ import com.mira.parser.nodes.expression.Expression.MethodCallExpression;
 import com.mira.parser.nodes.expression.Expression.Mutability;
 import com.mira.parser.nodes.expression.Expression.NamespaceCallExpression;
 import com.mira.parser.nodes.expression.Expression.ObjectExpression;
-import com.mira.parser.nodes.expression.Expression.StructExpression;
-import com.mira.parser.nodes.expression.Expression.AssignExpression;
-import com.mira.parser.nodes.expression.Expression.StructInitExpression;
 import com.mira.parser.nodes.expression.Expression.RangeExpression;
+import com.mira.parser.nodes.expression.Expression.StructExpression;
+import com.mira.parser.nodes.expression.Expression.StructInitExpression;
 import com.mira.parser.nodes.expression.Expression.SwitchExpression;
 import com.mira.parser.nodes.expression.Expression.TernaryExpression;
 import com.mira.parser.nodes.expression.Expression.ThrownException;
@@ -72,6 +73,7 @@ import com.mira.parser.nodes.statement.Statement.Foreach;
 import com.mira.parser.nodes.statement.Statement.FuncDecl;
 import com.mira.parser.nodes.statement.Statement.If;
 import com.mira.parser.nodes.statement.Statement.Lock;
+import com.mira.parser.nodes.statement.Statement.ModuleDecl;
 import com.mira.parser.nodes.statement.Statement.Return;
 import com.mira.parser.nodes.statement.Statement.StaticAssert;
 import com.mira.parser.nodes.statement.Statement.Switch;
@@ -134,6 +136,9 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
     private Set<String> pureFunctions = Set.of();
     private final Deque<StackFrame> miraCallStack = new ArrayDeque<>();
     private DebugHook debugHook;
+    private final Profiler profiler = new Profiler();
+    private final Map<String, String> functionModule = new HashMap<>();
+    private String entryModuleName = "<script>";
 
     public Interpreter() {
         ImportResolver.loadInternal(globalEnvironment);
@@ -170,6 +175,10 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             globalEnvironment = new Environment();
         }
 
+        entryModuleName = !asts.isEmpty() && asts.get(0) instanceof ModuleDecl moduleDecl
+                ? moduleDecl.getModuleName()
+                : "<script>";
+
         List<ImportExpression> imports = new ArrayList<>();
         for (Node ast : asts) {
             if (ast instanceof ImportExpression importExpression) {
@@ -190,6 +199,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         for (Node ast : asts) {
             switch (ast) {
                 case FuncDecl funcDecl when !(globalEnvironment.getOrNull(funcDecl.getName()) instanceof Namespace) -> {
+                    functionModule.put(funcDecl.getName(), entryModuleName);
                     if (Flags.mainFunction) {
                         funcDecl.getBody().add(new Return(new DumbExpression(new Token(null, "0", 0, 0))));
                     }
@@ -381,7 +391,28 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         return new ArrayList<>(miraCallStack);
     }
 
+    public Profiler getProfiler() {
+        return profiler;
+    }
+
+    public void setProfilingEnabled(boolean enabled) {
+        profiler.enabled = enabled;
+    }
+
+    public void registerFunctionModule(String name, String module) {
+        functionModule.put(name, module);
+    }
+
     private void notifyDebugger(int line) {
+        if (profiler.enabled && line > 0) {
+            StackFrame frame = miraCallStack.peek();
+            String functionName = frame == null ? "<script>" : frame.name();
+            String bareName = functionName.contains(".")
+                    ? functionName.substring(functionName.lastIndexOf('.') + 1)
+                    : functionName;
+            String moduleName = functionModule.getOrDefault(bareName, entryModuleName);
+            profiler.onLine(line, functionName, moduleName);
+        }
         if (debugHook != null && line > 0) {
             debugHook.onLine(line, localEnvironment != null ? localEnvironment : globalEnvironment);
         }
@@ -782,19 +813,39 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
         miraCallStack.push(new StackFrame(calleeName, calleeLine));
         boolean threw = false;
+        boolean profiling = profiler.enabled;
         try {
             if (pureFunctions.contains(calleeName)) {
                 CacheKey cacheKey = new CacheKey(calleeName, arguments);
                 if (callCache.containsKey(cacheKey)) {
+                    if (profiling) {
+                        profiler.recordCacheHit(calleeName);
+                    }
                     return (T) callCache.get(cacheKey);
                 }
+                if (profiling) {
+                    profiler.start();
+                }
                 Object result = callable.call(this, arguments);
+                if (profiling) {
+                    profiler.stop(calleeName);
+                }
                 callCache.put(cacheKey, result);
                 return (T) result;
             }
-            return (T) callable.call(this, arguments);
+            if (profiling) {
+                profiler.start();
+            }
+            Object result = callable.call(this, arguments);
+            if (profiling) {
+                profiler.stop(calleeName);
+            }
+            return (T) result;
         } catch (Throwable t) {
             threw = true;
+            if (profiling) {
+                profiler.stop(calleeName);
+            }
             throw t;
         } finally {
             if (!threw) {
@@ -834,10 +885,21 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         String nsFrame = expression.getAlias() + "." + expression.getFunctionName();
         miraCallStack.push(new StackFrame(nsFrame, expression.getLine()));
         boolean threw = false;
+        boolean profiling = profiler.enabled;
+        if (profiling) {
+            profiler.start();
+        }
         try {
-            return (T) callable.call(this, arguments);
+            Object result = callable.call(this, arguments);
+            if (profiling) {
+                profiler.stop(nsFrame);
+            }
+            return (T) result;
         } catch (Throwable t) {
             threw = true;
+            if (profiling) {
+                profiler.stop(nsFrame);
+            }
             throw t;
         } finally {
             if (!threw) {
@@ -1037,7 +1099,18 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             throw new ArgMismatchError(expression.getMethod(), callable.getArity(), arguments.size());
         }
 
-        return (T) callable.call(this, arguments);
+        if (!profiler.enabled) {
+            return (T) callable.call(this, arguments);
+        }
+        profiler.start();
+        try {
+            Object result = callable.call(this, arguments);
+            profiler.stop(expression.getMethod());
+            return (T) result;
+        } catch (Throwable t) {
+            profiler.stop(expression.getMethod());
+            throw t;
+        }
     }
 
     @Override
@@ -1217,7 +1290,19 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             for (Expression arg : nsCall.getArguments()) {
                 arguments.add(arg.accept(this));
             }
-            return (T) callable.call(this, arguments);
+            if (!profiler.enabled) {
+                return (T) callable.call(this, arguments);
+            }
+            String nsFrame = nsCall.getAlias() + "." + nsCall.getFunctionName();
+            profiler.start();
+            try {
+                Object result = callable.call(this, arguments);
+                profiler.stop(nsFrame);
+                return (T) result;
+            } catch (Throwable t) {
+                profiler.stop(nsFrame);
+                throw t;
+            }
         }
 
         if (!(expr.getRight() instanceof CallExpression call)) {
@@ -1242,7 +1327,18 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             arguments.add(arg.accept(this));
         }
 
-        return (T) callable.call(this, arguments);
+        if (!profiler.enabled) {
+            return (T) callable.call(this, arguments);
+        }
+        profiler.start();
+        try {
+            Object result = callable.call(this, arguments);
+            profiler.stop(calleeName);
+            return (T) result;
+        } catch (Throwable t) {
+            profiler.stop(calleeName);
+            throw t;
+        }
     }
 
     private double toNumber(Object value) {

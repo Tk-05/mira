@@ -34,4 +34,6 @@ public class Flags {
 
     public static boolean skipStaticCheck = false;
     public static boolean suppressWarnings = false;
+
+    public static boolean profile = false;
 }
