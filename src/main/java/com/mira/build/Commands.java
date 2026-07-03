@@ -94,6 +94,8 @@ public class Commands {
                 projectDir = args[++i];
             } else if ("--no-warn".equals(args[i])) {
                 Flags.suppressWarnings = true;
+            } else if ("--profile".equals(args[i])) {
+                Flags.profile = true;
             } else if ("--".equals(args[i])) {
                 programArgs = Arrays.copyOfRange(args, i + 1, args.length);
                 break;
@@ -154,6 +156,9 @@ public class Commands {
         if (args.length < 2) {
             TaskRunner.listTasks(ctx.config());
             return;
+        }
+        if (Arrays.asList(args).contains("--profile")) {
+            Flags.profile = true;
         }
         TaskRunner.runTask(ctx, args[1]);
     }

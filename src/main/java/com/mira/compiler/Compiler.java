@@ -55,6 +55,9 @@ public class Compiler {
     public CompileResult compile(List<Node> ast, String scriptName) {
         new ComptimeExecutor().execute(ast);
         String className = toClassName(scriptName);
+        String moduleName = !ast.isEmpty() && ast.get(0) instanceof ModuleDecl md
+                ? md.getModuleName()
+                : "<script>";
         ClassEmitter ce = new ClassEmitter(className);
         int[] lambdaCounter = {0};
 
@@ -96,11 +99,11 @@ public class Compiler {
         }
 
         emitStaticInit(ce, className, ast, pureFunctions);
-        emitMain(ce, className, knownFunctions, lambdaCounter, ast, compiledModules);
+        emitMain(ce, className, knownFunctions, lambdaCounter, ast, compiledModules, moduleName);
 
         for (Node node : ast) {
             if (node instanceof FuncDecl fd) {
-                emitTopLevelFunction(ce, className, knownFunctions, lambdaCounter, fd, pureFunctions);
+                emitTopLevelFunction(ce, className, knownFunctions, lambdaCounter, fd, pureFunctions, moduleName);
             }
         }
 
@@ -241,13 +244,15 @@ public class Compiler {
 
     private void emitMain(ClassEmitter ce, String className,
             Set<String> knownFunctions, int[] lambdaCounter, List<Node> ast,
-            Map<String, String> compiledModules) {
+            Map<String, String> compiledModules, String moduleName) {
         MethodVisitor mv = ce.openMain();
         mv.visitCode();
 
         LocalSlotTable slots = new LocalSlotTable(1);
         CompilerContext ctx = new CompilerContext(className, mv, slots,
                 knownFunctions, lambdaCounter, true);
+        ctx.moduleName = moduleName;
+        ctx.functionName = "<script>";
         MethodEmitter emitter = new MethodEmitter(ctx, ce);
 
         mv.visitFieldInsn(org.objectweb.asm.Opcodes.GETSTATIC, className, "GLOBALS", ClassEmitter.ENV_DESC);
@@ -309,7 +314,8 @@ public class Compiler {
     }
 
     private void emitTopLevelFunction(ClassEmitter ce, String className,
-            Set<String> knownFunctions, int[] lambdaCounter, FuncDecl fd, Set<String> pureFunctions) {
+            Set<String> knownFunctions, int[] lambdaCounter, FuncDecl fd, Set<String> pureFunctions,
+            String moduleName) {
         boolean isPure = pureFunctions.contains(fd.getName()) && !fd.isAsync();
         String implName = isPure ? "mira$" + fd.getName() + "$impl" : "mira$" + fd.getName();
 
@@ -321,6 +327,8 @@ public class Compiler {
         LocalSlotTable slots = new LocalSlotTable(1);
         CompilerContext ctx = new CompilerContext(className, mv, slots,
                 knownFunctions, lambdaCounter, false, instrBytes);
+        ctx.moduleName = moduleName;
+        ctx.functionName = fd.getName();
         MethodEmitter emitter = new MethodEmitter(ctx, ce);
         emitter.splitEnabled = true;
 

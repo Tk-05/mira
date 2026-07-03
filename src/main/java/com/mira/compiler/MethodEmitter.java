@@ -39,6 +39,7 @@ import com.mira.parser.nodes.Parameter;
 import com.mira.parser.nodes.expression.Expression;
 import com.mira.parser.nodes.expression.Expression.AccessExpression;
 import com.mira.parser.nodes.expression.Expression.ArrayExpression;
+import com.mira.parser.nodes.expression.Expression.AssignExpression;
 import com.mira.parser.nodes.expression.Expression.AwaitExpression;
 import com.mira.parser.nodes.expression.Expression.BinaryExpression;
 import com.mira.parser.nodes.expression.Expression.CallExpression;
@@ -52,10 +53,9 @@ import com.mira.parser.nodes.expression.Expression.MapExpression;
 import com.mira.parser.nodes.expression.Expression.MethodCallExpression;
 import com.mira.parser.nodes.expression.Expression.NamespaceCallExpression;
 import com.mira.parser.nodes.expression.Expression.ObjectExpression;
-import com.mira.parser.nodes.expression.Expression.StructExpression;
-import com.mira.parser.nodes.expression.Expression.AssignExpression;
-import com.mira.parser.nodes.expression.Expression.StructInitExpression;
 import com.mira.parser.nodes.expression.Expression.RangeExpression;
+import com.mira.parser.nodes.expression.Expression.StructExpression;
+import com.mira.parser.nodes.expression.Expression.StructInitExpression;
 import com.mira.parser.nodes.expression.Expression.SwitchExpression;
 import com.mira.parser.nodes.expression.Expression.TernaryExpression;
 import com.mira.parser.nodes.expression.Expression.ThrownException;
@@ -247,6 +247,8 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
         }
         CompilerContext hCtx = new CompilerContext(ctx.className, hmv, hSlots,
                 ctx.knownFunctions, ctx.lambdaCounter, false, hInstrBytes);
+        hCtx.moduleName = ctx.moduleName;
+        hCtx.functionName = ctx.functionName;
         MethodEmitter hme = new MethodEmitter(hCtx, ce);
         hme.splitEnabled = true;
         hme.emitBody(remaining);
@@ -261,6 +263,7 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
     public void emitNode(Node node) {
         switch (node) {
             case Expression expr -> {
+                emitProfilerLine(expr.line);
                 expr.accept(this);
                 mv.visitInsn(POP);
             }
@@ -547,15 +550,36 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
         emitIntConst(line);
         mv.visitMethodInsn(INVOKESTATIC, RT, "pushCallStack",
                 "(Ljava/lang/String;I)V", false);
+        if (com.mira.Flags.profile) {
+            mv.visitMethodInsn(INVOKESTATIC, RT, "profilerStart", "()V", false);
+        }
         mv.visitLabel(tryStart);
         callEmitter.run();
         mv.visitLabel(tryEnd);
+        if (com.mira.Flags.profile) {
+            mv.visitLdcInsn(name);
+            mv.visitMethodInsn(INVOKESTATIC, RT, "profilerStop", "(Ljava/lang/String;)V", false);
+        }
         mv.visitMethodInsn(INVOKESTATIC, RT, "popCallStack", "()V", false);
         mv.visitJumpInsn(GOTO, after);
         mv.visitTryCatchBlock(tryStart, tryEnd, handler, null);
         mv.visitLabel(handler);
+        if (com.mira.Flags.profile) {
+            mv.visitLdcInsn(name);
+            mv.visitMethodInsn(INVOKESTATIC, RT, "profilerStop", "(Ljava/lang/String;)V", false);
+        }
         mv.visitInsn(ATHROW);
         mv.visitLabel(after);
+    }
+
+    private void emitProfilerLine(int line) {
+        if (com.mira.Flags.profile && line > 0) {
+            emitIntConst(line);
+            mv.visitLdcInsn(ctx.functionName);
+            mv.visitLdcInsn(ctx.moduleName);
+            mv.visitMethodInsn(INVOKESTATIC, RT, "profilerLine",
+                    "(ILjava/lang/String;Ljava/lang/String;)V", false);
+        }
     }
 
     private void emitCalleeObject(Expression callee) {
@@ -611,6 +635,8 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
         LocalSlotTable lSlots = new LocalSlotTable(1);
         CompilerContext lCtx = new CompilerContext(ctx.className, lmv, lSlots,
                 ctx.knownFunctions, ctx.lambdaCounter, false, lInstrBytes);
+        lCtx.moduleName = ctx.moduleName;
+        lCtx.functionName = ctx.functionName;
         MethodEmitter lme = new MethodEmitter(lCtx, ce);
         lme.splitEnabled = true;
 
@@ -949,6 +975,8 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
         LocalSlotTable lSlots = new LocalSlotTable(1);
         CompilerContext lCtx = new CompilerContext(ctx.className, lmv, lSlots,
                 ctx.knownFunctions, ctx.lambdaCounter, false);
+        lCtx.moduleName = ctx.moduleName;
+        lCtx.functionName = ctx.functionName;
         MethodEmitter lme = new MethodEmitter(lCtx, ce);
 
         int objEnvSlot = lSlots.allocate("$$objEnv");
@@ -1079,6 +1107,7 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
 
     @Override
     public Void visitVarDecl(VarDecl stmt) {
+        emitProfilerLine(stmt.line);
         if (stmt.getInitializer() != null) {
             stmt.getInitializer().accept(this);
         } else {
@@ -1107,6 +1136,8 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
         LocalSlotTable lSlots = new LocalSlotTable(1);
         CompilerContext lCtx = new CompilerContext(ctx.className, lmv, lSlots,
                 ctx.knownFunctions, ctx.lambdaCounter, false, lInstrBytes2);
+        lCtx.moduleName = ctx.moduleName;
+        lCtx.functionName = ctx.functionName;
         MethodEmitter lme = new MethodEmitter(lCtx, ce);
         lme.splitEnabled = true;
 
@@ -1191,6 +1222,7 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
 
     @Override
     public Void visitAssign(Assign assign) {
+        emitProfilerLine(assign.line);
         switch (assign.getReference()) {
             case UnaryExpression ue when ue.getOperation().getLexeme().equals("$") -> {
                 String name = ((DumbExpression) ue.getRight()).getValue();
@@ -1257,6 +1289,7 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
 
     @Override
     public Void visitReturn(Return ret) {
+        emitProfilerLine(ret.line);
         if (ret.getValue() != null) {
             ret.getValue().accept(this);
         } else {
@@ -1288,6 +1321,7 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
 
     @Override
     public Void visitIf(If stmt) {
+        emitProfilerLine(stmt.line);
         Label elseLabel = new Label(), end = new Label();
         stmt.getCondition().accept(this);
         emitIsTruthy();
@@ -1308,6 +1342,7 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
 
     @Override
     public Void visitFor(For stmt) {
+        emitProfilerLine(stmt.line);
         ctx.slots.enterScope();
         emitBody(stmt.getVarDecls());
 
@@ -1339,6 +1374,7 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
 
     @Override
     public Void visitWhile(While stmt) {
+        emitProfilerLine(stmt.line);
         Label loopStart = new Label(), loopEnd = new Label();
         ctx.breakStack.push(loopEnd);
         ctx.continueStack.push(loopStart);
@@ -1370,6 +1406,7 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
 
     @Override
     public Void visitForeach(Foreach stmt) {
+        emitProfilerLine(stmt.line);
         String iterName = stmt.getIterator().getName();
         Label loopEnd = new Label(), continueLabel = new Label();
         ctx.breakStack.push(loopEnd);
@@ -1603,6 +1640,8 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
         CompilerContext hCtx = new CompilerContext(ctx.className, hmv, hSlots,
                 ctx.knownFunctions, ctx.lambdaCounter, false, hInstrBytes);
         hCtx.isPartialExtract = true;
+        hCtx.moduleName = ctx.moduleName;
+        hCtx.functionName = ctx.functionName;
         MethodEmitter hme = new MethodEmitter(hCtx, ce);
         hme.splitEnabled = true;
         hme.emitBody(body);
@@ -1616,6 +1655,7 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
 
     @Override
     public Void visitTryCatch(TryCatch stmt) {
+        emitProfilerLine(stmt.line);
         Label tryStart = new Label(), tryEnd = new Label(),
                 catchStart = new Label(), afterCatch = new Label();
 
@@ -1673,6 +1713,7 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
 
     @Override
     public Void visitThrow(Throw stmt) {
+        emitProfilerLine(stmt.line);
         ThrownException tex = (ThrownException) stmt.getValue();
         mv.visitLdcInsn(tex.getIdentifier() != null ? tex.getIdentifier() : "");
         if (tex.getValue() != null) {
@@ -1744,6 +1785,7 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
 
     @Override
     public Void visitVarDestructure(VarDestructure stmt) {
+        emitProfilerLine(stmt.line);
         stmt.getInitializer().accept(this);
         int collSlot = ctx.slots.allocate("$$destr");
         mv.visitVarInsn(ASTORE, collSlot);
@@ -1761,6 +1803,7 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
 
     @Override
     public Void visitLock(Lock stmt) {
+        emitProfilerLine(stmt.line);
         stmt.getMutex().accept(this);
         int monSlot = ctx.slots.allocate("$$lock");
         mv.visitVarInsn(ASTORE, monSlot);

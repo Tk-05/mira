@@ -28,6 +28,7 @@ import com.mira.runtime.functions.ThrowSignal;
 import com.mira.runtime.interpreter.Environment;
 import com.mira.runtime.interpreter.Interpreter;
 import com.mira.runtime.interpreter.Namespace;
+import com.mira.runtime.interpreter.Profiler;
 import com.mira.runtime.values.NullValue;
 import com.mira.runtime.visitors.ExprVisitor;
 
@@ -41,6 +42,38 @@ public final class Runtime {
 
     private static final ThreadLocal<Deque<StackFrame>> CALL_STACK
             = ThreadLocal.withInitial(ArrayDeque::new);
+
+    // Set only when a program is compiled with -profile; instrumentation calls below
+    // are only ever emitted into bytecode in that case (see MethodEmitter), so the
+    // null-check here is purely a safety net for stray/standalone-run instrumented
+    // .class files where no profiler was ever installed.
+    private static volatile Profiler PROFILER;
+
+    public static void setProfiler(Profiler profiler) {
+        PROFILER = profiler;
+    }
+
+    public static Profiler getProfiler() {
+        return PROFILER;
+    }
+
+    public static void profilerStart() {
+        if (PROFILER != null) {
+            PROFILER.start();
+        }
+    }
+
+    public static void profilerStop(String name) {
+        if (PROFILER != null) {
+            PROFILER.stop(name);
+        }
+    }
+
+    public static void profilerLine(int line, String function, String module) {
+        if (PROFILER != null) {
+            PROFILER.onLine(line, function, module);
+        }
+    }
 
     public static void pushCallStack(String name, int line) {
         CALL_STACK.get().push(new StackFrame(name, line));

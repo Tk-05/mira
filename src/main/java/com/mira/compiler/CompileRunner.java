@@ -300,6 +300,9 @@ public class CompileRunner {
         Class<?> cls = loader.loadClass(dotName);
         Method mainMethod = cls.getMethod("main", String[].class);
         String[] programArgs = Flags.args != null ? Flags.args : new String[0];
+        if (Flags.profile) {
+            Runtime.setProfiler(new com.mira.runtime.interpreter.Profiler());
+        }
         try {
             Thread.currentThread().setContextClassLoader(loader);
             mainMethod.invoke(null, (Object) programArgs);
@@ -309,6 +312,11 @@ public class CompileRunner {
                 throw re;
             }
             throw new RuntimeException(cause);
+        }
+        if (Flags.profile) {
+            com.mira.runtime.interpreter.Profiler profiler = Runtime.getProfiler();
+            profiler.finishLineTracking();
+            profiler.printReport(System.out);
         }
     }
 

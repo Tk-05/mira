@@ -238,6 +238,10 @@ public class Main {
                 System.err.println("Warning: -package has no effect without -compile");
             }
 
+            if (Flags.profile && Flags.compile && !Flags.compileAndRun) {
+                System.err.println("Warning: -profile has no effect with -compile alone; use -compile-run to see a report.");
+            }
+
             if (Flags.compile) {
                 new CompileRunner().run(asts);
                 return true;
