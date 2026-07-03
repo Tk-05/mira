@@ -1471,6 +1471,101 @@ $greeter.greet("World", "Hi");    // => "Hi World"
 
 ---
 
+## Structs
+
+A struct is a named, reusable template for objects. Unlike a plain object (see [Objects with Methods](#objects-with-methods)), a struct is declared once and then instantiated any number of times, each instance getting its own independent copy of the fields.
+
+### Declaration
+
+```
+var <name> : struct {
+    var <field> [: <default>];
+    fn <method>(<params>) {
+        <body>
+    }
+};
+```
+
+Fields without an initializer default to `null`:
+
+```
+var point : struct { var x; var y; };
+```
+
+### Instantiation
+
+Create an instance from a template with `$<name>{ ... }`. Any field can be overridden; omitted fields keep their declared default:
+
+```
+var point : struct { var x : 0; var y : 0; };
+var origin : $point{};             // x=0, y=0
+var p : $point{$x : 1};            // x=1, y=0 (partial override)
+var q : $point{$x : 1, $y : 2};    // x=1, y=2 (full override)
+```
+
+Each instance is independent — mutating one does not affect another:
+
+```
+var a : $point{$x : 1};
+var b : $point{$x : 2};
+$a.x; // => 1
+$b.x; // => 2
+```
+
+### Methods and `$this`
+
+Methods declared on a struct survive instantiation and bind to the instance they were created from, exactly like [object methods](#this-reference):
+
+```
+var counter : struct {
+    var count : 0;
+    fn increment() { $this.count : $this.count + 1; }
+    fn get() { return $this.count; }
+};
+
+var a : $counter{};
+var b : $counter{$count : 100};
+$a.increment();
+$a.increment();
+$a.get();   // => 2
+$b.get();   // => 100
+```
+
+### Nested Structs
+
+A struct field can itself be a struct instance:
+
+```
+var point : struct { var x : 0; var y : 0; };
+var rect : struct {
+    var topLeft : $point{$x : 1, $y : 2};
+    var width : 10;
+};
+
+var r : $rect{};
+$r.topLeft.x;   // => 1
+$r.topLeft.y;   // => 2
+$r.width;       // => 10
+```
+
+### Errors
+
+Overriding a field that isn't declared on the template throws `UnknownStructFieldError`:
+
+```
+var point : struct { var x; var y; };
+var bad : $point{$z : 1};   // UnknownStructFieldError
+```
+
+Instantiating something that isn't a struct template (e.g. a plain object) throws `NotAStructTemplateError`:
+
+```
+var notATemplate : { var a : 1; };
+var bad : $notATemplate{$a : 2};   // NotAStructTemplateError
+```
+
+---
+
 ## Enums
 
 Enums declare a named set of constant variants. Each variant is immutable and accessed via dot notation.
