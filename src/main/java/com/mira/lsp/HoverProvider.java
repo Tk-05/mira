@@ -9,6 +9,7 @@ import org.eclipse.lsp4j.Hover;
 import org.eclipse.lsp4j.MarkupContent;
 import org.eclipse.lsp4j.MarkupKind;
 import org.eclipse.lsp4j.Position;
+import org.eclipse.lsp4j.Range;
 
 import com.mira.parser.nodes.Node;
 import com.mira.parser.nodes.Parameter;
@@ -19,7 +20,7 @@ import com.mira.parser.nodes.statement.Statement.ComptimeBlock;
 
 public class HoverProvider {
 
-    private static final Map<String, String> STDLIB_DOCS;
+    static final Map<String, String> STDLIB_DOCS;
 
     static {
         STDLIB_DOCS = new HashMap<>();
@@ -336,6 +337,30 @@ public class HoverProvider {
             }
         }
         return null;
+    }
+
+    static Range wordRangeAt(String content, Position pos) {
+        String[] lines = content.split("\n", -1);
+        if (pos.getLine() >= lines.length) {
+            return null;
+        }
+        String line = lines[pos.getLine()];
+        int col = Math.min(pos.getCharacter(), line.length());
+
+        int start = col;
+        while (start > 0 && isWordChar(line.charAt(start - 1))) {
+            start--;
+        }
+
+        int end = col;
+        while (end < line.length() && isWordChar(line.charAt(end))) {
+            end++;
+        }
+
+        if (start >= end) {
+            return null;
+        }
+        return new Range(new Position(pos.getLine(), start), new Position(pos.getLine(), end));
     }
 
     static String wordAt(String content, Position pos) {

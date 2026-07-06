@@ -36,6 +36,7 @@ import com.mira.parser.nodes.statement.Statement.VarDecl;
 import com.mira.runtime.functions.Callable;
 import com.mira.runtime.functions.NativeFunction;
 import com.mira.runtime.interpreter.Environment;
+import com.mira.utils.ModuleResolver;
 
 public class CompletionProvider {
 
@@ -231,8 +232,7 @@ public class CompletionProvider {
                 }
                 case MODULE -> {
                     if (docPath != null) {
-                        String rawPath = imp.getModule().replace("\"", "");
-                        Path modulePath = docPath.getParent().resolve(rawPath).normalize();
+                        Path modulePath = ModuleResolver.resolveModulePath(imp.getModule(), docPath);
                         addModuleFunctions(modulePath, alias, items);
                     }
                 }

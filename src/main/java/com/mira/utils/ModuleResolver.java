@@ -1,7 +1,10 @@
 package com.mira.utils;
 
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
@@ -13,6 +16,18 @@ import com.mira.resolver.StaticCheck;
 public final class ModuleResolver {
 
     private ModuleResolver() {
+    }
+
+    public static List<Path> findAllMiraFiles(Path root) {
+        List<Path> result = new ArrayList<>();
+        if (root == null || !Files.isDirectory(root)) {
+            return result;
+        }
+        try (var stream = Files.walk(root)) {
+            stream.filter(p -> p.toString().endsWith(".mira")).forEach(result::add);
+        } catch (IOException ignored) {
+        }
+        return result;
     }
 
     public static Path resolveModulePath(String rawModule, Path parentPath) {

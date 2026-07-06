@@ -1,6 +1,5 @@
 package com.mira.lsp;
 
-import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -61,20 +60,17 @@ public class DiagnosticCollector {
         if (dir == null) {
             return externalCalls;
         }
-        try {
-            Files.walk(dir)
-                    .filter(p -> p.toString().endsWith(".mira") && !p.equals(filePath))
-                    .forEach(callerPath -> {
-                        try {
-                            String src = openDocuments.getOrDefault(callerPath, Files.readString(callerPath));
-                            List<Node> callerAst = new Parser().parseTokens(
-                                    new Tokenizer().tokenize(src, false));
-                            ModuleResolver.collectExternalCalls(callerAst, callerPath, filePath, externalCalls);
-                        } catch (Exception ignored) {
-                        }
-                    });
-        } catch (IOException ignored) {
-        }
+        ModuleResolver.findAllMiraFiles(dir).stream()
+                .filter(p -> !p.equals(filePath))
+                .forEach(callerPath -> {
+                    try {
+                        String src = openDocuments.getOrDefault(callerPath, Files.readString(callerPath));
+                        List<Node> callerAst = new Parser().parseTokens(
+                                new Tokenizer().tokenize(src, false));
+                        ModuleResolver.collectExternalCalls(callerAst, callerPath, filePath, externalCalls);
+                    } catch (Exception ignored) {
+                    }
+                });
         return externalCalls;
     }
 
