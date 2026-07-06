@@ -78,76 +78,7 @@ public class Main {
                 return;
             }
 
-            if (args[0].equals("-h") || args[0].equals("-help")) {
-                System.out.println(Help.getHelp());
-                System.exit(1);
-            } else if (args[0].startsWith("-")) {
-                System.err.println(DiagnosticFormatter.formatError("no input file specified"));
-                System.err.println("Usage: mira <file.mira> [flags]  |  Use -h for help.");
-                System.exit(1);
-            } else {
-                Flags.inputPath.set(Paths.get((args[0])).toAbsolutePath().normalize());
-            }
-
-            for (int i = 1; i < args.length; i++) {
-                switch (args[i]) {
-                    case "-t" ->
-                        Flags.dumpTokens = true;
-                    case "-e" ->
-                        Flags.exitBeforeInterpreter = true;
-                    case "-m" ->
-                        Flags.mainFunction = true;
-                    case "-li" ->
-                        Flags.libInfo = true;
-                    case "-liFull" -> {
-                        Flags.libInfo = true;
-                        Flags.libInfoFull = true;
-                    }
-                    case "-args" -> {
-                        Flags.args = args[i + 1].split(",");
-                        i++;
-                    }
-                    case "-debug" ->
-                        Flags.debug = true;
-                    case "-watch" ->
-                        Flags.hotReload = true;
-                    case "-crash" ->
-                        Flags.crashDump = true;
-                    case "-crashFull" -> {
-                        Flags.crashDump = true;
-                        Flags.crashDumpFull = true;
-                    }
-                    case "-test" ->
-                        Flags.testMode = true;
-                    case "-ast" ->
-                        Flags.printAsts = true;
-                    case "-compile" ->
-                        Flags.compile = true;
-                    case "-compile-run" -> {
-                        Flags.compile = true;
-                        Flags.compileAndRun = true;
-                    }
-                    case "-b" ->
-                        Flags.dumpByteCode = true;
-                    case "-o" -> {
-                        Flags.outputDir = Paths.get(args[i + 1]);
-                        i++;
-                    }
-                    case "-package" ->
-                        Flags.packageJar = true;
-                    case "-nsc" ->
-                        Flags.skipStaticCheck = true;
-                    case "-no-warn" ->
-                        Flags.suppressWarnings = true;
-                    case "-profile" ->
-                        Flags.profile = true;
-                    default -> {
-                        System.err.println(DiagnosticFormatter.formatError("'" + args[i] + "' is not a known flag"));
-                        System.err.println("Use -h for help.");
-                        System.exit(1);
-                    }
-                }
-            }
+            Flags.parse(args);
 
             if (Flags.debug) {
                 Debugger.run();
