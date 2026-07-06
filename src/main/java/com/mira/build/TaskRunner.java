@@ -5,8 +5,8 @@ import java.nio.file.Paths;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.mira.Flags;
-import com.mira.Main;
 import com.mira.error.DiagnosticFormatter;
+import com.mira.runtime.FileRunner;
 
 public class TaskRunner {
 
@@ -74,6 +74,6 @@ public class TaskRunner {
                 : ctx.config().projectRoot().resolve(scriptPath).normalize());
         Flags.mainFunction = false;
         Flags.testMode = false;
-        Main.runFile(new AtomicBoolean(false));
+        FileRunner.runFile(new AtomicBoolean(false));
     }
 }

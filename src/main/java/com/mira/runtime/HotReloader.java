@@ -16,7 +16,6 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.mira.Flags;
-import com.mira.Main;
 import com.mira.lexer.Tokenizer;
 import com.mira.parser.Parser;
 import com.mira.parser.nodes.Node;
@@ -166,7 +165,7 @@ public class HotReloader {
     private Thread startRunner() {
         Thread t = new Thread(() -> {
             Flags.inputPath.set(filePath);
-            Main.runFile(stopping);
+            FileRunner.runFile(stopping);
         });
         t.setDaemon(true);
         t.start();

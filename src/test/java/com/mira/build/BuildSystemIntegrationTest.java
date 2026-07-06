@@ -24,7 +24,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import com.mira.Flags;
-import com.mira.Main;
+import com.mira.runtime.FileRunner;
 import com.mira.runtime.interpreter.ImportResolver;
 
 public class BuildSystemIntegrationTest {
@@ -334,7 +334,7 @@ public class BuildSystemIntegrationTest {
 
         BuildContext ctx = Commands.requireContext(projectDir);
         ctx.applyFlags(ProjectConfig.BuildMode.INTERPRET);
-        Main.runFile(new AtomicBoolean(false));
+        FileRunner.runFile(new AtomicBoolean(false));
 
         assertTrue(stdout().contains("run-ok"));
     }
@@ -345,7 +345,7 @@ public class BuildSystemIntegrationTest {
 
         BuildContext ctx = Commands.requireContext(projectDir);
         ctx.applyFlags(ProjectConfig.BuildMode.PACKAGE, ProjectConfig.JarBundle.SLIM);
-        boolean ok = Main.runFile(new AtomicBoolean(false));
+        boolean ok = FileRunner.runFile(new AtomicBoolean(false));
         assertTrue(ok);
 
         Path jarPath = projectDir.resolve("out/main.jar");
@@ -379,7 +379,7 @@ public class BuildSystemIntegrationTest {
 
         BuildContext ctx = Commands.requireContext(projectDir);
         ctx.applyFlags(ProjectConfig.BuildMode.PACKAGE, ProjectConfig.JarBundle.SLIM);
-        boolean ok = Main.runFile(new AtomicBoolean(false));
+        boolean ok = FileRunner.runFile(new AtomicBoolean(false));
         assertTrue(ok);
 
         Path jarPath = projectDir.resolve("out/main.jar");
@@ -404,7 +404,7 @@ public class BuildSystemIntegrationTest {
 
         BuildContext ctx = Commands.requireContext(projectDir);
         ctx.applyFlags(ProjectConfig.BuildMode.PACKAGE, ProjectConfig.JarBundle.SLIM);
-        boolean ok = Main.runFile(new AtomicBoolean(false));
+        boolean ok = FileRunner.runFile(new AtomicBoolean(false));
         assertTrue(ok);
 
         Path jarPath = projectDir.resolve("out/main.jar");

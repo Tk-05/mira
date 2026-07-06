@@ -12,8 +12,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
 
 import com.mira.Flags;
-import com.mira.Main;
 import com.mira.error.DiagnosticFormatter;
+import com.mira.runtime.FileRunner;
 
 public class Commands {
 
@@ -122,7 +122,7 @@ public class Commands {
             Flags.args = programArgs;
         }
         BuildRunner.runHook(ctx, ctx.config().build().preRun());
-        boolean ok = Main.runFile(new AtomicBoolean(false));
+        boolean ok = FileRunner.runFile(new AtomicBoolean(false));
         if (!ok) {
             System.err.println(DiagnosticFormatter.formatFail("run failed"));
             System.exit(1);
