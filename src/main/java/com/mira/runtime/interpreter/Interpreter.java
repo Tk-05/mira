@@ -144,6 +144,19 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         ImportResolver.loadInternal(globalEnvironment);
     }
 
+    /**
+     * Wraps an already-initialized global environment instead of creating a
+     * fresh one - used to bind {@link #getInstance()} to a compiled program's
+     * own static {@code GLOBALS} field (see
+     * {@link #adoptAsActive(Environment)}), so native functions like
+     * {@code eval}/ {@code exec}/{@code importDynamic} operate on the
+     * environment the compiled program can actually see, instead of a
+     * disconnected throwaway one.
+     */
+    public Interpreter(Environment existingGlobalEnvironment) {
+        this.globalEnvironment = existingGlobalEnvironment;
+    }
+
     public static Interpreter getInstance() {
         Interpreter active = activeInterpreter.get();
         if (active != null) {
@@ -153,6 +166,10 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             instance = new Interpreter();
         }
         return instance;
+    }
+
+    public static void adoptAsActive(Environment env) {
+        activeInterpreter.set(new Interpreter(env));
     }
 
     public Set<String> getPureFunctions() {

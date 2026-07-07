@@ -50,7 +50,8 @@ public final class LibIndex {
             new GlobalFunction("exit", 1, false),
             new GlobalFunction("readFile", 1, false),
             new GlobalFunction("writeFile", 2, false),
-            new GlobalFunction("eval", 1, true),
+            new GlobalFunction("eval", 1, false),
+            new GlobalFunction("importDynamic", -1, false),
             new GlobalFunction("length", 1, true),
             new GlobalFunction("assert", -1, true),
             new GlobalFunction("args", -1, true)

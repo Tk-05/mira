@@ -48,10 +48,7 @@ public class CompletionProvider {
             "exec", "exec isolated", "comptime", "static_assert", "pub", "struct"
     );
 
-    private static final List<String> GLOBALS = List.of(
-            "print", "println", "scan", "eval", "length", "assert", "exit",
-            "readFile", "writeFile", "args"
-    );
+    private static final List<String> GLOBALS = List.copyOf(LibIndex.GLOBAL_NAMES);
 
     private static final Map<String, List<String>> STDLIB;
     private static final Map<String, String> STDLIB_PARAMS;

@@ -237,6 +237,9 @@ public class Compiler {
             }
         }
 
+        mv.visitFieldInsn(GETSTATIC, className, "GLOBALS", ENV_D);
+        mv.visitMethodInsn(INVOKESTATIC, RT, "adoptGlobalsForDynamicExec", "(" + ENV_D + ")V", false);
+
         mv.visitInsn(RETURN);
         mv.visitMaxs(0, 0);
         mv.visitEnd();

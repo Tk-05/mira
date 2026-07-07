@@ -2,7 +2,7 @@
 
 ## Table of Contents
 
-1. [Program Structure](#program-structure) — Module Declaration, Comments, Imports, Module Visibility, Native JAR Extensions
+1. [Program Structure](#program-structure) — Module Declaration, Comments, Imports, Module Visibility, Native JAR Extensions, Dynamic Import
 2. [Values](#values) — Variables, Destructuring, Literals
 3. [Expressions](#expressions) — Operators, `??`, `?.`, Ternary, Pipe
 4. [Data Structures](#data-structures) — List, Array, Object, Map, Range
@@ -145,6 +145,43 @@ mylib.jar
 | `E222 NativeLibNotFoundError`         | JAR file does not exist at the given path             |
 | `E223 NativeLibNoImplementationError` | JAR has no `META-INF/services/com.mira.lib.Lib` entry |
 | `E224 NativeLibLoadError`             | JAR is invalid or incompatible with the interpreter   |
+
+### Dynamic Import
+
+`import module` is a static, top-level-only statement — the path must be a string literal, and it cannot appear inside a function body. `importDynamic(<path>)` is the runtime counterpart: it loads a `.mira` module whose path is only known at runtime, and it can be called from anywhere, including inside a function.
+
+```
+importDynamic(<path>);              // whole module — returns a Namespace
+importDynamic(<path>, {<sym1>, <sym2>});  // only the selected pub symbols — returns a Namespace
+```
+
+Unlike `import module`, `importDynamic` never merges symbols into the current scope. It always returns the module as a first-class `Namespace` value:
+
+```
+var plugin : importDynamic("./plugins/" + $name + ".mira");
+$plugin.run();
+```
+
+Because it is an ordinary function call rather than a statement, it works inside functions:
+
+```
+fn loadPlugin(path) {
+    var mod : importDynamic(path);
+    return $mod.run();
+}
+```
+
+Path resolution follows the same rules as `import module` (relative to the importing file, then dependency roots), and the same `pub`/private visibility rules apply — requesting a private symbol or a nonexistent one throws (see below). Loaded modules are cached the same way as static imports, so re-importing an unchanged file does not reparse it.
+
+**Errors:** failures (missing file, missing `module` declaration, requesting a private or unknown symbol) are surfaced as a catchable `ImportError`, not a raw crash:
+
+```
+try {
+    importDynamic("./does-not-exist.mira");
+} catch (ImportError e) {
+    print("failed to load plugin: " $e "\n");
+}
+```
 
 ---
 
@@ -745,7 +782,7 @@ fn test() {
 test();   // => 100
 ```
 
-> **Note:** `exec(string)` (the built-in function) continues to work for dynamically constructed code strings. `exec { }` is the static block form — it does not accept a string.
+> **Note:** `exec(<code>)`/`eval(<code>)` (the built-in functions) continue to work for dynamically constructed code strings — see [Dynamic Code Execution](#dynamic-code-execution). `exec { }` is the unrelated _static_ block form — it does not accept a string.
 
 ### Break / Continue
 
@@ -793,6 +830,18 @@ try {
     print($e "\n");
 } finally {
     print("always runs\n");
+}
+```
+
+A `catch` clause can optionally filter by exception type: `catch (<Type> <param>) { ... }` only runs if the thrown value's type matches `<Type>`; `catch(<param>)` (no type) catches everything. Built-in dynamic-execution errors use this to let callers distinguish failure kinds:
+
+```
+try {
+    importDynamic("./plugin.mira");
+} catch (ImportError e) {
+    print("import failed: " $e "\n");
+} catch (e) {
+    print("something else went wrong: " $e "\n");
 }
 ```
 
@@ -1654,18 +1703,41 @@ var message : switch($code) {
 
 Always available without any import.
 
-| Function                    | Parameters             | Description                                                                     |
-| --------------------------- | ---------------------- | ------------------------------------------------------------------------------- |
-| `print(<value>)`            | Any value              | Prints the value to stdout without a newline                                    |
-| `scan()`                    | —                      | Reads a line from stdin and returns it as a string                              |
-| `eval(<expr>)`              | Arithmetic expression  | Evaluates an arithmetic expression and returns the result                       |
-| `exec(<code>)`              | String                 | Parses and executes a string of Mira code at runtime                            |
-| `exec { <body> }`           | Block                  | Executes a block and returns its `return` value (see [exec Block](#exec-block)) |
-| `exec isolated { <body> }`  | Block                  | Same as `exec { }` but restricted to global scope only                          |
-| `length(<value>)`           | String, List, or Array | Returns the number of characters / elements                                     |
-| `exit(<code>)`              | Number                 | Exits the program with the given exit code                                      |
-| `assert(<cond>)`            | Boolean expression     | Throws a runtime error if the condition is false                                |
-| `assert(<cond>, <message>)` | Boolean, String        | Throws with a custom message if condition is false                              |
+| Function                          | Parameters              | Description                                                                                                                                       |
+| --------------------------------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `print(<value>)`                  | Any value               | Prints the value to stdout without a newline                                                                                                      |
+| `scan()`                          | —                       | Reads a line from stdin and returns it as a string                                                                                                |
+| `eval(<code>)`                    | String or expression    | Parses and runs `<code>` (any Mira statements, not just arithmetic) and returns its value (see [Dynamic Code Execution](#dynamic-code-execution)) |
+| `exec(<code>)`                    | String or expression    | Alias for `eval(<code>)` — kept for backward compatibility, identical behavior                                                                    |
+| `exec { <body> }`                 | Block                   | Executes a block and returns its `return` value (see [exec Block](#exec-block))                                                                   |
+| `exec isolated { <body> }`        | Block                   | Same as `exec { }` but restricted to global scope only                                                                                            |
+| `importDynamic(<path>)`           | String                  | Loads a `.mira` module at runtime and returns it as a `Namespace` (see [Dynamic Import](#dynamic-import))                                         |
+| `importDynamic(<path>, {<syms>})` | String, List of strings | Same, but only the listed `pub` symbols                                                                                                           |
+| `length(<value>)`                 | String, List, or Array  | Returns the number of characters / elements                                                                                                       |
+| `exit(<code>)`                    | Number                  | Exits the program with the given exit code                                                                                                        |
+| `assert(<cond>)`                  | Boolean expression      | Throws a runtime error if the condition is false                                                                                                  |
+| `assert(<cond>, <message>)`       | Boolean, String         | Throws with a custom message if condition is false                                                                                                |
+
+### Dynamic Code Execution
+
+`eval`/`exec` tokenize, parse, and run `<code>` against the _live_ current scope — the same engine that backs the REPL. Any Mira code is valid: expressions, `var` declarations, control flow, function calls. Declarations made this way are visible to later `eval`/`exec` calls (and, at the top level, to the rest of the program):
+
+```
+eval("var greeting : \"hi\";");
+print(eval("$greeting;"));   // hi
+```
+
+Failures — a syntax error in the code string, or a runtime error while running it (e.g. an undefined variable) — do not crash the program. They are thrown as a catchable `EvalError`:
+
+```
+try {
+    eval("this is not valid mira");
+} catch (EvalError e) {
+    print("bad code: " $e "\n");
+}
+```
+
+A `throw` executed _by_ the evaluated code propagates normally and is not wrapped — `eval`/`exec` only wrap their own parse/execution failures.
 
 ---
 

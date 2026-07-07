@@ -186,8 +186,7 @@ public class ImportResolver {
         }
     }
 
-    private static void resolveModuleImport(Interpreter interpreter, ImportExpression importExpression, Environment environment) {
-        String rawPath = importExpression.getModule().replace("\"", "");
+    private static Path resolveModulePath(String rawPath) {
         if (!rawPath.endsWith(".mira")) {
             rawPath += ".mira";
         }
@@ -207,7 +206,12 @@ public class ImportResolver {
                 }
             }
         }
+        return modulePath;
+    }
 
+    private static void resolveModuleImport(Interpreter interpreter, ImportExpression importExpression, Environment environment) {
+        String rawPath = importExpression.getModule().replace("\"", "");
+        Path modulePath = resolveModulePath(rawPath);
         String moduleKey = modulePath.toAbsolutePath().toString();
 
         CompletableFuture<Void> loadFuture = new CompletableFuture<>();
@@ -236,9 +240,10 @@ public class ImportResolver {
             return;
         }
 
+        Path previousFile = Flags.inputPath.get();
         try {
             if (!Files.exists(modulePath)) {
-                throw new RuntimeException("Module file not found: " + modulePath);
+                throw new RuntimeError.ModuleNotFoundError(modulePath.toString());
             }
 
             FileTime currentModTime = Files.getLastModifiedTime(modulePath);
@@ -253,10 +258,9 @@ public class ImportResolver {
                 astCache.put(moduleKey, new CachedModule(asts, currentModTime));
             }
 
-            Path previousFile = Flags.inputPath.get();
             Flags.inputPath.set(modulePath);
 
-            String moduleName = validateModuleDeclaration(asts, importExpression);
+            String moduleName = validateModuleDeclaration(asts, importExpression.getModule());
 
             String alias = importExpression.getNamespace();
             boolean hasAlias = alias != null && !alias.isBlank();
@@ -334,7 +338,6 @@ public class ImportResolver {
                 modulePrivateEnv.copyDeclarationsTo(environment, importedSymbols);
             }
 
-            Flags.inputPath.set(previousFile);
             loadFuture.complete(null);
 
         } catch (MiraError e) {
@@ -347,12 +350,111 @@ public class ImportResolver {
                 throw re;
             }
             throw new RuntimeException("Module '" + importExpression.getModule() + "' could not be loaded", e);
+        } finally {
+            Flags.inputPath.set(previousFile);
         }
     }
 
-    private static String validateModuleDeclaration(List<Node> asts, ImportExpression expr) {
+    /**
+     * Loads a module by a runtime-computed path, outside of the static
+     * {@code import} statement's parallel-resolution/de-dup machinery (that
+     * machinery is specific to batching aliased imports of the same entry-point
+     * program; dynamic imports happen at arbitrary points during execution and
+     * always need a fresh, independent {@link Namespace} returned to the
+     * caller, so it re-derives one from the shared {@link #astCache} instead of
+     * participating in {@link #moduleLoadFutures}).
+     */
+    public static Namespace resolveDynamicImport(Interpreter interpreter, String rawPath, List<String> selectedSymbolsOrNull) {
+        Path modulePath = resolveModulePath(rawPath);
+        Path previousFile = Flags.inputPath.get();
+        try {
+            if (!Files.exists(modulePath)) {
+                throw new RuntimeError.ModuleNotFoundError(modulePath.toString());
+            }
+
+            String moduleKey = modulePath.toAbsolutePath().toString();
+            FileTime currentModTime = Files.getLastModifiedTime(modulePath);
+            CachedModule cached = astCache.get(moduleKey);
+            List<Node> asts;
+            if (cached != null && cached.lastModified().equals(currentModTime)) {
+                asts = cached.ast();
+            } else {
+                String source = Files.readString(modulePath);
+                List<Token> tokens = new Tokenizer().tokenize(source, false);
+                asts = new Parser().parseTokens(tokens);
+                astCache.put(moduleKey, new CachedModule(asts, currentModTime));
+            }
+
+            Flags.inputPath.set(modulePath);
+            String moduleName = validateModuleDeclaration(asts, rawPath);
+
+            List<ImportExpression> nestedImports = new ArrayList<>();
+            List<Node> moduleBody = new ArrayList<>();
+            for (Node ast : asts) {
+                if (ast instanceof ImportExpression expr) {
+                    nestedImports.add(expr);
+                } else if (!(ast instanceof ModuleDecl)) {
+                    moduleBody.add(ast);
+                }
+            }
+
+            Namespace modulePrivateEnv = new Namespace("__mod__");
+            internal.loadLib(modulePrivateEnv);
+            resolveImports(nestedImports, modulePrivateEnv, interpreter, false);
+            Set<String> importedSymbols = new HashSet<>(modulePrivateEnv.keySet());
+
+            for (Node ast : moduleBody) {
+                switch (ast) {
+                    case FuncDecl fd -> {
+                        interpreter.registerFunctionModule(fd.getName(), moduleName);
+                        interpreter.loadASTIntoContext(fd, modulePrivateEnv);
+                    }
+                    case EnumDecl ed ->
+                        interpreter.loadASTIntoContext(ed, modulePrivateEnv);
+                    case VarDecl vd when vd.isConst() ->
+                        interpreter.loadASTIntoContext(vd, modulePrivateEnv);
+                    default -> {
+                    }
+                }
+            }
+
+            for (Node ast : moduleBody) {
+                if (ast instanceof FuncDecl || ast instanceof EnumDecl
+                        || (ast instanceof VarDecl vd && vd.isConst())) {
+                    continue;
+                }
+                interpreter.loadASTIntoContext(ast, modulePrivateEnv);
+            }
+
+            Namespace result = new Namespace(moduleName);
+            if (selectedSymbolsOrNull != null) {
+                for (String name : selectedSymbolsOrNull) {
+                    if (!modulePrivateEnv.exists(name)) {
+                        throw new ModuleSymbolNotFoundError(name, rawPath);
+                    }
+                    if (!modulePrivateEnv.isPublicDeclaration(name)) {
+                        throw new PrivateSymbolImportError(name, rawPath);
+                    }
+                    result.define(name, modulePrivateEnv.get(name));
+                }
+            } else {
+                modulePrivateEnv.copyDeclarationsTo(result, importedSymbols);
+            }
+            return result;
+
+        } catch (MiraError e) {
+            e.addImportChain(modulePath.getFileName().toString());
+            throw e;
+        } catch (IOException e) {
+            throw new RuntimeException("Module '" + rawPath + "' could not be loaded", e);
+        } finally {
+            Flags.inputPath.set(previousFile);
+        }
+    }
+
+    private static String validateModuleDeclaration(List<Node> asts, String moduleLabel) {
         if (!(asts.getFirst() instanceof ModuleDecl moduleDecl)) {
-            throw new RuntimeError.ModuleMissingDeclarationError(expr.getModule());
+            throw new RuntimeError.ModuleMissingDeclarationError(moduleLabel);
         }
         return moduleDecl.getModuleName();
     }

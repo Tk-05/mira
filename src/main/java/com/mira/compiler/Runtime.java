@@ -691,7 +691,7 @@ public final class Runtime {
         Environment prev = METHOD_ENV.get();
         METHOD_ENV.set(env);
         try {
-            return callable.call(null, Arrays.asList(args));
+            return callable.call(Interpreter.getInstance(), Arrays.asList(args));
         } finally {
             METHOD_ENV.set(prev);
         }
@@ -708,12 +708,16 @@ public final class Runtime {
         throw new com.mira.error.runtime.RuntimeError.LocalCallableError(name);
     }
 
+    public static void adoptGlobalsForDynamicExec(Environment globals) {
+        Interpreter.adoptAsActive(globals);
+    }
+
     public static Object callNamed(Environment globals, String name, Object[] args) {
         Object callee = globals.get(name);
         if (!(callee instanceof Callable callable)) {
             throw new NotCallableError(name + " (got: " + typeofVal(callee) + ")");
         }
-        return callable.call(null, Arrays.asList(args));
+        return callable.call(Interpreter.getInstance(), Arrays.asList(args));
     }
 
     public static Object namespaceCall(Environment globals, String ns, String fn, Object[] args) {
@@ -725,14 +729,14 @@ public final class Runtime {
         if (!(callee instanceof Callable callable)) {
             throw new NotCallableError(ns + "." + fn + " (got: " + typeofVal(callee) + ")");
         }
-        return callable.call(null, Arrays.asList(args));
+        return callable.call(Interpreter.getInstance(), Arrays.asList(args));
     }
 
     public static Object dynamicCall(Object callee, Object[] args) {
         if (!(callee instanceof Callable callable)) {
             throw new NotCallableError(String.valueOf(typeofVal(callee)));
         }
-        return callable.call(null, Arrays.asList(args));
+        return callable.call(Interpreter.getInstance(), Arrays.asList(args));
     }
 
     public static Object pipe(Object value, Object fn, Object[] extraArgs) {
