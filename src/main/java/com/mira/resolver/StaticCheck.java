@@ -39,8 +39,7 @@ import com.mira.error.resolver.StaticCheckError.UnknownNamespaceError;
 import com.mira.lexer.Tokenizer;
 import com.mira.lexer.token.TokenType;
 import com.mira.lib.LibIndex;
-import com.mira.linter.LintScope;
-import com.mira.linter.LintScope.VarInfo;
+import com.mira.resolver.LintScope.VarInfo;
 import com.mira.parser.Parser;
 import com.mira.parser.nodes.Node;
 import com.mira.parser.nodes.Parameter;
@@ -1062,7 +1061,7 @@ public class StaticCheck {
         }
         java.nio.file.Path base = sourcePath != null
                 ? sourcePath.getParent()
-                : (com.mira.Flags.inputPath.get() != null ? com.mira.Flags.inputPath.get().getParent() : null);
+                : (com.mira.cli.Flags.inputPath.get() != null ? com.mira.cli.Flags.inputPath.get().getParent() : null);
         if (base == null) {
             return;
         }
@@ -1106,7 +1105,7 @@ public class StaticCheck {
     private void loadModuleSymbolsForAlias(ImportExpression expr) {
         java.nio.file.Path base = sourcePath != null
                 ? sourcePath.getParent()
-                : (com.mira.Flags.inputPath.get() != null ? com.mira.Flags.inputPath.get().getParent() : null);
+                : (com.mira.cli.Flags.inputPath.get() != null ? com.mira.cli.Flags.inputPath.get().getParent() : null);
         if (base == null) {
             return;
         }

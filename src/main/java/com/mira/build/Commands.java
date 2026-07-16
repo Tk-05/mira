@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
 
-import com.mira.Flags;
+import com.mira.cli.Flags;
 import com.mira.error.DiagnosticFormatter;
 import com.mira.runtime.FileRunner;
 

@@ -10,7 +10,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-import com.mira.Flags;
+import com.mira.cli.Flags;
 import com.mira.integration.InterpreterRunner;
 import com.mira.runtime.functions.ThrowSignal;
 import com.mira.runtime.interpreter.ImportResolver;

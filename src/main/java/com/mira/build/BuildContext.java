@@ -4,7 +4,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.mira.Flags;
+import com.mira.cli.Flags;
 
 public class BuildContext {
 

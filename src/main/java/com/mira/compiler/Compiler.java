@@ -27,7 +27,7 @@ import static org.objectweb.asm.Opcodes.NEW;
 import static org.objectweb.asm.Opcodes.PUTSTATIC;
 import static org.objectweb.asm.Opcodes.RETURN;
 
-import com.mira.Flags;
+import com.mira.cli.Flags;
 import com.mira.error.runtime.RuntimeError.ModuleMissingDeclarationError;
 import com.mira.lexer.Tokenizer;
 import com.mira.parser.Parser;

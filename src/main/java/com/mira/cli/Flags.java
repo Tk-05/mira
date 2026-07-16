@@ -1,4 +1,4 @@
-package com.mira;
+package com.mira.cli;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;

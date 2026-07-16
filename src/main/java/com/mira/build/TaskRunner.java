@@ -4,7 +4,7 @@ import java.io.IOException;
 import java.nio.file.Paths;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import com.mira.Flags;
+import com.mira.cli.Flags;
 import com.mira.error.DiagnosticFormatter;
 import com.mira.runtime.FileRunner;
 

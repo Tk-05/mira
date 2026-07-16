@@ -15,7 +15,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import com.mira.Flags;
+import com.mira.cli.Flags;
 import com.mira.error.parser.MultipleParserErrors;
 import com.mira.error.runtime.RuntimeError.NativeLibNoImplementationError;
 import com.mira.error.runtime.RuntimeError.NativeLibNotFoundError;

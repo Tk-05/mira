@@ -12,7 +12,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-import com.mira.Flags;
+import com.mira.cli.Flags;
 import com.mira.error.runtime.RuntimeError.ModuleSymbolNotFoundError;
 import com.mira.error.runtime.RuntimeError.PrivateSymbolImportError;
 import com.mira.integration.InterpreterRunner;

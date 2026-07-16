@@ -1,4 +1,4 @@
-package com.mira;
+package com.mira.cli;
 
 import com.mira.repl.Repl;
 

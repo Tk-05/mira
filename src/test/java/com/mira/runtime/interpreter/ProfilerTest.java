@@ -11,7 +11,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-import com.mira.Flags;
+import com.mira.cli.Flags;
 import com.mira.integration.InterpreterTestBase;
 
 public class ProfilerTest extends InterpreterTestBase {

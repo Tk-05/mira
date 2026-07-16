@@ -94,11 +94,11 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
     private static final String ENV_D = ClassEmitter.ENV_DESC;
     private static final String OBJ = "java/lang/Object";
     private static final String OBJ_D = "Ljava/lang/Object;";
-    private static final String STRUCT_TEMPLATE_D = "Lcom/mira/runtime/StructTemplate;";
+    private static final String STRUCT_TEMPLATE_D = "Lcom/mira/runtime/interpreter/StructTemplate;";
 
-    private static final String RS = "com/mira/compiler/ReturnSignal";
-    private static final String BS = "com/mira/compiler/BreakSignal";
-    private static final String CS = "com/mira/compiler/ContinueSignal";
+    private static final String RS = "com/mira/compiler/support/ReturnSignal";
+    private static final String BS = "com/mira/compiler/support/BreakSignal";
+    private static final String CS = "com/mira/compiler/support/ContinueSignal";
     private static final int SPLIT_THRESHOLD = 40_000;
 
     boolean splitEnabled = false;
@@ -550,13 +550,13 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
         emitIntConst(line);
         mv.visitMethodInsn(INVOKESTATIC, RT, "pushCallStack",
                 "(Ljava/lang/String;I)V", false);
-        if (com.mira.Flags.profile) {
+        if (com.mira.cli.Flags.profile) {
             mv.visitMethodInsn(INVOKESTATIC, RT, "profilerStart", "()V", false);
         }
         mv.visitLabel(tryStart);
         callEmitter.run();
         mv.visitLabel(tryEnd);
-        if (com.mira.Flags.profile) {
+        if (com.mira.cli.Flags.profile) {
             mv.visitLdcInsn(name);
             mv.visitMethodInsn(INVOKESTATIC, RT, "profilerStop", "(Ljava/lang/String;)V", false);
         }
@@ -564,7 +564,7 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
         mv.visitJumpInsn(GOTO, after);
         mv.visitTryCatchBlock(tryStart, tryEnd, handler, null);
         mv.visitLabel(handler);
-        if (com.mira.Flags.profile) {
+        if (com.mira.cli.Flags.profile) {
             mv.visitLdcInsn(name);
             mv.visitMethodInsn(INVOKESTATIC, RT, "profilerStop", "(Ljava/lang/String;)V", false);
         }
@@ -573,7 +573,7 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
     }
 
     private void emitProfilerLine(int line) {
-        if (com.mira.Flags.profile && line > 0) {
+        if (com.mira.cli.Flags.profile && line > 0) {
             emitIntConst(line);
             mv.visitLdcInsn(ctx.functionName);
             mv.visitLdcInsn(ctx.moduleName);

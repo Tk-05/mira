@@ -286,7 +286,7 @@ public class Internal implements Lib {
         environment.define("chars", new NativeFunction(1, args -> {
             Object val = args.get(0);
             if (!(val instanceof String s)) {
-                throw new InvalidArgumentError("chars", "expected a string, got " + com.mira.compiler.Runtime.typeofVal(val));
+                throw new InvalidArgumentError("chars", "expected a string, got " + com.mira.compiler.support.CompiledRuntimeSupport.typeofVal(val));
             }
             List<Expression> members = new java.util.ArrayList<>(s.length());
             for (char c : s.toCharArray()) {
@@ -305,7 +305,7 @@ public class Internal implements Lib {
                 case ArrayExpression a ->
                     new ListExpression(new java.util.ArrayList<>(a.getMembers()));
                 default ->
-                    throw new InvalidArgumentError("toList", "expected an array or list, got " + com.mira.compiler.Runtime.typeofVal(val));
+                    throw new InvalidArgumentError("toList", "expected an array or list, got " + com.mira.compiler.support.CompiledRuntimeSupport.typeofVal(val));
             };
         }));
 
@@ -317,7 +317,7 @@ public class Internal implements Lib {
                 case ListExpression l ->
                     new ArrayExpression(new java.util.ArrayList<>(l.getMembers()));
                 default ->
-                    throw new InvalidArgumentError("toArray", "expected a list or array, got " + com.mira.compiler.Runtime.typeofVal(val));
+                    throw new InvalidArgumentError("toArray", "expected a list or array, got " + com.mira.compiler.support.CompiledRuntimeSupport.typeofVal(val));
             };
         }));
 

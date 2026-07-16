@@ -6,7 +6,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import com.mira.Flags;
+import com.mira.cli.Flags;
 import com.mira.compiler.CompileRunner;
 import com.mira.error.DiagnosticFormatter;
 import com.mira.error.parser.MultipleParserErrors;
@@ -152,8 +152,8 @@ public class FileRunner {
             }
             System.err.println(DiagnosticFormatter.format(e));
             if (Flags.crashDump) {
-                if (Flags.compile && !com.mira.compiler.Runtime.getCallStack().isEmpty()) {
-                    com.mira.compiler.Runtime.dumpCallStack(e, System.err);
+                if (Flags.compile && !com.mira.compiler.support.CompiledRuntimeSupport.getCallStack().isEmpty()) {
+                    com.mira.compiler.support.CompiledRuntimeSupport.dumpCallStack(e, System.err);
                 } else {
                     interpreter.dumpState(e, System.err);
                 }

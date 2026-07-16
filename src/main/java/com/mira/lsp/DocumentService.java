@@ -45,6 +45,7 @@ import org.eclipse.lsp4j.services.TextDocumentService;
 
 import com.mira.error.MiraError;
 import com.mira.error.parser.MultipleParserErrors;
+import com.mira.format.AstFormatter;
 import com.mira.lexer.Tokenizer;
 import com.mira.lexer.token.Token;
 import com.mira.parser.Parser;

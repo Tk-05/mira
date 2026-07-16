@@ -8,7 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import com.mira.Flags;
+import com.mira.cli.Flags;
 import com.mira.error.DiagnosticFormatter;
 import com.mira.error.resolver.MultipleStaticCheckErrors;
 import com.mira.lexer.Tokenizer;

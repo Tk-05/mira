@@ -1,9 +1,8 @@
-package com.mira.runtime;
+package com.mira.runtime.interpreter;
 
 import java.util.List;
 
 import com.mira.parser.nodes.statement.Statement.FuncDecl;
-import com.mira.runtime.interpreter.Environment;
 
 public final class StructTemplate {
 

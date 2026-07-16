@@ -7,7 +7,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import com.mira.Flags;
+import com.mira.cli.Flags;
 import com.mira.lib.std.Bytes;
 import com.mira.lib.std.Collection;
 import com.mira.lib.std.Crypto;

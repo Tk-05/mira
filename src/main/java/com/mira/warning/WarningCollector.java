@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import com.mira.Flags;
+import com.mira.cli.Flags;
 import com.mira.lexer.token.Token;
 
 public final class WarningCollector {

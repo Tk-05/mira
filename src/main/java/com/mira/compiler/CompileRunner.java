@@ -29,10 +29,11 @@ import java.util.jar.Manifest;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.util.TraceClassVisitor;
 
-import com.mira.Flags;
-import com.mira.Main;
+import com.mira.cli.Flags;
+import com.mira.cli.Main;
 import com.mira.build.BuildCache;
 import com.mira.compiler.Compiler.CompileResult;
+import com.mira.compiler.support.CompiledRuntimeSupport;
 import com.mira.parser.nodes.Node;
 import com.mira.resolver.ModuleChecker;
 
@@ -301,7 +302,7 @@ public class CompileRunner {
         Method mainMethod = cls.getMethod("main", String[].class);
         String[] programArgs = Flags.args != null ? Flags.args : new String[0];
         if (Flags.profile) {
-            Runtime.setProfiler(new com.mira.runtime.interpreter.Profiler());
+            CompiledRuntimeSupport.setProfiler(new com.mira.runtime.interpreter.Profiler());
         }
         try {
             Thread.currentThread().setContextClassLoader(loader);
@@ -314,7 +315,7 @@ public class CompileRunner {
             throw new RuntimeException(cause);
         }
         if (Flags.profile) {
-            com.mira.runtime.interpreter.Profiler profiler = Runtime.getProfiler();
+            com.mira.runtime.interpreter.Profiler profiler = CompiledRuntimeSupport.getProfiler();
             profiler.finishLineTracking();
             profiler.printReport(System.out);
         }

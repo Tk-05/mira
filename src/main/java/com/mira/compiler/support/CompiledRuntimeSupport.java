@@ -1,4 +1,4 @@
-package com.mira.compiler;
+package com.mira.compiler.support;
 
 import java.io.PrintStream;
 import java.util.ArrayDeque;
@@ -21,18 +21,18 @@ import com.mira.parser.nodes.expression.Expression.ArrayExpression;
 import com.mira.parser.nodes.expression.Expression.DumbExpression;
 import com.mira.parser.nodes.expression.Expression.ListExpression;
 import com.mira.parser.nodes.expression.Expression.MapExpression;
-import com.mira.runtime.StructTemplate;
 import com.mira.runtime.functions.Callable;
 import com.mira.runtime.functions.Promise;
 import com.mira.runtime.functions.ThrowSignal;
 import com.mira.runtime.interpreter.Environment;
 import com.mira.runtime.interpreter.Interpreter;
 import com.mira.runtime.interpreter.Namespace;
+import com.mira.runtime.interpreter.StructTemplate;
 import com.mira.runtime.interpreter.Profiler;
 import com.mira.runtime.values.NullValue;
 import com.mira.runtime.visitors.ExprVisitor;
 
-public final class Runtime {
+public final class CompiledRuntimeSupport {
 
     public static final ThreadLocal<Environment> METHOD_ENV = new ThreadLocal<>();
 
@@ -124,7 +124,7 @@ public final class Runtime {
         try {
             ClassLoader cl = Thread.currentThread().getContextClassLoader();
             if (cl == null) {
-                cl = Runtime.class.getClassLoader();
+                cl = CompiledRuntimeSupport.class.getClassLoader();
             }
             Class<?> cls = Class.forName(dotClassName, true, cl);
 
@@ -204,7 +204,7 @@ public final class Runtime {
         }
     }
 
-    private Runtime() {
+    private CompiledRuntimeSupport() {
     }
 
     public static Object nullVal() {

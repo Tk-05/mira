@@ -13,7 +13,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 
-import com.mira.Flags;
+import com.mira.cli.Flags;
+import com.mira.compiler.support.CompiledRuntimeSupport;
 import com.mira.lexer.Tokenizer;
 import com.mira.parser.Parser;
 import com.mira.parser.nodes.Node;
@@ -28,7 +29,7 @@ public class CompilerProfilerTest {
     @AfterEach
     void teardown() {
         Flags.profile = false;
-        Runtime.setProfiler(null);
+        CompiledRuntimeSupport.setProfiler(null);
         ImportResolver.reset();
     }
 
@@ -43,7 +44,7 @@ public class CompilerProfilerTest {
         all.put(result.className(), result.mainClass());
         CompiledClassLoader loader = new CompiledClassLoader(all);
 
-        Runtime.setProfiler(new Profiler());
+        CompiledRuntimeSupport.setProfiler(new Profiler());
 
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         PrintStream old = System.out;
@@ -66,7 +67,7 @@ public class CompilerProfilerTest {
             System.setOut(old);
         }
 
-        Profiler profiler = Runtime.getProfiler();
+        Profiler profiler = CompiledRuntimeSupport.getProfiler();
         profiler.finishLineTracking();
         return profiler;
     }
@@ -125,7 +126,7 @@ public class CompilerProfilerTest {
         CompiledClassLoader loader = new CompiledClassLoader(all);
 
         Profiler profiler = new Profiler();
-        Runtime.setProfiler(profiler);
+        CompiledRuntimeSupport.setProfiler(profiler);
 
         try {
             Thread.currentThread().setContextClassLoader(loader);

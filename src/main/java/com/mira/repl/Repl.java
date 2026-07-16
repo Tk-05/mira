@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.TreeMap;
 
-import com.mira.Flags;
+import com.mira.cli.Flags;
 import com.mira.error.DiagnosticFormatter;
 import com.mira.lexer.Tokenizer;
 import com.mira.lib.internal.Internal;

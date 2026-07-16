@@ -23,7 +23,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import com.mira.Flags;
+import com.mira.cli.Flags;
 import com.mira.error.MiraError;
 import com.mira.error.runtime.RuntimeError;
 import com.mira.error.runtime.RuntimeError.LibImportConflictError;

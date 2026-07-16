@@ -1,4 +1,4 @@
-package com.mira;
+package com.mira.cli;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -7,7 +7,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.mira.build.BuildDispatcher;
 import com.mira.debugger.Debugger;
-import com.mira.lsp.AstFormatter;
+import com.mira.format.AstFormatter;
 import com.mira.lsp.Launcher;
 import com.mira.runtime.FileRunner;
 import com.mira.runtime.HotReloader;

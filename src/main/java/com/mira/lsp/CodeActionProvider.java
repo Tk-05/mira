@@ -18,6 +18,8 @@ import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.Range;
 import org.eclipse.lsp4j.TextEdit;
 import org.eclipse.lsp4j.WorkspaceEdit;
+
+import com.mira.format.AstWalker;
 import org.eclipse.lsp4j.jsonrpc.messages.Either;
 
 import com.mira.parser.nodes.Node;
