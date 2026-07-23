@@ -42,6 +42,27 @@ public class Toml implements Lib {
         return new DumbExpression(new Token(TokenType.EXPRESSION, String.valueOf(val), 0, 0));
     }
 
+    private static Object evaluateLeaf(Expression e) {
+        if (!(e instanceof DumbExpression d)) {
+            return e;
+        }
+        String v = d.getValue();
+        if (v.equals("true")) {
+            return Boolean.TRUE;
+        }
+        if (v.equals("false")) {
+            return Boolean.FALSE;
+        }
+        if (v.equals("null")) {
+            return NullValue.INSTANCE;
+        }
+        try {
+            return Double.parseDouble(v);
+        } catch (NumberFormatException ignored) {
+        }
+        return v;
+    }
+
     private static MapExpression tomlToMap(Map<String, Object> parsed) {
         LinkedHashMap<String, Expression> map = new LinkedHashMap<>();
         for (Map.Entry<String, Object> entry : parsed.entrySet()) {
@@ -73,7 +94,7 @@ public class Toml implements Lib {
             }
             String key = String.valueOf(args.get(1));
             Expression val = map.getEntries().get(key);
-            return val != null ? val : NullValue.INSTANCE;
+            return val != null ? evaluateLeaf(val) : NullValue.INSTANCE;
         }));
 
         environment.define("getArray", new NativeFunction(2, "map, key", args -> {

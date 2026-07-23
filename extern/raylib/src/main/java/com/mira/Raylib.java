@@ -1,36 +1,57 @@
 package com.mira;
 
+import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.bytedeco.javacpp.FloatPointer;
 import org.bytedeco.javacpp.IntPointer;
 
 import com.mira.lib.Lib;
+import com.mira.parser.nodes.expression.Expression;
+import com.mira.parser.nodes.expression.Expression.ListExpression;
 import com.mira.runtime.functions.NativeFunction;
 import com.mira.runtime.functions.ReflectiveBinder;
 import com.mira.runtime.interpreter.Environment;
 import com.raylib.Raylib.BoundingBox;
+import static com.raylib.Raylib.CAMERA_ORTHOGRAPHIC;
 import static com.raylib.Raylib.CAMERA_PERSPECTIVE;
 import com.raylib.Raylib.Camera2D;
 import com.raylib.Raylib.Camera3D;
 import com.raylib.Raylib.Color;
+import static com.raylib.Raylib.DrawMeshInstanced;
 import com.raylib.Raylib.Font;
 import com.raylib.Raylib.Image;
 import static com.raylib.Raylib.LoadShader;
 import static com.raylib.Raylib.LoadShaderFromMemory;
+import com.raylib.Raylib.Material;
+import com.raylib.Raylib.Matrix;
+import com.raylib.Raylib.Model;
+import com.raylib.Raylib.ModelAnimation;
 import com.raylib.Raylib.Ray;
 import com.raylib.Raylib.RayCollision;
 import com.raylib.Raylib.Rectangle;
 import com.raylib.Raylib.RenderTexture;
+import static com.raylib.Raylib.RL_ATTACHMENT_DEPTH;
+import static com.raylib.Raylib.RL_ATTACHMENT_TEXTURE2D;
+import static com.raylib.Raylib.SetMaterialTexture;
 import static com.raylib.Raylib.SetShaderValue;
 import com.raylib.Raylib.Shader;
 import com.raylib.Raylib.Texture;
 import com.raylib.Raylib.Vector2;
 import com.raylib.Raylib.Vector3;
+import static com.raylib.Raylib.rlDisableFramebuffer;
+import static com.raylib.Raylib.rlEnableFramebuffer;
+import static com.raylib.Raylib.rlFramebufferAttach;
+import static com.raylib.Raylib.rlLoadFramebuffer;
+import static com.raylib.Raylib.rlLoadTextureDepth;
+import static com.raylib.Raylib.rlUnloadFramebuffer;
 
 public class Raylib implements Lib {
 
     private final AtomicBoolean stopping = new AtomicBoolean(false);
+    // Side channel for LoadModelAnimationsRaw -> GetLastAnimationCount: a one-time
+    // setup call pair (never per-frame), so a plain field is safe in practice.
+    private int lastAnimationCount = 0;
 
     @Override
     public void interrupt() {
@@ -142,6 +163,137 @@ public class Raylib implements Lib {
         env.define("SetShaderValueFloat", new NativeFunction(3, args -> {
             try (FloatPointer p = new FloatPointer(1).put(toFloat(args.get(2)))) {
                 SetShaderValue((Shader) args.get(0), toInt(args.get(1)), p, 0);
+            }
+            return null;
+        }));
+        env.define("SetShaderValueVec2", new NativeFunction(4, args -> {
+            try (FloatPointer p = new FloatPointer(2)) {
+                p.put(0, toFloat(args.get(2)));
+                p.put(1, toFloat(args.get(3)));
+                SetShaderValue((Shader) args.get(0), toInt(args.get(1)), p, 1);
+            }
+            return null;
+        }));
+        env.define("SetShaderValueVec3", new NativeFunction(5, args -> {
+            try (FloatPointer p = new FloatPointer(3)) {
+                p.put(0, toFloat(args.get(2)));
+                p.put(1, toFloat(args.get(3)));
+                p.put(2, toFloat(args.get(4)));
+                SetShaderValue((Shader) args.get(0), toInt(args.get(1)), p, 2);
+            }
+            return null;
+        }));
+        env.define("SetShaderValueVec4", new NativeFunction(6, args -> {
+            try (FloatPointer p = new FloatPointer(4)) {
+                p.put(0, toFloat(args.get(2)));
+                p.put(1, toFloat(args.get(3)));
+                p.put(2, toFloat(args.get(4)));
+                p.put(3, toFloat(args.get(5)));
+                SetShaderValue((Shader) args.get(0), toInt(args.get(1)), p, 3);
+            }
+            return null;
+        }));
+
+        // Model transform / material — instance-field mutators, not reflectively auto-bindable
+        env.define("SetModelTransform", new NativeFunction(2, args -> {
+            ((Model) args.get(0)).transform((Matrix) args.get(1));
+            return null;
+        }));
+        // DrawMesh/DrawModel read the shader straight off the material — unlike
+        // 2D immediate-mode drawing, BeginShaderMode/EndShaderMode has no effect
+        // on them, so a custom 3D shader has to be assigned here instead.
+        env.define("SetModelShader", new NativeFunction(2, args -> {
+            ((Model) args.get(0)).materials().shader((Shader) args.get(1));
+            return null;
+        }));
+        env.define("SetModelMaterialTexture", new NativeFunction(4, args -> {
+            Model model = (Model) args.get(0);
+            Material material = model.materials().getPointer(toInt(args.get(1)));
+            SetMaterialTexture(material, toInt(args.get(2)), (Texture) args.get(3));
+            return null;
+        }));
+        env.define("BoundingBoxMin", new NativeFunction(1, args -> ((BoundingBox) args.get(0)).min()));
+        env.define("BoundingBoxMax", new NativeFunction(1, args -> ((BoundingBox) args.get(0)).max()));
+
+        // Shadow mapping — raylib has no public LoadRenderTexture variant for a
+        // depth-only attachment, so this replicates raylib's own official
+        // shadowmap example (rlgl low-level framebuffer calls) directly.
+        env.define("LoadShadowmapRenderTexture", new NativeFunction(2, args -> {
+            int width = toInt(args.get(0));
+            int height = toInt(args.get(1));
+            RenderTexture target = new RenderTexture();
+            int fboId = rlLoadFramebuffer();
+            target.id(fboId);
+            target.texture(new Texture().width(width).height(height));
+            if (fboId > 0) {
+                rlEnableFramebuffer(fboId);
+                int depthId = rlLoadTextureDepth(width, height, false);
+                target.depth(new Texture().id(depthId).width(width).height(height).mipmaps(1).format(19));
+                rlFramebufferAttach(fboId, depthId, RL_ATTACHMENT_DEPTH, RL_ATTACHMENT_TEXTURE2D, 0);
+                rlDisableFramebuffer();
+            }
+            return target;
+        }));
+        env.define("UnloadShadowmapRenderTexture", new NativeFunction(1, args -> {
+            rlUnloadFramebuffer(((RenderTexture) args.get(0)).id());
+            return null;
+        }));
+        env.define("GetRenderTextureDepthTexture", new NativeFunction(1, args -> ((RenderTexture) args.get(0)).depth()));
+        // An orthographic Camera3D, for rendering a directional light's shadow
+        // pass — the regular Camera3D constructor always hardcodes perspective.
+        env.define("OrthoCamera3D", new NativeFunction(7, args
+                -> new Camera3D()._position(v3(args.get(0), args.get(1), args.get(2)))
+                        .target(v3(args.get(3), args.get(4), args.get(5)))
+                        .up(new Vector3().x(0).y(1).z(0))
+                        .fovy(toFloat(args.get(6)))
+                        .projection(CAMERA_ORTHOGRAPHIC)));
+
+        // Skeletal animation — LoadModelAnimations has ambiguous overloads once
+        // reflectively scanned (String/BytePointer x IntPointer/IntBuffer/int[]
+        // all score equally under ReflectiveBinder's heuristic), so it's bound
+        // manually against one explicit overload instead. The resulting count
+        // is stashed for the immediately-following GetLastAnimationCount call —
+        // safe because loading is a one-time setup step, never called per-frame
+        // or concurrently.
+        env.define("LoadModelAnimationsRaw", new NativeFunction(1, args -> {
+            String path = String.valueOf(args.get(0));
+            int[] animCount = new int[1];
+            ModelAnimation anims = com.raylib.Raylib.LoadModelAnimations(path, animCount);
+            lastAnimationCount = animCount[0];
+            return anims;
+        }));
+        env.define("GetLastAnimationCount", new NativeFunction(0, args -> (double) lastAnimationCount));
+        env.define("GetAnimationAt", new NativeFunction(2, args -> ((ModelAnimation) args.get(0)).getPointer(toInt(args.get(1)))));
+        env.define("AnimationFrameCount", new NativeFunction(1, args -> (double) ((ModelAnimation) args.get(0)).frameCount()));
+
+        // GPU instancing: DrawMeshInstanced needs one contiguous native Matrix
+        // array, which Mira code can't build directly — Mira instead builds each
+        // instance's Matrix individually (MatrixTranslate/RotateXYZ/Scale/Multiply,
+        // already reflectively bound) and collects them into a plain list; this
+        // copies that list's Matrix values field-by-field into a real array. Draws
+        // every instance with the model's first mesh/material (unlit, no
+        // per-instance lighting) — fine for background-decoration-style use.
+        env.define("DrawMeshInstancedRaw", new NativeFunction(2, "model, matrixList", args -> {
+            Model model = (Model) args.get(0);
+            if (!(args.get(1) instanceof ListExpression list)) {
+                throw new RuntimeException("DrawMeshInstancedRaw requires a list of matrices");
+            }
+            List<Expression> members = list.getMembers();
+            int count = members.size();
+            if (count == 0) {
+                return null;
+            }
+            try (Matrix transforms = new Matrix(count)) {
+                for (int i = 0; i < count; i++) {
+                    Matrix src = (Matrix) members.get(i).accept(null);
+                    transforms.position(i)
+                            .m0(src.m0()).m1(src.m1()).m2(src.m2()).m3(src.m3())
+                            .m4(src.m4()).m5(src.m5()).m6(src.m6()).m7(src.m7())
+                            .m8(src.m8()).m9(src.m9()).m10(src.m10()).m11(src.m11())
+                            .m12(src.m12()).m13(src.m13()).m14(src.m14()).m15(src.m15());
+                }
+                transforms.position(0);
+                DrawMeshInstanced(model.meshes(), model.materials(), transforms, count);
             }
             return null;
         }));

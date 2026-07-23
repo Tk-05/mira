@@ -39,6 +39,7 @@ import com.mira.parser.nodes.statement.Statement.EnumDecl;
 import com.mira.parser.nodes.statement.Statement.FuncDecl;
 import com.mira.parser.nodes.statement.Statement.ModuleDecl;
 import com.mira.runtime.ComptimeExecutor;
+import com.mira.runtime.interpreter.ImportResolver;
 
 public class Compiler {
 
@@ -126,11 +127,7 @@ public class Compiler {
                 continue;
             }
             String rawPath = ie.getModule().replace("\"", "");
-            if (!rawPath.endsWith(".mira")) {
-                rawPath += ".mira";
-            }
-            Path modulePath = Flags.inputPath.get().toAbsolutePath().getParent()
-                    .resolve(rawPath).normalize();
+            Path modulePath = ImportResolver.resolveModulePath(rawPath);
             if (!Files.exists(modulePath)) {
                 throw new RuntimeException("Module not found: " + modulePath);
             }

@@ -186,7 +186,7 @@ public class ImportResolver {
         }
     }
 
-    private static Path resolveModulePath(String rawPath) {
+    public static Path resolveModulePath(String rawPath) {
         if (!rawPath.endsWith(".mira")) {
             rawPath += ".mira";
         }

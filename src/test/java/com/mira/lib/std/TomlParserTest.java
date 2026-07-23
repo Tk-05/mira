@@ -81,8 +81,69 @@ public class TomlParserTest {
     }
 
     @Test
+    void doubleValue() {
+        assertEquals(4.243, TomlParser.parseValue("4.243", 1));
+    }
+
+    @Test
+    void negativeDoubleValue() {
+        assertEquals(-9.0, TomlParser.parseValue("-9.0", 1));
+    }
+
+    @Test
     void unknownBareValueThrows() {
         assertThrows(BuildException.class, () -> TomlParser.parseValue("notAValue", 1));
+    }
+
+    @Test
+    void arrayOfTablesProducesListOfMaps() {
+        String toml = """
+                [[entities]]
+                type = "cube"
+                x = 0.0
+
+                [[entities]]
+                type = "sphere"
+                x = 4.243
+                """;
+        Map<String, Object> doc = TomlParser.parse(toml);
+
+        @SuppressWarnings("unchecked")
+        List<Object> entities = (List<Object>) doc.get("entities");
+        assertEquals(2, entities.size());
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> first = (Map<String, Object>) entities.get(0);
+        assertEquals("cube", first.get("type"));
+        assertEquals(0.0, first.get("x"));
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> second = (Map<String, Object>) entities.get(1);
+        assertEquals("sphere", second.get("type"));
+        assertEquals(4.243, second.get("x"));
+    }
+
+    @Test
+    void arrayOfTablesCoexistsWithRegularSections() {
+        String toml = """
+                [project]
+                name = "demo"
+
+                [[entities]]
+                type = "cube"
+
+                [[entities]]
+                type = "torus"
+                """;
+        Map<String, Object> doc = TomlParser.parse(toml);
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> project = (Map<String, Object>) doc.get("project");
+        assertEquals("demo", project.get("name"));
+
+        @SuppressWarnings("unchecked")
+        List<Object> entities = (List<Object>) doc.get("entities");
+        assertEquals(2, entities.size());
     }
 
     @Test

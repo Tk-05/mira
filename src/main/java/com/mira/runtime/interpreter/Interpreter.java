@@ -875,7 +875,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         Object namespaceObj = localEnvironment != null
                 ? localEnvironment.getOrNull(expression.getAlias())
                 : null;
-        if (namespaceObj == null) {
+        if (!(namespaceObj instanceof Namespace)) {
             namespaceObj = globalEnvironment.get(expression.getAlias());
         }
 
@@ -894,7 +894,13 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             arguments.add(arg.accept(this));
         }
 
-        if (callable.getArity() != -1 && arguments.size() != callable.getArity()) {
+        if (callable instanceof Function f) {
+            int min = f.getArity();
+            int max = f.getMaxArity();
+            if (arguments.size() < min || (max != -1 && arguments.size() > max)) {
+                throw new ArgMismatchError(expression.getFunctionName(), min, arguments.size());
+            }
+        } else if (callable.getArity() != -1 && arguments.size() != callable.getArity()) {
             throw new ArgMismatchError(expression.getFunctionName(), callable.getArity(), arguments.size());
         }
 
@@ -1291,7 +1297,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
         if (expr.getRight() instanceof NamespaceCallExpression nsCall) {
             Object namespaceObj = localEnvironment != null ? localEnvironment.getOrNull(nsCall.getAlias()) : null;
-            if (namespaceObj == null) {
+            if (!(namespaceObj instanceof Namespace)) {
                 namespaceObj = globalEnvironment.get(nsCall.getAlias());
             }
             if (!(namespaceObj instanceof Namespace namespace)) {
