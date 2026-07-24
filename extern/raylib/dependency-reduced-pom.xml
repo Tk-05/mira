@@ -16,6 +16,7 @@
               <goal>shade</goal>
             </goals>
             <configuration>
+              <finalName>raylib</finalName>
               <artifactSet>
                 <excludes>
                   <exclude>com.mira:mira</exclude>

@@ -34,6 +34,7 @@ public class Flags {
     public static boolean slimJar = false;
 
     public static List<Path> dependencyRoots = new ArrayList<>();
+    public static List<Path> nativeRoots = new ArrayList<>();
 
     public static boolean skipStaticCheck = false;
     public static boolean suppressWarnings = false;

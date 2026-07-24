@@ -51,6 +51,11 @@
             <artifactId>org.eclipse.lsp4j.debug</artifactId>
             <version>0.21.0</version>
         </dependency>
+        <dependency>
+            <groupId>org.eclipse.jgit</groupId>
+            <artifactId>org.eclipse.jgit</artifactId>
+            <version>6.10.0.202406032230-r</version>
+        </dependency>
     </dependencies>
 
     <build>

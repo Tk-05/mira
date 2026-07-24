@@ -6,6 +6,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Stream;
 
 public record ProjectConfig(
         String name,
@@ -16,6 +17,7 @@ public record ProjectConfig(
         BuildConfig build,
         TestConfig test,
         Map<String, Dependency> dependencies,
+        Map<String, NativeDependency> nativeDependencies,
         Map<String, TaskConfig> tasks,
         Path projectRoot
         ) {
@@ -39,17 +41,58 @@ public record ProjectConfig(
         SLIM, FULL
     }
 
-    public record Dependency(Path path) {
+    public sealed interface Dependency
+            permits Dependency.PathDependency, Dependency.GitDependency, Dependency.RegistryDependency {
 
+        record PathDependency(Path path) implements Dependency {
+
+        }
+
+        /**
+         * Exactly one of tag/branch/rev/version is set, chosen by whichever
+         * field was present in mira.toml. version is a semver constraint (e.g.
+         * "^1.2.0") matched against the repo's tags at resolve time.
+         */
+        record GitDependency(String url, String tag, String branch, String rev, String version) implements Dependency {
+
+        }
+
+        /**
+         * Resolved from the local install cache
+         * (~/.mira/packages/local/&lt;dependency name&gt;/&lt;version&gt;)
+         * populated by running "mira install" inside the dependency's own
+         * project directory — the local equivalent of Maven's "mvn install"
+         * into ~/.m2/repository. No path or git URL needed.
+         */
+        record RegistryDependency(String version) implements Dependency {
+
+        }
     }
 
     public record TestConfig(String pattern, List<String> extra, List<String> preTest, List<String> postTest) {
 
     }
 
+    /**
+     * A [native.name] entry: a JVM jar (implementing com.mira.lib.Lib), fetched
+     * from `url` and verified against `sha256`, resolvable at runtime via a
+     * bare `import native "<basename of url>"`. Content-addressed by sha256 —
+     * unlike git dependencies, nothing here is a mutable ref, so no lockfile
+     * pin is needed.
+     *
+     * sha256 may be null only when url is a file:// URL: there's no integrity
+     * concern fetching a file already on the local machine, and skipping the
+     * hash means a local build (e.g. of extern/raylib) is picked up live on
+     * every resolve instead of being cached/pinned to whatever content existed
+     * the first time it was resolved. http(s):// URLs always require sha256.
+     */
+    public record NativeDependency(String url, String sha256) {
+
+    }
+
     @SuppressWarnings("unchecked")
     public static ProjectConfig fromMap(Map<String, Object> map, Path projectRoot) {
-        checkUnknownKeys("(root)", map, Set.of("project", "build", "test", "dependencies", "tasks"));
+        checkUnknownKeys("(root)", map, Set.of("project", "build", "test", "dependencies", "native", "tasks"));
 
         Map<String, Object> project = (Map<String, Object>) map.getOrDefault("project", Map.of());
         Map<String, Object> build = (Map<String, Object>) map.getOrDefault("build", Map.of());
@@ -63,10 +106,10 @@ public record ProjectConfig(
         String name = (String) project.getOrDefault("name", projectRoot.getFileName().toString());
         String version = (String) project.getOrDefault("version", "0.1.0");
         String entryStr = (String) project.get("entry");
-        if (entryStr == null) {
-            throw new BuildException("mira.toml: [project] entry is required");
-        }
-        Path entry = projectRoot.resolve(entryStr).normalize();
+        // entry is optional at the manifest level (e.g. a native-only package like extern/raylib
+        // has no entry point of its own) but is required to actually build/run/test a project —
+        // see BuildContext.applyFlags, which is where that's enforced.
+        Path entry = entryStr != null ? projectRoot.resolve(entryStr).normalize() : null;
         String description = (String) project.getOrDefault("description", "");
         List<String> authors = (List<String>) project.getOrDefault("authors", List.of());
 
@@ -111,14 +154,73 @@ public record ProjectConfig(
 
         Map<String, Dependency> dependencies = new LinkedHashMap<>();
         for (Map.Entry<String, Object> dep : deps.entrySet()) {
-            if (dep.getValue() instanceof Map<?, ?> depMap) {
-                String pathStr = (String) ((Map<?, ?>) depMap).get("path");
-                if (pathStr == null) {
-                    throw new BuildException("Dependency '" + dep.getKey() + "' must specify a 'path'");
-                }
-                Path depPath = projectRoot.resolve(pathStr).normalize();
-                dependencies.put(dep.getKey(), new Dependency(depPath));
+            String depName = dep.getKey();
+            if (!(dep.getValue() instanceof Map<?, ?> depMapRaw)) {
+                throw new BuildException("Dependency '" + depName
+                        + "' must be a table, e.g. { path = \"...\" } or { git = \"...\" }");
             }
+
+            var depMap = (Map<String, Object>) depMapRaw;
+            checkUnknownKeys("[dependencies." + depName + "]", depMap,
+                    Set.of("path", "git", "tag", "branch", "rev", "version"));
+
+            String pathStr = (String) depMap.get("path");
+            String gitUrl = (String) depMap.get("git");
+            long sourceKinds = Stream.of(pathStr, gitUrl).filter(java.util.Objects::nonNull).count();
+            if (sourceKinds > 1) {
+                throw new BuildException("Dependency '" + depName + "' must specify only one of 'path' or 'git'");
+            }
+            if (pathStr != null) {
+                Path depPath = projectRoot.resolve(pathStr).normalize();
+                dependencies.put(depName, new Dependency.PathDependency(depPath));
+            } else if (gitUrl != null) {
+                String tag = (String) depMap.get("tag");
+                String branch = (String) depMap.get("branch");
+                String rev = (String) depMap.get("rev");
+                String versionConstraint = (String) depMap.get("version");
+                long pins = Stream.of(tag, branch, rev, versionConstraint).filter(java.util.Objects::nonNull).count();
+                if (pins != 1) {
+                    throw new BuildException("Dependency '" + depName
+                            + "': specify exactly one of 'tag', 'branch', 'rev', or 'version'");
+                }
+                dependencies.put(depName, new Dependency.GitDependency(gitUrl, tag, branch, rev, versionConstraint));
+            } else if (depMap.get("version") != null) {
+                // No 'path' or 'git': resolved from the local install cache by name + version,
+                // like a Maven coordinate lookup against ~/.m2/repository. See "mira install".
+                dependencies.put(depName, new Dependency.RegistryDependency((String) depMap.get("version")));
+            } else {
+                throw new BuildException("Dependency '" + depName
+                        + "' must specify 'path', 'git', or a bare 'version' (resolved via 'mira install')");
+            }
+        }
+
+        Map<String, Object> nativeRaw = (Map<String, Object>) map.getOrDefault("native", Map.of());
+        Map<String, NativeDependency> nativeDependencies = new LinkedHashMap<>();
+        for (Map.Entry<String, Object> nd : nativeRaw.entrySet()) {
+            String ndName = nd.getKey();
+            if (!(nd.getValue() instanceof Map<?, ?> ndMapRaw)) {
+                throw new BuildException("Native dependency '" + ndName
+                        + "' must be a table, e.g. { url = \"...\", sha256 = \"...\" }");
+            }
+
+            var ndMap = (Map<String, Object>) ndMapRaw;
+            checkUnknownKeys("[native." + ndName + "]", ndMap, Set.of("url", "sha256"));
+            String ndUrl = (String) ndMap.get("url");
+            String sha256 = (String) ndMap.get("sha256");
+            if (ndUrl == null) {
+                throw new BuildException("Native dependency '" + ndName + "' must specify a 'url'");
+            }
+            boolean isFileUrl = "file".equalsIgnoreCase(java.net.URI.create(ndUrl).getScheme());
+            if (sha256 == null && !isFileUrl) {
+                throw new BuildException("Native dependency '" + ndName
+                        + "': 'sha256' is required unless 'url' is a file:// URL");
+            }
+            if (sha256 != null && !sha256.matches("(?i)[0-9a-f]{64}")) {
+                throw new BuildException("Native dependency '" + ndName
+                        + "': sha256 must be a 64-character hex string, got '" + sha256 + "'");
+            }
+            nativeDependencies.put(ndName,
+                    new NativeDependency(ndUrl, sha256 != null ? sha256.toLowerCase(java.util.Locale.ROOT) : null));
         }
 
         Map<String, Object> tasksRaw = (Map<String, Object>) map.getOrDefault("tasks", Map.of());
@@ -152,6 +254,7 @@ public record ProjectConfig(
                         preBuild, postBuild, preRun, postRun),
                 testConfig,
                 dependencies,
+                nativeDependencies,
                 tasks,
                 projectRoot
         );
