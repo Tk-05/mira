@@ -27,8 +27,8 @@ public class ClassEmitter {
 
     static final String ENV_DESC = "Lcom/mira/runtime/interpreter/Environment;";
     static final String ENV_NAME = "com/mira/runtime/interpreter/Environment";
-    static final String RT_NAME = "com/mira/compiler/Runtime";
-    static final String NULL_NAME = "com/mira/runtime/interpreter/NullValue";
+    static final String RT_NAME = "com/mira/compiler/support/CompiledRuntimeSupport";
+    static final String NULL_NAME = "com/mira/runtime/values/NullValue";
     static final String THROW_NAME = "com/mira/runtime/functions/ThrowSignal";
 
     static final String FN_DESC = "([Ljava/lang/Object;)Ljava/lang/Object;";

@@ -37,10 +37,10 @@ import com.mira.error.resolver.StaticCheckError.UndefinedObjectFieldStaticError;
 import com.mira.error.resolver.StaticCheckError.UnknownModuleSymbolError;
 import com.mira.error.resolver.StaticCheckError.UnknownNamespaceError;
 import com.mira.lexer.Tokenizer;
+import com.mira.lexer.token.Token;
 import com.mira.lexer.token.TokenType;
 import com.mira.lib.LibIndex;
-import com.mira.linter.LintScope;
-import com.mira.linter.LintScope.VarInfo;
+import com.mira.resolver.LintScope.VarInfo;
 import com.mira.parser.Parser;
 import com.mira.parser.nodes.Node;
 import com.mira.parser.nodes.Parameter;
@@ -455,6 +455,13 @@ public class StaticCheck {
                     resolveExpr(e.getRight());
                 }
             }
+            case UnaryExpression e when "-".equals(e.getOperation().getLexeme())
+                    || "~".equals(e.getOperation().getLexeme()) -> {
+                if (e.getRight() != null) {
+                    resolveExpr(e.getRight());
+                    warnIfStringOperand(e.getRight(), e.getOperation());
+                }
+            }
             case UnaryExpression e -> {
                 if (e.getRight() != null) {
                     resolveExpr(e.getRight());
@@ -480,6 +487,8 @@ public class StaticCheck {
                             "Implicit string concatenation: mixed String and non-String operands",
                             e.getOperator());
                 }
+                warnIfBarewordOperand(e.getLeft(), e.getOperator());
+                warnIfBarewordOperand(e.getRight(), e.getOperator());
             }
             case BinaryExpression e when "/".equals(e.getOperator().getLexeme()) -> {
                 resolveExpr(e.getLeft());
@@ -492,6 +501,14 @@ public class StaticCheck {
                         WarningCollector.emit(WarningLevel.WARNING, "Division by zero", e.getOperator());
                     }
                 }
+                warnIfStringOperand(e.getLeft(), e.getOperator());
+                warnIfStringOperand(e.getRight(), e.getOperator());
+            }
+            case BinaryExpression e when STRING_UNSAFE_OPERATORS.contains(e.getOperator().getLexeme()) -> {
+                resolveExpr(e.getLeft());
+                resolveExpr(e.getRight());
+                warnIfStringOperand(e.getLeft(), e.getOperator());
+                warnIfStringOperand(e.getRight(), e.getOperator());
             }
             case BinaryExpression e -> {
                 resolveExpr(e.getLeft());
@@ -516,8 +533,18 @@ public class StaticCheck {
                 scope.markUsed(alias);
                 e.getArguments().forEach(this::resolveExpr);
                 FuncDecl nsFn = userFuncDecls.get(e.getFunctionName());
-                if (nsFn != null && !e.getArguments().isEmpty()) {
-                    walkFuncWithParamTypes(nsFn, e.getArguments(), Map.of(), new HashSet<>(), e.getLine(), e.getColumn());
+                if (nsFn != null) {
+                    int min = nsFn.getArity();
+                    int max = nsFn.getMaxArity();
+                    int actual = e.getArguments().size();
+                    if (min == max && actual != min) {
+                        errors.add(new ArityMismatchError(e.getFunctionName(), min, actual, e.getLine(), e.getColumn()));
+                    } else if (min != max && (actual < min || (max != -1 && actual > max))) {
+                        errors.add(new ArityMismatchError(e.getFunctionName(), min, max, actual, e.getLine(), e.getColumn()));
+                    }
+                    if (!e.getArguments().isEmpty()) {
+                        walkFuncWithParamTypes(nsFn, e.getArguments(), Map.of(), new HashSet<>(), e.getLine(), e.getColumn());
+                    }
                 }
             }
             case AccessExpression e -> {
@@ -1056,19 +1083,33 @@ public class StaticCheck {
         }
     }
 
+    private static java.nio.file.Path resolveModuleFile(java.nio.file.Path base, String rawPath) {
+        java.nio.file.Path modulePath = base.resolve(rawPath).normalize();
+        if (!java.nio.file.Files.exists(modulePath) && !com.mira.cli.Flags.dependencyRoots.isEmpty()) {
+            java.nio.file.Path candidate = java.nio.file.Paths.get(rawPath);
+            for (java.nio.file.Path depRoot : com.mira.cli.Flags.dependencyRoots) {
+                java.nio.file.Path depCandidate = depRoot.resolve(candidate).normalize();
+                if (java.nio.file.Files.exists(depCandidate)) {
+                    return depCandidate;
+                }
+            }
+        }
+        return modulePath;
+    }
+
     private void checkSelectiveModuleImport(ImportExpression expr) {
         if (!checkedModuleImports.add(expr.getModule())) {
             return;
         }
         java.nio.file.Path base = sourcePath != null
                 ? sourcePath.getParent()
-                : (com.mira.Flags.inputPath.get() != null ? com.mira.Flags.inputPath.get().getParent() : null);
+                : (com.mira.cli.Flags.inputPath.get() != null ? com.mira.cli.Flags.inputPath.get().getParent() : null);
         if (base == null) {
             return;
         }
 
         String rawPath = expr.getModule().replace("\"", "");
-        java.nio.file.Path modulePath = base.resolve(rawPath).normalize();
+        java.nio.file.Path modulePath = resolveModuleFile(base, rawPath);
         if (!java.nio.file.Files.exists(modulePath)) {
             return;
         }
@@ -1106,13 +1147,13 @@ public class StaticCheck {
     private void loadModuleSymbolsForAlias(ImportExpression expr) {
         java.nio.file.Path base = sourcePath != null
                 ? sourcePath.getParent()
-                : (com.mira.Flags.inputPath.get() != null ? com.mira.Flags.inputPath.get().getParent() : null);
+                : (com.mira.cli.Flags.inputPath.get() != null ? com.mira.cli.Flags.inputPath.get().getParent() : null);
         if (base == null) {
             return;
         }
 
         String rawPath = expr.getModule().replace("\"", "");
-        java.nio.file.Path modulePath = base.resolve(rawPath).normalize();
+        java.nio.file.Path modulePath = resolveModuleFile(base, rawPath);
         if (!java.nio.file.Files.exists(modulePath)) {
             return;
         }
@@ -1279,8 +1320,40 @@ public class StaticCheck {
         WarningCollector.emit(WarningLevel.WARNING, message, line, column, span);
     }
 
+    private static final Set<String> STRING_UNSAFE_OPERATORS = Set.of(
+            "-", "*", "%", "\\%", "**", "&", "|", "^", "<<", ">>");
+
     private static boolean isStringLiteral(Node n) {
         return n instanceof DumbExpression d && d.getTokenType() == TokenType.STRING_LITERAL;
+    }
+
+    private static boolean isReservedWord(String value) {
+        return "true".equals(value) || "false".equals(value) || "null".equals(value);
+    }
+
+    private static boolean isBareword(Node n) {
+        return n instanceof DumbExpression d && isIdentifier(d) && !isReservedWord(d.getValue());
+    }
+
+    private void warnIfBarewordOperand(Node operand, Token operator) {
+        if (isBareword(operand)) {
+            String name = ((DumbExpression) operand).getValue();
+            WarningCollector.emit(WarningLevel.WARNING,
+                    "Operator '" + operator.getLexeme() + "' used on '" + name
+                            + "', which is treated as the String literal \"" + name
+                            + "\" — missing '$" + name + "'?",
+                    operator);
+        }
+    }
+
+    private void warnIfStringOperand(Node operand, Token operator) {
+        if (isStringLiteral(operand)) {
+            WarningCollector.emit(WarningLevel.WARNING,
+                    "Operator '" + operator.getLexeme() + "' used on a String literal",
+                    operator);
+        } else {
+            warnIfBarewordOperand(operand, operator);
+        }
     }
 
     private static boolean isNonStringLiteral(Node n) {

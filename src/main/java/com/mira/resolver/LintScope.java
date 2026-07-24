@@ -1,4 +1,4 @@
-package com.mira.linter;
+package com.mira.resolver;
 
 import java.util.ArrayDeque;
 import java.util.Deque;

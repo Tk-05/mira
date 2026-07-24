@@ -10,13 +10,13 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import com.mira.Flags;
-import com.mira.Main;
+import com.mira.cli.Flags;
 import com.mira.error.DiagnosticFormatter;
 import com.mira.lexer.Tokenizer;
 import com.mira.lexer.token.Token;
 import com.mira.parser.Parser;
 import com.mira.parser.nodes.Node;
+import com.mira.runtime.FileRunner;
 import com.mira.runtime.HotReloader;
 import com.mira.testing.TestRunner;
 
@@ -42,7 +42,7 @@ public class BuildRunner {
         }
         runHook(ctx, ctx.config().build().preBuild());
         long start = System.currentTimeMillis();
-        boolean ok = Main.runFile(new AtomicBoolean(false));
+        boolean ok = FileRunner.runFile(new AtomicBoolean(false));
         if (!ok) {
             System.err.println(DiagnosticFormatter.formatFail("build failed"));
             System.exit(1);

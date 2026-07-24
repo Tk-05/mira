@@ -31,6 +31,11 @@ public class CompilerContext {
     public int[] instrBytes = {0};
     public boolean isPartialExtract = false;
 
+    // Compile-time constants embedded into profilerLine(...) calls (see MethodEmitter).
+    // Nested contexts (lambdas, split continuations) inherit these from their parent.
+    public String moduleName = "<script>";
+    public String functionName = "<script>";
+
     public CompilerContext(String className, MethodVisitor mv, LocalSlotTable slots,
             Set<String> knownFunctions, int[] lambdaCounter, boolean isTopLevel) {
         this.className = className;

@@ -318,4 +318,13 @@ public class RuntimeError extends MiraError {
                     "Check the spelling, or add the field to the 'struct { ... }' template");
         }
     }
+
+    public static class ModuleNotFoundError extends RuntimeError {
+
+        public ModuleNotFoundError(String path) {
+            super("E234",
+                    "Module file not found: '" + path + "'",
+                    "Check that the path is correct and relative to the importing file");
+        }
+    }
 }

@@ -327,6 +327,105 @@ public class StaticCheckTest {
     }
 
     @Test
+    void arithmeticOnStringLiteralProducesWarning() {
+        WarningCollector.clear();
+        assertClean("var r : \"foo\" - 1;");
+        assertTrue(WarningCollector.getWarnings().stream()
+                .anyMatch(w -> w.message().contains("String literal")));
+        WarningCollector.clear();
+    }
+
+    @Test
+    void multiplyOnStringLiteralProducesWarning() {
+        WarningCollector.clear();
+        assertClean("var r : \"foo\" * 2;");
+        assertTrue(WarningCollector.getWarnings().stream()
+                .anyMatch(w -> w.message().contains("String literal")));
+        WarningCollector.clear();
+    }
+
+    @Test
+    void divideOnStringLiteralProducesWarning() {
+        WarningCollector.clear();
+        assertClean("var r : \"foo\" / 2;");
+        assertTrue(WarningCollector.getWarnings().stream()
+                .anyMatch(w -> w.message().contains("String literal")));
+        WarningCollector.clear();
+    }
+
+    @Test
+    void unaryMinusOnStringLiteralProducesWarning() {
+        WarningCollector.clear();
+        assertClean("var r : -\"foo\";");
+        assertTrue(WarningCollector.getWarnings().stream()
+                .anyMatch(w -> w.message().contains("String literal")));
+        WarningCollector.clear();
+    }
+
+    @Test
+    void barewordMinusProducesMissingDollarWarning() {
+        WarningCollector.clear();
+        assertClean("var r : x - 1;");
+        assertTrue(WarningCollector.getWarnings().stream()
+                .anyMatch(w -> w.message().contains("missing '$x'")));
+        WarningCollector.clear();
+    }
+
+    @Test
+    void barewordInPlusProducesMissingDollarWarning() {
+        WarningCollector.clear();
+        assertClean("var r : x + 1;");
+        assertTrue(WarningCollector.getWarnings().stream()
+                .anyMatch(w -> w.message().contains("missing '$x'")));
+        WarningCollector.clear();
+    }
+
+    @Test
+    void unaryMinusOnBarewordProducesMissingDollarWarning() {
+        WarningCollector.clear();
+        assertClean("var r : -x;");
+        assertTrue(WarningCollector.getWarnings().stream()
+                .anyMatch(w -> w.message().contains("missing '$x'")));
+        WarningCollector.clear();
+    }
+
+    @Test
+    void arithmeticOnRealVariablesIsClean() {
+        WarningCollector.clear();
+        assertClean("var a : 5; var b : 3; var r : $a - $b;");
+        assertTrue(WarningCollector.getWarnings().stream()
+                .noneMatch(w -> w.message().contains("String literal") || w.message().contains("missing '$")));
+        WarningCollector.clear();
+    }
+
+    @Test
+    void stringConcatenationOfTwoLiteralsIsClean() {
+        WarningCollector.clear();
+        assertClean("var r : \"foo\" + \"bar\";");
+        assertTrue(WarningCollector.getWarnings().stream()
+                .noneMatch(w -> w.message().contains("String literal") || w.message().contains("missing '$")));
+        WarningCollector.clear();
+    }
+
+    @Test
+    void reservedWordsAreNotTreatedAsBareword() {
+        WarningCollector.clear();
+        assertClean("var r : true - 1;");
+        assertTrue(WarningCollector.getWarnings().stream()
+                .noneMatch(w -> w.message().contains("String literal") || w.message().contains("missing '$")));
+        WarningCollector.clear();
+    }
+
+    @Test
+    void compoundAssignWithVariablesIsClean() {
+        WarningCollector.clear();
+        assertClean("var x : 5; var y : 3; $x -: $y;");
+        assertTrue(WarningCollector.getWarnings().stream()
+                .noneMatch(w -> w.message().contains("String literal") || w.message().contains("missing '$")));
+        WarningCollector.clear();
+    }
+
+    @Test
     void incrementStringVarProducesE322() {
         List<MiraError> errors = errorsFor("var s : \"hello\"; $s++;");
         assertTrue(hasCode(errors, "E322"));

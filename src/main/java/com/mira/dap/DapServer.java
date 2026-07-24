@@ -92,7 +92,7 @@ import org.eclipse.lsp4j.debug.WriteMemoryResponse;
 import org.eclipse.lsp4j.debug.services.IDebugProtocolClient;
 import org.eclipse.lsp4j.debug.services.IDebugProtocolServer;
 
-import com.mira.Flags;
+import com.mira.cli.Flags;
 import com.mira.lexer.Tokenizer;
 import com.mira.parser.Parser;
 import com.mira.parser.nodes.Node;

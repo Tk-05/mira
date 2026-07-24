@@ -1,4 +1,4 @@
-package com.mira.compiler;
+package com.mira.compiler.support;
 
 public final class ContinueSignal {
 

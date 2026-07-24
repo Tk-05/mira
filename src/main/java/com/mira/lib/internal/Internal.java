@@ -7,6 +7,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
+import com.mira.error.MiraError;
+import com.mira.error.parser.MultipleParserErrors;
 import com.mira.error.runtime.RuntimeError.ArgMismatchError;
 import com.mira.error.runtime.RuntimeError.AssertionFailedError;
 import com.mira.error.runtime.RuntimeError.InvalidArgumentError;
@@ -21,8 +23,9 @@ import com.mira.parser.nodes.expression.Expression.ListExpression;
 import com.mira.runtime.functions.Callable;
 import com.mira.runtime.functions.NativeFunction;
 import com.mira.runtime.functions.Promise;
+import com.mira.runtime.functions.ThrowSignal;
 import com.mira.runtime.interpreter.Environment;
-import com.mira.runtime.interpreter.Evaluator;
+import com.mira.runtime.interpreter.ImportResolver;
 import com.mira.runtime.interpreter.Interpreter;
 import com.mira.runtime.values.NullValue;
 
@@ -81,25 +84,23 @@ public class Internal implements Lib {
         );
 
         environment.define("eval",
-                new NativeFunction(1, args -> {
-                    Object arg = args.get(0);
-                    if (arg instanceof Number) {
-                        return arg;
-                    }
-                    if (arg instanceof Boolean) {
-                        return arg;
-                    }
-                    String eval = String.valueOf(arg);
-                    return Evaluator.evaluate(eval, false);
-                }));
+                new NativeFunction(1, args -> evalOrExec(args.get(0))));
 
         environment.define("exec",
-                new NativeFunction(1, args -> {
-                    String code = String.valueOf(args.get(0));
-                    Tokenizer tokenizer = new Tokenizer();
-                    Parser parser = new Parser();
-                    List<Node> ast = parser.parseTokens(tokenizer.tokenize(code, true));
-                    return Interpreter.getInstance().runWithoutLoadingNewContext(ast);
+                new NativeFunction(1, args -> evalOrExec(args.get(0))));
+
+        environment.define("importDynamic",
+                new NativeFunction(-1, args -> {
+                    if (args.isEmpty() || args.size() > 2) {
+                        throw new ArgMismatchError("importDynamic", 1, args.size());
+                    }
+                    String path = String.valueOf(args.get(0));
+                    List<String> symbols = args.size() == 2 ? extractSymbolList(args.get(1)) : null;
+                    try {
+                        return ImportResolver.resolveDynamicImport(Interpreter.getInstance(), path, symbols);
+                    } catch (MiraError e) {
+                        throw new ThrowSignal("ImportError", e.getMessage());
+                    }
                 }));
 
         environment.define("length",
@@ -285,7 +286,7 @@ public class Internal implements Lib {
         environment.define("chars", new NativeFunction(1, args -> {
             Object val = args.get(0);
             if (!(val instanceof String s)) {
-                throw new InvalidArgumentError("chars", "expected a string, got " + com.mira.compiler.Runtime.typeofVal(val));
+                throw new InvalidArgumentError("chars", "expected a string, got " + com.mira.compiler.support.CompiledRuntimeSupport.typeofVal(val));
             }
             List<Expression> members = new java.util.ArrayList<>(s.length());
             for (char c : s.toCharArray()) {
@@ -304,7 +305,7 @@ public class Internal implements Lib {
                 case ArrayExpression a ->
                     new ListExpression(new java.util.ArrayList<>(a.getMembers()));
                 default ->
-                    throw new InvalidArgumentError("toList", "expected an array or list, got " + com.mira.compiler.Runtime.typeofVal(val));
+                    throw new InvalidArgumentError("toList", "expected an array or list, got " + com.mira.compiler.support.CompiledRuntimeSupport.typeofVal(val));
             };
         }));
 
@@ -316,7 +317,7 @@ public class Internal implements Lib {
                 case ListExpression l ->
                     new ArrayExpression(new java.util.ArrayList<>(l.getMembers()));
                 default ->
-                    throw new InvalidArgumentError("toArray", "expected a list or array, got " + com.mira.compiler.Runtime.typeofVal(val));
+                    throw new InvalidArgumentError("toArray", "expected a list or array, got " + com.mira.compiler.support.CompiledRuntimeSupport.typeofVal(val));
             };
         }));
 
@@ -337,5 +338,45 @@ public class Internal implements Lib {
             }
         });
 
+    }
+
+    private static Object evalOrExec(Object arg) {
+        if (arg instanceof Number || arg instanceof Boolean) {
+            return arg;
+        }
+        String normalized = String.valueOf(arg);
+        if (!normalized.isEmpty() && !normalized.endsWith(";") && !normalized.endsWith("}")) {
+            normalized += ';';
+        }
+        List<Node> ast;
+        try {
+            Tokenizer tokenizer = new Tokenizer();
+            Parser parser = new Parser();
+            ast = parser.parseTokens(tokenizer.tokenize(normalized, false));
+        } catch (MiraError | MultipleParserErrors e) {
+            throw new ThrowSignal("EvalError", e.getMessage());
+        }
+        try {
+            return Interpreter.getInstance().runWithoutLoadingNewContext(ast);
+        } catch (MiraError e) {
+            throw new ThrowSignal("EvalError", e.getMessage());
+        }
+    }
+
+    private static List<String> extractSymbolList(Object arg) {
+        List<Expression> members = switch (arg) {
+            case ListExpression l ->
+                l.getMembers();
+            case ArrayExpression a ->
+                a.getMembers();
+            default ->
+                throw new InvalidArgumentError("importDynamic", "expected a list of symbol names as the second argument");
+        };
+        Interpreter interpreter = Interpreter.getInstance();
+        List<String> names = new java.util.ArrayList<>(members.size());
+        for (Expression member : members) {
+            names.add(String.valueOf(member.accept(interpreter)));
+        }
+        return names;
     }
 }

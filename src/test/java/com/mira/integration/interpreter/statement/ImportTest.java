@@ -116,4 +116,30 @@ public class ImportTest extends AbstractImportTests {
                 trim(" hello ");
                 """));
     }
+
+    @Test
+    void namespaceCallInsideSameNamedMethodStillResolvesToImportAlias() {
+        assertEquals("hi", backend.runAndGetValue("""
+                import string as helper;
+                var obj : {
+                    fn helper() {
+                        return helper.trim(" hi ");
+                    }
+                };
+                $obj.helper();
+                """));
+    }
+
+    @Test
+    void namespaceCallInsideDifferentlyNamedMethodStillWorks() {
+        assertEquals("hi", backend.runAndGetValue("""
+                import string as str;
+                var obj : {
+                    fn run() {
+                        return str.trim(" hi ");
+                    }
+                };
+                $obj.run();
+                """));
+    }
 }

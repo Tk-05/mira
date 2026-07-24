@@ -1,4 +1,4 @@
-package com.mira.compiler;
+package com.mira.compiler.support;
 
 import java.io.PrintStream;
 import java.util.ArrayDeque;
@@ -21,17 +21,18 @@ import com.mira.parser.nodes.expression.Expression.ArrayExpression;
 import com.mira.parser.nodes.expression.Expression.DumbExpression;
 import com.mira.parser.nodes.expression.Expression.ListExpression;
 import com.mira.parser.nodes.expression.Expression.MapExpression;
-import com.mira.runtime.StructTemplate;
 import com.mira.runtime.functions.Callable;
 import com.mira.runtime.functions.Promise;
 import com.mira.runtime.functions.ThrowSignal;
 import com.mira.runtime.interpreter.Environment;
 import com.mira.runtime.interpreter.Interpreter;
 import com.mira.runtime.interpreter.Namespace;
+import com.mira.runtime.interpreter.Profiler;
+import com.mira.runtime.interpreter.StructTemplate;
 import com.mira.runtime.values.NullValue;
 import com.mira.runtime.visitors.ExprVisitor;
 
-public final class Runtime {
+public final class CompiledRuntimeSupport {
 
     public static final ThreadLocal<Environment> METHOD_ENV = new ThreadLocal<>();
 
@@ -41,6 +42,38 @@ public final class Runtime {
 
     private static final ThreadLocal<Deque<StackFrame>> CALL_STACK
             = ThreadLocal.withInitial(ArrayDeque::new);
+
+    // Set only when a program is compiled with -profile; instrumentation calls below
+    // are only ever emitted into bytecode in that case (see MethodEmitter), so the
+    // null-check here is purely a safety net for stray/standalone-run instrumented
+    // .class files where no profiler was ever installed.
+    private static volatile Profiler PROFILER;
+
+    public static void setProfiler(Profiler profiler) {
+        PROFILER = profiler;
+    }
+
+    public static Profiler getProfiler() {
+        return PROFILER;
+    }
+
+    public static void profilerStart() {
+        if (PROFILER != null) {
+            PROFILER.start();
+        }
+    }
+
+    public static void profilerStop(String name) {
+        if (PROFILER != null) {
+            PROFILER.stop(name);
+        }
+    }
+
+    public static void profilerLine(int line, String function, String module) {
+        if (PROFILER != null) {
+            PROFILER.onLine(line, function, module);
+        }
+    }
 
     public static void pushCallStack(String name, int line) {
         CALL_STACK.get().push(new StackFrame(name, line));
@@ -91,7 +124,7 @@ public final class Runtime {
         try {
             ClassLoader cl = Thread.currentThread().getContextClassLoader();
             if (cl == null) {
-                cl = Runtime.class.getClassLoader();
+                cl = CompiledRuntimeSupport.class.getClassLoader();
             }
             Class<?> cls = Class.forName(dotClassName, true, cl);
 
@@ -171,7 +204,7 @@ public final class Runtime {
         }
     }
 
-    private Runtime() {
+    private CompiledRuntimeSupport() {
     }
 
     public static Object nullVal() {
@@ -658,7 +691,7 @@ public final class Runtime {
         Environment prev = METHOD_ENV.get();
         METHOD_ENV.set(env);
         try {
-            return callable.call(null, Arrays.asList(args));
+            return callable.call(Interpreter.getInstance(), Arrays.asList(args));
         } finally {
             METHOD_ENV.set(prev);
         }
@@ -675,12 +708,16 @@ public final class Runtime {
         throw new com.mira.error.runtime.RuntimeError.LocalCallableError(name);
     }
 
+    public static void adoptGlobalsForDynamicExec(Environment globals) {
+        Interpreter.adoptAsActive(globals);
+    }
+
     public static Object callNamed(Environment globals, String name, Object[] args) {
         Object callee = globals.get(name);
         if (!(callee instanceof Callable callable)) {
             throw new NotCallableError(name + " (got: " + typeofVal(callee) + ")");
         }
-        return callable.call(null, Arrays.asList(args));
+        return callable.call(Interpreter.getInstance(), Arrays.asList(args));
     }
 
     public static Object namespaceCall(Environment globals, String ns, String fn, Object[] args) {
@@ -692,14 +729,14 @@ public final class Runtime {
         if (!(callee instanceof Callable callable)) {
             throw new NotCallableError(ns + "." + fn + " (got: " + typeofVal(callee) + ")");
         }
-        return callable.call(null, Arrays.asList(args));
+        return callable.call(Interpreter.getInstance(), Arrays.asList(args));
     }
 
     public static Object dynamicCall(Object callee, Object[] args) {
         if (!(callee instanceof Callable callable)) {
             throw new NotCallableError(String.valueOf(typeofVal(callee)));
         }
-        return callable.call(null, Arrays.asList(args));
+        return callable.call(Interpreter.getInstance(), Arrays.asList(args));
     }
 
     public static Object pipe(Object value, Object fn, Object[] extraArgs) {
@@ -711,6 +748,10 @@ public final class Runtime {
 
     public static Environment makeObject() {
         return new Environment();
+    }
+
+    public static Environment makeObject(Environment parent) {
+        return new Environment(parent);
     }
 
     public static StructTemplate makeStructTemplate(Environment defaults) {

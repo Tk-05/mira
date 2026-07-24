@@ -23,8 +23,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-import com.mira.Flags;
-import com.mira.Main;
+import com.mira.cli.Flags;
+import com.mira.runtime.FileRunner;
 import com.mira.runtime.interpreter.ImportResolver;
 
 public class BuildSystemIntegrationTest {
@@ -53,6 +53,7 @@ public class BuildSystemIntegrationTest {
         System.setErr(originalErr);
         ImportResolver.reset();
         Flags.dependencyRoots = new java.util.ArrayList<>();
+        Flags.nativeRoots = new java.util.ArrayList<>();
     }
 
     private String stdout() {
@@ -170,8 +171,9 @@ public class BuildSystemIntegrationTest {
     void resolveReturnsEmptyListForNoDeps() throws IOException {
         writeToml(projectDir, "app", "main.mira", "interpret", false);
         ProjectConfig cfg = ProjectLoader.load(projectDir.resolve("mira.toml"));
-        List<Path> roots = DependencyResolver.resolve(cfg);
-        assertTrue(roots.isEmpty());
+        DependencyResolver.Resolution resolution = DependencyResolver.resolve(cfg);
+        assertTrue(resolution.sourceRoots().isEmpty());
+        assertTrue(resolution.nativeRoots().isEmpty());
     }
 
     @Test
@@ -195,6 +197,45 @@ public class BuildSystemIntegrationTest {
                 + "[dependencies]\ndep = { path = \"dep\" }\n");
         ProjectConfig cfg = ProjectLoader.load(tomlPath);
         assertThrows(BuildException.class, () -> DependencyResolver.resolve(cfg));
+    }
+
+    @Test
+    void depsPrintsAvailableAndMissingDependencies() throws IOException {
+        Path depDir = projectDir.resolve("dep");
+        Files.createDirectories(depDir);
+        Files.writeString(depDir.resolve("mira.toml"), "[project]\nname=\"dep\"\nentry=\"d.mira\"\n");
+        Files.writeString(depDir.resolve("d.mira"), "module dep;\n");
+
+        Path tomlPath = projectDir.resolve("mira.toml");
+        Files.writeString(tomlPath,
+                "[project]\nname=\"app\"\nentry=\"main.mira\"\n"
+                + "[dependencies]\ndep = { path = \"dep\" }\n"
+                + "ghost = { path = \"does-not-exist\" }\n");
+        Files.writeString(projectDir.resolve("main.mira"), "module main;\n");
+
+        Commands.deps(new String[]{"deps"}, projectDir);
+
+        String out = stdout();
+        assertTrue(out.contains("dep"));
+        assertTrue(out.contains("available"));
+        assertTrue(out.contains("ghost"));
+        assertTrue(out.contains("missing"));
+    }
+
+    @Test
+    void depsDoesNotFetchAnything() throws IOException {
+        Path tomlPath = projectDir.resolve("mira.toml");
+        Files.writeString(tomlPath,
+                "[project]\nname=\"app\"\nentry=\"main.mira\"\n"
+                + "[native]\next = { url = \"https://example.com/nonexistent/ext.jar\", sha256 = \""
+                + "a".repeat(64) + "\" }\n");
+        Files.writeString(projectDir.resolve("main.mira"), "module main;\n");
+
+        Commands.deps(new String[]{"deps"}, projectDir);
+
+        assertTrue(stdout().contains("missing"));
+        assertFalse(Files.exists(com.mira.build.dependency.NativeArtifactFetcher.artifactDir("a".repeat(64))),
+                "mira deps must not fetch/create cache entries for declared-but-unresolved dependencies");
     }
 
     @Test
@@ -306,6 +347,38 @@ public class BuildSystemIntegrationTest {
     }
 
     @Test
+    void applyFlagsPropagatesNativeRoots() throws IOException {
+        writeMinimalProject("app", "interpret", false);
+        Path nativeDir = projectDir.resolve("native-cache-dir");
+        Files.createDirectories(nativeDir);
+        ProjectConfig cfg = ProjectLoader.find(projectDir).orElseThrow();
+        BuildContext ctx = new BuildContext(cfg, List.of(), List.of(nativeDir));
+
+        ctx.applyFlags(null);
+
+        assertTrue(Flags.nativeRoots.contains(nativeDir));
+    }
+
+    @Test
+    void applyFlagsThrowsWhenEntryIsAbsent() throws IOException {
+        Files.writeString(projectDir.resolve("mira.toml"), "[project]\nname = \"native-only\"\n");
+        ProjectConfig cfg = ProjectLoader.find(projectDir).orElseThrow();
+        BuildContext ctx = new BuildContext(cfg, List.of());
+
+        assertThrows(BuildException.class, () -> ctx.applyFlags(null));
+    }
+
+    @Test
+    void applyFlagsThrowsWhenEntryFileDoesNotExist() throws IOException {
+        Files.writeString(projectDir.resolve("mira.toml"),
+                "[project]\nname = \"app\"\nentry = \"missing.mira\"\n");
+        ProjectConfig cfg = ProjectLoader.find(projectDir).orElseThrow();
+        BuildContext ctx = new BuildContext(cfg, List.of());
+
+        assertThrows(BuildException.class, () -> ctx.applyFlags(null));
+    }
+
+    @Test
     void cleanRemovesOutputDirectory() throws IOException {
         writeToml(projectDir, "app", "main.mira", "compile", false);
         Path outDir = projectDir.resolve("out");
@@ -334,7 +407,7 @@ public class BuildSystemIntegrationTest {
 
         BuildContext ctx = Commands.requireContext(projectDir);
         ctx.applyFlags(ProjectConfig.BuildMode.INTERPRET);
-        Main.runFile(new AtomicBoolean(false));
+        FileRunner.runFile(new AtomicBoolean(false));
 
         assertTrue(stdout().contains("run-ok"));
     }
@@ -345,7 +418,7 @@ public class BuildSystemIntegrationTest {
 
         BuildContext ctx = Commands.requireContext(projectDir);
         ctx.applyFlags(ProjectConfig.BuildMode.PACKAGE, ProjectConfig.JarBundle.SLIM);
-        boolean ok = Main.runFile(new AtomicBoolean(false));
+        boolean ok = FileRunner.runFile(new AtomicBoolean(false));
         assertTrue(ok);
 
         Path jarPath = projectDir.resolve("out/main.jar");
@@ -379,7 +452,7 @@ public class BuildSystemIntegrationTest {
 
         BuildContext ctx = Commands.requireContext(projectDir);
         ctx.applyFlags(ProjectConfig.BuildMode.PACKAGE, ProjectConfig.JarBundle.SLIM);
-        boolean ok = Main.runFile(new AtomicBoolean(false));
+        boolean ok = FileRunner.runFile(new AtomicBoolean(false));
         assertTrue(ok);
 
         Path jarPath = projectDir.resolve("out/main.jar");
@@ -404,7 +477,7 @@ public class BuildSystemIntegrationTest {
 
         BuildContext ctx = Commands.requireContext(projectDir);
         ctx.applyFlags(ProjectConfig.BuildMode.PACKAGE, ProjectConfig.JarBundle.SLIM);
-        boolean ok = Main.runFile(new AtomicBoolean(false));
+        boolean ok = FileRunner.runFile(new AtomicBoolean(false));
         assertTrue(ok);
 
         Path jarPath = projectDir.resolve("out/main.jar");

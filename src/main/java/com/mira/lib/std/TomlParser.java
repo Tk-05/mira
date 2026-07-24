@@ -20,10 +20,20 @@ public class TomlParser {
                 continue;
             }
 
-            if (line.startsWith("[") && !line.startsWith("[[")) {
+            if (line.startsWith("[[")) {
+                int end = line.indexOf("]]");
+                if (end < 0) {
+                    throw new BuildException("TOML line " + (i + 1) + ": unclosed '[['");
+                }
+                String section = line.substring(2, end).trim();
+                current = getOrCreateArrayTable(root, section);
+                continue;
+            }
+
+            if (line.startsWith("[")) {
                 int end = line.indexOf(']');
                 if (end < 0) {
-                    throw new BuildException("mira.toml line " + (i + 1) + ": unclosed '['");
+                    throw new BuildException("TOML line " + (i + 1) + ": unclosed '['");
                 }
                 String section = line.substring(1, end).trim();
                 current = getOrCreateSection(root, section);
@@ -32,7 +42,7 @@ public class TomlParser {
 
             int eq = line.indexOf('=');
             if (eq < 0) {
-                throw new BuildException("mira.toml line " + (i + 1) + ": expected '='");
+                throw new BuildException("TOML line " + (i + 1) + ": expected '='");
             }
             String key = line.substring(0, eq).trim();
             String rawVal = line.substring(eq + 1).trim();
@@ -58,9 +68,44 @@ public class TomlParser {
         return cur;
     }
 
+    // [[section]] — TOML "array of tables": each occurrence appends a fresh
+    // table to a list at `path`, and becomes the table subsequent key=value
+    // lines populate, until the next [section]/[[section]]/EOF.
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> getOrCreateArrayTable(Map<String, Object> root, String path) {
+        String[] parts = path.split("\\.");
+        Map<String, Object> cur = root;
+        for (int i = 0; i < parts.length - 1; i++) {
+            Object existing = cur.get(parts[i]);
+            if (existing instanceof Map) {
+                cur = (Map<String, Object>) existing;
+            } else if (existing instanceof List) {
+                List<Object> list = (List<Object>) existing;
+                cur = (Map<String, Object>) list.get(list.size() - 1);
+            } else {
+                Map<String, Object> sub = new LinkedHashMap<>();
+                cur.put(parts[i], sub);
+                cur = sub;
+            }
+        }
+
+        String lastKey = parts[parts.length - 1];
+        Object existing = cur.get(lastKey);
+        List<Object> list;
+        if (existing instanceof List) {
+            list = (List<Object>) existing;
+        } else {
+            list = new ArrayList<>();
+            cur.put(lastKey, list);
+        }
+        Map<String, Object> table = new LinkedHashMap<>();
+        list.add(table);
+        return table;
+    }
+
     static Object parseValue(String raw, int lineNum) {
         if (raw.isEmpty()) {
-            throw new BuildException("mira.toml line " + lineNum + ": empty value");
+            throw new BuildException("TOML line " + lineNum + ": empty value");
         }
         if (raw.equals("true")) {
             return Boolean.TRUE;
@@ -88,12 +133,16 @@ public class TomlParser {
             return Long.parseLong(bare);
         } catch (NumberFormatException ignored) {
         }
-        throw new BuildException("mira.toml line " + lineNum + ": cannot parse value: " + raw);
+        try {
+            return Double.parseDouble(bare);
+        } catch (NumberFormatException ignored) {
+        }
+        throw new BuildException("TOML line " + lineNum + ": cannot parse value: " + raw);
     }
 
     static String parseString(String raw, int lineNum) {
         if (!raw.startsWith("\"")) {
-            throw new BuildException("mira.toml line " + lineNum + ": expected '\"'");
+            throw new BuildException("TOML line " + lineNum + ": expected '\"'");
         }
         StringBuilder sb = new StringBuilder();
         boolean escaped = false;
@@ -123,7 +172,7 @@ public class TomlParser {
                 sb.append(c);
             }
         }
-        throw new BuildException("mira.toml line " + lineNum + ": unclosed string");
+        throw new BuildException("TOML line " + lineNum + ": unclosed string");
     }
 
     static List<String> parseArray(String raw, int lineNum) {
@@ -181,7 +230,7 @@ public class TomlParser {
         int start = raw.indexOf('{') + 1;
         int end = raw.lastIndexOf('}');
         if (end < 0) {
-            throw new BuildException("mira.toml line " + lineNum + ": unclosed '{'");
+            throw new BuildException("TOML line " + lineNum + ": unclosed '{'");
         }
         String inner = raw.substring(start, end).trim();
         if (inner.isEmpty()) {
@@ -202,7 +251,7 @@ public class TomlParser {
                 i++;
             }
             if (i >= inner.length()) {
-                throw new BuildException("mira.toml line " + lineNum + ": expected '=' in inline table");
+                throw new BuildException("TOML line " + lineNum + ": expected '=' in inline table");
             }
             String key = inner.substring(keyStart, i).trim();
             i++; // skip '='
@@ -211,7 +260,7 @@ public class TomlParser {
             }
 
             if (i >= inner.length()) {
-                throw new BuildException("mira.toml line " + lineNum + ": missing value in inline table");
+                throw new BuildException("TOML line " + lineNum + ": missing value in inline table");
             }
 
             if (inner.charAt(i) == '"') {

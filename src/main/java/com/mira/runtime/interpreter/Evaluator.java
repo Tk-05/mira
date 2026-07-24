@@ -1,6 +1,9 @@
 package com.mira.runtime.interpreter;
 
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Pattern;
 
 import com.mira.error.parser.ParserError.LexemeMismatchError;
@@ -13,12 +16,34 @@ public class Evaluator {
 
     private static final Pattern NUMBER_PATTERN = Pattern.compile("-?(0[xX][0-9a-fA-F]+|\\d+(\\.\\d+)?)");
 
+    private static final ThreadLocal<Tokenizer> TOKENIZER = ThreadLocal.withInitial(Tokenizer::new);
+    private static final ThreadLocal<Evaluator> INSTANCE = ThreadLocal.withInitial(Evaluator::new);
+
+    private record CacheKey(String expression, boolean ignoreSequences) {
+
+    }
+
+    private static final int EVAL_CACHE_MAX = 512;
+    private static final Map<CacheKey, Object> CACHE = Collections.synchronizedMap(
+            new LinkedHashMap<>(16, 0.75f, true) {
+        @Override
+        protected boolean removeEldestEntry(Map.Entry<CacheKey, Object> eldest) {
+            return size() > EVAL_CACHE_MAX;
+        }
+    });
+
     private List<Token> tokens;
     private int current;
 
     public static Object evaluate(String expression, boolean ignoreSequences) {
-        Tokenizer tokenizer = new Tokenizer();
-        Evaluator evaluator = new Evaluator();
+        CacheKey cacheKey = new CacheKey(expression, ignoreSequences);
+        Object cached = CACHE.get(cacheKey);
+        if (cached != null) {
+            return cached;
+        }
+
+        Tokenizer tokenizer = TOKENIZER.get();
+        Evaluator evaluator = INSTANCE.get();
         evaluator.tokens = tokenizer.tokenize(expression, ignoreSequences);
         evaluator.current = 0;
 
@@ -29,6 +54,7 @@ public class Evaluator {
             throw new UnexpectedToken(unexpected, unexpected.getLexeme());
         }
 
+        CACHE.put(cacheKey, result);
         return result;
     }
 

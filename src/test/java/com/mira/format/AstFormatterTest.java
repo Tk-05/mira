@@ -1,4 +1,4 @@
-package com.mira.lsp;
+package com.mira.format;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import org.junit.jupiter.api.Test;

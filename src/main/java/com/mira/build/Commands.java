@@ -7,13 +7,15 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Comparator;
-import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
 
-import com.mira.Flags;
-import com.mira.Main;
+import com.mira.build.dependency.DependencyGraphInspector;
+import com.mira.build.dependency.DependencyTreePrinter;
+import com.mira.build.dependency.LocalRegistry;
+import com.mira.cli.Flags;
 import com.mira.error.DiagnosticFormatter;
+import com.mira.runtime.FileRunner;
 
 public class Commands {
 
@@ -79,6 +81,35 @@ public class Commands {
         System.out.println("\nProject '" + name + "' initialized. Run 'mira run' to start.");
     }
 
+    public static void install(String[] args) {
+        install(args, Paths.get("").toAbsolutePath());
+    }
+
+    static void install(String[] args, Path workDir) {
+        ProjectConfig config = ProjectLoader.find(workDir)
+                .orElseThrow(() -> new BuildException(
+                """
+                        No mira.toml found in current directory or any parent.
+                        Run 'mira init' to create a new project."""));
+        Path dest = LocalRegistry.install(
+                config.name(), config.version(), config.projectRoot(), config.build().outputDir());
+        System.out.println("Installed " + config.name() + " " + config.version() + " -> " + dest);
+    }
+
+    public static void deps(String[] args) {
+        deps(args, Paths.get("").toAbsolutePath());
+    }
+
+    static void deps(String[] args, Path workDir) {
+        ProjectConfig config = ProjectLoader.find(workDir)
+                .orElseThrow(() -> new BuildException(
+                """
+                        No mira.toml found in current directory or any parent.
+                        Run 'mira init' to create a new project."""));
+        DependencyGraphInspector.DepNode root = DependencyGraphInspector.buildTree(config);
+        DependencyTreePrinter.print(root);
+    }
+
     public static void build(String[] args) {
         boolean watch = Arrays.asList(args).contains("--watch");
         BuildOverrides overrides = parseOverrides(args, 1);
@@ -94,6 +125,8 @@ public class Commands {
                 projectDir = args[++i];
             } else if ("--no-warn".equals(args[i])) {
                 Flags.suppressWarnings = true;
+            } else if ("--profile".equals(args[i])) {
+                Flags.profile = true;
             } else if ("--".equals(args[i])) {
                 programArgs = Arrays.copyOfRange(args, i + 1, args.length);
                 break;
@@ -120,7 +153,7 @@ public class Commands {
             Flags.args = programArgs;
         }
         BuildRunner.runHook(ctx, ctx.config().build().preRun());
-        boolean ok = Main.runFile(new AtomicBoolean(false));
+        boolean ok = FileRunner.runFile(new AtomicBoolean(false));
         if (!ok) {
             System.err.println(DiagnosticFormatter.formatFail("run failed"));
             System.exit(1);
@@ -154,6 +187,9 @@ public class Commands {
         if (args.length < 2) {
             TaskRunner.listTasks(ctx.config());
             return;
+        }
+        if (Arrays.asList(args).contains("--profile")) {
+            Flags.profile = true;
         }
         TaskRunner.runTask(ctx, args[1]);
     }
@@ -215,8 +251,8 @@ public class Commands {
                 """
                         No mira.toml found in current directory or any parent.
                         Run 'mira init' to create a new project."""));
-        List<Path> depRoots = DependencyResolver.resolve(config);
-        return new BuildContext(config, depRoots);
+        DependencyResolver.Resolution resolution = DependencyResolver.resolve(config);
+        return new BuildContext(config, resolution.sourceRoots(), resolution.nativeRoots());
     }
 
     private static ProjectConfig.BuildMode parseBuildMode(String s) {

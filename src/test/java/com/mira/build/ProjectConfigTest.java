@@ -69,7 +69,8 @@ public class ProjectConfigTest {
         assertEquals(List.of("extra.mira"), cfg.test().extra());
 
         assertTrue(cfg.dependencies().containsKey("lib"));
-        assertEquals(root.resolve("../lib").normalize(), cfg.dependencies().get("lib").path());
+        assertEquals(root.resolve("../lib").normalize(),
+                ((ProjectConfig.Dependency.PathDependency) cfg.dependencies().get("lib")).path());
     }
 
     @Test
@@ -229,9 +230,10 @@ public class ProjectConfigTest {
     }
 
     @Test
-    void missingEntryThrows() {
+    void entryIsNullWhenAbsent() {
         Map<String, Object> map = Map.of("project", section("name", "app"));
-        assertThrows(BuildException.class, () -> ProjectConfig.fromMap(map, root));
+        ProjectConfig cfg = ProjectConfig.fromMap(map, root);
+        assertNull(cfg.entry());
     }
 
     @Test
@@ -239,6 +241,104 @@ public class ProjectConfigTest {
         Map<String, Object> map = Map.of(
                 "project", section("entry", "main.mira"),
                 "dependencies", Map.of("bad-dep", section("git", "https://example.com"))
+        );
+        assertThrows(BuildException.class, () -> ProjectConfig.fromMap(map, root));
+    }
+
+    @Test
+    void nativeSectionEmptyWhenAbsent() {
+        Map<String, Object> map = Map.of("project", section("entry", "main.mira"));
+        ProjectConfig cfg = ProjectConfig.fromMap(map, root);
+        assertTrue(cfg.nativeDependencies().isEmpty());
+    }
+
+    @Test
+    void nativeDependencyParsed() {
+        String sha = "a".repeat(64);
+        Map<String, Object> map = Map.of(
+                "project", section("entry", "main.mira"),
+                "native", Map.of(
+                        "raylib", section("url", "https://example.com/raylib.jar", "sha256", sha)
+                )
+        );
+        ProjectConfig cfg = ProjectConfig.fromMap(map, root);
+        ProjectConfig.NativeDependency dep = cfg.nativeDependencies().get("raylib");
+        assertNotNull(dep);
+        assertEquals("https://example.com/raylib.jar", dep.url());
+        assertEquals(sha, dep.sha256());
+    }
+
+    @Test
+    void nativeDependencySha256IsLowercased() {
+        String sha = "A".repeat(64);
+        Map<String, Object> map = Map.of(
+                "project", section("entry", "main.mira"),
+                "native", Map.of(
+                        "raylib", section("url", "https://example.com/raylib.jar", "sha256", sha)
+                )
+        );
+        ProjectConfig cfg = ProjectConfig.fromMap(map, root);
+        assertEquals(sha.toLowerCase(java.util.Locale.ROOT), cfg.nativeDependencies().get("raylib").sha256());
+    }
+
+    @Test
+    void nativeDependencyMissingUrlThrows() {
+        Map<String, Object> map = Map.of(
+                "project", section("entry", "main.mira"),
+                "native", Map.of("raylib", section("sha256", "a".repeat(64)))
+        );
+        assertThrows(BuildException.class, () -> ProjectConfig.fromMap(map, root));
+    }
+
+    @Test
+    void nativeDependencyMissingSha256Throws() {
+        Map<String, Object> map = Map.of(
+                "project", section("entry", "main.mira"),
+                "native", Map.of("raylib", section("url", "https://example.com/raylib.jar"))
+        );
+        assertThrows(BuildException.class, () -> ProjectConfig.fromMap(map, root));
+    }
+
+    @Test
+    void nativeDependencyFileUrlWithoutSha256IsAllowed() {
+        Map<String, Object> map = Map.of(
+                "project", section("entry", "main.mira"),
+                "native", Map.of("raylib", section("url", "file:///C:/raylib.jar"))
+        );
+        ProjectConfig cfg = ProjectConfig.fromMap(map, root);
+        ProjectConfig.NativeDependency dep = cfg.nativeDependencies().get("raylib");
+        assertNotNull(dep);
+        assertNull(dep.sha256());
+    }
+
+    @Test
+    void nativeDependencyFileUrlWithSha256StillValidatesFormat() {
+        Map<String, Object> map = Map.of(
+                "project", section("entry", "main.mira"),
+                "native", Map.of("raylib", section("url", "file:///C:/raylib.jar", "sha256", "not-a-hash"))
+        );
+        assertThrows(BuildException.class, () -> ProjectConfig.fromMap(map, root));
+    }
+
+    @Test
+    void nativeDependencyInvalidSha256Throws() {
+        Map<String, Object> map = Map.of(
+                "project", section("entry", "main.mira"),
+                "native", Map.of(
+                        "raylib", section("url", "https://example.com/raylib.jar", "sha256", "not-a-hash")
+                )
+        );
+        assertThrows(BuildException.class, () -> ProjectConfig.fromMap(map, root));
+    }
+
+    @Test
+    void nativeDependencyUnknownKeyThrows() {
+        Map<String, Object> map = Map.of(
+                "project", section("entry", "main.mira"),
+                "native", Map.of(
+                        "raylib", section("url", "https://example.com/raylib.jar",
+                                "sha256", "a".repeat(64), "bogus", "x")
+                )
         );
         assertThrows(BuildException.class, () -> ProjectConfig.fromMap(map, root));
     }

@@ -9,16 +9,18 @@ import org.eclipse.lsp4j.Hover;
 import org.eclipse.lsp4j.MarkupContent;
 import org.eclipse.lsp4j.MarkupKind;
 import org.eclipse.lsp4j.Position;
+import org.eclipse.lsp4j.Range;
 
 import com.mira.parser.nodes.Node;
 import com.mira.parser.nodes.Parameter;
 import com.mira.parser.nodes.expression.Expression.ObjectExpression;
+import com.mira.parser.nodes.expression.Expression.StructExpression;
 import com.mira.parser.nodes.statement.Statement;
 import com.mira.parser.nodes.statement.Statement.ComptimeBlock;
 
 public class HoverProvider {
 
-    private static final Map<String, String> STDLIB_DOCS;
+    static final Map<String, String> STDLIB_DOCS;
 
     static {
         STDLIB_DOCS = new HashMap<>();
@@ -221,6 +223,22 @@ public class HoverProvider {
                     sb.append("}\n```");
                     return hover(sb.toString());
                 }
+                if (v.getInitializer() instanceof StructExpression st) {
+                    StringBuilder sb = new StringBuilder("```mira\n")
+                            .append(kind).append(" $").append(v.getName()).append(" struct {\n");
+                    for (Statement.VarDecl f : st.getVarDecls()) {
+                        sb.append("    ").append(f.isConst() ? "const" : "var")
+                                .append(" ").append(f.getName()).append("\n");
+                    }
+                    for (Statement.FuncDecl m : st.getMethods()) {
+                        String params = m.getParameters().stream()
+                                .map(Parameter::name).collect(Collectors.joining(", "));
+                        sb.append("    fn ").append(m.getName())
+                                .append("(").append(params).append(")\n");
+                    }
+                    sb.append("}\n```");
+                    return hover(sb.toString());
+                }
                 return hover("```mira\n" + kind + " $" + v.getName() + "\n```");
             }
             if (n instanceof ComptimeBlock comptime) {
@@ -291,6 +309,22 @@ public class HoverProvider {
                 }
             }
         }
+        if (n instanceof StructExpression st) {
+            for (Statement.VarDecl f : st.getVarDecls()) {
+                if (f.getName().equals(fieldName)) {
+                    String kind = f.isConst() ? "const" : "var";
+                    return hover("```mira\n" + kind + " " + f.getName() + "\n```\n*struct field*");
+                }
+            }
+            for (Statement.FuncDecl m : st.getMethods()) {
+                if (m.getName().equals(fieldName)) {
+                    String params = m.getParameters().stream()
+                            .map(Parameter::name)
+                            .collect(Collectors.joining(", "));
+                    return hover("```mira\nfn " + m.getName() + "(" + params + ")\n```\n*struct method*");
+                }
+            }
+        }
         if (n instanceof Statement.VarDecl vd && vd.getInitializer() != null) {
             return searchNodeForField(vd.getInitializer(), fieldName);
         }
@@ -303,6 +337,30 @@ public class HoverProvider {
             }
         }
         return null;
+    }
+
+    static Range wordRangeAt(String content, Position pos) {
+        String[] lines = content.split("\n", -1);
+        if (pos.getLine() >= lines.length) {
+            return null;
+        }
+        String line = lines[pos.getLine()];
+        int col = Math.min(pos.getCharacter(), line.length());
+
+        int start = col;
+        while (start > 0 && isWordChar(line.charAt(start - 1))) {
+            start--;
+        }
+
+        int end = col;
+        while (end < line.length() && isWordChar(line.charAt(end))) {
+            end++;
+        }
+
+        if (start >= end) {
+            return null;
+        }
+        return new Range(new Position(pos.getLine(), start), new Position(pos.getLine(), end));
     }
 
     static String wordAt(String content, Position pos) {

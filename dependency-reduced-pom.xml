@@ -12,7 +12,7 @@
         <configuration>
           <archive>
             <manifest>
-              <mainClass>com.mira.Main</mainClass>
+              <mainClass>com.mira.cli.Main</mainClass>
             </manifest>
           </archive>
         </configuration>
@@ -30,7 +30,7 @@
               <finalName>mira-RELEASE</finalName>
               <transformers>
                 <transformer>
-                  <mainClass>com.mira.Main</mainClass>
+                  <mainClass>com.mira.cli.Main</mainClass>
                 </transformer>
               </transformers>
               <filters>

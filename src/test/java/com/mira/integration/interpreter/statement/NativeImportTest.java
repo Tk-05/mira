@@ -15,7 +15,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import com.mira.Flags;
+import com.mira.cli.Flags;
 import com.mira.error.parser.MultipleParserErrors;
 import com.mira.error.runtime.RuntimeError.NativeLibNoImplementationError;
 import com.mira.error.runtime.RuntimeError.NativeLibNotFoundError;
@@ -30,6 +30,7 @@ import com.mira.runtime.interpreter.ImportResolver;
 public class NativeImportTest extends AbstractNativeImportTests {
 
     public static class GreetLib implements Lib {
+
         @Override
         public void loadLib(Environment env) {
             env.define("greet", new NativeFunction(1, args -> "hello " + args.get(0)));
@@ -55,8 +56,12 @@ public class NativeImportTest extends AbstractNativeImportTests {
     @AfterAll
     static void cleanupFixtureJars() throws Exception {
         ImportResolver.reset();
-        if (greetJar != null) Files.deleteIfExists(greetJar);
-        if (emptyJar != null) Files.deleteIfExists(emptyJar);
+        if (greetJar != null) {
+            Files.deleteIfExists(greetJar);
+        }
+        if (emptyJar != null) {
+            Files.deleteIfExists(emptyJar);
+        }
     }
 
     @BeforeEach
@@ -64,10 +69,13 @@ public class NativeImportTest extends AbstractNativeImportTests {
         backend.reset();
         ImportResolver.reset();
         Flags.inputPath.set(Paths.get(System.getProperty("user.dir")).toAbsolutePath());
+        Flags.nativeRoots = new java.util.ArrayList<>();
     }
 
     @Override
-    protected String runForOutput(String source) { return backend.run(source); }
+    protected String runForOutput(String source) {
+        return backend.run(source);
+    }
 
     @Test
     void missingJarThrowsNativeLibNotFoundError() {
@@ -131,6 +139,39 @@ public class NativeImportTest extends AbstractNativeImportTests {
                 a.greet("x") + b.greet("y");
                 """.formatted(path, path));
         assertEquals("hello xhello y", result);
+    }
+
+    @Test
+    void bareBasenameResolvedViaFlagsNativeRoots() {
+        Flags.nativeRoots = java.util.List.of(greetJar.getParent());
+        String basename = greetJar.getFileName().toString();
+
+        Object result = backend.runAndGetValue(
+                "import native \"" + basename + "\" as ext; ext.greet(\"world\");");
+
+        assertEquals("hello world", result);
+    }
+
+    @Test
+    void literalPathStillWinsWhenNativeRootsHasUnrelatedEntry() throws Exception {
+        Path unrelatedDir = Files.createTempDirectory("mira-unrelated-native-root");
+        Flags.nativeRoots = java.util.List.of(unrelatedDir);
+
+        Object result = backend.runAndGetValue(
+                "import native \"" + escaped(greetJar) + "\" as ext; ext.greet(\"world\");");
+
+        assertEquals("hello world", result);
+        Files.deleteIfExists(unrelatedDir);
+    }
+
+    @Test
+    void missingBasenameFallsThroughToLiteralPathAndStillThrowsNotFoundError() throws Exception {
+        Path unrelatedDir = Files.createTempDirectory("mira-unrelated-native-root-2");
+        Flags.nativeRoots = java.util.List.of(unrelatedDir);
+
+        assertThrows(NativeLibNotFoundError.class, ()
+                -> backend.runAndGetValue("import native \"/nonexistent/path/that/does/not/exist.jar\" as ext;"));
+        Files.deleteIfExists(unrelatedDir);
     }
 
     private static Path buildJarWithLib(Class<? extends Lib> libClass) throws Exception {

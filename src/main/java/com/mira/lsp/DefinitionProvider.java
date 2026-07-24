@@ -32,6 +32,7 @@ import com.mira.parser.nodes.statement.Statement.Switch;
 import com.mira.parser.nodes.statement.Statement.TryCatch;
 import com.mira.parser.nodes.statement.Statement.VarDecl;
 import com.mira.parser.nodes.statement.Statement.While;
+import com.mira.utils.ModuleResolver;
 
 public class DefinitionProvider {
 
@@ -69,11 +70,7 @@ public class DefinitionProvider {
                 continue;
             }
 
-            String raw = imp.getModule().replace("\"", "");
-            if (!raw.endsWith(".mira")) {
-                raw += ".mira";
-            }
-            Path modPath = docPath.getParent().resolve(raw).normalize();
+            Path modPath = ModuleResolver.resolveModulePath(imp.getModule(), docPath);
 
             if (alias.equals(stripped)) {
                 if (Files.exists(modPath)) {
@@ -90,7 +87,6 @@ public class DefinitionProvider {
         return null;
     }
 
-    // --- Field access (dot notation) ---
     private static String objectBefore(String content, Position pos) {
         String[] lines = content.split("\n", -1);
         if (pos.getLine() >= lines.length) {
@@ -134,11 +130,7 @@ public class DefinitionProvider {
                     if (n instanceof ImportExpression imp
                             && imp.getKind() == ImportExpression.ImportKind.MODULE
                             && objectName.equals(imp.getNamespace())) {
-                        String raw = imp.getModule().replace("\"", "");
-                        if (!raw.endsWith(".mira")) {
-                            raw += ".mira";
-                        }
-                        Path modPath = docPath.getParent().resolve(raw).normalize();
+                        Path modPath = ModuleResolver.resolveModulePath(imp.getModule(), docPath);
                         Location loc = searchInModule(modPath, fieldName, null);
                         if (loc == null) {
                             loc = searchInModuleForField(modPath, fieldName);
@@ -150,12 +142,10 @@ public class DefinitionProvider {
                 }
             }
         }
-        // 3. Fallback: scan all objects/structs in file
         return findFieldInAllNodes(ast, fieldName, uri, content);
     }
 
-    // --- Type resolution ---
-    private static Node resolveObjectType(List<Node> ast, String objectName) {
+    static Node resolveObjectType(List<Node> ast, String objectName) {
         for (Node n : ast) {
             Node t = resolveTypeInNode(n, objectName, ast);
             if (t != null) {
@@ -266,7 +256,24 @@ public class DefinitionProvider {
         return null;
     }
 
-    // --- Field search in a concrete type ---
+    static FuncDecl findMethodInType(Node type, String methodName) {
+        if (type instanceof ObjectExpression obj) {
+            for (FuncDecl m : obj.getMethods()) {
+                if (m.getName().equals(methodName)) {
+                    return m;
+                }
+            }
+        }
+        if (type instanceof StructExpression st) {
+            for (FuncDecl m : st.getMethods()) {
+                if (m.getName().equals(methodName)) {
+                    return m;
+                }
+            }
+        }
+        return null;
+    }
+
     private static Location searchFieldInType(Node type, String fieldName, String uri, String content) {
         if (type instanceof ObjectExpression obj) {
             for (VarDecl f : obj.getVarDecls()) {
@@ -298,7 +305,6 @@ public class DefinitionProvider {
         return null;
     }
 
-    // --- Fallback: scan all ObjectExpression + StructExpression in file ---
     private static Location findFieldInAllNodes(List<Node> ast, String fieldName, String uri, String content) {
         for (Node n : ast) {
             Location loc = findFieldInNode(n, fieldName, uri, content);
@@ -348,7 +354,6 @@ public class DefinitionProvider {
         return null;
     }
 
-    // --- Variable/Function definition search ---
     private static Location findInNodes(List<Node> nodes, String name, String uri, String content) {
         for (Node n : nodes) {
             Location loc = findInNode(n, name, uri, content);
@@ -441,7 +446,6 @@ public class DefinitionProvider {
         return null;
     }
 
-    // --- Module search ---
     private static Location searchInModule(Path modPath, String name, String fieldName) {
         if (!Files.exists(modPath)) {
             return null;
@@ -470,41 +474,12 @@ public class DefinitionProvider {
         return null;
     }
 
-    // --- Location helpers ---
     private static Location locationForDecl(String uri, String content, int line, int nameColumn, String name) {
-        int lspLine = Math.max(line - 1, 0);
-        int col;
-        if (nameColumn > 0) {
-            col = nameColumn - 1;
-        } else {
-            col = 0;
-            String[] lines = content.split("\n", -1);
-            if (lspLine < lines.length) {
-                int idx = lines[lspLine].indexOf(name);
-                if (idx >= 0) {
-                    col = idx;
-                }
-            }
-        }
-        return new Location(uri, new Range(
-                new Position(lspLine, col),
-                new Position(lspLine, col + name.length())));
+        return new Location(uri, LspPositions.nameRange(content, line, nameColumn, name));
     }
 
     private static Location locationFor(String uri, String content, int line, String name) {
-        int lspLine = Math.max(line - 1, 0);
-        String[] lines = content.split("\n", -1);
-        int col = 0;
-        if (lspLine < lines.length) {
-            int idx = lines[lspLine].indexOf(name);
-            if (idx >= 0) {
-                col = idx;
-            }
-        }
-        Range range = new Range(
-                new Position(lspLine, col),
-                new Position(lspLine, col + name.length()));
-        return new Location(uri, range);
+        return new Location(uri, LspPositions.nameRange(content, line, 0, name));
     }
 
     private static Path uriToPath(String uri) {

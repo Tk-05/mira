@@ -1,19 +1,26 @@
 package com.mira.build;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.mira.Flags;
+import com.mira.cli.Flags;
 
 public class BuildContext {
 
     private final ProjectConfig config;
     private final List<Path> depRoots;
+    private final List<Path> nativeRoots;
 
     public BuildContext(ProjectConfig config, List<Path> depRoots) {
+        this(config, depRoots, List.of());
+    }
+
+    public BuildContext(ProjectConfig config, List<Path> depRoots, List<Path> nativeRoots) {
         this.config = config;
         this.depRoots = depRoots;
+        this.nativeRoots = nativeRoots;
     }
 
     public ProjectConfig config() {
@@ -24,6 +31,10 @@ public class BuildContext {
         return depRoots;
     }
 
+    public List<Path> nativeRoots() {
+        return nativeRoots;
+    }
+
     public void applyFlags(ProjectConfig.BuildMode modeOverride) {
         applyFlags(modeOverride, null);
     }
@@ -32,10 +43,19 @@ public class BuildContext {
         ProjectConfig.BuildConfig bc = config.build();
         ProjectConfig.BuildMode mode = modeOverride != null ? modeOverride : bc.mode();
 
+        if (config.entry() == null) {
+            throw new BuildException(
+                    "mira.toml: [project] entry is required to build, run, or test this project "
+                    + "(this package has no entry point of its own — e.g. a native-only package like extern/raylib)");
+        }
+        if (!Files.exists(config.entry())) {
+            throw new BuildException("mira.toml: [project] entry file does not exist: " + config.entry());
+        }
         Flags.inputPath.set(config.entry());
         Flags.mainFunction = bc.main();
         Flags.args = bc.args().length > 0 ? bc.args() : null;
         Flags.dependencyRoots = new ArrayList<>(depRoots);
+        Flags.nativeRoots = new ArrayList<>(nativeRoots);
 
         Flags.testMode = false;
         Flags.hotReload = false;

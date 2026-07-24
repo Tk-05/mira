@@ -7,7 +7,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-import com.mira.Flags;
+import com.mira.cli.Flags;
 import com.mira.parser.nodes.Node;
 import com.mira.parser.nodes.statement.Statement.ComptimeBlock;
 import com.mira.runtime.interpreter.Interpreter;

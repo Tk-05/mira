@@ -5,7 +5,7 @@ import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 
-import com.mira.Flags;
+import com.mira.cli.Flags;
 import com.mira.error.resolver.StaticCheckError;
 import com.mira.error.runtime.RuntimeError;
 import com.mira.warning.Warning;

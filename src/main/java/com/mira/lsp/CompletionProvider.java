@@ -25,13 +25,18 @@ import com.mira.parser.Parser;
 import com.mira.parser.nodes.Node;
 import com.mira.parser.nodes.Parameter;
 import com.mira.parser.nodes.expression.Expression;
+import com.mira.parser.nodes.expression.Expression.DumbExpression;
 import com.mira.parser.nodes.expression.Expression.ObjectExpression;
+import com.mira.parser.nodes.expression.Expression.StructExpression;
+import com.mira.parser.nodes.expression.Expression.StructInitExpression;
+import com.mira.parser.nodes.expression.Expression.UnaryExpression;
 import com.mira.parser.nodes.statement.Statement.ComptimeBlock;
 import com.mira.parser.nodes.statement.Statement.FuncDecl;
 import com.mira.parser.nodes.statement.Statement.VarDecl;
 import com.mira.runtime.functions.Callable;
 import com.mira.runtime.functions.NativeFunction;
 import com.mira.runtime.interpreter.Environment;
+import com.mira.utils.ModuleResolver;
 
 public class CompletionProvider {
 
@@ -43,10 +48,7 @@ public class CompletionProvider {
             "exec", "exec isolated", "comptime", "static_assert", "pub", "struct"
     );
 
-    private static final List<String> GLOBALS = List.of(
-            "print", "println", "scan", "eval", "length", "assert", "exit",
-            "readFile", "writeFile", "args"
-    );
+    private static final List<String> GLOBALS = List.copyOf(LibIndex.GLOBAL_NAMES);
 
     private static final Map<String, List<String>> STDLIB;
     private static final Map<String, String> STDLIB_PARAMS;
@@ -85,12 +87,12 @@ public class CompletionProvider {
             items.add(item);
         }
 
-        collectFromNodes(ast, items);
+        collectFromNodes(ast, ast, items);
         collectFromImports(ast, documentUri, items);
         return items;
     }
 
-    private static void collectFromNodes(List<Node> nodes, List<CompletionItem> items) {
+    private static void collectFromNodes(List<Node> nodes, List<Node> rootAst, List<CompletionItem> items) {
         for (Node node : nodes) {
             switch (node) {
                 case VarDecl v -> {
@@ -112,6 +114,13 @@ public class CompletionProvider {
                             mi.setDetail("fn " + m.getName() + "(" + params + ")");
                             items.add(mi);
                         }
+                    } else if (v.getInitializer() instanceof StructExpression st) {
+                        addStructMemberItems(v.getName(), st, items);
+                    } else if (v.getInitializer() instanceof StructInitExpression si) {
+                        String templateName = extractName(si.getTarget());
+                        if (templateName != null && resolveStructTemplate(rootAst, templateName) instanceof StructExpression st) {
+                            addStructMemberItems(v.getName(), st, items);
+                        }
                     }
                 }
                 case FuncDecl f -> {
@@ -123,7 +132,7 @@ public class CompletionProvider {
                                     .map(Parameter::name)
                                     .collect(Collectors.joining(", ")) + ")");
                     items.add(item);
-                    collectFromNodes(f.getBody(), items);
+                    collectFromNodes(f.getBody(), rootAst, items);
                 }
                 case ComptimeBlock comptime -> {
                     for (Node bodyNode : comptime.getBody()) {
@@ -139,6 +148,50 @@ public class CompletionProvider {
                 }
             }
         }
+    }
+
+    private static void addStructMemberItems(String varName, StructExpression st, List<CompletionItem> items) {
+        for (VarDecl f : st.getVarDecls()) {
+            CompletionItem fi = new CompletionItem("$" + varName + "." + f.getName());
+            fi.setKind(CompletionItemKind.Field);
+            fi.setDetail((f.isConst() ? "const" : "var") + " " + f.getName() + " (struct)");
+            items.add(fi);
+        }
+        for (FuncDecl m : st.getMethods()) {
+            String params = m.getParameters().stream()
+                    .map(Parameter::name).collect(Collectors.joining(", "));
+            CompletionItem mi = new CompletionItem("$" + varName + "." + m.getName());
+            mi.setKind(CompletionItemKind.Method);
+            mi.setDetail("fn " + m.getName() + "(" + params + ") (struct)");
+            items.add(mi);
+        }
+    }
+
+    private static String extractName(Expression expr) {
+        if (expr instanceof UnaryExpression u
+                && "$".equals(u.getOperation().getLexeme())
+                && u.getRight() instanceof DumbExpression d) {
+            return d.getValue();
+        }
+        if (expr instanceof DumbExpression d) {
+            return d.getValue();
+        }
+        return null;
+    }
+
+    private static Node resolveStructTemplate(List<Node> ast, String templateName) {
+        for (Node n : ast) {
+            if (n instanceof VarDecl vd && vd.getName().equals(templateName)) {
+                return vd.getInitializer();
+            }
+            if (n instanceof FuncDecl f) {
+                Node t = resolveStructTemplate(f.getBody(), templateName);
+                if (t != null) {
+                    return t;
+                }
+            }
+        }
+        return null;
     }
 
     private static void collectFromImports(List<Node> ast, String documentUri, List<CompletionItem> items) {
@@ -176,8 +229,7 @@ public class CompletionProvider {
                 }
                 case MODULE -> {
                     if (docPath != null) {
-                        String rawPath = imp.getModule().replace("\"", "");
-                        Path modulePath = docPath.getParent().resolve(rawPath).normalize();
+                        Path modulePath = ModuleResolver.resolveModulePath(imp.getModule(), docPath);
                         addModuleFunctions(modulePath, alias, items);
                     }
                 }
