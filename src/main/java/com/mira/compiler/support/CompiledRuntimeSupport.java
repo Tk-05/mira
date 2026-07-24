@@ -27,8 +27,8 @@ import com.mira.runtime.functions.ThrowSignal;
 import com.mira.runtime.interpreter.Environment;
 import com.mira.runtime.interpreter.Interpreter;
 import com.mira.runtime.interpreter.Namespace;
-import com.mira.runtime.interpreter.StructTemplate;
 import com.mira.runtime.interpreter.Profiler;
+import com.mira.runtime.interpreter.StructTemplate;
 import com.mira.runtime.values.NullValue;
 import com.mira.runtime.visitors.ExprVisitor;
 
@@ -748,6 +748,10 @@ public final class CompiledRuntimeSupport {
 
     public static Environment makeObject() {
         return new Environment();
+    }
+
+    public static Environment makeObject(Environment parent) {
+        return new Environment(parent);
     }
 
     public static StructTemplate makeStructTemplate(Environment defaults) {

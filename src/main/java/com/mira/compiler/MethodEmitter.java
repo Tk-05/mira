@@ -857,7 +857,8 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
 
     @Override
     public <T> T visitObjectExpression(ObjectExpression expression) {
-        mv.visitMethodInsn(INVOKESTATIC, RT, "makeObject", "()" + ENV_D, false);
+        emitGlobals();
+        mv.visitMethodInsn(INVOKESTATIC, RT, "makeObject", "(" + ENV_D + ")" + ENV_D, false);
         int objSlot = ctx.slots.allocate("$$obj$" + ctx.lambdaCounter[0]);
         mv.visitVarInsn(ASTORE, objSlot);
 
@@ -901,7 +902,8 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
 
     @Override
     public <T> T visitStructExpression(StructExpression expression) {
-        mv.visitMethodInsn(INVOKESTATIC, RT, "makeObject", "()" + ENV_D, false);
+        emitGlobals();
+        mv.visitMethodInsn(INVOKESTATIC, RT, "makeObject", "(" + ENV_D + ")" + ENV_D, false);
         int envSlot = ctx.slots.allocate("$$structdefaults$" + ctx.lambdaCounter[0]);
         mv.visitVarInsn(ASTORE, envSlot);
 
@@ -1411,6 +1413,7 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
         Label loopEnd = new Label(), continueLabel = new Label();
         ctx.breakStack.push(loopEnd);
         ctx.continueStack.push(continueLabel);
+        ctx.slots.enterScope();
 
         if (stmt.getCollection() instanceof RangeExpression range) {
             range.getStart().accept(this);
@@ -1489,6 +1492,7 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
         mv.visitLabel(loopEnd);
         ctx.breakStack.pop();
         ctx.continueStack.pop();
+        ctx.slots.exitScope();
         return null;
     }
 

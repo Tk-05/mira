@@ -179,7 +179,7 @@ public class Environment {
     }
 
     public Environment copyShallow() {
-        Environment copy = new Environment();
+        Environment copy = new Environment(this.parent);
         copy.values.putAll(this.values);
         copy.constants.addAll(this.constants);
         return copy;
