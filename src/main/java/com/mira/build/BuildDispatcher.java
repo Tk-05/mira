@@ -6,7 +6,8 @@ import com.mira.error.DiagnosticFormatter;
 
 public class BuildDispatcher {
 
-    private static final Set<String> SUBCOMMANDS = Set.of("init", "build", "run", "test", "clean", "task", "release");
+    private static final Set<String> SUBCOMMANDS =
+            Set.of("init", "build", "run", "test", "clean", "task", "release", "install", "deps");
 
     public static boolean isSubcommand(String arg) {
         return SUBCOMMANDS.contains(arg);
@@ -30,6 +31,10 @@ public class BuildDispatcher {
                     Commands.task(args);
                 case "release" ->
                     Commands.release(args);
+                case "install" ->
+                    Commands.install(args);
+                case "deps" ->
+                    Commands.deps(args);
                 default ->
                     throw new BuildException("Unknown command: " + cmd);
             }

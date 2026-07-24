@@ -209,6 +209,16 @@ public class ImportResolver {
         return modulePath;
     }
 
+    private static Path findInNativeRoots(String basename) {
+        for (Path root : Flags.nativeRoots) {
+            Path candidate = root.resolve(basename);
+            if (Files.exists(candidate)) {
+                return candidate;
+            }
+        }
+        return null;
+    }
+
     private static void resolveModuleImport(Interpreter interpreter, ImportExpression importExpression, Environment environment) {
         String rawPath = importExpression.getModule().replace("\"", "");
         Path modulePath = resolveModulePath(rawPath);
@@ -567,13 +577,18 @@ public class ImportResolver {
                 Files.copy(bundled, tempJar, StandardCopyOption.REPLACE_EXISTING);
                 jarPath = tempJar;
             } else {
-                Path currentFile = ipRef != null ? ipRef.toAbsolutePath() : Path.of("").toAbsolutePath();
-                Path candidate = Paths.get(rawPath);
-                jarPath = candidate.isAbsolute()
-                        ? candidate.normalize()
-                        : currentFile.getParent().resolve(candidate).normalize();
-                if (!Files.exists(jarPath)) {
-                    throw new NativeLibNotFoundError(jarPath.toString()).withSourceFile(importingFile);
+                Path fromNativeRoots = findInNativeRoots(basename);
+                if (fromNativeRoots != null) {
+                    jarPath = fromNativeRoots;
+                } else {
+                    Path currentFile = ipRef != null ? ipRef.toAbsolutePath() : Path.of("").toAbsolutePath();
+                    Path candidate = Paths.get(rawPath);
+                    jarPath = candidate.isAbsolute()
+                            ? candidate.normalize()
+                            : currentFile.getParent().resolve(candidate).normalize();
+                    if (!Files.exists(jarPath)) {
+                        throw new NativeLibNotFoundError(jarPath.toString()).withSourceFile(importingFile);
+                    }
                 }
             }
         } catch (NativeLibNotFoundError e) {

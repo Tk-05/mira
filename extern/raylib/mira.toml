@@ -1,0 +1,23 @@
+[project]
+name    = "raylib"
+version = "0.1.0"
+
+# This is a native-only package (no entry point of its own — consumers never `mira run` it
+# directly, they depend on it and use `import native "raylib.jar" as raylib;`), so [project]
+# entry is intentionally omitted.
+#
+# Build with: mvn -f extern/raylib/pom.xml package
+# Produces target/raylib.jar (a shaded jar bundling jaylib's JavaCPP/native bindings for all
+# platforms). The url below points at that local build output via a file:// URL — this only
+# works on this machine, at this absolute path. sha256 is intentionally omitted: it's optional
+# for file:// URLs (there's no integrity concern fetching a file already on this machine), and
+# skipping it means every `mira build` picks up whatever's currently in target/raylib.jar
+# instead of a stale hash-pinned copy from whenever this file was last edited.
+# For a real, portable publish, swap this for a GitHub release asset URL (or any other stable
+# static host) once raylib.jar has actually been uploaded somewhere, and add a sha256 back
+# (required for http(s)://) — the fetch path works identically either way.
+# Consumers depend on this package with `{ path = "../../extern/raylib" }` (or a git URL, once
+# it has its own repo) and then just write `import native "raylib.jar" as raylib;` — no path to
+# the jar itself is ever hardcoded on the consumer side.
+[native]
+raylib = { url = "file:///C:/Users/tillk/Desktop/vsc/mira/extern/raylib/target/raylib.jar" }
