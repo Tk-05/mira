@@ -1341,7 +1341,7 @@ $PI : 3.0;   // error E205: ReferenceIsImmutableError
 ### Execution Model
 
 - **Interpreter path:** All `comptime` blocks run in an isolated interpreter instance during the pre-pass phase (before `loadGlobalContext` finishes). Their results are injected into the global environment as constants.
-- **Compiler path (`-compile`):** The same pre-pass runs before JVM bytecode is generated. Side effects (e.g. `println`) execute during compilation; constants are available to the compiled program.
+- **Compiler path (`--compile`):** The same pre-pass runs before JVM bytecode is generated. Side effects (e.g. `println`) execute during compilation; constants are available to the compiled program.
 - **Errors** inside a `comptime` block are reported like any other runtime error and abort the program before it starts.
 
 ### What Can Be Used Inside comptime
@@ -1819,7 +1819,7 @@ Import with `import thread as thread;`.
 
 ## Testing
 
-Mira has a built-in test framework. Use the `test(name, fn)` function to register test cases and run them with the `-test` flag.
+Mira has a built-in test framework. Use the `test(name, fn)` function to register test cases and run them with the `--test` flag.
 
 ### Writing Tests
 
@@ -1846,7 +1846,7 @@ The second argument to `test` is a zero-argument function. Inside it, use `asser
 ### Running Tests
 
 ```
-java -jar mira.jar MyTests.mira -test
+java -jar mira.jar MyTests.mira --test
 ```
 
 **Output:**
@@ -1880,7 +1880,7 @@ The process exits with code `1` when any test fails, making it suitable for CI p
 
 ### Notes
 
-- `test(name, fn)` is only available when running with `-test`. Defining a function named `test` in normal code works without conflicts.
+- `test(name, fn)` is only available when running with `--test`. Defining a function named `test` in normal code works without conflicts.
 - Tests run sequentially in the order they are registered.
 - Any uncaught exception inside a test body counts as a failure. The error message is shown next to `FAIL`.
 - `assert` is a built-in function available in all contexts, not only inside tests.

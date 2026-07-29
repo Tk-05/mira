@@ -20,7 +20,7 @@ import com.mira.runtime.FileRunner;
 public class Commands {
 
     public static void init(String[] args) {
-        init(args, Paths.get("").toAbsolutePath());
+        init(args, projectDir(args));
     }
 
     static void init(String[] args, Path workDir) {
@@ -82,7 +82,7 @@ public class Commands {
     }
 
     public static void install(String[] args) {
-        install(args, Paths.get("").toAbsolutePath());
+        install(args, projectDir(args));
     }
 
     static void install(String[] args, Path workDir) {
@@ -97,7 +97,7 @@ public class Commands {
     }
 
     public static void deps(String[] args) {
-        deps(args, Paths.get("").toAbsolutePath());
+        deps(args, projectDir(args));
     }
 
     static void deps(String[] args, Path workDir) {
@@ -112,31 +112,48 @@ public class Commands {
 
     public static void build(String[] args) {
         boolean watch = Arrays.asList(args).contains("--watch");
+        applyCommonOptions(args);
         BuildOverrides overrides = parseOverrides(args, 1);
-        BuildContext ctx = requireContext();
+        BuildContext ctx = requireContext(projectDir(args));
         BuildRunner.runBuild(ctx, overrides.mode(), overrides.jarBundle(), watch);
+    }
+
+    private static Path projectDir(String[] args) {
+        for (int i = 1; i < args.length; i++) {
+            if (("--project".equals(args[i]) || "-C".equals(args[i])) && i + 1 < args.length) {
+                return Paths.get(args[i + 1]).toAbsolutePath().normalize();
+            }
+        }
+        return Paths.get("").toAbsolutePath();
+    }
+
+    private static void applyCommonOptions(String[] args) {
+        for (String arg : args) {
+            switch (arg) {
+                case "--no-warn" ->
+                    Flags.suppressWarnings = true;
+                case "--no-color" ->
+                    Flags.noColor = true;
+                case "--profile" ->
+                    Flags.profile = true;
+                default -> {
+                }
+            }
+        }
     }
 
     public static void run(String[] args) {
         String[] programArgs = null;
-        String projectDir = null;
         for (int i = 1; i < args.length; i++) {
-            if ("--project".equals(args[i]) && i + 1 < args.length) {
-                projectDir = args[++i];
-            } else if ("--no-warn".equals(args[i])) {
-                Flags.suppressWarnings = true;
-            } else if ("--profile".equals(args[i])) {
-                Flags.profile = true;
-            } else if ("--".equals(args[i])) {
+            if ("--".equals(args[i])) {
                 programArgs = Arrays.copyOfRange(args, i + 1, args.length);
                 break;
             }
         }
+        applyCommonOptions(args);
         BuildOverrides overrides = parseOverrides(args, 1);
 
-        BuildContext ctx = projectDir != null
-                ? requireContext(Paths.get(projectDir).toAbsolutePath().normalize())
-                : requireContext();
+        BuildContext ctx = requireContext(projectDir(args));
         ProjectConfig.BuildMode effectiveMode = overrides.mode() != null
                 ? overrides.mode()
                 : ctx.config().build().effectiveRunMode();
@@ -162,13 +179,15 @@ public class Commands {
     }
 
     public static void test(String[] args) {
-        BuildContext ctx = requireContext();
+        applyCommonOptions(args);
+        BuildContext ctx = requireContext(projectDir(args));
         BuildRunner.runTest(ctx);
     }
 
     public static void release(String[] args) {
+        applyCommonOptions(args);
         BuildOverrides overrides = parseOverrides(args, 1);
-        BuildContext ctx = requireContext();
+        BuildContext ctx = requireContext(projectDir(args));
         release(ctx, overrides);
     }
 
@@ -183,19 +202,17 @@ public class Commands {
     }
 
     public static void task(String[] args) {
-        BuildContext ctx = requireContext();
+        applyCommonOptions(args);
+        BuildContext ctx = requireContext(projectDir(args));
         if (args.length < 2) {
             TaskRunner.listTasks(ctx.config());
             return;
-        }
-        if (Arrays.asList(args).contains("--profile")) {
-            Flags.profile = true;
         }
         TaskRunner.runTask(ctx, args[1]);
     }
 
     public static void clean(String[] args) {
-        clean(args, Paths.get("").toAbsolutePath());
+        clean(args, projectDir(args));
     }
 
     static void clean(String[] args, Path startDir) {
@@ -239,10 +256,6 @@ public class Commands {
             }
         }
         return new BuildOverrides(mode, jarBundle);
-    }
-
-    private static BuildContext requireContext() {
-        return requireContext(Paths.get("").toAbsolutePath());
     }
 
     static BuildContext requireContext(Path startDir) {

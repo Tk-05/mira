@@ -61,7 +61,7 @@ public class FileRunner {
                 System.out.println(new AstPrinter().print(asts));
             }
 
-            if (!Flags.skipStaticCheck) {
+            if (!Flags.noCheck) {
                 boolean mainErrors = false;
                 try {
                     new StaticCheck(Set.of(), Flags.inputPath.get()).check(asts);
@@ -81,7 +81,7 @@ public class FileRunner {
                 LibIndex.printImportInfo(asts);
             }
 
-            if (Flags.exitBeforeInterpreter) {
+            if (Flags.checkOnly) {
                 return true;
             }
 
@@ -91,11 +91,11 @@ public class FileRunner {
             }
 
             if (Flags.packageJar && !Flags.compile) {
-                System.err.println("Warning: -package has no effect without -compile");
+                System.err.println("Warning: --package has no effect without --compile");
             }
 
             if (Flags.profile && Flags.compile && !Flags.compileAndRun) {
-                System.err.println("Warning: -profile has no effect with -compile alone; use -compile-run to see a report.");
+                System.err.println("Warning: --profile has no effect with --compile alone; add --run to see a report.");
             }
 
             if (Flags.compile) {

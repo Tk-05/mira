@@ -44,8 +44,8 @@ entry   = "src/main.mira" # entry point (required, relative to mira.toml)
 [build]
 mode       = "interpret"   # interpret | compile | package  — used by mira build
 run-mode   = "interpret"   # interpret | compile            — used by mira run (optional, defaults to mode)
-                           # compile = equivalent to -compile-run: compiles to JVM bytecode in memory, no files written
-main       = true          # call main() as entry point (equivalent to -m flag)
+                           # compile = equivalent to --compile --run: compiles to JVM bytecode in memory, no files written
+main       = true          # call main() as entry point (equivalent to --main flag)
 lint       = false         # run linter before execution
 output     = "out"         # output directory for compiled files (default: "out/")
 args       = []            # default program arguments
@@ -87,6 +87,18 @@ All paths in `mira.toml` are relative to the file itself.
 | `mira deps`                                        | Print the declared dependency graph and whether each entry is available locally (read-only, no fetching) |
 
 All commands (except `init`) require a `mira.toml` in the current directory or any parent directory. If none is found, an error is printed with a hint to run `mira init`.
+
+Every command above also accepts `--project <dir>` (short: `-C <dir>`) to point at a
+project that isn't in the current directory, so you don't need to `cd` first:
+
+```bash
+mira build --project ../other-app
+mira test -C ../other-app
+```
+
+`build`, `run`, `test`, and `release` also accept `--no-warn` (suppress warnings/hints)
+and `--no-color` (disable ANSI diagnostic colors, also honors `NO_COLOR`); `run` and
+`task <name>` additionally accept `--profile`.
 
 ### Release Pipeline
 
@@ -139,11 +151,11 @@ The two mode fields control build and run independently:
 
 If `run-mode` is not set, `mira run` falls back to `mode`.
 
-| Effective mode | `mira build`                                       | `mira run`                                                                                                                             |
-| -------------- | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `interpret`    | Interprets source directly — no files written      | Runs via tree-walk interpreter                                                                                                         |
-| `compile`      | Compiles to `.class` files in the output directory | Compiles to JVM bytecode **in memory** and executes immediately — no files written (equivalent to the single-file `-compile-run` flag) |
-| `package`      | Compiles and bundles into a self-contained fat JAR | Same as `compile` for run — executes in memory, no JAR written                                                                         |
+| Effective mode | `mira build`                                       | `mira run`                                                                                                                                 |
+| -------------- | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `interpret`    | Interprets source directly — no files written      | Runs via tree-walk interpreter                                                                                                             |
+| `compile`      | Compiles to `.class` files in the output directory | Compiles to JVM bytecode **in memory** and executes immediately — no files written (equivalent to the single-file `--compile --run` flags) |
+| `package`      | Compiles and bundles into a self-contained fat JAR | Same as `compile` for run — executes in memory, no JAR written                                                                             |
 
 A typical setup: build produces a JAR, but `mira run` uses the faster interpreter during development:
 
@@ -256,7 +268,7 @@ A project can declare that it needs a native JAR (a compiled JVM jar implementin
 raylib = { url = "https://github.com/user/repo/releases/download/v1.0.0/raylib.jar", sha256 = "…64 hex chars…" }
 ```
 
-`sha256` is required for `http(s)://` URLs — there is no unverified/unpinned form for a remote fetch. Resolving a `[native]` entry downloads it into a shared local cache at `~/.mira/packages/native/<sha256>/<basename>`, keyed purely by content hash: a cache hit is trusted without re-hashing, and there's nothing "mutable" to re-resolve the way a git branch or tag can move — the hash *is* the pin. Only `http(s)://` and local `file://` URLs are supported today.
+`sha256` is required for `http(s)://` URLs — there is no unverified/unpinned form for a remote fetch. Resolving a `[native]` entry downloads it into a shared local cache at `~/.mira/packages/native/<sha256>/<basename>`, keyed purely by content hash: a cache hit is trusted without re-hashing, and there's nothing "mutable" to re-resolve the way a git branch or tag can move — the hash _is_ the pin. Only `http(s)://` and local `file://` URLs are supported today.
 
 **`sha256` is optional for `file://` URLs.** A file already on the local machine has no integrity concern worth verifying, and skipping the hash means the dependency isn't copied into the cache at all — every resolve reads the file fresh from wherever it points, so a local build (e.g. `mvn package` regenerating `extern/raylib/target/raylib.jar`) is picked up immediately on the next `mira build`, instead of a stale hash-pinned copy from whenever `mira.toml` was last edited:
 
@@ -273,9 +285,9 @@ Once resolved, the jar's containing cache directory is added to the same lookup 
 import native "raylib.jar" as raylib;   // no path — found via the [native] entry
 ```
 
-**Transitivity is arbitrary-depth.** If a `path`/`git`/`version` dependency's own `mira.toml` has a `[native]` table, those entries are resolved for the consumer automatically, without redeclaring them — and this keeps going through the whole dependency graph, however deep: if your game depends on a game engine, and the engine depends on a raylib wrapper package that declares `[native]`, your game gets the native jar without ever mentioning it. This is safe to do at unlimited depth (unlike source dependencies, which are intentionally *not* walked transitively) because `[native]` entries are content-addressed by sha256 — there's no version to conflict on. The walk is cycle-safe, and a dependency's *other*, unrelated dependency that can't itself be resolved (missing directory, not installed, unreachable git remote) is silently skipped rather than failing your build — only its own `[native]` table matters here, not whether every one of its dependencies happens to be resolvable on your machine.
+**Transitivity is arbitrary-depth.** If a `path`/`git`/`version` dependency's own `mira.toml` has a `[native]` table, those entries are resolved for the consumer automatically, without redeclaring them — and this keeps going through the whole dependency graph, however deep: if your game depends on a game engine, and the engine depends on a raylib wrapper package that declares `[native]`, your game gets the native jar without ever mentioning it. This is safe to do at unlimited depth (unlike source dependencies, which are intentionally _not_ walked transitively) because `[native]` entries are content-addressed by sha256 — there's no version to conflict on. The walk is cycle-safe, and a dependency's _other_, unrelated dependency that can't itself be resolved (missing directory, not installed, unreachable git remote) is silently skipped rather than failing your build — only its own `[native]` table matters here, not whether every one of its dependencies happens to be resolvable on your machine.
 
-Nested git dependencies discovered this way (a dependency's dependency's `{ git = "..." }`) are re-resolved fresh on every `mira build` rather than pinned in your project's `mira.lock` — a transitive dependency's ref should be pinned by *its own* project's lockfile, not by whichever downstream project happens to reach it first. In practice this only matters if native jars end up several git-dependency-hops away; `path` and `version` (local install) dependencies have no such cost.
+Nested git dependencies discovered this way (a dependency's dependency's `{ git = "..." }`) are re-resolved fresh on every `mira build` rather than pinned in your project's `mira.lock` — a transitive dependency's ref should be pinned by _its own_ project's lockfile, not by whichever downstream project happens to reach it first. In practice this only matters if native jars end up several git-dependency-hops away; `path` and `version` (local install) dependencies have no such cost.
 
 ### `mira deps`
 
@@ -289,7 +301,7 @@ app (0.1.0)
 └─ json [git] https://github.com/user/json @ version ^2.0  ✗ missing (not yet resolved — run 'mira build')
 ```
 
-Like the resolver's `[native]` transitivity, the tree shown by `mira deps` recurses through every available dependency's own `mira.toml` to arbitrary depth (a dependency that isn't available yet can't be expanded further, since its manifest isn't known locally) and detects cycles. The difference is what each walk *surfaces*: the resolver only ever adds a project's own directly-declared dependencies to the build's source roots (nested dependencies are walked only to find `[native]` tables, never added as source roots themselves), while `mira deps` displays every node in the graph — source and native — purely for inspection, without fetching anything.
+Like the resolver's `[native]` transitivity, the tree shown by `mira deps` recurses through every available dependency's own `mira.toml` to arbitrary depth (a dependency that isn't available yet can't be expanded further, since its manifest isn't known locally) and detects cycles. The difference is what each walk _surfaces_: the resolver only ever adds a project's own directly-declared dependencies to the build's source roots (nested dependencies are walked only to find `[native]` tables, never added as source roots themselves), while `mira deps` displays every node in the graph — source and native — purely for inspection, without fetching anything.
 
 ### Tasks
 
@@ -368,13 +380,13 @@ Mira scripts can be compiled to JVM bytecode instead of interpreted. The compile
 ### Compile to `.class` files
 
 ```bash
-java -jar mira-RELEASE.jar script.mira -compile
+java -jar mira-RELEASE.jar script.mira --compile
 ```
 
-Writes `.class` files next to the source file. Use `-o <dir>` to write them to a different directory:
+Writes `.class` files next to the source file. Use `-o`/`--output <dir>` to write them to a different directory:
 
 ```bash
-java -jar mira-RELEASE.jar script.mira -compile -o out/
+java -jar mira-RELEASE.jar script.mira --compile -o out/
 ```
 
 Run the compiled output directly with the JVM (Mira runtime required on the classpath):
@@ -385,37 +397,40 @@ java -cp mira-RELEASE.jar:out/ com.mira.compiled.Script
 
 ### Package into a standalone JAR
 
-The `-package` flag (used together with `-compile`) bundles the compiled classes and the entire Mira runtime into a single self-contained fat JAR:
+The `--package` flag (used together with `--compile`) bundles the compiled classes and the entire Mira runtime into a single self-contained fat JAR:
 
 ```bash
-java -jar mira-RELEASE.jar script.mira -compile -package
+java -jar mira-RELEASE.jar script.mira --compile --package
 ```
 
-The JAR is placed next to the source file (or in the `-o` directory if specified) and named after the script:
+The JAR is placed next to the source file (or in the `-o`/`--output` directory if specified) and named after the script:
 
 ```bash
 java -jar Script.jar
 ```
 
 No classpath setup is needed — the fat JAR is fully standalone and can be distributed as a single file.
+Add `--slim` to bundle only the classes reachable from the program (excluding the
+compiler/IDE toolchain) instead of the full distribution (`--full`, the default).
 
 ### Compile and run in memory
 
-`-compile-run` compiles the script and immediately executes it without writing any files to disk:
+`--run` (only meaningful together with `--compile`) compiles the script and immediately executes it without writing any files to disk:
 
 ```bash
-java -jar mira-RELEASE.jar script.mira -compile-run
+java -jar mira-RELEASE.jar script.mira --compile --run
 ```
 
 ### Compilation flags summary
 
-| Flag           | Description                                                             |
-| -------------- | ----------------------------------------------------------------------- |
-| `-compile`     | Compile to JVM bytecode and write `.class` files                        |
-| `-package`     | Bundle `.class` files and the Mira runtime into a standalone fat JAR    |
-| `-compile-run` | Compile and immediately run in memory (no files written)                |
-| `-o <dir>`     | Output directory for `.class` files and JAR (default: source directory) |
-| `-b`           | Dump disassembled bytecode of compiled classes to stdout                |
+| Flag                    | Description                                                               |
+| ----------------------- | ------------------------------------------------------------------------- |
+| `--compile`             | Compile to JVM bytecode and write `.class` files                          |
+| `--package`             | Bundle `.class` files and the Mira runtime into a standalone fat JAR      |
+| `--run`                 | (with `--compile`) Run in memory instead of writing files                 |
+| `--slim` / `--full`     | (with `--package`) Bundle only reachable classes, or everything (default) |
+| `-o`, `--output <dir>`  | Output directory for `.class` files and JAR (default: source directory)   |
+| `-b`, `--dump-bytecode` | Dump disassembled bytecode of compiled classes to stdout                  |
 
 ### General flags
 
@@ -423,20 +438,20 @@ Flags available for both single-file and build-system usage:
 
 | Flag              | Description                                                       |
 | ----------------- | ----------------------------------------------------------------- |
-| `-m`              | Call `main()` as the program entry point                          |
-| `-args <a,b,...>` | Pass comma-separated arguments to the program                     |
-| `-nsc`            | Skip the static check (linter / unused-variable analysis)         |
-| `-no-warn`        | Suppress all warnings and hints produced by the static checker    |
-| `-test`           | Run `test()` calls and print a pass/fail summary; exits 1 on fail |
-| `-debug`          | Launch the interactive debugger                                   |
-| `-watch`          | Re-run the program whenever the source file or its imports change |
-| `-crash`          | On error: print the Mira call stack and memory dump               |
-| `-crashFull`      | Like `-crash`, but also includes the Java stack trace             |
-| `-t`              | Dump the token stream to stdout                                   |
-| `-e`              | Exit after parsing and static check, before interpretation        |
-| `-ast`            | Print the AST to stdout                                           |
-| `-li`             | Show all loaded imports with their type and alias                 |
-| `-liFull`         | Like `-li`, but also lists every exported symbol per import       |
+| `-m`, `--main`    | Call `main()` as the program entry point                          |
+| `-- <a> <b> ...`  | Pass arguments to the program (everything after `--`)             |
+| `--no-check`      | Skip the static check (linter / unused-variable analysis)         |
+| `--no-warn`       | Suppress all warnings and hints produced by the static checker    |
+| `--no-color`      | Disable colored/ANSI diagnostic output (also honors `NO_COLOR`)   |
+| `--test`          | Run `test()` calls and print a pass/fail summary; exits 1 on fail |
+| `--debug`         | Launch the interactive debugger                                   |
+| `--watch`         | Re-run the program whenever the source file or its imports change |
+| `--crash-dump`    | On error: print the Mira call stack and memory dump               |
+| `--verbose`       | More detail — combine with `--crash-dump` or `--imports`          |
+| `-t`, `--tokens`  | Dump the token stream to stdout                                   |
+| `--check-only`    | Exit after parsing and static check, before interpretation        |
+| `--ast`           | Print the AST to stdout                                           |
+| `--imports`       | Show all loaded imports with their type and alias                 |
+| `-v`, `--version` | Print the Mira version                                            |
 
 ---
-
