@@ -101,15 +101,6 @@ public class RuntimeError extends MiraError {
         }
     }
 
-    public static class PostUnaryError extends RuntimeError {
-
-        public PostUnaryError(String operation) {
-            super("E209",
-                    "'" + operation + "' requires a variable reference (e.g. $x" + operation + ")",
-                    null);
-        }
-    }
-
     public static class PostExprNaNError extends RuntimeError {
 
         public PostExprNaNError(String ident) {

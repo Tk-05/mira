@@ -17,8 +17,8 @@ import com.mira.parser.nodes.Node;
 import com.mira.parser.nodes.Parameter;
 import com.mira.parser.nodes.expression.Expression;
 import com.mira.parser.nodes.expression.Expression.AccessExpression;
-import com.mira.parser.nodes.expression.Expression.AssignExpression;
 import com.mira.parser.nodes.expression.Expression.ArrayExpression;
+import com.mira.parser.nodes.expression.Expression.AssignExpression;
 import com.mira.parser.nodes.expression.Expression.AwaitExpression;
 import com.mira.parser.nodes.expression.Expression.BinaryExpression;
 import com.mira.parser.nodes.expression.Expression.CallExpression;
@@ -34,9 +34,9 @@ import com.mira.parser.nodes.expression.Expression.MapExpression;
 import com.mira.parser.nodes.expression.Expression.MethodCallExpression;
 import com.mira.parser.nodes.expression.Expression.NamespaceCallExpression;
 import com.mira.parser.nodes.expression.Expression.ObjectExpression;
+import com.mira.parser.nodes.expression.Expression.RangeExpression;
 import com.mira.parser.nodes.expression.Expression.StructExpression;
 import com.mira.parser.nodes.expression.Expression.StructInitExpression;
-import com.mira.parser.nodes.expression.Expression.RangeExpression;
 import com.mira.parser.nodes.expression.Expression.SwitchExpression;
 import com.mira.parser.nodes.expression.Expression.TernaryExpression;
 import com.mira.parser.nodes.expression.Expression.ThrownException;
@@ -399,6 +399,11 @@ public class Parser {
         if (current.getLexeme().equals("$")) {
             Expression unary = parseUnaryExpression();
             expr = maybeParseFieldAccess(unary);
+
+        } else if ((current.getLexeme().equals("++") || current.getLexeme().equals("--"))
+                && current.getTokenType() != TokenType.STRING_LITERAL) {
+            Token op = consume();
+            expr = new UnaryExpression(op, parsePrimary(), true);
 
         } else if ((current.getLexeme().equals("!")
                 || current.getLexeme().equals("-")

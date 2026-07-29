@@ -20,6 +20,21 @@ public class AstFormatterTest {
     }
 
     @Test
+    void postfixIncrementStaysPostfix() {
+        assertEquals("$x++;\n", fmt("$x++;"));
+    }
+
+    @Test
+    void prefixIncrementStaysPrefix() {
+        assertEquals("++$x;\n", fmt("++$x;"));
+    }
+
+    @Test
+    void prefixDecrementStaysPrefix() {
+        assertEquals("--$x;\n", fmt("--$x;"));
+    }
+
+    @Test
     void functionDecl() {
         String source = """
                 fn add(a, b) {

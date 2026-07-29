@@ -24,7 +24,6 @@ import com.mira.error.resolver.StaticCheckError.LiteralNotCallableError;
 import com.mira.error.resolver.StaticCheckError.MissingModuleDeclarationError;
 import com.mira.error.resolver.StaticCheckError.NotIterableStaticError;
 import com.mira.error.resolver.StaticCheckError.PostExprNaNStaticError;
-import com.mira.error.resolver.StaticCheckError.PostUnaryStaticError;
 import com.mira.error.resolver.StaticCheckError.PrivateAccessError;
 import com.mira.error.resolver.StaticCheckError.PrivateImportError;
 import com.mira.error.resolver.StaticCheckError.RangeStepZeroStaticError;
@@ -425,21 +424,13 @@ public class StaticCheck {
         switch (node) {
             case UnaryExpression e when "++".equals(e.getOperation().getLexeme())
             || "--".equals(e.getOperation().getLexeme()) -> {
-                if (!(e.getRight() instanceof UnaryExpression inner)
-                        || !"$".equals(inner.getOperation().getLexeme())) {
-                    errors.add(new PostUnaryStaticError(
-                            e.getOperation().getLexeme(),
-                            e.getOperation().getLine(),
-                            e.getOperation().getColumn()));
-                } else {
-                    resolveExpr(e.getRight());
-                    DumbExpression varD = extractVarRef(e.getRight());
-                    if (varD != null) {
-                        Node literal = varLiteralTypes.get(varD.getValue());
-                        if (literal != null && isNonNumericLiteral(literal)) {
-                            errors.add(new PostExprNaNStaticError(
-                                    varD.getValue(), varD.getLine(), varD.getColumn()));
-                        }
+                resolveExpr(e.getRight());
+                DumbExpression varD = extractVarRef(e.getRight());
+                if (varD != null) {
+                    Node literal = varLiteralTypes.get(varD.getValue());
+                    if (literal != null && isNonNumericLiteral(literal)) {
+                        errors.add(new PostExprNaNStaticError(
+                                varD.getValue(), varD.getLine(), varD.getColumn()));
                     }
                 }
             }

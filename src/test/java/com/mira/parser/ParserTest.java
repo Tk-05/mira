@@ -115,6 +115,36 @@ public class ParserTest {
     }
 
     @Test
+    void postfixIncrementIsNotPrefix() {
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize("$x++;", false));
+        UnaryExpression expr = (UnaryExpression) ast.getFirst();
+
+        assertEquals("++", expr.getOperation().getLexeme());
+        assertFalse(expr.isPrefix());
+        assertInstanceOf(UnaryExpression.class, expr.getRight());
+    }
+
+    @Test
+    void prefixIncrementIsMarkedPrefix() {
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize("++$x;", false));
+        UnaryExpression expr = (UnaryExpression) ast.getFirst();
+
+        assertEquals("++", expr.getOperation().getLexeme());
+        assertTrue(expr.isPrefix());
+        assertInstanceOf(UnaryExpression.class, expr.getRight());
+    }
+
+    @Test
+    void prefixDecrementOnArrayElement() {
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize("--$arr[0];", false));
+        UnaryExpression expr = (UnaryExpression) ast.getFirst();
+
+        assertEquals("--", expr.getOperation().getLexeme());
+        assertTrue(expr.isPrefix());
+        assertInstanceOf(AccessExpression.class, expr.getRight());
+    }
+
+    @Test
     void simpleExpression() {
         String simpleExpression = "((1+2)+3);";
 

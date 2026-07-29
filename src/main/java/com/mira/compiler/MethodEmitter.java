@@ -471,18 +471,83 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
     }
 
     private void emitIncDec(UnaryExpression expression, boolean inc) {
-        if (!(expression.getRight() instanceof UnaryExpression varExpr)
-                || !varExpr.getOperation().getLexeme().equals("$")) {
-            throw new RuntimeException("++ / -- requires a variable");
+        Expression target = expression.getRight();
+
+        if (target instanceof UnaryExpression varExpr && varExpr.getOperation().getLexeme().equals("$")) {
+            String name = ((DumbExpression) varExpr.getRight()).getValue();
+            emitVarLookup(name);
+            emitAddOrSubOne(inc);
+            mv.visitInsn(DUP);
+            emitVarStore(name, false);
+        } else if (target instanceof AccessExpression acc) {
+            emitAccessIncDec(acc, inc);
+        } else if (target instanceof FieldAccessExpression fae) {
+            emitFieldIncDec(fae, inc);
+        } else {
+            target.accept(this);
+            emitAddOrSubOne(inc);
         }
-        String name = ((DumbExpression) varExpr.getRight()).getValue();
-        emitVarLookup(name);
+    }
+
+    private void emitAddOrSubOne(boolean inc) {
         mv.visitLdcInsn(1L);
         mv.visitMethodInsn(INVOKESTATIC, RT, "wrapLong", "(J)" + OBJ_D, false);
         mv.visitMethodInsn(INVOKESTATIC, RT, inc ? "add" : "sub",
                 "(" + OBJ_D + OBJ_D + ")" + OBJ_D, false);
-        mv.visitInsn(DUP);
-        emitVarStore(name, false);
+    }
+
+    private void emitAccessIncDec(AccessExpression acc, boolean inc) {
+        acc.getReference().accept(this);
+        for (int k = 0; k < acc.getIndecies().size() - 1; k++) {
+            acc.getIndecies().get(k).accept(this);
+            mv.visitMethodInsn(INVOKESTATIC, RT, "arrayGet",
+                    "(" + OBJ_D + OBJ_D + ")" + OBJ_D, false);
+        }
+        int containerSlot = ctx.slots.allocateTemp();
+        mv.visitVarInsn(ASTORE, containerSlot);
+
+        acc.getIndecies().getLast().accept(this);
+        int indexSlot = ctx.slots.allocateTemp();
+        mv.visitVarInsn(ASTORE, indexSlot);
+
+        mv.visitVarInsn(ALOAD, containerSlot);
+        mv.visitVarInsn(ALOAD, indexSlot);
+        mv.visitMethodInsn(INVOKESTATIC, RT, "arrayGet",
+                "(" + OBJ_D + OBJ_D + ")" + OBJ_D, false);
+        emitAddOrSubOne(inc);
+        int newValueSlot = ctx.slots.allocateTemp();
+        mv.visitVarInsn(ASTORE, newValueSlot);
+
+        mv.visitVarInsn(ALOAD, containerSlot);
+        mv.visitVarInsn(ALOAD, indexSlot);
+        mv.visitVarInsn(ALOAD, newValueSlot);
+        mv.visitMethodInsn(INVOKESTATIC, RT, "arraySet",
+                "(" + OBJ_D + OBJ_D + OBJ_D + ")V", false);
+
+        mv.visitVarInsn(ALOAD, newValueSlot);
+    }
+
+    private void emitFieldIncDec(FieldAccessExpression fae, boolean inc) {
+        fae.getObject().accept(this);
+        resolveIfStringName();
+        int objSlot = ctx.slots.allocateTemp();
+        mv.visitVarInsn(ASTORE, objSlot);
+
+        mv.visitVarInsn(ALOAD, objSlot);
+        mv.visitLdcInsn(fae.getField());
+        mv.visitMethodInsn(INVOKESTATIC, RT, "fieldGet",
+                "(" + OBJ_D + "Ljava/lang/String;)" + OBJ_D, false);
+        emitAddOrSubOne(inc);
+        int newValueSlot = ctx.slots.allocateTemp();
+        mv.visitVarInsn(ASTORE, newValueSlot);
+
+        mv.visitVarInsn(ALOAD, objSlot);
+        mv.visitLdcInsn(fae.getField());
+        mv.visitVarInsn(ALOAD, newValueSlot);
+        mv.visitMethodInsn(INVOKESTATIC, RT, "fieldSet",
+                "(" + OBJ_D + "Ljava/lang/String;" + OBJ_D + ")V", false);
+
+        mv.visitVarInsn(ALOAD, newValueSlot);
     }
 
     @Override

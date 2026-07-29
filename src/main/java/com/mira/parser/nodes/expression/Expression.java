@@ -78,10 +78,16 @@ public abstract class Expression implements Node {
 
         private final Token operation;
         private final Expression right;
+        private final boolean prefix;
 
         public UnaryExpression(Token operation, Expression right) {
+            this(operation, right, false);
+        }
+
+        public UnaryExpression(Token operation, Expression right, boolean prefix) {
             this.operation = operation;
             this.right = right;
+            this.prefix = prefix;
         }
 
         public Token getOperation() {
@@ -90,6 +96,10 @@ public abstract class Expression implements Node {
 
         public Expression getRight() {
             return right;
+        }
+
+        public boolean isPrefix() {
+            return prefix;
         }
 
         @Override

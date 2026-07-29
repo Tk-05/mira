@@ -24,7 +24,6 @@ import com.mira.error.runtime.RuntimeError.NotAStructTemplateError;
 import com.mira.error.runtime.RuntimeError.NotCallableError;
 import com.mira.error.runtime.RuntimeError.NotIterableError;
 import com.mira.error.runtime.RuntimeError.PostExprNaNError;
-import com.mira.error.runtime.RuntimeError.PostUnaryError;
 import com.mira.error.runtime.RuntimeError.RangeStepZeroError;
 import com.mira.error.runtime.RuntimeError.ReferenceIsImmutableError;
 import com.mira.error.runtime.RuntimeError.TypeConversionError;
@@ -680,63 +679,11 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             }
 
             case "++" -> {
-                if (!(expression.getRight() instanceof UnaryExpression varExpr)
-                        || !varExpr.getOperation().getLexeme().equals("$")) {
-                    throw new PostUnaryError("++")
-                            .withLocation(expression.getOperation().getLine(), expression.getOperation().getColumn());
-                }
-
-                String name = (String) varExpr.getRight().accept(this);
-
-                Environment env = (localEnvironment != null && localEnvironment.getOrNull(name) != null)
-                        ? localEnvironment
-                        : globalEnvironment;
-
-                Object raw = env.get(name);
-                Number numVal;
-                if (raw instanceof Number n) {
-                    numVal = n;
-                } else {
-                    try {
-                        numVal = parseNumber(String.valueOf(raw));
-                    } catch (NumberFormatException e) {
-                        throw new PostExprNaNError(name)
-                                .withLocation(expression.getOperation().getLine(), expression.getOperation().getColumn());
-                    }
-                }
-                Object newValue = numericAdd(numVal, 1L);
-                env.assign(name, newValue);
-                return (T) newValue;
+                return doIncDec(expression, true);
             }
 
             case "--" -> {
-                if (!(expression.getRight() instanceof UnaryExpression varExpr)
-                        || !varExpr.getOperation().getLexeme().equals("$")) {
-                    throw new PostUnaryError("--")
-                            .withLocation(expression.getOperation().getLine(), expression.getOperation().getColumn());
-                }
-
-                String name = (String) varExpr.getRight().accept(this);
-
-                Environment env = (localEnvironment != null && localEnvironment.getOrNull(name) != null)
-                        ? localEnvironment
-                        : globalEnvironment;
-
-                Object raw = env.get(name);
-                Number numVal;
-                if (raw instanceof Number n) {
-                    numVal = n;
-                } else {
-                    try {
-                        numVal = parseNumber(String.valueOf(raw));
-                    } catch (NumberFormatException e) {
-                        throw new PostExprNaNError(name)
-                                .withLocation(expression.getOperation().getLine(), expression.getOperation().getColumn());
-                    }
-                }
-                Object newValue = numericSub(numVal, 1L);
-                env.assign(name, newValue);
-                return (T) newValue;
+                return doIncDec(expression, false);
             }
 
             case "~" -> {
@@ -748,6 +695,41 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                 throw new UnknownOperatorError(operator)
                         .withLocation(expression.getOperation().getLine(), expression.getOperation().getColumn());
         }
+    }
+
+    private <T> T doIncDec(UnaryExpression expression, boolean inc) {
+        Expression target = expression.getRight();
+        Object raw = target.accept(this);
+
+        Number numVal;
+        if (raw instanceof Number n) {
+            numVal = n;
+        } else {
+            try {
+                numVal = parseNumber(String.valueOf(raw));
+            } catch (NumberFormatException e) {
+                String description = target instanceof UnaryExpression varExpr && varExpr.getOperation().getLexeme().equals("$")
+                        ? (String) varExpr.getRight().accept(this)
+                        : target.toString();
+                throw new PostExprNaNError(description)
+                        .withLocation(expression.getOperation().getLine(), expression.getOperation().getColumn());
+            }
+        }
+        Object newValue = inc ? numericAdd(numVal, 1L) : numericSub(numVal, 1L);
+
+        if (target instanceof UnaryExpression varExpr && varExpr.getOperation().getLexeme().equals("$")) {
+            String name = (String) varExpr.getRight().accept(this);
+            Environment env = (localEnvironment != null && localEnvironment.getOrNull(name) != null)
+                    ? localEnvironment
+                    : globalEnvironment;
+            env.assign(name, newValue);
+        } else if (target instanceof AccessExpression accessExpression) {
+            assignToAccess(accessExpression, () -> newValue);
+        } else if (target instanceof FieldAccessExpression fieldAccessExpression) {
+            assignToField(fieldAccessExpression, () -> newValue);
+        }
+
+        return (T) newValue;
     }
 
     @Override
@@ -1791,100 +1773,10 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
     public Void visitAssign(Assign assign) {
         notifyDebugger(assign.line);
         switch (assign.getReference()) {
-            case AccessExpression accessExpression -> {
-                Object referencedObject = accessExpression.getReference().accept(this);
-                for (int k = 0; k < accessExpression.getIndecies().size() - 1; k++) {
-                    Object object = accessExpression.getIndecies().get(k).accept(this);
-                    int i;
-
-                    switch (object) {
-                        case String s -> {
-                            i = Integer.parseInt(s);
-                        }
-                        case Number n -> {
-                            i = (int) n.longValue();
-                        }
-                        default ->
-                            throw new AssertionError();
-                    }
-
-                    switch (referencedObject) {
-                        case ArrayExpression array -> {
-                            var members = array.getMembers();
-                            int size = members.size();
-                            if (i < 0 || i >= size) {
-                                throw new IndexOutOfBoundsError(i, size);
-                            }
-                            referencedObject = switch (members.get(i)) {
-                                case ArrayExpression innerArray ->
-                                    innerArray;
-                                case ListExpression innerList ->
-                                    innerList;
-                                default ->
-                                    throw new ImmutableCollectionError();
-                            };
-                        }
-                        case ListExpression list -> {
-                            var members = list.getMembers();
-                            int size = members.size();
-                            if (i < 0 || i >= size) {
-                                throw new IndexOutOfBoundsError(i, size);
-                            }
-                            referencedObject = switch (members.get(i)) {
-                                case ListExpression innerList ->
-                                    innerList;
-                                default ->
-                                    throw new ImmutableCollectionError();
-                            };
-                        }
-                        default ->
-                            throw new AssertionError("Reference is not a type of collection!");
-                    }
-                }
-
-                if (referencedObject instanceof Mutability mutability) {
-                    if (mutability.isMutable()) {
-                        Object evaluatedRhs = assign.getExpression().accept(this);
-                        Expression assignment;
-                        if (evaluatedRhs instanceof Expression e) {
-                            assignment = e;
-                        } else {
-                            assignment = new DumbExpression(new Token(TokenType.EXPRESSION, String.valueOf(evaluatedRhs), 0, 0));
-                        }
-
-                        switch (referencedObject) {
-                            case ArrayExpression array -> {
-                                Object lastIdx = accessExpression.getIndecies().getLast().accept(this);
-                                int arrayIdx = lastIdx instanceof Number n ? (int) n.longValue() : Integer.parseInt((String) lastIdx);
-                                array.getMembers().set(arrayIdx, assignment);
-                            }
-                            case ListExpression list -> {
-                                Object lastIdx = accessExpression.getIndecies().getLast().accept(this);
-                                int listIdx = lastIdx instanceof Number n ? (int) n.longValue() : Integer.parseInt((String) lastIdx);
-                                list.getMembers().set(listIdx, assignment);
-                            }
-                            case MapExpression map -> {
-                                String key = String.valueOf(accessExpression.getIndecies().getLast().accept(this));
-                                map.getEntries().put(key, assignment);
-                            }
-                            default ->
-                                throw new ImmutableCollectionError();
-                        }
-                    } else {
-                        throw new ImmutableCollectionError();
-                    }
-                } else {
-                    throw new ReferenceIsImmutableError("Can not assign value to immutable data structure");
-                }
-            }
-            case FieldAccessExpression fieldAccessExpression -> {
-                Object object = fieldAccessExpression.getObject().accept(this);
-                if (!(object instanceof Environment objectEnv)) {
-                    throw new FieldAccessError(fieldAccessExpression.getField());
-                }
-                Object value = assign.getExpression().accept(this);
-                objectEnv.assign(fieldAccessExpression.getField(), value);
-            }
+            case AccessExpression accessExpression ->
+                assignToAccess(accessExpression, () -> assign.getExpression().accept(this));
+            case FieldAccessExpression fieldAccessExpression ->
+                assignToField(fieldAccessExpression, () -> assign.getExpression().accept(this));
             default -> {
                 if (assign.getReference() instanceof UnaryExpression unaryExpression) {
                     String name = String.valueOf(unaryExpression.getRight().accept(this));
@@ -1911,6 +1803,102 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         }
 
         return null;
+    }
+
+    private void assignToAccess(AccessExpression accessExpression, java.util.function.Supplier<Object> valueSupplier) {
+        Object referencedObject = accessExpression.getReference().accept(this);
+        for (int k = 0; k < accessExpression.getIndecies().size() - 1; k++) {
+            Object object = accessExpression.getIndecies().get(k).accept(this);
+            int i;
+
+            switch (object) {
+                case String s -> {
+                    i = Integer.parseInt(s);
+                }
+                case Number n -> {
+                    i = (int) n.longValue();
+                }
+                default ->
+                    throw new AssertionError();
+            }
+
+            switch (referencedObject) {
+                case ArrayExpression array -> {
+                    var members = array.getMembers();
+                    int size = members.size();
+                    if (i < 0 || i >= size) {
+                        throw new IndexOutOfBoundsError(i, size);
+                    }
+                    referencedObject = switch (members.get(i)) {
+                        case ArrayExpression innerArray ->
+                            innerArray;
+                        case ListExpression innerList ->
+                            innerList;
+                        default ->
+                            throw new ImmutableCollectionError();
+                    };
+                }
+                case ListExpression list -> {
+                    var members = list.getMembers();
+                    int size = members.size();
+                    if (i < 0 || i >= size) {
+                        throw new IndexOutOfBoundsError(i, size);
+                    }
+                    referencedObject = switch (members.get(i)) {
+                        case ListExpression innerList ->
+                            innerList;
+                        default ->
+                            throw new ImmutableCollectionError();
+                    };
+                }
+                default ->
+                    throw new AssertionError("Reference is not a type of collection!");
+            }
+        }
+
+        if (referencedObject instanceof Mutability mutability) {
+            if (mutability.isMutable()) {
+                Object evaluatedRhs = valueSupplier.get();
+                Expression assignment;
+                if (evaluatedRhs instanceof Expression e) {
+                    assignment = e;
+                } else {
+                    assignment = new DumbExpression(new Token(TokenType.EXPRESSION, String.valueOf(evaluatedRhs), 0, 0));
+                }
+
+                switch (referencedObject) {
+                    case ArrayExpression array -> {
+                        Object lastIdx = accessExpression.getIndecies().getLast().accept(this);
+                        int arrayIdx = lastIdx instanceof Number n ? (int) n.longValue() : Integer.parseInt((String) lastIdx);
+                        array.getMembers().set(arrayIdx, assignment);
+                    }
+                    case ListExpression list -> {
+                        Object lastIdx = accessExpression.getIndecies().getLast().accept(this);
+                        int listIdx = lastIdx instanceof Number n ? (int) n.longValue() : Integer.parseInt((String) lastIdx);
+                        list.getMembers().set(listIdx, assignment);
+                    }
+                    case MapExpression map -> {
+                        String key = String.valueOf(accessExpression.getIndecies().getLast().accept(this));
+                        map.getEntries().put(key, assignment);
+                    }
+                    default ->
+                        throw new ImmutableCollectionError();
+                }
+            } else {
+                throw new ImmutableCollectionError();
+            }
+        } else {
+            throw new ReferenceIsImmutableError("Can not assign value to immutable data structure");
+        }
+    }
+
+    private void assignToField(FieldAccessExpression fieldAccessExpression, java.util.function.Supplier<Object> valueSupplier) {
+        Object object = fieldAccessExpression.getObject().accept(this);
+        if (!(object instanceof Environment objectEnv)) {
+            throw new FieldAccessError(fieldAccessExpression.getField());
+        }
+        Object value = valueSupplier.get();
+        objectEnv.assign(fieldAccessExpression.getField(), value);
     }
 
     @Override

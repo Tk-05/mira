@@ -5,7 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import com.mira.error.runtime.RuntimeError.PostUnaryError;
+import com.mira.error.runtime.RuntimeError.PostExprNaNError;
 import com.mira.runtime.functions.ReturnSignal;
 import com.mira.integration.InterpreterRunner;
 import com.mira.integration.shared.expression.AbstractUnaryExpressionTests;
@@ -77,8 +77,39 @@ public class UnaryExpressionTest extends AbstractUnaryExpressionTests {
     }
 
     @Test
-    void invalidPostUnaryThrows() {
-        assertThrows(PostUnaryError.class, () -> backend.runAndGetValue("eval(1++2);"));
+    void postIncrementNonNumericLiteralThrowsNaN() {
+        assertThrows(PostExprNaNError.class, () -> backend.runAndGetValue("eval(\"abc\"++);"));
+    }
+
+    @Test
+    void postIncrementNonNumericFieldThrowsNaN() {
+        assertThrows(PostExprNaNError.class, () -> backend.runAndGetValue("""
+                var obj : { var name : "abc"; };
+                eval($obj.name++);
+                """));
+    }
+
+    @Test
+    void postIncrementLiteralHasNoReferentAndReturnsValue() {
+        assertEquals(2.0, InterpreterRunner.normNum(backend.runAndGetValue("eval(1++);")));
+    }
+
+    @Test
+    void postIncrementComputedExpressionDoesNotMutateSourceVariable() {
+        assertEquals(2.0, InterpreterRunner.normNum(backend.runAndGetValue("""
+                var x : 2;
+                var result : ($x + 1)++;
+                eval($x);
+                """)));
+    }
+
+    @Test
+    void postIncrementComputedExpressionReturnsIncrementedValue() {
+        assertEquals(4.0, InterpreterRunner.normNum(backend.runAndGetValue("""
+                var x : 2;
+                var result : ($x + 1)++;
+                eval($result);
+                """)));
     }
 
     @Test

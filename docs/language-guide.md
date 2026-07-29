@@ -318,10 +318,45 @@ Line 2
 | Comparison        | `<`, `>`, `<=`, `>=`, `==`, `!=`    |
 | Logical           | `&&`, `\|\|`, `!`                   |
 | Bitwise           | `&`, `\|`, `^`, `~`, `<<`, `>>`     |
-| Postfix           | `++`, `--`                          |
+| Postfix / Prefix  | `++`, `--`                          |
 | Ternary           | `? :`                               |
 | Null-Coalescing   | `??`                                |
 | Optional Chaining | `?.`                                |
+
+### `++` / `--`
+
+`target++`/`target--` (postfix) and `++target`/`--target` (prefix) both
+evaluate `target`, coerce it to a number, and compute `value + 1`/`value - 1`.
+What happens to that result depends on what `target` is:
+
+- **Bare variable** (`$x++`, `++$x`) — the variable is mutated in place.
+- **Array/list/map element** (`$arr[0]++`, `++$arr[0]`, `$map["k"]++`) — the
+  element is mutated in place.
+- **Object/struct field** (`$obj.count++`, `++$obj.count`) — the field is
+  mutated in place.
+- **Anything else** (a literal, an arithmetic expression, a function call,
+  …) — there is no variable/element/field to write back to, so nothing is
+  mutated. The expression just evaluates to `value ± 1`, exactly like
+  `value + 1` would.
+
+Prefix and postfix are purely a matter of where you write the operator —
+Mira has no C-style "postfix returns the old value" distinction. Both forms
+return the already-incremented/decremented value and both mutate (or don't)
+the same way, so `++$x` and `$x++` are fully interchangeable:
+
+```
+var x : 2;
+print(1++);          // 2  — no referent, nothing mutated
+print(++1);          // 2  — same thing, prefix form
+print(($x + 1)++);    // 4  — $x is still 2 afterwards
+
+var arr : [1, 2, 3];
+$arr[0]++;             // arr[0] is now 2
+++$arr[1];              // arr[1] is now 3
+
+var obj : { var count : 1; };
+$obj.count++;           // obj.count is now 2
+```
 
 `**` is the power/exponentiation operator. It has higher precedence than `*`, `/`, and `%`:
 

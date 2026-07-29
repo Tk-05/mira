@@ -443,6 +443,47 @@ public class StaticCheckTest {
     }
 
     @Test
+    void incrementNonReferentExpressionIsValid() {
+        assertClean("1++; 2--;");
+    }
+
+    @Test
+    void incrementArrayElementIsValid() {
+        assertClean("var arr : [1,2,3]; $arr[0]++;");
+    }
+
+    @Test
+    void incrementObjectFieldIsValid() {
+        assertClean("var obj : { var x : 1; }; $obj.x++;");
+    }
+
+    @Test
+    void prefixIncrementStringVarProducesE322() {
+        List<MiraError> errors = errorsFor("var s : \"hello\"; ++$s;");
+        assertTrue(hasCode(errors, "E322"));
+    }
+
+    @Test
+    void prefixIncrementNumericVarIsValid() {
+        assertClean("var n : 5; ++$n;");
+    }
+
+    @Test
+    void prefixIncrementNonReferentExpressionIsValid() {
+        assertClean("++1; --2;");
+    }
+
+    @Test
+    void prefixIncrementArrayElementIsValid() {
+        assertClean("var arr : [1,2,3]; ++$arr[0];");
+    }
+
+    @Test
+    void prefixIncrementObjectFieldIsValid() {
+        assertClean("var obj : { var x : 1; }; ++$obj.x;");
+    }
+
+    @Test
     void accessUndefinedFieldOnKnownObjectProducesE323() {
         List<MiraError> errors = errorsFor("var o : { var x : 1; }; var y : $o.z;");
         assertTrue(hasCode(errors, "E323"));

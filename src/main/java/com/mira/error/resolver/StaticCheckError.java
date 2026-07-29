@@ -126,16 +126,6 @@ public class StaticCheckError extends MiraError {
         }
     }
 
-    public static class PostUnaryStaticError extends StaticCheckError {
-
-        public PostUnaryStaticError(String op, int line, int column) {
-            super("E312",
-                    "'" + op + "' can only be applied to a variable reference",
-                    line, column, op.length(),
-                    "Use '$variable" + op + "' to increment or decrement a variable");
-        }
-    }
-
     public static class RangeStepZeroStaticError extends StaticCheckError {
 
         public RangeStepZeroStaticError(int line, int column) {
