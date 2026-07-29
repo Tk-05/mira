@@ -17,6 +17,9 @@ public abstract class Statement implements Node {
 
     public abstract <T> T accept(StmtVisitor<T> visitor);
 
+    @Override
+    public abstract String toString();
+
     public static class VarDecl extends Statement {
 
         private final String name;
@@ -39,6 +42,13 @@ public abstract class Statement implements Node {
         @Override
         public <T> T accept(StmtVisitor<T> visitor) {
             return visitor.visitVarDecl(this);
+        }
+
+        @Override
+        public String toString() {
+            String keyword = isConst ? "const" : "var";
+            return (isPublic ? "pub " : "") + keyword + " " + name
+                    + (initializer != null ? " : " + initializer : "") + ";";
         }
 
         public String getName() {
@@ -138,6 +148,36 @@ public abstract class Statement implements Node {
         public <T> T accept(StmtVisitor<T> visitor) {
             return visitor.visitFuncDecl(this);
         }
+
+        @Override
+        public String toString() {
+            StringBuilder sb = new StringBuilder();
+            if (isPublic) {
+                sb.append("pub ");
+            }
+            if (isAsync) {
+                sb.append("async ");
+            }
+            if (isPure) {
+                sb.append("pure ");
+            }
+            sb.append("fn ").append(name).append("(");
+            for (int i = 0; i < parameters.size(); i++) {
+                Parameter p = parameters.get(i);
+                sb.append(p.name());
+                if (p.hasDefault()) {
+                    sb.append(" : ").append(p.defaultValue());
+                }
+                if (i < parameters.size() - 1 || variadicParam != null) {
+                    sb.append(", ");
+                }
+            }
+            if (variadicParam != null) {
+                sb.append("...").append(variadicParam);
+            }
+            sb.append(") {...}");
+            return sb.toString();
+        }
     }
 
     public static class Return extends Statement {
@@ -155,6 +195,11 @@ public abstract class Statement implements Node {
         @Override
         public <T> T accept(StmtVisitor<T> visitor) {
             return visitor.visitReturn(this);
+        }
+
+        @Override
+        public String toString() {
+            return "return" + (value != null ? " " + value : "") + ";";
         }
     }
 
@@ -180,6 +225,11 @@ public abstract class Statement implements Node {
         public <T> T accept(StmtVisitor<T> visitor) {
             return visitor.visitAssign(this);
         }
+
+        @Override
+        public String toString() {
+            return reference + " : " + expression + ";";
+        }
     }
 
     public static class If extends Statement {
@@ -197,6 +247,12 @@ public abstract class Statement implements Node {
         @Override
         public <T> T accept(StmtVisitor<T> visitor) {
             return visitor.visitIf(this);
+        }
+
+        @Override
+        public String toString() {
+            boolean hasElse = elseBody != null && !elseBody.isEmpty();
+            return "if (" + condition + ") {...}" + (hasElse ? " else {...}" : "");
         }
 
         public Expression getCondition() {
@@ -229,6 +285,11 @@ public abstract class Statement implements Node {
         @Override
         public <T> T accept(StmtVisitor<T> visitor) {
             return visitor.visitFor(this);
+        }
+
+        @Override
+        public String toString() {
+            return "for (...; " + condition + "; ...) {...}";
         }
 
         public List<Node> getVarDecls() {
@@ -265,6 +326,13 @@ public abstract class Statement implements Node {
             return visitor.visitWhile(this);
         }
 
+        @Override
+        public String toString() {
+            return doModifier
+                    ? "do {...} while (" + condition + ");"
+                    : "while (" + condition + ") {...}";
+        }
+
         public Expression getCondition() {
             return condition;
         }
@@ -284,6 +352,11 @@ public abstract class Statement implements Node {
         public <T> T accept(StmtVisitor<T> visitor) {
             return visitor.visitBreak(this);
         }
+
+        @Override
+        public String toString() {
+            return "break;";
+        }
     }
 
     public static class Continue extends Statement {
@@ -291,6 +364,11 @@ public abstract class Statement implements Node {
         @Override
         public <T> T accept(StmtVisitor<T> visitor) {
             return visitor.visitContinue(this);
+        }
+
+        @Override
+        public String toString() {
+            return "continue;";
         }
     }
 
@@ -305,6 +383,11 @@ public abstract class Statement implements Node {
         @Override
         public <T> T accept(StmtVisitor<T> visitor) {
             return visitor.visitBlock(this);
+        }
+
+        @Override
+        public String toString() {
+            return "{...}";
         }
 
         public List<Node> getBody() {
@@ -327,6 +410,11 @@ public abstract class Statement implements Node {
         @Override
         public <T> T accept(StmtVisitor<T> visitor) {
             return visitor.visitForeach(this);
+        }
+
+        @Override
+        public String toString() {
+            return "foreach (var " + iterator.getName() + " in " + collection + ") {...}";
         }
 
         public VarDecl getIterator() {
@@ -359,6 +447,11 @@ public abstract class Statement implements Node {
         public List<Node> getBody() {
             return body;
         }
+
+        @Override
+        public String toString() {
+            return value + " -> {...}";
+        }
     }
 
     public static class Switch extends Statement {
@@ -376,6 +469,11 @@ public abstract class Statement implements Node {
         @Override
         public <T> T accept(StmtVisitor<T> visitor) {
             return visitor.visitSwitch(this);
+        }
+
+        @Override
+        public String toString() {
+            return "switch (" + subject + ") {...}";
         }
 
         public Expression getSubject() {
@@ -404,6 +502,11 @@ public abstract class Statement implements Node {
             return null;
         }
 
+        @Override
+        public String toString() {
+            return "module " + moduleName + ";";
+        }
+
         public String getModuleName() {
             return moduleName;
         }
@@ -424,6 +527,11 @@ public abstract class Statement implements Node {
         @Override
         public <T> T accept(StmtVisitor<T> visitor) {
             return visitor.visitThrow(this);
+        }
+
+        @Override
+        public String toString() {
+            return "throw " + value + ";";
         }
     }
 
@@ -449,6 +557,11 @@ public abstract class Statement implements Node {
 
         public List<Node> getBody() {
             return body;
+        }
+
+        @Override
+        public String toString() {
+            return "catch(" + (typeFilter != null ? typeFilter + " " : "") + paramName + ") {...}";
         }
     }
 
@@ -480,6 +593,18 @@ public abstract class Statement implements Node {
         public <T> T accept(StmtVisitor<T> visitor) {
             return visitor.visitTryCatch(this);
         }
+
+        @Override
+        public String toString() {
+            StringBuilder sb = new StringBuilder("try {...}");
+            for (CatchClause clause : catchClauses) {
+                sb.append(" ").append(clause);
+            }
+            if (finallyBody != null && !finallyBody.isEmpty()) {
+                sb.append(" finally {...}");
+            }
+            return sb.toString();
+        }
     }
 
     public static class EnumDecl extends Statement {
@@ -501,6 +626,12 @@ public abstract class Statement implements Node {
         @Override
         public <T> T accept(StmtVisitor<T> visitor) {
             return visitor.visitEnum(this);
+        }
+
+        @Override
+        public String toString() {
+            return (isPublic ? "pub " : "") + "enum " + identifier
+                    + " {" + String.join(", ", values.keySet()) + "}";
         }
 
         public Map<String, Object> getValues() {
@@ -538,6 +669,11 @@ public abstract class Statement implements Node {
         public <T> T accept(StmtVisitor<T> visitor) {
             return visitor.visitLock(this);
         }
+
+        @Override
+        public String toString() {
+            return "lock (" + mutex + ") {...}";
+        }
     }
 
     public static class VarDestructure extends Statement {
@@ -562,6 +698,11 @@ public abstract class Statement implements Node {
         public <T> T accept(StmtVisitor<T> visitor) {
             return visitor.visitVarDestructure(this);
         }
+
+        @Override
+        public String toString() {
+            return "var (" + String.join(", ", names) + ") : " + initializer + ";";
+        }
     }
 
     public static class ComptimeBlock extends Statement {
@@ -579,6 +720,11 @@ public abstract class Statement implements Node {
         @Override
         public <T> T accept(StmtVisitor<T> visitor) {
             return visitor.visitComptimeBlock(this);
+        }
+
+        @Override
+        public String toString() {
+            return "comptime {...}";
         }
     }
 
@@ -604,6 +750,11 @@ public abstract class Statement implements Node {
         public <T> T accept(StmtVisitor<T> visitor) {
             return visitor.visitStaticAssert(this);
         }
+
+        @Override
+        public String toString() {
+            return "static_assert(" + condition + (message != null ? ", " + message : "") + ");";
+        }
     }
 
     public static class TestCall extends Statement {
@@ -627,6 +778,11 @@ public abstract class Statement implements Node {
         @Override
         public <T> T accept(StmtVisitor<T> visitor) {
             return visitor.visitTestCall(this);
+        }
+
+        @Override
+        public String toString() {
+            return "test(" + name + ", " + testFn + ");";
         }
     }
 }

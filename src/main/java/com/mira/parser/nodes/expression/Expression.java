@@ -355,7 +355,17 @@ public abstract class Expression implements Node {
 
         @Override
         public String toString() {
-            throw new AssertionError();
+            String path = module.toString();
+            String selection = isSelective() ? " {" + String.join(", ", selectedFunctions) + "}" : "";
+            String alias = namespace != null ? " as " + namespace : "";
+            return switch (kind) {
+                case NATIVE ->
+                    "import native " + path + alias;
+                case MODULE ->
+                    "import module " + path + selection + alias;
+                case STDLIB ->
+                    "import " + path + selection + alias;
+            };
         }
 
         public String getModule() {
@@ -457,7 +467,7 @@ public abstract class Expression implements Node {
 
         @Override
         public String toString() {
-            throw new UnsupportedOperationException();
+            return "<" + start + ".." + end + (stepsize != null ? "," + stepsize : "") + ">";
         }
 
         public Expression getStart() {
@@ -494,7 +504,7 @@ public abstract class Expression implements Node {
 
         @Override
         public String toString() {
-            throw new UnsupportedOperationException("Unimplemented method 'toString'");
+            return "{ " + varDecls.size() + " field(s), " + methods.size() + " method(s) }";
         }
 
         public List<VarDecl> getVarDecls() {
@@ -523,7 +533,7 @@ public abstract class Expression implements Node {
 
         @Override
         public String toString() {
-            throw new UnsupportedOperationException("Unimplemented method 'toString'");
+            return "struct { " + varDecls.size() + " field(s), " + methods.size() + " method(s) }";
         }
 
         public List<VarDecl> getVarDecls() {
@@ -552,7 +562,17 @@ public abstract class Expression implements Node {
 
         @Override
         public String toString() {
-            throw new UnsupportedOperationException("Unimplemented method 'toString'");
+            StringBuilder sb = new StringBuilder();
+            sb.append(target).append(" { ");
+            int i = 0;
+            for (var entry : overrides.entrySet()) {
+                sb.append("$").append(entry.getKey()).append(": ").append(entry.getValue());
+                if (++i < overrides.size()) {
+                    sb.append(", ");
+                }
+            }
+            sb.append(" }");
+            return sb.toString();
         }
 
         public Expression getTarget() {
