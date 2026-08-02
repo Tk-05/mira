@@ -11,6 +11,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import com.mira.cli.Flags;
+import com.mira.error.DiagnosticFormatter;
 import com.mira.error.MiraError;
 import com.mira.error.resolver.MultipleStaticCheckErrors;
 import com.mira.error.resolver.StaticCheckError.ArityMismatchError;
@@ -39,7 +41,6 @@ import com.mira.lexer.Tokenizer;
 import com.mira.lexer.token.Token;
 import com.mira.lexer.token.TokenType;
 import com.mira.lib.LibIndex;
-import com.mira.resolver.LintScope.VarInfo;
 import com.mira.parser.Parser;
 import com.mira.parser.nodes.Node;
 import com.mira.parser.nodes.Parameter;
@@ -91,6 +92,7 @@ import com.mira.parser.nodes.statement.Statement.TryCatch;
 import com.mira.parser.nodes.statement.Statement.VarDecl;
 import com.mira.parser.nodes.statement.Statement.VarDestructure;
 import com.mira.parser.nodes.statement.Statement.While;
+import com.mira.resolver.LintScope.VarInfo;
 import com.mira.warning.WarningCollector;
 import com.mira.warning.WarningLevel;
 
@@ -341,6 +343,13 @@ public class StaticCheck {
         resolveNodes(ast);
         popScope();
 
+        if (Flags.verbose) {
+            System.out.println(DiagnosticFormatter.formatInfo(
+                    "static check: " + ast.size() + " top-level node(s), "
+                    + errors.size() + " error(s), "
+                    + WarningCollector.getWarnings().size() + " warning(s)"));
+        }
+
         if (!errors.isEmpty()) {
             throw new MultipleStaticCheckErrors(errors);
         }
@@ -447,7 +456,7 @@ public class StaticCheck {
                 }
             }
             case UnaryExpression e when "-".equals(e.getOperation().getLexeme())
-                    || "~".equals(e.getOperation().getLexeme()) -> {
+            || "~".equals(e.getOperation().getLexeme()) -> {
                 if (e.getRight() != null) {
                     resolveExpr(e.getRight());
                     warnIfStringOperand(e.getRight(), e.getOperation());
@@ -1331,8 +1340,8 @@ public class StaticCheck {
             String name = ((DumbExpression) operand).getValue();
             WarningCollector.emit(WarningLevel.WARNING,
                     "Operator '" + operator.getLexeme() + "' used on '" + name
-                            + "', which is treated as the String literal \"" + name
-                            + "\" — missing '$" + name + "'?",
+                    + "', which is treated as the String literal \"" + name
+                    + "\" — missing '$" + name + "'?",
                     operator);
         }
     }

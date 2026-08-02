@@ -28,6 +28,7 @@ import static org.objectweb.asm.Opcodes.PUTSTATIC;
 import static org.objectweb.asm.Opcodes.RETURN;
 
 import com.mira.cli.Flags;
+import com.mira.error.DiagnosticFormatter;
 import com.mira.error.runtime.RuntimeError.ModuleMissingDeclarationError;
 import com.mira.lexer.Tokenizer;
 import com.mira.parser.Parser;
@@ -54,7 +55,12 @@ public class Compiler {
     private static final String IMPORT_RESOLVER = "com/mira/runtime/interpreter/ImportResolver";
 
     public CompileResult compile(List<Node> ast, String scriptName) {
+        long comptimeStart = System.currentTimeMillis();
         new ComptimeExecutor().execute(ast);
+        if (Flags.verbose) {
+            System.out.println(DiagnosticFormatter.formatInfo(
+                    "comptime execution: " + (System.currentTimeMillis() - comptimeStart) + " ms"));
+        }
         String className = toClassName(scriptName);
         String moduleName = !ast.isEmpty() && ast.get(0) instanceof ModuleDecl md
                 ? md.getModuleName()
@@ -76,7 +82,13 @@ public class Compiler {
 
         Map<String, byte[]> extras = new HashMap<>();
         Map<String, byte[]> nativeJars = new LinkedHashMap<>();
+        long moduleImportStart = System.currentTimeMillis();
         Map<String, String> compiledModules = compileModuleImports(ast, extras, nativeJars);
+        if (Flags.verbose) {
+            System.out.println(DiagnosticFormatter.formatInfo(
+                    "compiled " + compiledModules.size() + " module import(s): "
+                    + (System.currentTimeMillis() - moduleImportStart) + " ms"));
+        }
 
         Path ip = Flags.inputPath.get();
         if (ip != null) {

@@ -16,7 +16,7 @@ import com.mira.utils.FileLoader;
 public class CliDispatcher {
 
     public static void dispatch(String[] args) {
-        if (args[0].equals("-v") || args[0].equals("--version")) {
+        if (args[0].equals("--version")) {
             System.out.println("mira " + Flags.VERSION);
             return;
         }

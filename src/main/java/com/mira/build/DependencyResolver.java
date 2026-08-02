@@ -13,6 +13,8 @@ import com.mira.build.dependency.GitDependencyFetcher;
 import com.mira.build.dependency.LocalRegistry;
 import com.mira.build.dependency.Lockfile;
 import com.mira.build.dependency.NativeArtifactFetcher;
+import com.mira.cli.Flags;
+import com.mira.error.DiagnosticFormatter;
 
 public class DependencyResolver {
 
@@ -70,6 +72,18 @@ public class DependencyResolver {
                                 + "Run 'mira install' inside its project directory first.");
                     }
                 }
+            }
+            if (Flags.verbose) {
+                String kind = switch (entry.getValue()) {
+                    case ProjectConfig.Dependency.PathDependency pd ->
+                        "path";
+                    case ProjectConfig.Dependency.GitDependency gd ->
+                        "git";
+                    case ProjectConfig.Dependency.RegistryDependency rd ->
+                        "registry";
+                };
+                System.out.println(DiagnosticFormatter.formatInfo(
+                        "dependency '" + name + "': " + kind + " -> " + depRoot));
             }
             sourceRoots.add(depRoot);
 

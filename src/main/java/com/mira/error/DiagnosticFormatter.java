@@ -45,7 +45,7 @@ public final class DiagnosticFormatter {
     }
 
     private static String green() {
-        return ansi("[32m");
+        return ansi("[32m");
     }
 
     public static String format(Throwable t) {
@@ -84,7 +84,7 @@ public final class DiagnosticFormatter {
 
     public static String formatWarning(Warning warning) {
         boolean isHint = warning.level() == WarningLevel.HINT;
-        String warnColor = isHint ? cyan() : ansi("[33m");
+        String warnColor = isHint ? cyan() : ansi("[33m");
         String tag = warnColor + bold() + "[" + warning.level().name().toLowerCase() + "]" + reset();
 
         StringBuilder sb = new StringBuilder();

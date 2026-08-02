@@ -136,6 +136,8 @@ public class Commands {
                     Flags.noColor = true;
                 case "--profile" ->
                     Flags.profile = true;
+                case "-v", "--verbose" ->
+                    Flags.verbose = true;
                 default -> {
                 }
             }

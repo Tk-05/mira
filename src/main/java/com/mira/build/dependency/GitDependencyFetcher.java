@@ -13,6 +13,8 @@ import org.eclipse.jgit.lib.Ref;
 
 import com.mira.build.BuildException;
 import com.mira.build.ProjectConfig.Dependency.GitDependency;
+import com.mira.cli.Flags;
+import com.mira.error.DiagnosticFormatter;
 
 /**
  * Fetches a git dependency into the shared local cache
@@ -41,13 +43,25 @@ public final class GitDependencyFetcher {
         if (!forceUpdate && lockEntry != null && lockEntry.url().equals(url)) {
             Path cached = DependencyCache.checkoutDir(url, lockEntry.commit());
             if (isValidCheckout(cached)) {
+                if (Flags.verbose) {
+                    System.out.println(DiagnosticFormatter.formatInfo(
+                            depName + ": using cached checkout (" + lockEntry.commit() + ")"));
+                }
                 return new Resolved(cached, lockEntry.commit(), lockEntry.resolved());
+            }
+            if (Flags.verbose) {
+                System.out.println(DiagnosticFormatter.formatInfo(
+                        depName + ": fetching " + url + " (commit " + lockEntry.commit() + ")..."));
             }
             Path finalDir = cloneAtRev(depName, url, lockEntry.commit());
             return new Resolved(finalDir, finalDir.getFileName().toString(), lockEntry.resolved());
         }
 
         if (dep.rev() != null) {
+            if (Flags.verbose) {
+                System.out.println(DiagnosticFormatter.formatInfo(
+                        depName + ": fetching " + url + " (rev " + dep.rev() + ")..."));
+            }
             Path finalDir = cloneAtRev(depName, url, dep.rev());
             return new Resolved(finalDir, finalDir.getFileName().toString(), dep.rev());
         }
@@ -55,6 +69,11 @@ public final class GitDependencyFetcher {
         String refName = dep.tag() != null ? dep.tag()
                 : dep.branch() != null ? dep.branch()
                 : resolveVersionTag(depName, url, dep.version());
+
+        if (Flags.verbose) {
+            System.out.println(DiagnosticFormatter.formatInfo(
+                    depName + ": fetching " + url + " (ref '" + refName + "')..."));
+        }
 
         Path tempDir = createTempCloneDir(depName);
         String sha;

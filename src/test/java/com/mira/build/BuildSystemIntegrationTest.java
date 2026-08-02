@@ -54,6 +54,7 @@ public class BuildSystemIntegrationTest {
         ImportResolver.reset();
         Flags.dependencyRoots = new java.util.ArrayList<>();
         Flags.nativeRoots = new java.util.ArrayList<>();
+        Flags.verbose = false;
     }
 
     private String stdout() {
@@ -174,6 +175,27 @@ public class BuildSystemIntegrationTest {
         DependencyResolver.Resolution resolution = DependencyResolver.resolve(cfg);
         assertTrue(resolution.sourceRoots().isEmpty());
         assertTrue(resolution.nativeRoots().isEmpty());
+    }
+
+    @Test
+    void resolveVerbosePrintsDependencyResolution() throws IOException {
+        Path depDir = projectDir.resolve("dep");
+        Files.createDirectories(depDir);
+        Files.writeString(depDir.resolve("mira.toml"), "[project]\nname=\"dep\"\nentry=\"d.mira\"\n");
+        Files.writeString(depDir.resolve("d.mira"), "module dep;\n");
+
+        Path tomlPath = projectDir.resolve("mira.toml");
+        Files.writeString(tomlPath,
+                "[project]\nname=\"app\"\nentry=\"main.mira\"\n"
+                + "[dependencies]\ndep = { path = \"dep\" }\n");
+        ProjectConfig cfg = ProjectLoader.load(tomlPath);
+
+        Flags.verbose = true;
+        DependencyResolver.resolve(cfg);
+
+        String out = stdout();
+        assertTrue(out.contains("dependency 'dep'"));
+        assertTrue(out.contains("path"));
     }
 
     @Test

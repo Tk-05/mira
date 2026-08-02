@@ -436,22 +436,26 @@ java -jar mira-RELEASE.jar script.mira --compile --run
 
 Flags available for both single-file and build-system usage:
 
-| Flag              | Description                                                       |
-| ----------------- | ----------------------------------------------------------------- |
-| `-m`, `--main`    | Call `main()` as the program entry point                          |
-| `-- <a> <b> ...`  | Pass arguments to the program (everything after `--`)             |
-| `--no-check`      | Skip the static check (linter / unused-variable analysis)         |
-| `--no-warn`       | Suppress all warnings and hints produced by the static checker    |
-| `--no-color`      | Disable colored/ANSI diagnostic output (also honors `NO_COLOR`)   |
-| `--test`          | Run `test()` calls and print a pass/fail summary; exits 1 on fail |
-| `--debug`         | Launch the interactive debugger                                   |
-| `--watch`         | Re-run the program whenever the source file or its imports change |
-| `--crash-dump`    | On error: print the Mira call stack and memory dump               |
-| `--verbose`       | More detail — combine with `--crash-dump` or `--imports`          |
-| `-t`, `--tokens`  | Dump the token stream to stdout                                   |
-| `--check-only`    | Exit after parsing and static check, before interpretation        |
-| `--ast`           | Print the AST to stdout                                           |
-| `--imports`       | Show all loaded imports with their type and alias                 |
-| `-v`, `--version` | Print the Mira version                                            |
+| Flag              | Description                                                                                                                                                                                    |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `-m`, `--main`    | Call `main()` as the program entry point                                                                                                                                                       |
+| `-- <a> <b> ...`  | Pass arguments to the program (everything after `--`)                                                                                                                                          |
+| `--no-check`      | Skip the static check (linter / unused-variable analysis)                                                                                                                                      |
+| `--no-warn`       | Suppress all warnings and hints produced by the static checker                                                                                                                                 |
+| `--no-color`      | Disable colored/ANSI diagnostic output (also honors `NO_COLOR`)                                                                                                                                |
+| `--test`          | Run `test()` calls and print a pass/fail summary; exits 1 on fail                                                                                                                              |
+| `--debug`         | Launch the interactive debugger                                                                                                                                                                |
+| `--watch`         | Re-run the program whenever the source file or its imports change                                                                                                                              |
+| `--crash-dump`    | On error: print the Mira call stack and memory dump                                                                                                                                            |
+| `-v`, `--verbose` | Report progress as it happens (module cache hits/parses, dependency resolution, static-check summary, compile phase timing); combine with `--crash-dump` or `--imports` for extra detail there |
+| `-t`, `--tokens`  | Dump the token stream to stdout                                                                                                                                                                |
+| `--check-only`    | Exit after parsing and static check, before interpretation                                                                                                                                     |
+| `--ast`           | Print the AST to stdout                                                                                                                                                                        |
+| `--imports`       | Show all loaded imports with their type and alias                                                                                                                                              |
+| `--version`       | Print the Mira version (no short form — `-v` is `--verbose`)                                                                                                                                   |
+
+`-v`/`--verbose` also works on the project subcommands (`build`, `run`,
+`test`, `release`) — e.g. `mira build -v` prints which dependencies are
+resolved from cache versus fetched over the network.
 
 ---

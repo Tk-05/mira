@@ -24,6 +24,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import com.mira.cli.Flags;
+import com.mira.error.DiagnosticFormatter;
 import com.mira.error.MiraError;
 import com.mira.error.runtime.RuntimeError;
 import com.mira.error.runtime.RuntimeError.LibImportConflictError;
@@ -260,8 +261,14 @@ public class ImportResolver {
             CachedModule cached = astCache.get(moduleKey);
             List<Node> asts;
             if (cached != null && cached.lastModified().equals(currentModTime)) {
+                if (Flags.verbose) {
+                    System.out.println(DiagnosticFormatter.formatInfo("cache hit: " + modulePath));
+                }
                 asts = cached.ast();
             } else {
+                if (Flags.verbose) {
+                    System.out.println(DiagnosticFormatter.formatInfo("parsing: " + modulePath));
+                }
                 String source = Files.readString(modulePath);
                 List<Token> tokens = new Tokenizer().tokenize(source, false);
                 asts = new Parser().parseTokens(tokens);
@@ -387,8 +394,14 @@ public class ImportResolver {
             CachedModule cached = astCache.get(moduleKey);
             List<Node> asts;
             if (cached != null && cached.lastModified().equals(currentModTime)) {
+                if (Flags.verbose) {
+                    System.out.println(DiagnosticFormatter.formatInfo("cache hit: " + modulePath));
+                }
                 asts = cached.ast();
             } else {
+                if (Flags.verbose) {
+                    System.out.println(DiagnosticFormatter.formatInfo("parsing: " + modulePath));
+                }
                 String source = Files.readString(modulePath);
                 List<Token> tokens = new Tokenizer().tokenize(source, false);
                 asts = new Parser().parseTokens(tokens);

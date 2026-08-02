@@ -1,13 +1,18 @@
 package com.mira.resolver;
 
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
 import java.util.List;
 
+import org.junit.jupiter.api.AfterEach;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 
+import com.mira.cli.Flags;
 import com.mira.error.MiraError;
 import com.mira.error.resolver.MultipleStaticCheckErrors;
 import com.mira.lexer.Tokenizer;
@@ -31,6 +36,11 @@ public class StaticCheckTest {
 
     private boolean hasCode(List<MiraError> errors, String code) {
         return errors.stream().anyMatch(e -> code.equals(e.getErrorCode()));
+    }
+
+    @AfterEach
+    void resetVerbose() {
+        Flags.verbose = false;
     }
 
     @Test
@@ -604,5 +614,39 @@ public class StaticCheckTest {
         List<MiraError> errors = errorsFor(
                 "fn hello(name) { println($name.z); } hello(\"test\");");
         assertTrue(hasCode(errors, "E320"));
+    }
+
+    @Test
+    void verboseModePrintsSummaryLine() {
+        List<Node> ast = new Parser().parseTokens(new Tokenizer().tokenize("module Main; var x : 1;", false));
+
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        PrintStream old = System.out;
+        System.setOut(new PrintStream(out));
+        try {
+            Flags.verbose = true;
+            new StaticCheck().check(ast);
+        } finally {
+            System.setOut(old);
+        }
+
+        assertTrue(out.toString().contains("static check:"));
+    }
+
+    @Test
+    void nonVerboseModeHasNoSummaryLine() {
+        List<Node> ast = new Parser().parseTokens(new Tokenizer().tokenize("module Main; var x : 1;", false));
+
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        PrintStream old = System.out;
+        System.setOut(new PrintStream(out));
+        try {
+            Flags.verbose = false;
+            new StaticCheck().check(ast);
+        } finally {
+            System.setOut(old);
+        }
+
+        assertFalse(out.toString().contains("static check:"));
     }
 }

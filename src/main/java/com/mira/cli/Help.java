@@ -6,17 +6,17 @@ public class Help {
         Project commands (requires mira.toml):
           mira init [--name <n>] [--project <dir>]         Create a new project
           mira build [--mode interpret|compile|package] [--slim|--full] [--watch]
-                      [--project <dir>] [--no-warn] [--no-color]
+                      [--project <dir>] [--no-warn] [--no-color] [-v]
                                                              Build the project
           mira run [--mode interpret|compile|package] [--slim|--full] [--watch]
-                    [--project <dir>] [--no-warn] [--no-color] [--profile] [-- <args>]
+                    [--project <dir>] [--no-warn] [--no-color] [--profile] [-v] [-- <args>]
                                                              Run the project (default: mode from mira.toml)
-          mira test [--project <dir>] [--no-warn] [--no-color]
+          mira test [--project <dir>] [--no-warn] [--no-color] [-v]
                                                              Run all test files matching test.pattern
           mira clean [--project <dir>]                      Delete the output directory
           mira clean build [--mode ...] [--slim|--full]      Delete the output directory, then build
           mira clean release [--mode ...] [--slim|--full]    Delete the output directory, then release
-          mira release [--mode ...] [--slim|--full] [--project <dir>] [--no-warn]
+          mira release [--mode ...] [--slim|--full] [--project <dir>] [--no-warn] [-v]
                                                              Full pipeline: build -> post-build -> test
           mira task [--project <dir>]                       List all tasks defined in mira.toml
           mira task <name> [--profile]                      Run the task named <name>
@@ -24,7 +24,8 @@ public class Help {
           mira deps [--project <dir>]                       Print the dependency tree
 
         `--project <dir>` (short: `-C <dir>`) works with every project command above,
-        so you don't need to `cd` into the project first.
+        so you don't need to `cd` into the project first. `-v`/`--verbose` works
+        with build/run/test/release too — see below.
 
         Single-file usage:
           mira <file.mira> [flags]
@@ -35,11 +36,14 @@ public class Help {
           -m,  --main            Use main() as entry point
           -o,  --output <dir>    Output directory for compiled bytecode
           -h,  --help            Show this help
-          -v,  --version         Print the Mira version
+               --version         Print the Mira version
                --check-only      Parse and static-check, then stop (don't execute)
                --no-check        Skip the static check, go straight to execution
                --imports         Show loaded imports with type and alias
-               --verbose         More detail — combine with --imports or --crash-dump
+          -v,  --verbose         Report progress as it happens: module cache hits/parses,
+                                 dependency resolution, static-check summary, compile phase
+                                 timing. Combine with --imports or --crash-dump for extra
+                                 detail there. Also available on build/run/test/release.
                --no-warn         Suppress all warnings and hints
                --no-color        Disable colored/ANSI diagnostic output (also honors NO_COLOR)
                --crash-dump      On crash: print Mira call stack and memory dump

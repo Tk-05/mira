@@ -64,7 +64,7 @@ public class Flags {
                     System.out.println(Help.getHelp());
                     System.exit(0);
                 }
-                case "-v", "--version" -> {
+                case "--version" -> {
                     System.out.println("mira " + Flags.VERSION);
                     System.exit(0);
                 }
@@ -108,7 +108,7 @@ public class Flags {
                     Flags.suppressWarnings = true;
                 case "--no-color" ->
                     Flags.noColor = true;
-                case "--verbose" ->
+                case "-v", "--verbose" ->
                     Flags.verbose = true;
                 case "--profile" ->
                     Flags.profile = true;
