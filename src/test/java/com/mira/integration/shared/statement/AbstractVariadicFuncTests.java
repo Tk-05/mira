@@ -12,7 +12,7 @@ public abstract class AbstractVariadicFuncTests {
         assertEquals("0", runForOutput("""
                 fn countArgs(...args) {
                     var n : 0;
-                    foreach(var x in $args) { $n : eval($n + 1); }
+                    for(var x in $args) { $n : eval($n + 1); }
                     return $n;
                 }
                 print(countArgs());
@@ -24,7 +24,7 @@ public abstract class AbstractVariadicFuncTests {
         assertEquals("3", runForOutput("""
                 fn countArgs(...args) {
                     var n : 0;
-                    foreach(var x in $args) { $n : eval($n + 1); }
+                    for(var x in $args) { $n : eval($n + 1); }
                     return $n;
                 }
                 print(countArgs(1, 2, 3));
@@ -36,7 +36,7 @@ public abstract class AbstractVariadicFuncTests {
         assertEquals("6", runForOutput("""
                 fn sum(...args) {
                     var total : 0;
-                    foreach(var n in $args) { $total : eval($total + $n); }
+                    for(var n in $args) { $total : eval($total + $n); }
                     return $total;
                 }
                 print(sum(1, 2, 3));
@@ -48,7 +48,7 @@ public abstract class AbstractVariadicFuncTests {
         assertEquals("3", runForOutput("""
                 fn countRest(first, ...rest) {
                     var n : 0;
-                    foreach(var x in $rest) { $n : eval($n + 1); }
+                    for(var x in $rest) { $n : eval($n + 1); }
                     return $n;
                 }
                 print(countRest(1, 2, 3, 4));
@@ -60,7 +60,7 @@ public abstract class AbstractVariadicFuncTests {
         assertEquals("3", runForOutput("""
                 var countArgs : fn(...args) {
                     var n : 0;
-                    foreach(var x in $args) { $n : eval($n + 1); }
+                    for(var x in $args) { $n : eval($n + 1); }
                     return $n;
                 };
                 print($countArgs(1, 2, 3));

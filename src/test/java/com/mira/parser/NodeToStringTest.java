@@ -19,8 +19,7 @@ import com.mira.parser.nodes.statement.Statement.Break;
 import com.mira.parser.nodes.statement.Statement.ComptimeBlock;
 import com.mira.parser.nodes.statement.Statement.Continue;
 import com.mira.parser.nodes.statement.Statement.EnumDecl;
-import com.mira.parser.nodes.statement.Statement.For;
-import com.mira.parser.nodes.statement.Statement.Foreach;
+import com.mira.parser.nodes.statement.Statement.Loop;
 import com.mira.parser.nodes.statement.Statement.FuncDecl;
 import com.mira.parser.nodes.statement.Statement.If;
 import com.mira.parser.nodes.statement.Statement.Lock;
@@ -94,7 +93,7 @@ public class NodeToStringTest {
     @Test
     void forLoop() {
         Node node = first("for (var i : 0; $i < 5; $i++) { print(1); }");
-        assertEquals(For.class, node.getClass());
+        assertEquals(Loop.class, node.getClass());
         assertEquals("for (...; ($i < 5); ...) {...}", node.toString());
     }
 
@@ -132,9 +131,9 @@ public class NodeToStringTest {
 
     @Test
     void foreachLoop() {
-        Node node = first("foreach (var item in <0..5>) { print(1); }");
-        assertEquals(Foreach.class, node.getClass());
-        assertEquals("foreach (var item in <0..5>) {...}", node.toString());
+        Node node = first("for (var item in <0..5>) { print(1); }");
+        assertEquals(Loop.class, node.getClass());
+        assertEquals("for (var item in <0..5>) {...}", node.toString());
     }
 
     @Test
@@ -255,14 +254,14 @@ public class NodeToStringTest {
 
     @Test
     void rangeExpression() {
-        Foreach fe = (Foreach) first("foreach (var item in <1..5>) { print(1); }");
+        Loop fe = (Loop) first("for (var item in <1..5>) { print(1); }");
         assertEquals(RangeExpression.class, fe.getCollection().getClass());
         assertEquals("<1..5>", fe.getCollection().toString());
     }
 
     @Test
     void rangeExpressionWithStep() {
-        Foreach fe = (Foreach) first("foreach (var item in <1..10,2>) { print(1); }");
+        Loop fe = (Loop) first("for (var item in <1..10,2>) { print(1); }");
         assertEquals("<1..10,2>", fe.getCollection().toString());
     }
 

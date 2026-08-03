@@ -47,8 +47,7 @@ import com.mira.parser.nodes.statement.Statement.Break;
 import com.mira.parser.nodes.statement.Statement.ComptimeBlock;
 import com.mira.parser.nodes.statement.Statement.Continue;
 import com.mira.parser.nodes.statement.Statement.EnumDecl;
-import com.mira.parser.nodes.statement.Statement.For;
-import com.mira.parser.nodes.statement.Statement.Foreach;
+import com.mira.parser.nodes.statement.Statement.Loop;
 import com.mira.parser.nodes.statement.Statement.FuncDecl;
 import com.mira.parser.nodes.statement.Statement.If;
 import com.mira.parser.nodes.statement.Statement.Lock;
@@ -450,7 +449,11 @@ public class AstFormatter implements ExprVisitor<String>, StmtVisitor<String> {
     }
 
     @Override
-    public String visitFor(For stmt) {
+    public String visitLoop(Loop stmt) {
+        return stmt.isForeach() ? formatForeachLoop(stmt) : formatForLoop(stmt);
+    }
+
+    private String formatForLoop(Loop stmt) {
         StringBuilder sb = new StringBuilder("for (");
         List<Node> varDecls = stmt.getVarDecls();
         if (!varDecls.isEmpty()) {
@@ -480,18 +483,13 @@ public class AstFormatter implements ExprVisitor<String>, StmtVisitor<String> {
         return sb.toString();
     }
 
-    @Override
-    public String visitForeach(Foreach stmt) {
+    private String formatForeachLoop(Loop stmt) {
         VarDecl iter = stmt.getIterator();
         String iterName = iter.getName();
         if ("_".equals(iterName) && iter.getInitializer() == null) {
             return "for (" + formatExpr(stmt.getCollection()) + ") " + formatBody(stmt.getBody(), stmt.line);
         }
-        if (stmt.getCollection() instanceof RangeExpression) {
-            return "for (var " + iterName + " in " + formatExpr(stmt.getCollection()) + ") "
-                    + formatBody(stmt.getBody(), stmt.line);
-        }
-        return "foreach (var " + iterName + " in " + formatExpr(stmt.getCollection()) + ") "
+        return "for (var " + iterName + " in " + formatExpr(stmt.getCollection()) + ") "
                 + formatBody(stmt.getBody(), stmt.line);
     }
 

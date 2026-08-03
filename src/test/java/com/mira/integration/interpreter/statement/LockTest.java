@@ -58,7 +58,7 @@ public class LockTest extends AbstractLockTests {
                     col.push($tasks, spawn(fn() { inc(); }));
                     $i : eval($i + 1);
                 }
-                foreach (var t in $tasks) { await($t); }
+                for (var t in $tasks) { await($t); }
                 $counter;
                 """);
         assertEquals(10.0, ((Number) result).doubleValue(), 0);
@@ -138,7 +138,7 @@ public class LockTest extends AbstractLockTests {
                     col.push($tasks, spawn(fn() { inc(); }));
                     $i : eval($i + 1);
                 }
-                foreach (var t in $tasks) { await($t); }
+                for (var t in $tasks) { await($t); }
                 $counter;
                 """);
         assertEquals(50.0, ((Number) result).doubleValue(), 0);

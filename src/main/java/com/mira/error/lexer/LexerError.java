@@ -28,4 +28,12 @@ public class LexerError extends MiraError {
                     "Remove or replace this character — it is not part of the Mira syntax");
         }
     }
+
+    public static class InvalidEscapeSequenceError extends LexerError {
+
+        public InvalidEscapeSequenceError(int line, int column, char escaped) {
+            super("E003", "Unknown escape sequence '\\" + escaped + "'", line, column,
+                    "Supported escapes: \\n \\t \\r \\\" \\\\ \\uXXXX");
+        }
+    }
 }

@@ -77,8 +77,7 @@ import com.mira.parser.nodes.statement.Statement.CatchClause;
 import com.mira.parser.nodes.statement.Statement.ComptimeBlock;
 import com.mira.parser.nodes.statement.Statement.Continue;
 import com.mira.parser.nodes.statement.Statement.EnumDecl;
-import com.mira.parser.nodes.statement.Statement.For;
-import com.mira.parser.nodes.statement.Statement.Foreach;
+import com.mira.parser.nodes.statement.Statement.Loop;
 import com.mira.parser.nodes.statement.Statement.FuncDecl;
 import com.mira.parser.nodes.statement.Statement.If;
 import com.mira.parser.nodes.statement.Statement.Lock;
@@ -225,15 +224,15 @@ public class StaticCheck {
                 queue.add(s.getCondition());
                 queue.addAll(s.getBody());
             }
-            case Foreach s -> {
-                queue.add(s.getCollection());
-                queue.addAll(s.getBody());
-            }
-            case For s -> {
-                queue.addAll(s.getVarDecls());
-                if (s.getCondition() != null) {
-                    queue.add(s.getCondition());
+            case Loop s -> {
+                if (s.isForeach()) {
+                    queue.add(s.getCollection());
+                } else {
+                    queue.addAll(s.getVarDecls());
+                    if (s.getCondition() != null) {
+                        queue.add(s.getCondition());
 
+                    }
                 }
                 queue.addAll(s.getBody());
             }
@@ -379,12 +378,15 @@ public class StaticCheck {
             }
             case If stmt ->
                 resolveIf(stmt);
-            case For stmt ->
-                resolveFor(stmt);
+            case Loop stmt -> {
+                if (stmt.isForeach()) {
+                    resolveForeachLoop(stmt);
+                } else {
+                    resolveForLoop(stmt);
+                }
+            }
             case While stmt ->
                 resolveWhile(stmt);
-            case Foreach stmt ->
-                resolveForeach(stmt);
             case Block stmt ->
                 resolveBlock(stmt);
             case Switch stmt ->
@@ -394,6 +396,9 @@ public class StaticCheck {
             case Throw stmt ->
                 resolveExpr(stmt.getValue());
             case EnumDecl stmt -> {
+                for (Expression value : stmt.getValues().values()) {
+                    resolveExpr(value);
+                }
             }
             case VarDestructure stmt ->
                 resolveVarDestructure(stmt);
@@ -963,7 +968,7 @@ public class StaticCheck {
         }
     }
 
-    private void resolveFor(For stmt) {
+    private void resolveForLoop(Loop stmt) {
         scope.push();
         loopDepth++;
         resolveNodes(stmt.getVarDecls());
@@ -990,7 +995,7 @@ public class StaticCheck {
         popScope();
     }
 
-    private void resolveForeach(Foreach stmt) {
+    private void resolveForeachLoop(Loop stmt) {
         resolveExpr(stmt.getCollection());
         if (isNonIterableLiteral(stmt.getCollection())) {
             errors.add(new NotIterableStaticError(stmt.line, stmt.column));
@@ -1231,11 +1236,9 @@ public class StaticCheck {
                 s.line;
             case If s ->
                 s.line;
-            case For s ->
+            case Loop s ->
                 s.line;
             case While s ->
-                s.line;
-            case Foreach s ->
                 s.line;
             case Block s ->
                 s.line;
@@ -1264,11 +1267,9 @@ public class StaticCheck {
                 s.column;
             case If s ->
                 s.column;
-            case For s ->
+            case Loop s ->
                 s.column;
             case While s ->
-                s.column;
-            case Foreach s ->
                 s.column;
             case Block s ->
                 s.column;
@@ -1299,12 +1300,10 @@ public class StaticCheck {
                 "throw".length();
             case If ignored ->
                 "if".length();
-            case For ignored ->
+            case Loop ignored ->
                 "for".length();
             case While ignored ->
                 "while".length();
-            case Foreach ignored ->
-                "foreach".length();
             case Switch ignored ->
                 "switch".length();
             case TryCatch ignored ->
@@ -1596,14 +1595,8 @@ public class StaticCheck {
 
                     }
                 }
-                case For f -> {
-                    if (hasAnyReturn(f.getBody())) {
-                        return true;
-
-                    }
-                }
-                case Foreach fe -> {
-                    if (hasAnyReturn(fe.getBody())) {
+                case Loop l -> {
+                    if (hasAnyReturn(l.getBody())) {
                         return true;
 
                     }

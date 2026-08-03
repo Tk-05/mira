@@ -268,28 +268,48 @@ public abstract class Statement implements Node {
         }
     }
 
-    public static class For extends Statement {
+    public static class Loop extends Statement {
 
         private final List<Node> varDecls;
         private final Expression condition;
         private final List<Node> postExpressions;
+        private final VarDecl iterator;
+        private final Expression collection;
         private final List<Node> body;
 
-        public For(List<Node> varDecls, Expression condition, List<Node> postExpressions, List<Node> body) {
+        private Loop(List<Node> varDecls, Expression condition, List<Node> postExpressions,
+                VarDecl iterator, Expression collection, List<Node> body) {
             this.varDecls = varDecls;
             this.condition = condition;
             this.postExpressions = postExpressions;
+            this.iterator = iterator;
+            this.collection = collection;
             this.body = body;
+        }
+
+        public static Loop cStyle(List<Node> varDecls, Expression condition,
+                List<Node> postExpressions, List<Node> body) {
+            return new Loop(varDecls, condition, postExpressions, null, null, body);
+        }
+
+        public static Loop foreachStyle(VarDecl iterator, Expression collection, List<Node> body) {
+            return new Loop(List.of(), null, List.of(), iterator, collection, body);
         }
 
         @Override
         public <T> T accept(StmtVisitor<T> visitor) {
-            return visitor.visitFor(this);
+            return visitor.visitLoop(this);
         }
 
         @Override
         public String toString() {
-            return "for (...; " + condition + "; ...) {...}";
+            return isForeach()
+                    ? "for (var " + iterator.getName() + " in " + collection + ") {...}"
+                    : "for (...; " + condition + "; ...) {...}";
+        }
+
+        public boolean isForeach() {
+            return iterator != null;
         }
 
         public List<Node> getVarDecls() {
@@ -302,6 +322,14 @@ public abstract class Statement implements Node {
 
         public List<Node> getPostExpressions() {
             return postExpressions;
+        }
+
+        public VarDecl getIterator() {
+            return iterator;
+        }
+
+        public Expression getCollection() {
+            return collection;
         }
 
         public List<Node> getBody() {
@@ -388,41 +416,6 @@ public abstract class Statement implements Node {
         @Override
         public String toString() {
             return "{...}";
-        }
-
-        public List<Node> getBody() {
-            return body;
-        }
-    }
-
-    public static class Foreach extends Statement {
-
-        private final VarDecl iterator;
-        private final Expression collection;
-        private final List<Node> body;
-
-        public Foreach(VarDecl iterator, Expression collection, List<Node> body) {
-            this.iterator = iterator;
-            this.collection = collection;
-            this.body = body;
-        }
-
-        @Override
-        public <T> T accept(StmtVisitor<T> visitor) {
-            return visitor.visitForeach(this);
-        }
-
-        @Override
-        public String toString() {
-            return "foreach (var " + iterator.getName() + " in " + collection + ") {...}";
-        }
-
-        public VarDecl getIterator() {
-            return iterator;
-        }
-
-        public Expression getCollection() {
-            return collection;
         }
 
         public List<Node> getBody() {
@@ -609,15 +602,15 @@ public abstract class Statement implements Node {
 
     public static class EnumDecl extends Statement {
 
-        private final Map<String, Object> values;
+        private final Map<String, Expression> values;
         private final String identifier;
         private final boolean isPublic;
 
-        public EnumDecl(Map<String, Object> values, String identifier) {
+        public EnumDecl(Map<String, Expression> values, String identifier) {
             this(values, identifier, false);
         }
 
-        public EnumDecl(Map<String, Object> values, String identifier, boolean isPublic) {
+        public EnumDecl(Map<String, Expression> values, String identifier, boolean isPublic) {
             this.values = values;
             this.identifier = identifier;
             this.isPublic = isPublic;
@@ -634,7 +627,7 @@ public abstract class Statement implements Node {
                     + " {" + String.join(", ", values.keySet()) + "}";
         }
 
-        public Map<String, Object> getValues() {
+        public Map<String, Expression> getValues() {
             return values;
         }
 

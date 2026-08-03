@@ -50,10 +50,9 @@ import com.mira.parser.nodes.statement.Statement.CatchClause;
 import com.mira.parser.nodes.statement.Statement.ComptimeBlock;
 import com.mira.parser.nodes.statement.Statement.Continue;
 import com.mira.parser.nodes.statement.Statement.EnumDecl;
-import com.mira.parser.nodes.statement.Statement.For;
-import com.mira.parser.nodes.statement.Statement.Foreach;
 import com.mira.parser.nodes.statement.Statement.FuncDecl;
 import com.mira.parser.nodes.statement.Statement.If;
+import com.mira.parser.nodes.statement.Statement.Loop;
 import com.mira.parser.nodes.statement.Statement.ModuleDecl;
 import com.mira.parser.nodes.statement.Statement.Return;
 import com.mira.parser.nodes.statement.Statement.StaticAssert;
@@ -399,6 +398,10 @@ public class Parser {
         if (current.getLexeme().equals("$")) {
             Expression unary = parseUnaryExpression();
             expr = maybeParseFieldAccess(unary);
+
+        } else if (current.getLexeme().equals("<")
+                && current.getTokenType() != TokenType.STRING_LITERAL) {
+            expr = parseRangeExpression();
 
         } else if ((current.getLexeme().equals("++") || current.getLexeme().equals("--"))
                 && current.getTokenType() != TokenType.STRING_LITERAL) {
@@ -787,50 +790,15 @@ public class Parser {
         return new RangeExpression(start, end, stepsize);
     }
 
+    // Precedence of '<'/'>'/'<='/'>=' (see Vocabulary.OPERATOR_PRECEDENCE) — used as the
+    // Pratt parser's minBP for range operands so a bare '>' is never consumed as "greater
+    // than" and is left for parseRangeExpression() to match as the closing bracket instead.
+    // Comparison/logical/pipe operators (precedence <= this) are therefore not usable
+    // directly inside a range operand; everything tighter (+ - * / % \% ** << >>) is.
+    private static final int RANGE_OPERAND_MIN_BP = 7;
+
     private Expression parseRangeOperand() {
-        List<Expression> expressions = new ArrayList<>();
-
-        while (peek().getTokenType() != TokenType.EOF
-                && !peek().getLexeme().equals("..")
-                && !peek().getLexeme().equals(">")
-                && !isStructuralDelimiter(peek())) {
-
-            Token current = peek();
-
-            if (current.getLexeme().equals("$")) {
-                Expression unary = parseUnaryExpression();
-                expressions.add(parsePostfix(maybeParseAccess(unary)));
-
-            } else if (isExpressionToken(current)
-                    && peekNextSafe().getLexeme().equals("(")
-                    && peekNextSafe().getTokenType() != TokenType.STRING_LITERAL) {
-
-                expressions.add(parsePostfix(maybeParseAccess(parseCallExpression())));
-
-            } else if (isExpressionToken(current)
-                    && peekNextSafe().getLexeme().equals(".")
-                    && !peekOffset(2).getLexeme().equals(".")
-                    && peekNextSafe().getTokenType() != TokenType.STRING_LITERAL) {
-
-                expressions.add(parsePostfix(parseNamespaceCallExpression()));
-
-            } else if (Vocabulary.stringIsOperation(current.getLexeme())
-                    && !current.getLexeme().equals("$")
-                    && !current.getLexeme().equals("++")
-                    && !current.getLexeme().equals("--")) {
-
-                expressions.add(new UnaryExpression(consume(), null));
-
-            } else {
-                expressions.add(parsePostfix(maybeParseAccess(parseDumbExpression())));
-            }
-        }
-
-        if (expressions.isEmpty()) {
-            throw new UnexpectedToken(peek(), "Expected range operand but got '" + peek().getLexeme() + "'");
-        }
-
-        return expressions.size() > 1 ? new ComplexExpression(expressions) : expressions.get(0);
+        return parsePratt(RANGE_OPERAND_MIN_BP);
     }
 
     private Expression parseLambdaExpression(boolean isAsync) {
@@ -1050,9 +1018,6 @@ public class Parser {
             }
             case "for" -> {
                 node = parseFor();
-            }
-            case "foreach" -> {
-                node = parseForeach();
             }
             case "do" -> {
                 node = parseDoWhile();
@@ -1352,25 +1317,22 @@ public class Parser {
             Expression range = parseRangeExpression();
             matchLexeme(")");
             List<Node> body = parseBody();
-            return new Foreach(new VarDecl("_", null, false), range, body);
+            return Loop.foreachStyle(new VarDecl("_", null, false), range, body);
         }
 
-        if (peek().getLexeme().equals("var")
-                && peekOffset(2).getLexeme().equals("in")
-                && peekOffset(3).getLexeme().equals("<")) {
-
-            matchLexeme("var");
-            Token iterToken = consume();
-            String iteratorName = iterToken.getLexeme();
+        if (peek().getLexeme().equals("var") && peekOffset(2).getLexeme().equals("in")) {
+            VarDecl iterator = (VarDecl) parseVarDecl(false).getFirst();
             matchLexeme("in");
-            Expression range = parseRangeExpression();
+
+            Expression collection = peek().getLexeme().equals("<")
+                    ? parseRangeExpression()
+                    : parseExpression();
+
             matchLexeme(")");
 
             List<Node> body = parseBody();
 
-            VarDecl iterVd = new VarDecl(iteratorName, null, false);
-            iterVd.nameColumn = iterToken.getColumn();
-            return new Foreach(iterVd, range, body);
+            return Loop.foreachStyle(iterator, collection, body);
         }
 
         List<Node> varDecls = new ArrayList<>();
@@ -1410,12 +1372,12 @@ public class Parser {
 
             List<Node> body = parseBody();
 
-            return new For(varDecls, condition, postExpressions, body);
+            return Loop.cStyle(varDecls, condition, postExpressions, body);
         } else {
             matchLexeme(")");
             List<Node> body = parseBody();
 
-            return new For(varDecls, null, null, body);
+            return Loop.cStyle(varDecls, null, null, body);
         }
     }
 
@@ -1441,24 +1403,6 @@ public class Parser {
         matchLexeme(")");
 
         return new While(condition, body, true);
-    }
-
-    private Node parseForeach() {
-        Token kwToken = matchLexeme("foreach");
-        requireNotIncomplete(kwToken, "(var item in collection) { body }");
-        matchLexeme("(");
-        VarDecl iterator = (VarDecl) parseVarDecl(false).getFirst();
-        matchLexeme("in");
-
-        Expression collection = peek().getLexeme().equals("<")
-                ? parseRangeExpression()
-                : parseExpression();
-
-        matchLexeme(")");
-
-        List<Node> body = parseBody();
-
-        return new Foreach(iterator, collection, body);
     }
 
     private Node parseBreak() {
@@ -1595,7 +1539,7 @@ public class Parser {
             if (t.getTokenType() == TokenType.KEYWORD) {
                 String lex = t.getLexeme();
                 if (lex.equals("var") || lex.equals("const") || lex.equals("fn")
-                        || lex.equals("if") || lex.equals("for") || lex.equals("foreach")
+                        || lex.equals("if") || lex.equals("for")
                         || lex.equals("while") || lex.equals("return") || lex.equals("switch")
                         || lex.equals("try") || lex.equals("throw") || lex.equals("break")
                         || lex.equals("continue") || lex.equals("async") || lex.equals("lock")) {
@@ -1751,18 +1695,18 @@ public class Parser {
         String identifier = matchType(TokenType.EXPRESSION).getLexeme();
         matchLexeme("{");
 
-        Map<String, Object> values = new LinkedHashMap<>();
+        Map<String, Expression> values = new LinkedHashMap<>();
         int autoIndex = 0;
 
         while (!peek().getLexeme().equals("}")) {
             String name = matchType(TokenType.EXPRESSION).getLexeme();
 
-            Object value;
+            Expression value;
             if (peek().getLexeme().equals(":")) {
                 consume();
-                value = consume().getLexeme();
+                value = parseExpression();
             } else {
-                value = String.valueOf(autoIndex);
+                value = new DumbExpression(new Token(TokenType.EXPRESSION, String.valueOf(autoIndex), 0, 0));
             }
 
             values.put(name, value);

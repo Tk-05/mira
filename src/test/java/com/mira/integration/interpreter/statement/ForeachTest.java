@@ -24,7 +24,7 @@ public class ForeachTest extends AbstractForeachTests {
         assertEquals(3.0, InterpreterRunner.normNum(backend.runAndGetValue("""
                 var list : [1,2,3];
                 var lastResult;
-                foreach(var element in $list) {
+                for(var element in $list) {
                     $lastResult : $element;
                 }
                 $lastResult;
@@ -36,7 +36,7 @@ public class ForeachTest extends AbstractForeachTests {
         try {
             backend.runAndGetValue("""
                     var list : {1,2,3};
-                    foreach(var element in $list) {
+                    for(var element in $list) {
                         if($element == 1) { break; }
                     }
                     """);
@@ -49,7 +49,7 @@ public class ForeachTest extends AbstractForeachTests {
         try {
             backend.runAndGetValue("""
                     var list : {1,2,3};
-                    foreach(var element in $list) {
+                    for(var element in $list) {
                         if($element == 1) { return; }
                     }
                     """);
@@ -63,8 +63,8 @@ public class ForeachTest extends AbstractForeachTests {
             backend.runAndGetValue("""
                     var list1 : {1,2,3};
                     var list2 : {4,5,6};
-                    foreach(var e1 in $list1) {
-                        foreach(var e2 in $list2) {
+                    for(var e1 in $list1) {
+                        for(var e2 in $list2) {
                             if($e1 == 3 && $e2 == 6) { break; }
                         }
                     }
@@ -78,7 +78,7 @@ public class ForeachTest extends AbstractForeachTests {
         try {
             backend.runAndGetValue("""
                     var list1 : {{1,2,3}};
-                    foreach(var element in $list1[0]) {
+                    for(var element in $list1[0]) {
                         if($element == 3) { break; }
                     }
                     """);

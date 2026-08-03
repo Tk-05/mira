@@ -22,7 +22,7 @@ public class VariadicFuncTest extends AbstractVariadicFuncTests {
         assertEquals(42.0, InterpreterRunner.normNum(backend.runAndGetValue("""
                 fn sum(...args) {
                     var total : 0;
-                    foreach (var x in $args) {
+                    for (var x in $args) {
                         $total : eval($total + $x);
                     }
                     return $total;
@@ -36,7 +36,7 @@ public class VariadicFuncTest extends AbstractVariadicFuncTests {
         assertEquals(0.0, InterpreterRunner.normNum(backend.runAndGetValue("""
                 fn sum(...args) {
                     var total : 0;
-                    foreach (var x in $args) {
+                    for (var x in $args) {
                         $total : eval($total + $x);
                     }
                     return $total;
@@ -101,7 +101,7 @@ public class VariadicFuncTest extends AbstractVariadicFuncTests {
         assertEquals(10.0, InterpreterRunner.normNum(backend.runAndGetValue("""
                 fn sum(...args) {
                     var total : 0;
-                    foreach (var x in $args) {
+                    for (var x in $args) {
                         $total : eval($total + $x);
                     }
                     return $total;

@@ -70,7 +70,7 @@ public class StaticCheckTest {
 
     @Test
     void foreachIteratorIsValid() {
-        assertClean("var list : {1, 2, 3}; foreach(var item in $list) { println($item); }");
+        assertClean("var list : {1, 2, 3}; for(var item in $list) { println($item); }");
     }
 
     @Test

@@ -30,8 +30,7 @@ import com.mira.parser.nodes.expression.Expression.StructInitExpression;
 import com.mira.parser.nodes.expression.Expression.UnaryExpression;
 import com.mira.parser.nodes.statement.Statement.Assign;
 import com.mira.parser.nodes.statement.Statement.Block;
-import com.mira.parser.nodes.statement.Statement.For;
-import com.mira.parser.nodes.statement.Statement.Foreach;
+import com.mira.parser.nodes.statement.Statement.Loop;
 import com.mira.parser.nodes.statement.Statement.FuncDecl;
 import com.mira.parser.nodes.statement.Statement.If;
 import com.mira.parser.nodes.statement.Statement.Return;
@@ -137,16 +136,16 @@ public class PurityAnalyzer {
                 isNodePure(stmt.getCondition(), pure, aliasToLib)
                 && isBodyPure(stmt.getThenBody(), pure, aliasToLib)
                 && (stmt.getElseBody() == null || isBodyPure(stmt.getElseBody(), pure, aliasToLib));
-            case For stmt ->
-                (stmt.getCondition() == null || isNodePure(stmt.getCondition(), pure, aliasToLib))
+            case Loop stmt ->
+                stmt.isForeach()
+                ? isBodyPure(stmt.getBody(), pure, aliasToLib)
+                : (stmt.getCondition() == null || isNodePure(stmt.getCondition(), pure, aliasToLib))
                 && isBodyPure(stmt.getVarDecls(), pure, aliasToLib)
                 && isBodyPure(stmt.getPostExpressions(), pure, aliasToLib)
                 && isBodyPure(stmt.getBody(), pure, aliasToLib);
             case While stmt ->
                 isNodePure(stmt.getCondition(), pure, aliasToLib)
                 && isBodyPure(stmt.getBody(), pure, aliasToLib);
-            case Foreach stmt ->
-                isBodyPure(stmt.getBody(), pure, aliasToLib);
             case Block stmt ->
                 isBodyPure(stmt.getBody(), pure, aliasToLib);
             case TryCatch stmt ->

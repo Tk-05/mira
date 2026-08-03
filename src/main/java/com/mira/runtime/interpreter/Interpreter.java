@@ -14,7 +14,6 @@ import java.util.concurrent.ExecutionException;
 import com.mira.cli.Flags;
 import com.mira.error.resolver.StaticCheckError.StaticAssertFailedError;
 import com.mira.error.runtime.RuntimeError.ArgMismatchError;
-import com.mira.error.runtime.RuntimeError.DivisionByZeroError;
 import com.mira.error.runtime.RuntimeError.FieldAccessError;
 import com.mira.error.runtime.RuntimeError.ImmutableCollectionError;
 import com.mira.error.runtime.RuntimeError.IndexOutOfBoundsError;
@@ -67,8 +66,7 @@ import com.mira.parser.nodes.statement.Statement.CatchClause;
 import com.mira.parser.nodes.statement.Statement.ComptimeBlock;
 import com.mira.parser.nodes.statement.Statement.Continue;
 import com.mira.parser.nodes.statement.Statement.EnumDecl;
-import com.mira.parser.nodes.statement.Statement.For;
-import com.mira.parser.nodes.statement.Statement.Foreach;
+import com.mira.parser.nodes.statement.Statement.Loop;
 import com.mira.parser.nodes.statement.Statement.FuncDecl;
 import com.mira.parser.nodes.statement.Statement.If;
 import com.mira.parser.nodes.statement.Statement.Lock;
@@ -97,7 +95,6 @@ import com.mira.runtime.values.NullValue;
 import com.mira.runtime.visitors.ExprVisitor;
 import com.mira.runtime.visitors.StmtVisitor;
 import com.mira.testing.TestRunner;
-import com.mira.vocabulary.Vocabulary;
 
 @SuppressWarnings("unchecked")
 public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
@@ -1119,46 +1116,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
     @Override
     public <T> T visitComplexExpr(ComplexExpression expression) {
-        List<Expression> expressions = expression.getExpressions();
-
-        if (expressions.size() == 3
-                && expressions.get(1) instanceof UnaryExpression unary
-                && isComparisonOperator(unary.getOperation().getLexeme())) {
-
-            Object left = expressions.get(0).accept(this);
-            String op = unary.getOperation().getLexeme();
-            Object right = expressions.get(2).accept(this);
-
-            return (T) evaluateComparison(left, op, right);
-        }
-
-        if (expressions.size() == 3
-                && expressions.get(1) instanceof UnaryExpression unary
-                && isLogicalOperator(unary.getOperation().getLexeme())) {
-
-            String op = unary.getOperation().getLexeme();
-            boolean left = resolveBoolean(expressions.get(0).accept(this));
-
-            if (op.equals("&&") && !left) {
-                return (T) Boolean.FALSE;
-            }
-            if (op.equals("||") && left) {
-                return (T) Boolean.TRUE;
-            }
-
-            boolean right = resolveBoolean(expressions.get(2).accept(this));
-            if (right) {
-                return (T) Boolean.TRUE;
-            }
-            return (T) Boolean.FALSE;
-        }
-
-        Object arithmetic = tryEvaluateArithmetic(expressions);
-        if (arithmetic != null) {
-            return (T) arithmetic;
-        }
-
-        return (T) evaluateAsString(expressions);
+        return (T) evaluateAsString(expression.getExpressions());
     }
 
     @Override
@@ -1412,101 +1370,6 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         return toNumber(a) * toNumber(b);
     }
 
-    private Object tryEvaluateArithmetic(List<Expression> expressions) {
-        List<Number> operands = new ArrayList<>();
-        List<String> operators = new ArrayList<>();
-
-        for (int i = 0; i < expressions.size(); i++) {
-            if (i % 2 == 0) {
-                Object val = expressions.get(i).accept(this);
-                if (val instanceof Number n) {
-                    operands.add(n);
-                } else {
-                    try {
-                        operands.add(parseNumber(String.valueOf(val)));
-                    } catch (NumberFormatException e) {
-                        return null;
-                    }
-                }
-            } else {
-                if (!(expressions.get(i) instanceof UnaryExpression unary)) {
-                    return null;
-                }
-                String op = unary.getOperation().getLexeme();
-                if (!Vocabulary.ARITHMETIC_OPERATORS.contains(op) && !Vocabulary.BITWISE_OPERATORS.contains(op)) {
-                    return null;
-                }
-                operators.add(op);
-            }
-        }
-
-        int i = 0;
-        while (i < operators.size()) {
-            String op = operators.get(i);
-            if (op.equals("*") || op.equals("/") || op.equals("%") || op.equals("**")
-                    || op.equals("\\%") || Vocabulary.BITWISE_OPERATORS.contains(op)) {
-                Number left = operands.get(i);
-                Number right = operands.get(i + 1);
-                operands.set(i, evaluateNumericOp(op, left, right));
-                operands.remove(i + 1);
-                operators.remove(i);
-            } else {
-                i++;
-            }
-        }
-
-        Object result = operands.get(0);
-        for (int j = 0; j < operators.size(); j++) {
-            result = evaluateNumericOp(operators.get(j), result, operands.get(j + 1));
-        }
-
-        return result;
-    }
-
-    private Number evaluateNumericOp(String op, Object left, Object right) {
-        return switch (op) {
-            case "+" ->
-                (Number) numericAdd(left, right);
-            case "-" ->
-                (Number) numericSub(left, right);
-            case "*" ->
-                (Number) numericMul(left, right);
-            case "**" ->
-                Math.pow(toNumber(left), toNumber(right));
-            case "/" -> {
-                double divisor = toNumber(right);
-                if (divisor == 0) {
-                    throw new DivisionByZeroError();
-                }
-                yield toNumber(left) / divisor;
-            }
-            case "%" -> {
-                if (left instanceof Long la && right instanceof Long lb) {
-                    yield la % lb;
-                }
-                yield toNumber(left) % toNumber(right);
-            }
-            case "\\%" -> {
-                if (left instanceof Long la && right instanceof Long lb) {
-                    yield la / lb;
-                }
-                yield Math.floor(toNumber(left) / toNumber(right));
-            }
-            case "&" ->
-                (long) toNumber(left) & (long) toNumber(right);
-            case "|" ->
-                (long) toNumber(left) | (long) toNumber(right);
-            case "^" ->
-                (long) toNumber(left) ^ (long) toNumber(right);
-            case "<<" ->
-                (long) toNumber(left) << (long) toNumber(right);
-            case ">>" ->
-                (long) toNumber(left) >> (long) toNumber(right);
-            default ->
-                throw new UnknownOperatorError(op);
-        };
-    }
-
     private String evaluateAsString(List<Expression> expressions) {
         StringBuilder builder = new StringBuilder();
 
@@ -1554,14 +1417,6 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         }
 
         return builder.toString();
-    }
-
-    private boolean isComparisonOperator(String op) {
-        return Vocabulary.COMPARISON_OPERATORS.contains(op);
-    }
-
-    private boolean isLogicalOperator(String op) {
-        return Vocabulary.LOGICAL_OPERATORS.contains(op);
     }
 
     private Boolean evaluateComparison(Object leftObj, String op, Object rightObj) {
@@ -1695,8 +1550,8 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
     @Override
     public Object visitEnum(EnumDecl stmt) {
         Environment enumEnv = new Environment(null, stmt.getValues().size());
-        for (Map.Entry<String, Object> entry : stmt.getValues().entrySet()) {
-            enumEnv.defineConst(entry.getKey(), entry.getValue());
+        for (Map.Entry<String, Expression> entry : stmt.getValues().entrySet()) {
+            enumEnv.defineConst(entry.getKey(), entry.getValue().accept(this));
         }
         globalEnvironment.defineConst(stmt.getIdentifier(), enumEnv);
         if (stmt.isPublic()) {
@@ -1954,7 +1809,11 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
     }
 
     @Override
-    public Object visitFor(For stmt) {
+    public Object visitLoop(Loop stmt) {
+        return stmt.isForeach() ? visitForeachLoop(stmt) : visitForLoop(stmt);
+    }
+
+    private Object visitForLoop(Loop stmt) {
         notifyDebugger(stmt.line);
 
         Environment outer = localEnvironment;
@@ -2027,8 +1886,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         }
     }
 
-    @Override
-    public Object visitForeach(Foreach stmt) {
+    private Object visitForeachLoop(Loop stmt) {
         notifyDebugger(stmt.line);
 
         String iteratorName = stmt.getIterator().getName();

@@ -18,7 +18,7 @@ public class CompilerTest extends CompilerTestBase {
         assertEquals("45", run("""
                 module counter;
                 var sum : 0;
-                foreach(var i in <0..10>) {
+                for(var i in <0..10>) {
                     $sum : $sum + $i;
                 }
                 print($sum);

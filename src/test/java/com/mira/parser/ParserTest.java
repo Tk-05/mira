@@ -31,8 +31,7 @@ import com.mira.parser.nodes.statement.Statement.Break;
 import com.mira.parser.nodes.statement.Statement.ComptimeBlock;
 import com.mira.parser.nodes.statement.Statement.Continue;
 import com.mira.parser.nodes.statement.Statement.EnumDecl;
-import com.mira.parser.nodes.statement.Statement.For;
-import com.mira.parser.nodes.statement.Statement.Foreach;
+import com.mira.parser.nodes.statement.Statement.Loop;
 import com.mira.parser.nodes.statement.Statement.If;
 import com.mira.parser.nodes.statement.Statement.Lock;
 import com.mira.parser.nodes.statement.Statement.ModuleDecl;
@@ -183,7 +182,8 @@ public class ParserTest {
                 """;
         List<Node> ast = parser.parseTokens(tokenizer.tokenize(forStmt, false));
         assertEquals(1, ast.size());
-        assertInstanceOf(For.class, ast.getFirst());
+        Loop loop = assertInstanceOf(Loop.class, ast.getFirst());
+        assertFalse(loop.isForeach());
     }
 
     @Test
@@ -195,7 +195,8 @@ public class ParserTest {
                 """;
         List<Node> ast = parser.parseTokens(tokenizer.tokenize(forStmt, false));
         assertEquals(1, ast.size());
-        assertInstanceOf(For.class, ast.getFirst());
+        Loop loop = assertInstanceOf(Loop.class, ast.getFirst());
+        assertFalse(loop.isForeach());
     }
 
     @Test
@@ -207,7 +208,8 @@ public class ParserTest {
                 """;
         List<Node> ast = parser.parseTokens(tokenizer.tokenize(forStmt, false));
         assertEquals(1, ast.size());
-        assertInstanceOf(For.class, ast.getFirst());
+        Loop loop = assertInstanceOf(Loop.class, ast.getFirst());
+        assertFalse(loop.isForeach());
     }
 
     @Test
@@ -305,15 +307,17 @@ public class ParserTest {
     void parseForWithoutBraces() {
         List<Node> ast = parser.parseTokens(tokenizer.tokenize(
                 "for (var i : 0; $i < 10; $i : eval($i + 1)) foo();", false));
-        For forStmt = assertInstanceOf(For.class, ast.getFirst());
+        Loop forStmt = assertInstanceOf(Loop.class, ast.getFirst());
+        assertFalse(forStmt.isForeach());
         assertEquals(1, forStmt.getBody().size());
     }
 
     @Test
     void parseForeachWithoutBraces() {
         List<Node> ast = parser.parseTokens(tokenizer.tokenize(
-                "foreach (var x in $list) foo();", false));
-        Foreach foreachStmt = assertInstanceOf(Foreach.class, ast.getFirst());
+                "for (var x in $list) foo();", false));
+        Loop foreachStmt = assertInstanceOf(Loop.class, ast.getFirst());
+        assertTrue(foreachStmt.isForeach());
         assertEquals(1, foreachStmt.getBody().size());
     }
 
@@ -427,33 +431,25 @@ public class ParserTest {
     }
 
     @Test
-    void parseForeach() {
-        String foreachStmt = """
-                foreach(var i in $arr) {}
+    void parseForInCollection() {
+        String forStmt = """
+                for(var i in $arr) {}
                 """;
-        List<Node> ast = parser.parseTokens(tokenizer.tokenize(foreachStmt, false));
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize(forStmt, false));
         assertEquals(1, ast.size());
-        assertInstanceOf(Foreach.class, ast.getFirst());
+        Loop loop = assertInstanceOf(Loop.class, ast.getFirst());
+        assertTrue(loop.isForeach());
     }
 
     @Test
-    void parseForeachRange() {
-        String foreachStmt = """
-               foreach(var i in <0..5>) {} 
-                """;
-        List<Node> ast = parser.parseTokens(tokenizer.tokenize(foreachStmt, false));
-        assertEquals(1, ast.size());
-        assertInstanceOf(Foreach.class, ast.getFirst());
-    }
-
-    @Test
-    void parseForWithRange() {
+    void parseForInRange() {
         String forStmt = """
                 for(var i in <0..5>) {}
                 """;
         List<Node> ast = parser.parseTokens(tokenizer.tokenize(forStmt, false));
         assertEquals(1, ast.size());
-        assertInstanceOf(Foreach.class, ast.getFirst());
+        Loop loop = assertInstanceOf(Loop.class, ast.getFirst());
+        assertTrue(loop.isForeach());
     }
 
     @Test

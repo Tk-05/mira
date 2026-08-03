@@ -35,7 +35,7 @@ public abstract class AbstractBreakTests {
     void breakInsideForeach() {
         assertEquals("2", runForOutput("""
                 var last : 0;
-                foreach(var i in {1, 2, 3, 4, 5}) {
+                for(var i in {1, 2, 3, 4, 5}) {
                     if($i == 3) { break; }
                     $last : $i;
                 }

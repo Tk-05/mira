@@ -1,6 +1,6 @@
 # Mira Standard Library Reference
 
-[← Back to index](../Documentation.md) · [Language Guide](language-guide.md) · [Build System](build-system.md) · [IDE Integration](ide-integration.md)
+[← Back to index](../Documentation.md) · [Language Guide](language-guide.md) · [Grammar Reference](grammar.md) · [Build System](build-system.md) · [IDE Integration](ide-integration.md)
 
 Every module below is loaded with `import <name>` (or `import <name> as alias`). For always-available globals that need no import (`print`, `assert`, `eval`, …), see [Built-in Functions](language-guide.md#built-in-functions) in the Language Guide.
 

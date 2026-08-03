@@ -5,6 +5,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import com.mira.error.lexer.LexerError.InvalidEscapeSequenceError;
 import com.mira.error.lexer.LexerError.UnexpectedCharacterError;
 import com.mira.error.lexer.LexerError.UnterminatedStringError;
 import com.mira.lexer.token.Token;
@@ -96,17 +97,23 @@ public class Tokenizer {
 
                 if (c == '/' && !isAtEnd() && peek() == '*') {
                     advance();
-                    while (!isAtEnd()) {
+                    int depth = 1;
+                    while (!isAtEnd() && depth > 0) {
                         if (peek() == '*' && peekNext() == '/') {
                             advance();
                             advance();
-                            break;
+                            depth--;
+                        } else if (peek() == '/' && peekNext() == '*') {
+                            advance();
+                            advance();
+                            depth++;
+                        } else {
+                            if (peek() == '\n') {
+                                line++;
+                                column = 0;
+                            }
+                            advance();
                         }
-                        if (peek() == '\n') {
-                            line++;
-                            column = 0;
-                        }
-                        advance();
                     }
                     return;
                 }
@@ -168,8 +175,21 @@ public class Tokenizer {
                         valueBuilder.append('"');
                     case '\\' ->
                         valueBuilder.append('\\');
+                    case 'u' -> {
+                        advance();
+                        StringBuilder hex = new StringBuilder();
+                        for (int i = 0; i < 4; i++) {
+                            if (isAtEnd() || !isHexDigit(peek())) {
+                                throw new InvalidEscapeSequenceError(line, column, 'u');
+                            }
+                            hex.append(peek());
+                            advance();
+                        }
+                        valueBuilder.append((char) Integer.parseInt(hex.toString(), 16));
+                        continue;
+                    }
                     default ->
-                        valueBuilder.append(escaped);
+                        throw new InvalidEscapeSequenceError(line, column, escaped);
                 }
 
             } else {
@@ -244,24 +264,49 @@ public class Tokenizer {
     private void scanNumber() {
         if (source.charAt(start) == '0' && !isAtEnd() && (peek() == 'x' || peek() == 'X')) {
             advance();
-            while (!isAtEnd() && isHexDigit(peek())) {
+            while (!isAtEnd() && (isHexDigit(peek()) || (peek() == '_' && isHexDigit(peekNext())))) {
                 advance();
             }
-            tokens.add(new Token(TokenType.EXPRESSION, source.substring(start, current), tokenStartLine, tokenStartColumn));
+            addNumberToken();
             return;
         }
 
-        while (!isAtEnd() && Character.isDigit(peek())) {
+        while (!isAtEnd() && (Character.isDigit(peek()) || (peek() == '_' && Character.isDigit(peekNext())))) {
             advance();
         }
 
-        if (!isAtEnd() && peek() == '.' && Character.isDigit(peekNext())) {
-            do {
+        if (!isAtEnd() && peek() == '.' && peekNext() != '.') {
+            advance();
+            while (!isAtEnd() && (Character.isDigit(peek()) || (peek() == '_' && Character.isDigit(peekNext())))) {
                 advance();
-            } while (!isAtEnd() && Character.isDigit(peek()));
+            }
         }
 
-        tokens.add(new Token(TokenType.EXPRESSION, source.substring(start, current), tokenStartLine, tokenStartColumn));
+        if (!isAtEnd() && (peek() == 'e' || peek() == 'E')) {
+            int offset = 1;
+            if (peekAt(offset) == '+' || peekAt(offset) == '-') {
+                offset++;
+            }
+            if (Character.isDigit(peekAt(offset))) {
+                advance();
+                if (peek() == '+' || peek() == '-') {
+                    advance();
+                }
+                while (!isAtEnd() && Character.isDigit(peek())) {
+                    advance();
+                }
+            }
+        }
+
+        addNumberToken();
+    }
+
+    private void addNumberToken() {
+        String text = source.substring(start, current);
+        if (text.indexOf('_') >= 0) {
+            text = text.replace("_", "");
+        }
+        tokens.add(new Token(TokenType.EXPRESSION, text, tokenStartLine, tokenStartColumn));
     }
 
     private void scanOperator() {

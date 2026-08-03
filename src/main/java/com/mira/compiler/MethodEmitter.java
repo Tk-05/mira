@@ -1,11 +1,13 @@
 package com.mira.compiler;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
 import static org.objectweb.asm.Opcodes.AALOAD;
 import static org.objectweb.asm.Opcodes.AASTORE;
+import static org.objectweb.asm.Opcodes.ACONST_NULL;
 import static org.objectweb.asm.Opcodes.ALOAD;
 import static org.objectweb.asm.Opcodes.ANEWARRAY;
 import static org.objectweb.asm.Opcodes.ARETURN;
@@ -67,8 +69,7 @@ import com.mira.parser.nodes.statement.Statement.Block;
 import com.mira.parser.nodes.statement.Statement.Break;
 import com.mira.parser.nodes.statement.Statement.Continue;
 import com.mira.parser.nodes.statement.Statement.EnumDecl;
-import com.mira.parser.nodes.statement.Statement.For;
-import com.mira.parser.nodes.statement.Statement.Foreach;
+import com.mira.parser.nodes.statement.Statement.Loop;
 import com.mira.parser.nodes.statement.Statement.FuncDecl;
 import com.mira.parser.nodes.statement.Statement.If;
 import com.mira.parser.nodes.statement.Statement.Lock;
@@ -304,7 +305,7 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
         if (val.startsWith("0x") || val.startsWith("0X")) {
             mv.visitLdcInsn(Long.parseLong(val.substring(2), 16));
             mv.visitMethodInsn(INVOKESTATIC, RT, "wrapLong", "(J)" + OBJ_D, false);
-        } else if (val.contains(".")) {
+        } else if (val.contains(".") || val.contains("e") || val.contains("E")) {
             mv.visitLdcInsn(Double.parseDouble(val));
             mv.visitMethodInsn(INVOKESTATIC, RT, "wrapDouble", "(D)" + OBJ_D, false);
         } else {
@@ -913,7 +914,11 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
         if (expression.getStepsize() != null) {
             expression.getStepsize().accept(this);
         } else {
-            emitNullVal();
+            // CompiledRuntimeSupport.makeRange checks for a real Java null here (meaning
+            // "no stepsize was written"), not Mira's NullValue — so this must NOT be
+            // emitNullVal() (which pushes NullValue.INSTANCE and would fail the cast to
+            // Number inside makeRange).
+            mv.visitInsn(ACONST_NULL);
         }
         mv.visitMethodInsn(INVOKESTATIC, RT, "makeRange",
                 "(" + OBJ_D + OBJ_D + OBJ_D + ")" + OBJ_D, false);
@@ -1408,7 +1413,11 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
     }
 
     @Override
-    public Void visitFor(For stmt) {
+    public Void visitLoop(Loop stmt) {
+        return stmt.isForeach() ? visitForeachLoop(stmt) : visitForLoop(stmt);
+    }
+
+    private Void visitForLoop(Loop stmt) {
         emitProfilerLine(stmt.line);
         ctx.slots.enterScope();
         emitBody(stmt.getVarDecls());
@@ -1471,8 +1480,7 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
         return null;
     }
 
-    @Override
-    public Void visitForeach(Foreach stmt) {
+    private Void visitForeachLoop(Loop stmt) {
         emitProfilerLine(stmt.line);
         String iterName = stmt.getIterator().getName();
         Label loopEnd = new Label(), continueLabel = new Label();
@@ -1811,11 +1819,11 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
 
         emitIntConst(keys.length);
         mv.visitTypeInsn(ANEWARRAY, OBJ);
-        Object[] vals = stmt.getValues().values().toArray();
-        for (int i = 0; i < vals.length; i++) {
+        List<Expression> vals = new ArrayList<>(stmt.getValues().values());
+        for (int i = 0; i < vals.size(); i++) {
             mv.visitInsn(DUP);
             emitIntConst(i);
-            emitLiteral(vals[i]);
+            vals.get(i).accept(this);
             mv.visitInsn(AASTORE);
         }
         mv.visitMethodInsn(INVOKESTATIC, RT, "makeEnum",
@@ -1831,26 +1839,6 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
         return null;
     }
 
-    private void emitLiteral(Object val) {
-        switch (val) {
-            case Long l -> {
-                mv.visitLdcInsn(l);
-                mv.visitMethodInsn(INVOKESTATIC, RT, "wrapLong", "(J)" + OBJ_D, false);
-            }
-            case Double d -> {
-                mv.visitLdcInsn(d);
-                mv.visitMethodInsn(INVOKESTATIC, RT, "wrapDouble", "(D)" + OBJ_D, false);
-            }
-            case String s ->
-                mv.visitLdcInsn(s);
-            case Boolean b -> {
-                mv.visitInsn(b ? ICONST_1 : ICONST_0);
-                mv.visitMethodInsn(INVOKESTATIC, RT, "wrapBool", "(Z)" + OBJ_D, false);
-            }
-            default ->
-                emitNullVal();
-        }
-    }
 
     @Override
     public Void visitVarDestructure(VarDestructure stmt) {

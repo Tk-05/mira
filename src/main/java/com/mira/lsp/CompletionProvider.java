@@ -41,7 +41,7 @@ import com.mira.utils.ModuleResolver;
 public class CompletionProvider {
 
     private static final List<String> KEYWORDS = List.of(
-            "var", "const", "fn", "return", "if", "else", "while", "for", "foreach",
+            "var", "const", "fn", "return", "if", "else", "while", "for",
             "in", "break", "continue", "switch", "case", "default", "do",
             "try", "catch", "finally", "throw", "import", "module", "as",
             "enum", "async", "await", "typeof", "spawn", "pure", "lock", "true", "false", "null",

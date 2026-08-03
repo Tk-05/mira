@@ -156,7 +156,7 @@ fn main() {
 
         print(1 == 1 ? true : false "\n");
 
-        foreach (var element in $objs) {
+        for (var element in $objs) {
             print($element.index "\n");
         }
 
@@ -195,8 +195,8 @@ fn main() {
             break;
         }
 
-        foreach (var element in $list) {
-            foreach (var inner in $element) {
+        for (var element in $list) {
+            for (var inner in $element) {
                 $ret +: $inner;
             }
         }

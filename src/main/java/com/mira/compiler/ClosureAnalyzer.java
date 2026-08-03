@@ -135,21 +135,21 @@ public class ClosureAnalyzer {
                     walkBody(i.getElseBody(), scopeStack);
                 }
             }
-            case Statement.For f -> {
+            case Statement.Loop l -> {
                 scopeStack.push(new HashSet<>());
-                walkBody(f.getVarDecls(), scopeStack);
-                walkBody(f.getBody(), scopeStack);
-                walkBody(f.getPostExpressions(), scopeStack);
+                if (l.isForeach()) {
+                    scopeStack.peek().add(l.getIterator().getName());
+                } else {
+                    walkBody(l.getVarDecls(), scopeStack);
+                }
+                walkBody(l.getBody(), scopeStack);
+                if (!l.isForeach()) {
+                    walkBody(l.getPostExpressions(), scopeStack);
+                }
                 scopeStack.pop();
             }
             case Statement.While w ->
                 walkBody(w.getBody(), scopeStack);
-            case Statement.Foreach fe -> {
-                scopeStack.push(new HashSet<>());
-                scopeStack.peek().add(fe.getIterator().getName());
-                walkBody(fe.getBody(), scopeStack);
-                scopeStack.pop();
-            }
             default -> {
             }
         }

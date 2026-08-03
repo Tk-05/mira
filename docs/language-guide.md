@@ -1,6 +1,6 @@
 # Mira Language Guide
 
-[← Back to index](../Documentation.md) · [Standard Library Reference](standard-library.md) · [Build System](build-system.md) · [IDE Integration](ide-integration.md)
+[← Back to index](../Documentation.md) · [Grammar Reference](grammar.md) · [Standard Library Reference](standard-library.md) · [Build System](build-system.md) · [IDE Integration](ide-integration.md)
 
 Core language reference: syntax, types, control flow, functions, and the built-in test framework. For `import`ed modules like `string`/`math`/`json` etc., see the [Standard Library Reference](standard-library.md).
 
@@ -621,10 +621,10 @@ for (; <condition>; <update>) { }
 for (;;) { }              // Infinite loop
 ```
 
-Range-based for with iterator:
+Iterating with a bound variable — works over a list, array, string, or range:
 
 ```
-for (var <name> in <range>) {
+for (var <name> in <collection>) {
     <body>
 }
 ```
@@ -642,16 +642,6 @@ Iterates over the range without binding the value to a variable. Useful when onl
 ```
 for (<0..10>) {
     println("hello");
-}
-```
-
-### Foreach
-
-Iterates over a list, array, string, or range:
-
-```
-foreach (var <name> in <collection>) {
-    <body>
 }
 ```
 
@@ -957,7 +947,7 @@ Example:
 ```
 fn sum(...args) {
     var total : 0;
-    foreach (var x in $args) {
+    for (var x in $args) {
         $total : eval($total + $x);
     }
     return $total;
@@ -972,7 +962,7 @@ Mixed (fixed + variadic):
 ```
 fn log(prefix, ...args) {
     print($prefix ": ");
-    foreach (var a in $args) { print($a " "); }
+    for (var a in $args) { print($a " "); }
 }
 ```
 
@@ -1016,7 +1006,7 @@ fn process(data, threshold) {
     fn isValid(x) {
         return $x > $threshold;
     }
-    foreach (var item in $data) {
+    for (var item in $data) {
         if (isValid($item)) {
             print($item "\n");
         }
@@ -1029,7 +1019,7 @@ For a local-only helper that should not leak into global scope, use a lambda sto
 ```
 fn process(data, threshold) {
     var isValid : fn(x) { return $x > $threshold; };
-    foreach (var item in $data) {
+    for (var item in $data) {
         if (isValid($item)) {
             print($item "\n");
         }
@@ -1825,7 +1815,7 @@ for (var i : 0; $i < 10; $i : eval($i + 1)) {
     col.push($tasks, spawn(fn() { increment(); }));
 }
 
-foreach (var t in $tasks) {
+for (var t in $tasks) {
     await($t);
 }
 

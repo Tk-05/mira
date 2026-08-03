@@ -6,11 +6,10 @@ import com.mira.parser.nodes.statement.Statement.Break;
 import com.mira.parser.nodes.statement.Statement.ComptimeBlock;
 import com.mira.parser.nodes.statement.Statement.Continue;
 import com.mira.parser.nodes.statement.Statement.EnumDecl;
-import com.mira.parser.nodes.statement.Statement.For;
-import com.mira.parser.nodes.statement.Statement.Foreach;
 import com.mira.parser.nodes.statement.Statement.FuncDecl;
 import com.mira.parser.nodes.statement.Statement.If;
 import com.mira.parser.nodes.statement.Statement.Lock;
+import com.mira.parser.nodes.statement.Statement.Loop;
 import com.mira.parser.nodes.statement.Statement.Return;
 import com.mira.parser.nodes.statement.Statement.StaticAssert;
 import com.mira.parser.nodes.statement.Statement.Switch;
@@ -33,7 +32,7 @@ public interface StmtVisitor<T> {
 
     public T visitIf(If stmt);
 
-    public T visitFor(For stmt);
+    public T visitLoop(Loop stmt);
 
     public T visitWhile(While stmt);
 
@@ -42,8 +41,6 @@ public interface StmtVisitor<T> {
     public T visitContinue(Continue stmt);
 
     public T visitBlock(Block stmt);
-
-    public T visitForeach(Foreach stmt);
 
     public T visitSwitch(Switch stmt);
 

@@ -29,11 +29,10 @@ import com.mira.parser.nodes.expression.Expression.UnaryExpression;
 import com.mira.parser.nodes.statement.Statement.Assign;
 import com.mira.parser.nodes.statement.Statement.Block;
 import com.mira.parser.nodes.statement.Statement.ComptimeBlock;
-import com.mira.parser.nodes.statement.Statement.For;
-import com.mira.parser.nodes.statement.Statement.Foreach;
 import com.mira.parser.nodes.statement.Statement.FuncDecl;
 import com.mira.parser.nodes.statement.Statement.If;
 import com.mira.parser.nodes.statement.Statement.Lock;
+import com.mira.parser.nodes.statement.Statement.Loop;
 import com.mira.parser.nodes.statement.Statement.Return;
 import com.mira.parser.nodes.statement.Statement.StaticAssert;
 import com.mira.parser.nodes.statement.Statement.Switch;
@@ -85,17 +84,17 @@ public final class AstWalker {
                 queue.add(s.getCondition());
                 queue.addAll(s.getBody());
             }
-            case Foreach s -> {
-                queue.add(s.getIterator());
-                queue.add(s.getCollection());
-                queue.addAll(s.getBody());
-            }
-            case For s -> {
-                queue.addAll(s.getVarDecls());
-                if (s.getCondition() != null) {
-                    queue.add(s.getCondition());
+            case Loop s -> {
+                if (s.isForeach()) {
+                    queue.add(s.getIterator());
+                    queue.add(s.getCollection());
+                } else {
+                    queue.addAll(s.getVarDecls());
+                    if (s.getCondition() != null) {
+                        queue.add(s.getCondition());
+                    }
+                    queue.addAll(s.getPostExpressions());
                 }
-                queue.addAll(s.getPostExpressions());
                 queue.addAll(s.getBody());
             }
             case Block s ->

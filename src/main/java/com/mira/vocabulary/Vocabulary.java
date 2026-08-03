@@ -17,7 +17,6 @@ public class Vocabulary {
             "while",
             "break",
             "import",
-            "foreach",
             "in",
             "module",
             "as",

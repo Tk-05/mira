@@ -23,8 +23,7 @@ import com.mira.parser.nodes.expression.Expression.UnaryExpression;
 import com.mira.parser.nodes.statement.Statement.Block;
 import com.mira.parser.nodes.statement.Statement.ComptimeBlock;
 import com.mira.parser.nodes.statement.Statement.EnumDecl;
-import com.mira.parser.nodes.statement.Statement.For;
-import com.mira.parser.nodes.statement.Statement.Foreach;
+import com.mira.parser.nodes.statement.Statement.Loop;
 import com.mira.parser.nodes.statement.Statement.FuncDecl;
 import com.mira.parser.nodes.statement.Statement.If;
 import com.mira.parser.nodes.statement.Statement.Lock;
@@ -199,27 +198,22 @@ public class DefinitionProvider {
                 }
             }
         }
-        if (n instanceof For s) {
-            for (Node b : s.getVarDecls()) {
-                Node t = resolveTypeInNode(b, objectName, ast);
+        if (n instanceof Loop s) {
+            if (s.isForeach()) {
+                Node t = resolveTypeInNode(s.getIterator(), objectName, ast);
                 if (t != null) {
                     return t;
+                }
+            } else {
+                for (Node b : s.getVarDecls()) {
+                    Node t = resolveTypeInNode(b, objectName, ast);
+                    if (t != null) {
+                        return t;
+                    }
                 }
             }
             for (Node b : s.getBody()) {
                 Node t = resolveTypeInNode(b, objectName, ast);
-                if (t != null) {
-                    return t;
-                }
-            }
-        }
-        if (n instanceof Foreach s) {
-            Node t = resolveTypeInNode(s.getIterator(), objectName, ast);
-            if (t != null) {
-                return t;
-            }
-            for (Node b : s.getBody()) {
-                t = resolveTypeInNode(b, objectName, ast);
                 if (t != null) {
                     return t;
                 }
@@ -391,17 +385,17 @@ public class DefinitionProvider {
                 return findInNodes(stmt.getElseBody(), name, uri, content);
             }
         }
-        if (n instanceof For stmt) {
-            Location l = findInNodes(stmt.getVarDecls(), name, uri, content);
-            if (l != null) {
-                return l;
-            }
-            return findInNodes(stmt.getBody(), name, uri, content);
-        }
-        if (n instanceof Foreach stmt) {
-            VarDecl iter = stmt.getIterator();
-            if (iter.getName().equals(name)) {
-                return locationForDecl(uri, content, iter.line, iter.nameColumn, iter.getName());
+        if (n instanceof Loop stmt) {
+            if (stmt.isForeach()) {
+                VarDecl iter = stmt.getIterator();
+                if (iter.getName().equals(name)) {
+                    return locationForDecl(uri, content, iter.line, iter.nameColumn, iter.getName());
+                }
+            } else {
+                Location l = findInNodes(stmt.getVarDecls(), name, uri, content);
+                if (l != null) {
+                    return l;
+                }
             }
             return findInNodes(stmt.getBody(), name, uri, content);
         }

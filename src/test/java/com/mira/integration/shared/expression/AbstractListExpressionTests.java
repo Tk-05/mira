@@ -26,7 +26,7 @@ public abstract class AbstractListExpressionTests {
     void listForeach() {
         assertEquals("6", runForOutput("""
                 var sum : 0;
-                foreach(var n in {1, 2, 3}) { $sum : eval($sum + $n); }
+                for(var n in {1, 2, 3}) { $sum : eval($sum + $n); }
                 print($sum);
                 """));
     }

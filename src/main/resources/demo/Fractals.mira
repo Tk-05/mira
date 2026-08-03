@@ -197,7 +197,7 @@ fn render(tex, cx, cy, zoom, step, maxIter, w, h, pal, isJulia, jre, jim, isNewt
         var row : mp.mapGet($gResults, $py);
         if ($row != null) {
             var px : 0;
-            foreach (var iters in $row) {
+            for (var iters in $row) {
                 ray.DrawRectangle($px, $py, $step, $step, $pal[$iters]);
 
                 $px : eval($px + $step);

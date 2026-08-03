@@ -87,8 +87,32 @@ public class AstFormatterTest {
     void foreachLoop() {
         String source = """
                 fn test() {
-                    foreach (var x in {1, 2, 3}) {
+                    for (var x in {1, 2, 3}) {
                         var y : $x;
+                    }
+                }
+                """;
+        assertEquals(source, fmt(source));
+    }
+
+    @Test
+    void forRangeSugarRoundTrips() {
+        String source = """
+                fn test() {
+                    for (<0..5>) {
+                        print(1);
+                    }
+                }
+                """;
+        assertEquals(source, fmt(source));
+    }
+
+    @Test
+    void forVarInRangeSugarRoundTrips() {
+        String source = """
+                fn test() {
+                    for (var i in <0..5>) {
+                        print(1);
                     }
                 }
                 """;

@@ -29,7 +29,7 @@ public class ContinueTest extends AbstractContinueTests {
         backend.runAndGetValue("""
                 var sum : 0;
                 var list : {1, 2, 3, 4, 5};
-                foreach (var e in $list) {
+                for (var e in $list) {
                     if ($e == 3) { continue; }
                     $sum : eval($sum + $e);
                 }

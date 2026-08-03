@@ -34,8 +34,7 @@ import com.mira.parser.nodes.statement.Statement;
 import com.mira.parser.nodes.statement.Statement.Assign;
 import com.mira.parser.nodes.statement.Statement.Block;
 import com.mira.parser.nodes.statement.Statement.ComptimeBlock;
-import com.mira.parser.nodes.statement.Statement.For;
-import com.mira.parser.nodes.statement.Statement.Foreach;
+import com.mira.parser.nodes.statement.Statement.Loop;
 import com.mira.parser.nodes.statement.Statement.FuncDecl;
 import com.mira.parser.nodes.statement.Statement.If;
 import com.mira.parser.nodes.statement.Statement.Lock;
@@ -114,24 +113,23 @@ public class SemanticTokenProvider {
                     walkNode(n, out);
                 }
             }
-        } else if (node instanceof For stmt) {
-            for (Node n : stmt.getVarDecls()) {
-                walkNode(n, out);
-            }
-            if (stmt.getCondition() != null) {
-                walkExpr(stmt.getCondition(), out);
-            }
-            if (stmt.getPostExpressions() != null) {
-                for (Node n : stmt.getPostExpressions()) {
+        } else if (node instanceof Loop stmt) {
+            if (stmt.isForeach()) {
+                walkNode(stmt.getIterator(), out);
+                walkExpr(stmt.getCollection(), out);
+            } else {
+                for (Node n : stmt.getVarDecls()) {
                     walkNode(n, out);
                 }
+                if (stmt.getCondition() != null) {
+                    walkExpr(stmt.getCondition(), out);
+                }
+                if (stmt.getPostExpressions() != null) {
+                    for (Node n : stmt.getPostExpressions()) {
+                        walkNode(n, out);
+                    }
+                }
             }
-            for (Node n : stmt.getBody()) {
-                walkNode(n, out);
-            }
-        } else if (node instanceof Foreach stmt) {
-            walkNode(stmt.getIterator(), out);
-            walkExpr(stmt.getCollection(), out);
             for (Node n : stmt.getBody()) {
                 walkNode(n, out);
             }

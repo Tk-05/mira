@@ -22,7 +22,7 @@ public class RangeExpressionTest extends AbstractRangeExpressionTests {
     void rangeDefaultStep() {
         assertEquals(2.0, InterpreterRunner.normNum(backend.runAndGetValue("""
                 var last : 0;
-                foreach(var element in <0..4,2>) {
+                for(var element in <0..4,2>) {
                     $last : $element;
                 }
                 $last;
@@ -33,7 +33,7 @@ public class RangeExpressionTest extends AbstractRangeExpressionTests {
     void rangeBreakOnValue() {
         try {
             backend.runAndGetValue("""
-                    foreach(var element in <0..4>) {
+                    for(var element in <0..4>) {
                         if($element == 3) { break; }
                     }
                     """);
@@ -45,7 +45,7 @@ public class RangeExpressionTest extends AbstractRangeExpressionTests {
     void rangeStartValue() {
         backend.runAndGetValue("""
                 var first : 0;
-                foreach(var element in <3..6>) {
+                for(var element in <3..6>) {
                     $first : $element;
                     break;
                 }
@@ -57,7 +57,7 @@ public class RangeExpressionTest extends AbstractRangeExpressionTests {
     void rangeWithStepSizeTwo() {
         assertEquals(5.0, InterpreterRunner.normNum(backend.runAndGetValue("""
                 var count : 0;
-                foreach(var element in <0..10,2>) {
+                for(var element in <0..10,2>) {
                     $count : eval($count + 1);
                 }
                 eval($count);

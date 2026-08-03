@@ -26,19 +26,19 @@ public class EnumDeclTest extends AbstractEnumDeclTests {
     void autoIndexedVariantsStartAtZero() {
         backend.runAndGetValue("enum Dir { NORTH, SOUTH, EAST, WEST }");
         Environment dir = (Environment) backend.getInterpreter().getGlobalEnvironment().get("Dir");
-        assertEquals("0", dir.get("NORTH"));
-        assertEquals("1", dir.get("SOUTH"));
-        assertEquals("2", dir.get("EAST"));
-        assertEquals("3", dir.get("WEST"));
+        assertEquals(0.0, InterpreterRunner.normNum(dir.get("NORTH")));
+        assertEquals(1.0, InterpreterRunner.normNum(dir.get("SOUTH")));
+        assertEquals(2.0, InterpreterRunner.normNum(dir.get("EAST")));
+        assertEquals(3.0, InterpreterRunner.normNum(dir.get("WEST")));
     }
 
     @Test
     void explicitIntegerValues() {
         backend.runAndGetValue("enum Status { OK : 200, NOT_FOUND : 404, ERROR : 500 }");
         Environment status = (Environment) backend.getInterpreter().getGlobalEnvironment().get("Status");
-        assertEquals("200", status.get("OK"));
-        assertEquals("404", status.get("NOT_FOUND"));
-        assertEquals("500", status.get("ERROR"));
+        assertEquals(200.0, InterpreterRunner.normNum(status.get("OK")));
+        assertEquals(404.0, InterpreterRunner.normNum(status.get("NOT_FOUND")));
+        assertEquals(500.0, InterpreterRunner.normNum(status.get("ERROR")));
     }
 
     @Test
@@ -54,7 +54,14 @@ public class EnumDeclTest extends AbstractEnumDeclTests {
     void singleVariant() {
         backend.runAndGetValue("enum Single { ONLY }");
         Environment single = (Environment) backend.getInterpreter().getGlobalEnvironment().get("Single");
-        assertEquals("0", single.get("ONLY"));
+        assertEquals(0.0, InterpreterRunner.normNum(single.get("ONLY")));
+    }
+
+    @Test
+    void explicitExpressionValueIsFullyEvaluated() {
+        backend.runAndGetValue("enum Calc { A : 1 + 2 }");
+        Environment calc = (Environment) backend.getInterpreter().getGlobalEnvironment().get("Calc");
+        assertEquals(3.0, InterpreterRunner.normNum(calc.get("A")));
     }
 
     @Test

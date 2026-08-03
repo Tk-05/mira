@@ -1,6 +1,6 @@
 # Mira Build System
 
-[← Back to index](../Documentation.md) · [Language Guide](language-guide.md) · [Standard Library Reference](standard-library.md) · [IDE Integration](ide-integration.md)
+[← Back to index](../Documentation.md) · [Language Guide](language-guide.md) · [Grammar Reference](grammar.md) · [Standard Library Reference](standard-library.md) · [IDE Integration](ide-integration.md)
 
 Projects, `mira.toml`, dependency management (local/git/registry/native), tasks, and compiling to bytecode or a standalone JAR.
 

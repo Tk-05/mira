@@ -37,8 +37,7 @@ import com.mira.parser.nodes.statement.Statement.Break;
 import com.mira.parser.nodes.statement.Statement.CatchClause;
 import com.mira.parser.nodes.statement.Statement.Continue;
 import com.mira.parser.nodes.statement.Statement.EnumDecl;
-import com.mira.parser.nodes.statement.Statement.For;
-import com.mira.parser.nodes.statement.Statement.Foreach;
+import com.mira.parser.nodes.statement.Statement.Loop;
 import com.mira.parser.nodes.statement.Statement.FuncDecl;
 import com.mira.parser.nodes.statement.Statement.If;
 import com.mira.parser.nodes.statement.Statement.Lock;
@@ -294,7 +293,7 @@ public class AstPrinter implements ExprVisitor<String>, StmtVisitor<String> {
     public String visitEnum(EnumDecl stmt) {
         StringBuilder sb = new StringBuilder(pad() + "Enum [" + stmt.getIdentifier() + "]");
         depth++;
-        for (Map.Entry<String, Object> entry : stmt.getValues().entrySet()) {
+        for (Map.Entry<String, Expression> entry : stmt.getValues().entrySet()) {
             sb.append('\n').append(pad()).append(entry.getKey()).append(" = ").append(entry.getValue());
         }
         depth--;
@@ -341,7 +340,11 @@ public class AstPrinter implements ExprVisitor<String>, StmtVisitor<String> {
     }
 
     @Override
-    public String visitFor(For stmt) {
+    public String visitLoop(Loop stmt) {
+        return stmt.isForeach() ? printForInLoop(stmt) : printForLoop(stmt);
+    }
+
+    private String printForLoop(Loop stmt) {
         StringBuilder sb = new StringBuilder(pad() + "For");
         depth++;
         if (!stmt.getVarDecls().isEmpty()) {
@@ -372,9 +375,8 @@ public class AstPrinter implements ExprVisitor<String>, StmtVisitor<String> {
                 + body(stmt.getBody());
     }
 
-    @Override
-    public String visitForeach(Foreach stmt) {
-        return pad() + "Foreach [" + stmt.getIterator().getName() + "]"
+    private String printForInLoop(Loop stmt) {
+        return pad() + "ForIn [" + stmt.getIterator().getName() + "]"
                 + child(stmt.getCollection())
                 + body(stmt.getBody());
     }

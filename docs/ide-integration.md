@@ -1,6 +1,6 @@
 # Mira IDE Integration (LSP)
 
-[← Back to index](../Documentation.md) · [Language Guide](language-guide.md) · [Standard Library Reference](standard-library.md) · [Build System](build-system.md)
+[← Back to index](../Documentation.md) · [Language Guide](language-guide.md) · [Grammar Reference](grammar.md) · [Standard Library Reference](standard-library.md) · [Build System](build-system.md)
 
 ---
 
@@ -75,7 +75,7 @@ Diagnostics are cleared automatically when the file is closed.
 
 Completions trigger automatically as you type. The following are always available:
 
-- All Mira **keywords** (`var`, `fn`, `if`, `foreach`, `switch`, `return`, `comptime`, `static_assert`, …)
+- All Mira **keywords** (`var`, `fn`, `if`, `for`, `switch`, `return`, `comptime`, `static_assert`, …)
 - All **built-in globals** (`print`, `scan`, `eval`, `length`, `assert`, …)
 
 Additionally, for each open file the server provides:

@@ -15,8 +15,7 @@ import com.mira.parser.nodes.expression.Expression.StructExpression;
 import com.mira.parser.nodes.statement.Statement.Block;
 import com.mira.parser.nodes.statement.Statement.ComptimeBlock;
 import com.mira.parser.nodes.statement.Statement.EnumDecl;
-import com.mira.parser.nodes.statement.Statement.For;
-import com.mira.parser.nodes.statement.Statement.Foreach;
+import com.mira.parser.nodes.statement.Statement.Loop;
 import com.mira.parser.nodes.statement.Statement.FuncDecl;
 import com.mira.parser.nodes.statement.Statement.If;
 import com.mira.parser.nodes.statement.Statement.Lock;
@@ -69,10 +68,10 @@ public class DocumentSymbolProvider {
             if (s.getElseBody() != null) {
                 out.addAll(walk(s.getElseBody(), content));
             }
-        } else if (n instanceof For s) {
-            out.addAll(walk(s.getVarDecls(), content));
-            out.addAll(walk(s.getBody(), content));
-        } else if (n instanceof Foreach s) {
+        } else if (n instanceof Loop s) {
+            if (!s.isForeach()) {
+                out.addAll(walk(s.getVarDecls(), content));
+            }
             out.addAll(walk(s.getBody(), content));
         } else if (n instanceof While s) {
             out.addAll(walk(s.getBody(), content));
