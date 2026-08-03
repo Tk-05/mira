@@ -3,6 +3,8 @@ package com.mira.resolver;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import org.junit.jupiter.api.AfterEach;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
@@ -283,6 +285,33 @@ public class StaticCheckTest {
     void staticAssertMixedComptimeAndRuntimeProducesE311() {
         List<MiraError> errors = errorsFor("comptime { const A : 1; } var b : 2; static_assert($A + $b > 0);");
         assertTrue(hasCode(errors, "E311"));
+    }
+
+    @Test
+    void staticAssertEvaluatesTrueWithSuppliedComptimeConstsIsClean() {
+        // the comptime block's own literal value is irrelevant here — the supplied
+        // comptimeConsts map stands in for what ComptimeExecutor would have produced.
+        String source = "comptime { const SIZE : 0; } static_assert($SIZE > 0);";
+        List<Node> ast = new Parser().parseTokens(new Tokenizer().tokenize("module Main; " + source, false));
+        assertDoesNotThrow(() -> new StaticCheck(Set.of(), null, Map.of(),
+                Map.of("SIZE", 64.0)).check(ast));
+    }
+
+    @Test
+    void staticAssertEvaluatesFalseWithSuppliedComptimeConstsProducesE308() {
+        String source = "comptime { const SIZE : 0; } static_assert($SIZE > 0);";
+        List<Node> ast = new Parser().parseTokens(new Tokenizer().tokenize("module Main; " + source, false));
+        MultipleStaticCheckErrors ex = assertThrows(MultipleStaticCheckErrors.class,
+                () -> new StaticCheck(Set.of(), null, Map.of(),
+                        Map.of("SIZE", -1.0)).check(ast));
+        assertTrue(hasCode(ex.getErrors(), "E308"));
+    }
+
+    @Test
+    void staticAssertWithoutComptimeConstsSuppliedIsNeverEvaluated() {
+        // no 4th constructor arg (comptimeConsts == null) -> structural check only, never evaluated,
+        // matching how LSP's DiagnosticCollector constructs StaticCheck (must never execute user code).
+        assertClean("comptime { const SIZE : -1; } static_assert($SIZE > 0);");
     }
 
     @Test

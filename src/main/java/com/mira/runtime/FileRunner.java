@@ -3,6 +3,7 @@ package com.mira.runtime;
 import java.io.IOException;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -61,10 +62,14 @@ public class FileRunner {
                 System.out.println(new AstPrinter().print(asts));
             }
 
+            Map<String, Object> comptimeConsts = (!Flags.checkOnly && !Flags.testMode)
+                    ? new ComptimeExecutor().execute(asts)
+                    : null;
+
             if (!Flags.noCheck) {
                 boolean mainErrors = false;
                 try {
-                    new StaticCheck(Set.of(), Flags.inputPath.get()).check(asts);
+                    new StaticCheck(Set.of(), Flags.inputPath.get(), Map.of(), comptimeConsts).check(asts);
                 } catch (MultipleStaticCheckErrors mre) {
                     WarningCollector.clear();
                     mre.getErrors().forEach(e -> System.err.println(DiagnosticFormatter.format(e)));
@@ -99,9 +104,11 @@ public class FileRunner {
             }
 
             if (Flags.compile) {
-                new CompileRunner().run(asts);
+                new CompileRunner().run(asts, comptimeConsts);
                 return true;
             }
+
+            interpreter.presetComptimeConsts(comptimeConsts);
 
             if (Flags.mainFunction) {
                 Object exitValue = interpreter.run(asts, Flags.args, true);

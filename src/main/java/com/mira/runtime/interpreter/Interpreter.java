@@ -121,6 +121,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
     private Environment globalEnvironment = new Environment();
     private Environment localEnvironment;
+    private Map<String, Object> presetComptimeConsts = null;
     private static final int PURE_CACHE_MAX = 512;
     private final Map<CacheKey, Object> callCache = new LinkedHashMap<>(16, 0.75f, true) {
         @Override
@@ -234,7 +235,9 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             }
         }
 
-        Map<String, Object> comptimeConsts = new ComptimeExecutor().execute(asts);
+        Map<String, Object> comptimeConsts = presetComptimeConsts != null
+                ? presetComptimeConsts
+                : new ComptimeExecutor().execute(asts);
         comptimeConsts.forEach((name, value) -> {
             if (!globalEnvironment.existsInChain(name)) {
                 globalEnvironment.defineConst(name, value);
@@ -2231,6 +2234,10 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
     public Environment getGlobalEnvironment() {
         return globalEnvironment;
+    }
+
+    public void presetComptimeConsts(Map<String, Object> consts) {
+        this.presetComptimeConsts = consts;
     }
 
     public void setGlobalEnvironment(Environment globalEnvironment) {

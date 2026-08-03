@@ -40,8 +40,12 @@ import com.mira.resolver.ModuleChecker;
 public class CompileRunner {
 
     public void run(List<Node> ast) throws Exception {
+        run(ast, null);
+    }
+
+    public void run(List<Node> ast, Map<String, Object> precomputedComptimeConsts) throws Exception {
         long compileStart = System.currentTimeMillis();
-        CompileResult result = new Compiler().compile(ast, Flags.fileName);
+        CompileResult result = new Compiler().compile(ast, Flags.fileName, precomputedComptimeConsts);
         long compileMs = System.currentTimeMillis() - compileStart;
 
         Path outDir = Flags.outputDir != null

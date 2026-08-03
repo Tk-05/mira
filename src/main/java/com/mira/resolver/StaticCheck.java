@@ -30,6 +30,7 @@ import com.mira.error.resolver.StaticCheckError.PrivateAccessError;
 import com.mira.error.resolver.StaticCheckError.PrivateImportError;
 import com.mira.error.resolver.StaticCheckError.RangeStepZeroStaticError;
 import com.mira.error.resolver.StaticCheckError.ReturnOutsideFunctionError;
+import com.mira.error.resolver.StaticCheckError.StaticAssertFailedError;
 import com.mira.error.resolver.StaticCheckError.StaticAssertRuntimeValueError;
 import com.mira.error.resolver.StaticCheckError.UndeclaredVariableError;
 import com.mira.error.resolver.StaticCheckError.UndefinedFunctionError;
@@ -91,6 +92,7 @@ import com.mira.parser.nodes.statement.Statement.TryCatch;
 import com.mira.parser.nodes.statement.Statement.VarDecl;
 import com.mira.parser.nodes.statement.Statement.VarDestructure;
 import com.mira.parser.nodes.statement.Statement.While;
+import com.mira.runtime.interpreter.Interpreter;
 import com.mira.resolver.LintScope.VarInfo;
 import com.mira.warning.WarningCollector;
 import com.mira.warning.WarningLevel;
@@ -115,6 +117,7 @@ public class StaticCheck {
     private final Map<String, Node> varLiteralTypes = new HashMap<>();
     private final Map<String, FuncDecl> userFuncDecls = new HashMap<>();
     private Map<Path, String> openDocuments = Map.of();
+    private final Map<String, Object> comptimeConsts;
 
     public StaticCheck() {
         this(Set.of());
@@ -129,9 +132,15 @@ public class StaticCheck {
     }
 
     public StaticCheck(Set<String> externallyUsed, Path sourcePath, Map<Path, String> openDocuments) {
+        this(externallyUsed, sourcePath, openDocuments, null);
+    }
+
+    public StaticCheck(Set<String> externallyUsed, Path sourcePath, Map<Path, String> openDocuments,
+            Map<String, Object> comptimeConsts) {
         this.externallyUsed = externallyUsed;
         this.sourcePath = sourcePath;
         this.openDocuments = openDocuments;
+        this.comptimeConsts = comptimeConsts;
         knownFunctions.addAll(LibIndex.INTERNAL_NAMES);
         LibIndex.GLOBAL_ARITIES.forEach((name, arity) -> {
             if (arity >= 0) {
@@ -854,11 +863,29 @@ public class StaticCheck {
     }
 
     private void resolveStaticAssert(StaticAssert stmt) {
+        int before = errors.size();
         resolveExpr(stmt.getCondition());
         checkComptimeExpr(stmt.getCondition());
         if (stmt.getMessage() != null) {
             resolveExpr(stmt.getMessage());
             checkComptimeExpr(stmt.getMessage());
+        }
+        if (comptimeConsts != null && errors.size() == before) {
+            evaluateStaticAssert(stmt);
+        }
+    }
+
+    private void evaluateStaticAssert(StaticAssert stmt) {
+        Interpreter evalInterpreter = new Interpreter();
+        comptimeConsts.forEach((name, value) -> {
+            if (!evalInterpreter.getGlobalEnvironment().existsInChain(name)) {
+                evalInterpreter.getGlobalEnvironment().defineConst(name, value);
+            }
+        });
+        try {
+            evalInterpreter.visitStaticAssert(stmt);
+        } catch (StaticAssertFailedError e) {
+            errors.add(e);
         }
     }
 

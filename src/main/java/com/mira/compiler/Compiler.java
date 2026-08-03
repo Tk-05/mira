@@ -55,8 +55,14 @@ public class Compiler {
     private static final String IMPORT_RESOLVER = "com/mira/runtime/interpreter/ImportResolver";
 
     public CompileResult compile(List<Node> ast, String scriptName) {
+        return compile(ast, scriptName, null);
+    }
+
+    public CompileResult compile(List<Node> ast, String scriptName, Map<String, Object> precomputedComptimeConsts) {
         long comptimeStart = System.currentTimeMillis();
-        new ComptimeExecutor().execute(ast);
+        if (precomputedComptimeConsts == null) {
+            new ComptimeExecutor().execute(ast);
+        }
         if (Flags.verbose) {
             System.out.println(DiagnosticFormatter.formatInfo(
                     "comptime execution: " + (System.currentTimeMillis() - comptimeStart) + " ms"));
