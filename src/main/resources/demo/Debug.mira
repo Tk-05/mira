@@ -1,7 +1,7 @@
 module Debug;
 
 import module "./Debug2.mira" as debug2;
-import native "../../../../extern/raylib/target/raylib-RELEASE.jar" as ray;
+import native "../../../../extern/raylib/target/raylib.jar" as ray;
 import module "./Fractals.mira" as fractals;
 import string;
 import collection as col;
