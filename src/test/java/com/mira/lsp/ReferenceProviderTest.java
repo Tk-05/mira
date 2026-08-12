@@ -82,4 +82,52 @@ public class ReferenceProviderTest {
         assertTrue(refs.stream().anyMatch(l -> l.getUri().equals(libUri)));
         assertTrue(refs.stream().anyMatch(l -> l.getUri().equals(mainPath.toUri().toString())));
     }
+
+    @Test
+    void findsCrossFileDirectCallsForSelectiveImport(@TempDir Path tempDir) throws IOException {
+        Path libPath = tempDir.resolve("lib.mira");
+        Files.writeString(libPath, """
+                pub fn helper() {
+                    return 1;
+                }
+                """);
+        Path mainPath = tempDir.resolve("main.mira");
+        Files.writeString(mainPath, """
+                import module "lib.mira" {helper};
+                fn main() {
+                    return helper();
+                }
+                """);
+
+        List<Node> libAst = parse(Files.readString(libPath));
+        WorkspaceIndex index = new WorkspaceIndex();
+        Position pos = new Position(0, 8);
+        String libUri = libPath.toUri().toString();
+        List<Location> refs = ReferenceProvider.provide(libAst, Files.readString(libPath), pos, libUri,
+                libPath, index, tempDir, Map.of(), true);
+
+        assertEquals(2, refs.size());
+        assertTrue(refs.stream().anyMatch(l -> l.getUri().equals(libUri)));
+        assertTrue(refs.stream().anyMatch(l -> l.getUri().equals(mainPath.toUri().toString())));
+    }
+
+    @Test
+    void fieldReferenceScanIgnoresStringsAndComments() {
+        String source = """
+                var obj : {
+                    var size : 0;
+                };
+                fn use() {
+                    // resize the .size cache
+                    var msg : "file.size";
+                    return $obj.size;
+                }
+                """;
+        List<Node> ast = parse(source);
+        Position pos = new Position(6, 17); // "size" in "$obj.size" (a real field access)
+        List<Location> refs = ReferenceProvider.provide(ast, source, pos, "file:///test.mira",
+                null, new WorkspaceIndex(), null, Map.of(), false);
+        assertEquals(1, refs.size());
+        assertEquals(6, refs.get(0).getRange().getStart().getLine());
+    }
 }

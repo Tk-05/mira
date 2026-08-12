@@ -4,12 +4,16 @@ import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Deque;
 import java.util.List;
 
 import org.eclipse.lsp4j.Location;
 import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.Range;
 
+import com.mira.format.AstWalker;
 import com.mira.lexer.Tokenizer;
 import com.mira.parser.Parser;
 import com.mira.parser.nodes.Node;
@@ -20,6 +24,7 @@ import com.mira.parser.nodes.expression.Expression.ObjectExpression;
 import com.mira.parser.nodes.expression.Expression.StructExpression;
 import com.mira.parser.nodes.expression.Expression.StructInitExpression;
 import com.mira.parser.nodes.expression.Expression.UnaryExpression;
+import com.mira.parser.nodes.statement.Statement;
 import com.mira.parser.nodes.statement.Statement.Block;
 import com.mira.parser.nodes.statement.Statement.ComptimeBlock;
 import com.mira.parser.nodes.statement.Statement.EnumDecl;
@@ -30,6 +35,7 @@ import com.mira.parser.nodes.statement.Statement.Lock;
 import com.mira.parser.nodes.statement.Statement.Switch;
 import com.mira.parser.nodes.statement.Statement.TryCatch;
 import com.mira.parser.nodes.statement.Statement.VarDecl;
+import com.mira.parser.nodes.statement.Statement.VarDestructure;
 import com.mira.parser.nodes.statement.Statement.While;
 import com.mira.utils.ModuleResolver;
 
@@ -45,10 +51,10 @@ public class DefinitionProvider {
         if (HoverProvider.isFieldAccess(content, pos)) {
             String objectName = objectBefore(content, pos);
             Path docPath = uriToPath(docUri);
-            return findFieldDefinition(ast, stripped, objectName, docUri, content, docPath);
+            return findFieldDefinition(ast, stripped, objectName, docUri, content, docPath, pos.getLine() + 1);
         }
 
-        Location loc = findInNodes(ast, stripped, docUri, content);
+        Location loc = findScoped(ast, stripped, docUri, content, pos.getLine() + 1);
         if (loc != null) {
             return loc;
         }
@@ -65,13 +71,10 @@ public class DefinitionProvider {
                 continue;
             }
             String alias = imp.getNamespace();
-            if (alias == null) {
-                continue;
-            }
 
             Path modPath = ModuleResolver.resolveModulePath(imp.getModule(), docPath);
 
-            if (alias.equals(stripped)) {
+            if (alias != null && alias.equals(stripped)) {
                 if (Files.exists(modPath)) {
                     Range r = new Range(new Position(0, 0), new Position(0, 0));
                     return new Location(modPath.toUri().toString(), r);
@@ -86,7 +89,7 @@ public class DefinitionProvider {
         return null;
     }
 
-    private static String objectBefore(String content, Position pos) {
+    static String objectBefore(String content, Position pos) {
         String[] lines = content.split("\n", -1);
         if (pos.getLine() >= lines.length) {
             return null;
@@ -112,18 +115,19 @@ public class DefinitionProvider {
 
     private static Location findFieldDefinition(
             List<Node> ast, String fieldName, String objectName,
-            String uri, String content, Path docPath) {
+            String uri, String content, Path docPath, int cursorLine) {
 
         if (objectName != null) {
-            // 1. Resolve local type
-            Node type = resolveObjectType(ast, objectName);
+            Node type = resolveObjectType(ast, objectName, cursorLine);
             if (type != null) {
-                Location loc = searchFieldInType(type, fieldName, uri, content);
-                if (loc != null) {
-                    return loc;
-                }
+                // objectName resolved to a specific, known declaration in scope -
+                // trust that resolution rather than falling through to a blind
+                // whole-file field search, which could land on an unrelated
+                // same-named field on a completely different (shadowed) object.
+                return searchFieldInType(type, fieldName, uri, content);
             }
-            // 2. Module alias lookup
+            // objectName didn't resolve to any local declaration - it might be
+            // a module namespace alias instead.
             if (docPath != null) {
                 for (Node n : ast) {
                     if (n instanceof ImportExpression imp
@@ -144,98 +148,90 @@ public class DefinitionProvider {
         return findFieldInAllNodes(ast, fieldName, uri, content);
     }
 
-    static Node resolveObjectType(List<Node> ast, String objectName) {
+    /**
+     * Resolves what {@code objectName} refers to at {@code cursorLine}, respecting
+     * shadowing: a declaration local to the innermost enclosing function wins over
+     * a same-named declaration anywhere else in the file (module scope, or another,
+     * unrelated function). Without this, two unrelated objects that happen to share
+     * a variable name would be indistinguishable to callers.
+     */
+    static Node resolveObjectType(List<Node> ast, String objectName, int cursorLine) {
+        FuncDecl enclosing = findEnclosingFunction(ast, cursorLine);
+        if (enclosing != null) {
+            VarDecl nearest = nearestVarDecl(enclosing.getBody(), objectName, cursorLine);
+            if (nearest != null) {
+                return typeOfVarDecl(nearest, ast, cursorLine);
+            }
+        }
         for (Node n : ast) {
-            Node t = resolveTypeInNode(n, objectName, ast);
-            if (t != null) {
-                return t;
+            if (n instanceof VarDecl vd && vd.getName().equals(objectName)) {
+                return typeOfVarDecl(vd, ast, cursorLine);
+            }
+            if (n instanceof EnumDecl ed && ed.getIdentifier().equals(objectName)) {
+                return ed;
             }
         }
         return null;
     }
 
-    private static Node resolveTypeInNode(Node n, String objectName, List<Node> ast) {
-        if (n instanceof VarDecl vd && vd.getName().equals(objectName)) {
-            Node init = vd.getInitializer();
-            if (init instanceof ObjectExpression || init instanceof StructExpression) {
-                return init;
-            }
-            if (init instanceof StructInitExpression si) {
-                String templateName = extractName(si.getTarget());
-                if (templateName != null) {
-                    Node template = resolveObjectType(ast, templateName);
-                    if (template != null) {
-                        return template;
-                    }
-                }
-            }
-            return null;
+    private static Node typeOfVarDecl(VarDecl vd, List<Node> ast, int cursorLine) {
+        Node init = vd.getInitializer();
+        if (init instanceof ObjectExpression || init instanceof StructExpression) {
+            return init;
         }
-        if (n instanceof EnumDecl ed && ed.getIdentifier().equals(objectName)) {
-            return ed;
-        }
-        if (n instanceof FuncDecl f) {
-            for (Node b : f.getBody()) {
-                Node t = resolveTypeInNode(b, objectName, ast);
-                if (t != null) {
-                    return t;
-                }
-            }
-        }
-        if (n instanceof If s) {
-            for (Node b : s.getThenBody()) {
-                Node t = resolveTypeInNode(b, objectName, ast);
-                if (t != null) {
-                    return t;
-                }
-            }
-            if (s.getElseBody() != null) {
-                for (Node b : s.getElseBody()) {
-                    Node t = resolveTypeInNode(b, objectName, ast);
-                    if (t != null) {
-                        return t;
-                    }
-                }
-            }
-        }
-        if (n instanceof Loop s) {
-            if (s.isForeach()) {
-                Node t = resolveTypeInNode(s.getIterator(), objectName, ast);
-                if (t != null) {
-                    return t;
-                }
-            } else {
-                for (Node b : s.getVarDecls()) {
-                    Node t = resolveTypeInNode(b, objectName, ast);
-                    if (t != null) {
-                        return t;
-                    }
-                }
-            }
-            for (Node b : s.getBody()) {
-                Node t = resolveTypeInNode(b, objectName, ast);
-                if (t != null) {
-                    return t;
-                }
-            }
-        }
-        if (n instanceof While s) {
-            for (Node b : s.getBody()) {
-                Node t = resolveTypeInNode(b, objectName, ast);
-                if (t != null) {
-                    return t;
-                }
-            }
-        }
-        if (n instanceof Block s) {
-            for (Node b : s.getBody()) {
-                Node t = resolveTypeInNode(b, objectName, ast);
-                if (t != null) {
-                    return t;
-                }
+        if (init instanceof StructInitExpression si) {
+            String templateName = extractName(si.getTarget());
+            if (templateName != null) {
+                return resolveObjectType(ast, templateName, cursorLine);
             }
         }
         return null;
+    }
+
+    /** Innermost function (by smallest line range) whose body contains {@code cursorLine}. */
+    private static FuncDecl findEnclosingFunction(List<Node> ast, int cursorLine) {
+        FuncDecl best = null;
+        Deque<Node> queue = new ArrayDeque<>(ast);
+        while (!queue.isEmpty()) {
+            Node n = queue.poll();
+            if (n == null) {
+                continue;
+            }
+            if (n instanceof FuncDecl f && f.line > 0 && f.endLine > 0
+                    && f.line <= cursorLine && cursorLine <= f.endLine
+                    && (best == null || (f.endLine - f.line) < (best.endLine - best.line))) {
+                best = f;
+            }
+            AstWalker.children(n, queue);
+        }
+        return best;
+    }
+
+    /**
+     * Among every {@code var objectName} reachable within {@code body} (including
+     * nested blocks/functions), picks the one declared closest to (and at or
+     * before) {@code cursorLine} - the nearest enclosing declaration, matching
+     * normal lexical shadowing instead of file-declaration-order.
+     */
+    private static VarDecl nearestVarDecl(List<Node> body, String objectName, int cursorLine) {
+        VarDecl bestBefore = null;
+        VarDecl bestAfter = null;
+        Deque<Node> queue = new ArrayDeque<>(body);
+        while (!queue.isEmpty()) {
+            Node n = queue.poll();
+            if (n == null) {
+                continue;
+            }
+            if (n instanceof VarDecl vd && vd.getName().equals(objectName) && vd.line > 0) {
+                if (vd.line <= cursorLine && (bestBefore == null || vd.line > bestBefore.line)) {
+                    bestBefore = vd;
+                } else if (vd.line > cursorLine && (bestAfter == null || vd.line < bestAfter.line)) {
+                    bestAfter = vd;
+                }
+            }
+            AstWalker.children(n, queue);
+        }
+        return bestBefore != null ? bestBefore : bestAfter;
     }
 
     private static String extractName(Node expr) {
@@ -348,6 +344,201 @@ public class DefinitionProvider {
         return null;
     }
 
+    /** A lexical scope: the container statement that introduces it (null for top-level) and its body. */
+    private record Scope(Node owner, List<Node> body) {
+    }
+
+    /**
+     * Resolves a plain (non-field) identifier reference at {@code cursorLine} by
+     * walking outward through the chain of lexical scopes actually enclosing the
+     * cursor - innermost first - so an inner declaration correctly shadows an
+     * unrelated same-named declaration elsewhere in the file (e.g. in a sibling
+     * branch, or at the top level), instead of returning whichever declaration
+     * happens to appear first in AST traversal order regardless of scope.
+     */
+    private static Location findScoped(List<Node> ast, String name, String uri, String content, int cursorLine) {
+        for (Scope scope : buildScopeChain(ast, cursorLine)) {
+            Location found = findInScopeLevel(scope, name, uri, content, cursorLine);
+            if (found != null) {
+                return found;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Builds the full chain of scopes enclosing {@code cursorLine}, innermost
+     * first. Built up front (rather than descending and searching in the same
+     * pass) so that failing to find {@code name} in the innermost scope falls
+     * back to searching each enclosing scope in turn, instead of stopping as
+     * soon as there is nothing deeper left to descend into.
+     */
+    private static List<Scope> buildScopeChain(List<Node> ast, int cursorLine) {
+        List<Scope> chain = new ArrayList<>();
+        Scope current = new Scope(null, ast);
+        chain.add(current);
+        Scope child;
+        while ((child = enclosingChild(current, cursorLine)) != null) {
+            chain.add(0, child);
+            current = child;
+        }
+        return chain;
+    }
+
+    /** Descends into whichever direct child of {@code scope} actually contains {@code cursorLine}, if any. */
+    private static Scope enclosingChild(Scope scope, int cursorLine) {
+        for (Node n : scope.body()) {
+            if (!(n instanceof Statement s) || s.line <= 0 || s.endLine <= 0
+                    || cursorLine < s.line || cursorLine > s.endLine) {
+                continue;
+            }
+            List<Node> child = childBodyAt(n, cursorLine);
+            if (child != null) {
+                return new Scope(n, child);
+            }
+        }
+        return null;
+    }
+
+    private static List<Node> childBodyAt(Node n, int cursorLine) {
+        if (n instanceof FuncDecl f) {
+            return f.getBody();
+        }
+        if (n instanceof If stmt) {
+            List<Node> branch = branchContaining(stmt.getThenBody(), cursorLine);
+            return branch != null ? branch : branchContaining(stmt.getElseBody(), cursorLine);
+        }
+        if (n instanceof Loop stmt) {
+            return stmt.getBody();
+        }
+        if (n instanceof While stmt) {
+            return stmt.getBody();
+        }
+        if (n instanceof Block stmt) {
+            return stmt.getBody();
+        }
+        if (n instanceof Switch stmt) {
+            for (Switch.SwitchCase sc : stmt.getCases()) {
+                List<Node> branch = branchContaining(sc.getBody(), cursorLine);
+                if (branch != null) {
+                    return branch;
+                }
+            }
+            return branchContaining(stmt.getDefaultBody(), cursorLine);
+        }
+        if (n instanceof TryCatch stmt) {
+            List<Node> branch = branchContaining(stmt.getTryBody(), cursorLine);
+            if (branch != null) {
+                return branch;
+            }
+            for (TryCatch.CatchClause cc : stmt.getCatchClauses()) {
+                branch = branchContaining(cc.getBody(), cursorLine);
+                if (branch != null) {
+                    return branch;
+                }
+            }
+            return branchContaining(stmt.getFinallyBody(), cursorLine);
+        }
+        if (n instanceof Lock stmt) {
+            return stmt.getBody();
+        }
+        if (n instanceof ComptimeBlock stmt) {
+            return stmt.getBody();
+        }
+        return null;
+    }
+
+    /** Whether {@code cursorLine} falls within the line span actually covered by this specific body's statements. */
+    private static List<Node> branchContaining(List<Node> body, int cursorLine) {
+        if (body == null || body.isEmpty()) {
+            return null;
+        }
+        int min = Integer.MAX_VALUE;
+        int max = -1;
+        for (Node n : body) {
+            if (n instanceof Statement s && s.line > 0) {
+                min = Math.min(min, s.line);
+                max = Math.max(max, s.endLine > 0 ? s.endLine : s.line);
+            }
+        }
+        if (min == Integer.MAX_VALUE || max < 0) {
+            return null;
+        }
+        return (cursorLine >= min && cursorLine <= max) ? body : null;
+    }
+
+    private static Location findInScopeLevel(Scope scope, String name, String uri, String content, int cursorLine) {
+        if (scope.owner() instanceof FuncDecl f) {
+            for (Parameter p : f.getParameters()) {
+                if (p.name().equals(name)) {
+                    return locationFor(uri, content, f.line, p.name());
+                }
+            }
+        }
+        if (scope.owner() instanceof Loop loop) {
+            if (loop.isForeach()) {
+                VarDecl iter = loop.getIterator();
+                if (iter.getName().equals(name)) {
+                    return locationForDecl(uri, content, iter.line, iter.nameColumn, iter.getName());
+                }
+            } else {
+                Location l = findDirectInBody(loop.getVarDecls(), name, uri, content, cursorLine);
+                if (l != null) {
+                    return l;
+                }
+            }
+        }
+        return findDirectInBody(scope.body(), name, uri, content, cursorLine);
+    }
+
+    /**
+     * Searches only the direct statements of {@code body} (not nested blocks) for a
+     * declaration of {@code name}, preferring the one closest to (and at or before)
+     * {@code cursorLine} - the nearest enclosing declaration - falling back to the
+     * nearest one after it if none precede.
+     */
+    private static Location findDirectInBody(List<Node> body, String name, String uri, String content,
+            int cursorLine) {
+        Location before = null;
+        int beforeLine = -1;
+        Location after = null;
+        int afterLine = Integer.MAX_VALUE;
+        for (Node n : body) {
+            Location candidate = null;
+            int declLine = -1;
+            if (n instanceof VarDecl v && v.getName().equals(name)) {
+                candidate = locationForDecl(uri, content, v.line, v.nameColumn, v.getName());
+                declLine = v.line;
+            } else if (n instanceof VarDestructure vd) {
+                List<String> names = vd.getNames();
+                for (int i = 0; i < names.size(); i++) {
+                    if (names.get(i).equals(name)) {
+                        candidate = locationForDecl(uri, content, vd.line, vd.getNameColumns().get(i), name);
+                        declLine = vd.line;
+                        break;
+                    }
+                }
+            } else if (n instanceof FuncDecl f && f.getName().equals(name)) {
+                candidate = locationForDecl(uri, content, f.line, f.nameColumn, f.getName());
+                declLine = f.line;
+            } else if (n instanceof EnumDecl ed && ed.getIdentifier().equals(name)) {
+                candidate = locationFor(uri, content, ed.line, ed.getIdentifier());
+                declLine = ed.line;
+            }
+            if (candidate == null || declLine <= 0) {
+                continue;
+            }
+            if (declLine <= cursorLine && declLine > beforeLine) {
+                before = candidate;
+                beforeLine = declLine;
+            } else if (declLine > cursorLine && declLine < afterLine) {
+                after = candidate;
+                afterLine = declLine;
+            }
+        }
+        return before != null ? before : after;
+    }
+
     private static Location findInNodes(List<Node> nodes, String name, String uri, String content) {
         for (Node n : nodes) {
             Location loc = findInNode(n, name, uri, content);
@@ -372,6 +563,14 @@ public class DefinitionProvider {
         }
         if (n instanceof VarDecl v && v.getName().equals(name)) {
             return locationForDecl(uri, content, v.line, v.nameColumn, v.getName());
+        }
+        if (n instanceof VarDestructure vd) {
+            List<String> names = vd.getNames();
+            for (int i = 0; i < names.size(); i++) {
+                if (names.get(i).equals(name)) {
+                    return locationForDecl(uri, content, vd.line, vd.getNameColumns().get(i), name);
+                }
+            }
         }
         if (n instanceof EnumDecl ed && ed.getIdentifier().equals(name)) {
             return locationFor(uri, content, ed.line, ed.getIdentifier());

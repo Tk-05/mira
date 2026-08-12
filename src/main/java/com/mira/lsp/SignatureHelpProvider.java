@@ -35,15 +35,23 @@ public class SignatureHelpProvider {
         int dot = ctx.callTarget().lastIndexOf('.');
         String funcName;
         List<String> paramNames;
+        int cursorLine = pos.getLine() + 1;
 
         if (dot > 0) {
             String receiver = ctx.callTarget().substring(0, dot);
             funcName = ctx.callTarget().substring(dot + 1);
-            paramNames = resolveMethodParams(ast, receiver, funcName, docPath, workspaceIndex, openDocumentsByUri);
+            paramNames = resolveMethodParams(ast, receiver, funcName, docPath, workspaceIndex, openDocumentsByUri,
+                    cursorLine);
         } else {
             funcName = ctx.callTarget();
             FuncDecl f = findTopLevelFunc(ast, funcName);
-            paramNames = f != null ? paramNamesOf(f) : null;
+            if (f != null) {
+                paramNames = paramNamesOf(f);
+            } else if (docPath != null) {
+                paramNames = resolveDirectBoundFuncParams(ast, funcName, docPath, workspaceIndex, openDocumentsByUri);
+            } else {
+                paramNames = null;
+            }
         }
 
         if (paramNames == null) {
@@ -73,8 +81,8 @@ public class SignatureHelpProvider {
     }
 
     private static List<String> resolveMethodParams(List<Node> ast, String receiver, String member, Path docPath,
-            WorkspaceIndex workspaceIndex, Map<String, String> openDocumentsByUri) {
-        Node type = DefinitionProvider.resolveObjectType(ast, receiver);
+            WorkspaceIndex workspaceIndex, Map<String, String> openDocumentsByUri, int cursorLine) {
+        Node type = DefinitionProvider.resolveObjectType(ast, receiver, cursorLine);
         if (type != null) {
             FuncDecl m = DefinitionProvider.findMethodInType(type, member);
             if (m != null) {
@@ -96,6 +104,36 @@ public class SignatureHelpProvider {
                 if (f != null) {
                     return paramNamesOf(f);
                 }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Looks up {@code funcName} among functions brought into scope bare (no
+     * namespace prefix) by a selective, non-aliased module import - e.g.
+     * {@code import module "lib.mira" {greet};} binds {@code greet} directly,
+     * unlike an aliased import which only exposes {@code alias.greet}.
+     */
+    private static List<String> resolveDirectBoundFuncParams(List<Node> ast, String funcName, Path docPath,
+            WorkspaceIndex workspaceIndex, Map<String, String> openDocumentsByUri) {
+        for (Node n : ast) {
+            if (!(n instanceof ImportExpression imp) || imp.getKind() != ImportExpression.ImportKind.MODULE) {
+                continue;
+            }
+            if (imp.getNamespace() != null) {
+                continue;
+            }
+            if (imp.isSelective() && !imp.getSelectedFunctions().contains(funcName)) {
+                continue;
+            }
+            Path modPath = ModuleResolver.resolveModulePath(imp.getModule(), docPath);
+            List<Node> modAst = workspaceIndex != null
+                    ? workspaceIndex.getAst(modPath, openDocumentsByUri)
+                    : parseFile(modPath);
+            FuncDecl f = findTopLevelFunc(modAst, funcName);
+            if (f != null) {
+                return paramNamesOf(f);
             }
         }
         return null;

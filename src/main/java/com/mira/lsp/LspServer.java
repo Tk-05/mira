@@ -10,9 +10,13 @@ import org.eclipse.lsp4j.CodeActionKind;
 import org.eclipse.lsp4j.CodeActionOptions;
 import org.eclipse.lsp4j.CompletionOptions;
 import org.eclipse.lsp4j.Diagnostic;
+import org.eclipse.lsp4j.DidChangeWatchedFilesRegistrationOptions;
+import org.eclipse.lsp4j.FileSystemWatcher;
 import org.eclipse.lsp4j.InitializeParams;
 import org.eclipse.lsp4j.InitializeResult;
 import org.eclipse.lsp4j.PublishDiagnosticsParams;
+import org.eclipse.lsp4j.Registration;
+import org.eclipse.lsp4j.RegistrationParams;
 import org.eclipse.lsp4j.RenameOptions;
 import org.eclipse.lsp4j.SemanticTokensLegend;
 import org.eclipse.lsp4j.SignatureHelpOptions;
@@ -20,6 +24,7 @@ import org.eclipse.lsp4j.SemanticTokensWithRegistrationOptions;
 import org.eclipse.lsp4j.ServerCapabilities;
 import org.eclipse.lsp4j.TextDocumentSyncKind;
 import org.eclipse.lsp4j.WorkspaceFolder;
+import org.eclipse.lsp4j.jsonrpc.messages.Either;
 import org.eclipse.lsp4j.services.LanguageClient;
 import org.eclipse.lsp4j.services.LanguageClientAware;
 import org.eclipse.lsp4j.services.LanguageServer;
@@ -59,7 +64,28 @@ public class LspServer implements LanguageServer, LanguageClientAware {
                 SemanticTokenProvider.TOKEN_MODIFIERS));
         semTokenOpts.setFull(true);
         caps.setSemanticTokensProvider(semTokenOpts);
+        registerFileWatcherIfSupported(params);
         return CompletableFuture.<InitializeResult>completedFuture(new InitializeResult(caps));
+    }
+
+    /**
+     * Without this, WorkspaceIndex's cached file list (allMiraFiles) is never
+     * invalidated when a .mira file is created or deleted on disk outside an
+     * open editor buffer, since didChangeWatchedFiles notifications only
+     * arrive once the server has asked the client to send them.
+     */
+    private void registerFileWatcherIfSupported(InitializeParams params) {
+        var workspaceCaps = params.getCapabilities() != null ? params.getCapabilities().getWorkspace() : null;
+        boolean dynamicRegistration = workspaceCaps != null && workspaceCaps.getDidChangeWatchedFiles() != null
+                && Boolean.TRUE.equals(workspaceCaps.getDidChangeWatchedFiles().getDynamicRegistration());
+        if (!dynamicRegistration || client == null) {
+            return;
+        }
+        FileSystemWatcher watcher = new FileSystemWatcher(Either.forLeft("**/*.mira"));
+        DidChangeWatchedFilesRegistrationOptions options
+                = new DidChangeWatchedFilesRegistrationOptions(List.of(watcher));
+        Registration registration = new Registration("mira-file-watcher", "workspace/didChangeWatchedFiles", options);
+        client.registerCapability(new RegistrationParams(List.of(registration)));
     }
 
     private static Path resolveWorkspaceRoot(InitializeParams params) {

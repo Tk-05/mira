@@ -1,5 +1,8 @@
 package com.mira.lsp;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 
@@ -8,6 +11,7 @@ import org.eclipse.lsp4j.SignatureHelp;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import com.mira.lexer.Tokenizer;
 import com.mira.parser.Parser;
@@ -81,5 +85,29 @@ public class SignatureHelpProviderTest {
         SignatureHelp help = SignatureHelpProvider.provide(parse(source), source, pos, null, null, Map.of());
         assertEquals(1, help.getSignatures().size());
         assertEquals("increment(step)", help.getSignatures().get(0).getLabel());
+    }
+
+    @Test
+    void resolvesParamsForBareCallFromSelectiveModuleImport(@TempDir Path tempDir) throws IOException {
+        Path libPath = tempDir.resolve("lib.mira");
+        Files.writeString(libPath, """
+                pub fn greet(name) {
+                    return $name;
+                }
+                """);
+        Path mainPath = tempDir.resolve("main.mira");
+        String source = """
+                import module "lib.mira" {greet};
+                fn main() {
+                    return greet(1);
+                }
+                """;
+        Files.writeString(mainPath, source);
+
+        Position pos = new Position(2, 17); // inside "greet(1)"'s parens
+        SignatureHelp help = SignatureHelpProvider.provide(parse(source), source, pos, mainPath, null, Map.of());
+
+        assertEquals(1, help.getSignatures().size());
+        assertEquals("greet(name)", help.getSignatures().get(0).getLabel());
     }
 }

@@ -12,7 +12,6 @@ import org.eclipse.lsp4j.TextEdit;
 import org.eclipse.lsp4j.WorkspaceEdit;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -46,7 +45,7 @@ public class RenameProviderTest {
     }
 
     @Test
-    void prepareRenameRejectsFieldAccess() {
+    void prepareRenameAcceptsFieldAccess() {
         String source = """
                 var obj : {
                     var count : 0;
@@ -60,7 +59,31 @@ public class RenameProviderTest {
         Position pos = new Position(4, 18);
         Range range = RenameProvider.prepareRename(ast, source, pos, "file:///test.mira",
                 null, new WorkspaceIndex(), null, Map.of());
-        assertNull(range);
+        assertNotNull(range);
+    }
+
+    @Test
+    void renamingFieldUpdatesAccessSitesButNotTheDeclaration() {
+        // Known limitation: field references are found via a lexical .name scan
+        // (no type inference), so declarations aren't included - only the
+        // .name access site(s) are renamed. Documented here rather than
+        // silently regressed if the underlying scan changes.
+        String source = """
+                var obj : {
+                    var count : 0;
+                };
+                fn use() {
+                    return $obj.count;
+                }
+                """;
+        List<Node> ast = parse(source);
+        Position pos = new Position(4, 18);
+        WorkspaceEdit edit = RenameProvider.rename(ast, source, pos, "file:///test.mira",
+                null, new WorkspaceIndex(), null, Map.of(), "total");
+        assertNotNull(edit);
+        List<TextEdit> edits = edit.getChanges().get("file:///test.mira");
+        assertEquals(1, edits.size());
+        assertEquals("total", edits.get(0).getNewText());
     }
 
     @Test
@@ -90,6 +113,35 @@ public class RenameProviderTest {
                 import module "lib.mira" as lib;
                 fn main() {
                     return lib.helper();
+                }
+                """);
+
+        List<Node> libAst = parse(Files.readString(libPath));
+        WorkspaceIndex index = new WorkspaceIndex();
+        Position pos = new Position(0, 8);
+        String libUri = libPath.toUri().toString();
+        WorkspaceEdit edit = RenameProvider.rename(libAst, Files.readString(libPath), pos, libUri,
+                libPath, index, tempDir, Map.of(), "assist");
+
+        assertNotNull(edit);
+        assertEquals(2, edit.getChanges().size());
+        assertTrue(edit.getChanges().containsKey(libUri));
+        assertTrue(edit.getChanges().containsKey(mainPath.toUri().toString()));
+    }
+
+    @Test
+    void renamesCrossFileDirectCallsForSelectiveImport(@TempDir Path tempDir) throws IOException {
+        Path libPath = tempDir.resolve("lib.mira");
+        Files.writeString(libPath, """
+                pub fn helper() {
+                    return 1;
+                }
+                """);
+        Path mainPath = tempDir.resolve("main.mira");
+        Files.writeString(mainPath, """
+                import module "lib.mira" {helper};
+                fn main() {
+                    return helper();
                 }
                 """);
 

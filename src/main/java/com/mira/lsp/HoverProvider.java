@@ -1,5 +1,6 @@
 package com.mira.lsp;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -189,65 +190,17 @@ public class HoverProvider {
         String stripped = word.startsWith("$") ? word.substring(1) : word;
 
         if (isFieldAccess(content, pos)) {
-            Hover fieldHover = hoverForField(ast, stripped);
+            String objectName = DefinitionProvider.objectBefore(content, pos);
+            Hover fieldHover = hoverForField(ast, stripped, objectName, pos.getLine() + 1);
             if (fieldHover != null) {
                 return fieldHover;
             }
             return hover("**." + stripped + "** — field access");
         }
 
-        for (Node n : ast) {
-            if (n instanceof Statement.FuncDecl f && f.getName().equals(stripped)) {
-                String params = f.getParameters().stream()
-                        .map(Parameter::name)
-                        .collect(Collectors.joining(", "));
-                String prefix = (f.isAsync() ? "async " : "") + (f.isPure() ? "pure " : "");
-                String sig = prefix + "fn " + f.getName() + "(" + params + ")";
-                return hover("```mira\n" + sig + "\n```");
-            }
-            if (n instanceof Statement.VarDecl v && v.getName().equals(stripped)) {
-                String kind = v.isConst() ? "const" : "var";
-                if (v.getInitializer() instanceof com.mira.parser.nodes.expression.Expression.ObjectExpression obj) {
-                    StringBuilder sb = new StringBuilder("```mira\n")
-                            .append(kind).append(" $").append(v.getName()).append(" {\n");
-                    for (Statement.VarDecl f : obj.getVarDecls()) {
-                        sb.append("    ").append(f.isConst() ? "const" : "var")
-                                .append(" ").append(f.getName()).append("\n");
-                    }
-                    for (Statement.FuncDecl m : obj.getMethods()) {
-                        String params = m.getParameters().stream()
-                                .map(Parameter::name).collect(Collectors.joining(", "));
-                        sb.append("    fn ").append(m.getName())
-                                .append("(").append(params).append(")\n");
-                    }
-                    sb.append("}\n```");
-                    return hover(sb.toString());
-                }
-                if (v.getInitializer() instanceof StructExpression st) {
-                    StringBuilder sb = new StringBuilder("```mira\n")
-                            .append(kind).append(" $").append(v.getName()).append(" struct {\n");
-                    for (Statement.VarDecl f : st.getVarDecls()) {
-                        sb.append("    ").append(f.isConst() ? "const" : "var")
-                                .append(" ").append(f.getName()).append("\n");
-                    }
-                    for (Statement.FuncDecl m : st.getMethods()) {
-                        String params = m.getParameters().stream()
-                                .map(Parameter::name).collect(Collectors.joining(", "));
-                        sb.append("    fn ").append(m.getName())
-                                .append("(").append(params).append(")\n");
-                    }
-                    sb.append("}\n```");
-                    return hover(sb.toString());
-                }
-                return hover("```mira\n" + kind + " $" + v.getName() + "\n```");
-            }
-            if (n instanceof ComptimeBlock comptime) {
-                for (Node bodyNode : comptime.getBody()) {
-                    if (bodyNode instanceof Statement.VarDecl v && v.getName().equals(stripped)) {
-                        return hover("```mira\ncomptime const $" + v.getName() + "\n```\n*compile-time constant*");
-                    }
-                }
-            }
+        Hover found = hoverScoped(ast, stripped, pos.getLine() + 1);
+        if (found != null) {
+            return found;
         }
 
         String stdlibDoc = STDLIB_DOCS.get(word);
@@ -256,6 +209,231 @@ public class HoverProvider {
         }
 
         return null;
+    }
+
+    /** A lexical scope: the container statement that introduces it (null for top-level) and its body. */
+    private record Scope(Node owner, List<Node> body) {
+    }
+
+    /**
+     * Resolves a plain (non-field) identifier reference at {@code cursorLine} by
+     * walking outward through the chain of lexical scopes actually enclosing the
+     * cursor - innermost first - so an inner declaration correctly shadows an
+     * unrelated same-named declaration elsewhere in the file (e.g. in a sibling
+     * branch, or at the top level), instead of returning whichever declaration
+     * happens to appear first in AST traversal order regardless of scope.
+     */
+    private static Hover hoverScoped(List<Node> ast, String name, int cursorLine) {
+        for (Scope scope : buildScopeChain(ast, cursorLine)) {
+            Hover found = hoverInScopeLevel(scope, name, cursorLine);
+            if (found != null) {
+                return found;
+            }
+        }
+        return null;
+    }
+
+    private static List<Scope> buildScopeChain(List<Node> ast, int cursorLine) {
+        List<Scope> chain = new ArrayList<>();
+        Scope current = new Scope(null, ast);
+        chain.add(current);
+        Scope child;
+        while ((child = enclosingChild(current, cursorLine)) != null) {
+            chain.add(0, child);
+            current = child;
+        }
+        return chain;
+    }
+
+    private static Scope enclosingChild(Scope scope, int cursorLine) {
+        for (Node n : scope.body()) {
+            if (!(n instanceof Statement s) || s.line <= 0 || s.endLine <= 0
+                    || cursorLine < s.line || cursorLine > s.endLine) {
+                continue;
+            }
+            List<Node> child = childBodyAt(n, cursorLine);
+            if (child != null) {
+                return new Scope(n, child);
+            }
+        }
+        return null;
+    }
+
+    private static List<Node> childBodyAt(Node n, int cursorLine) {
+        if (n instanceof Statement.FuncDecl f) {
+            return f.getBody();
+        }
+        if (n instanceof Statement.If stmt) {
+            List<Node> branch = branchContaining(stmt.getThenBody(), cursorLine);
+            return branch != null ? branch : branchContaining(stmt.getElseBody(), cursorLine);
+        }
+        if (n instanceof Statement.Loop stmt) {
+            return stmt.getBody();
+        }
+        if (n instanceof Statement.While stmt) {
+            return stmt.getBody();
+        }
+        if (n instanceof Statement.Block stmt) {
+            return stmt.getBody();
+        }
+        if (n instanceof Statement.Switch stmt) {
+            for (Statement.SwitchCase sc : stmt.getCases()) {
+                List<Node> branch = branchContaining(sc.getBody(), cursorLine);
+                if (branch != null) {
+                    return branch;
+                }
+            }
+            return branchContaining(stmt.getDefaultBody(), cursorLine);
+        }
+        if (n instanceof Statement.TryCatch stmt) {
+            List<Node> branch = branchContaining(stmt.getTryBody(), cursorLine);
+            if (branch != null) {
+                return branch;
+            }
+            for (Statement.CatchClause cc : stmt.getCatchClauses()) {
+                branch = branchContaining(cc.getBody(), cursorLine);
+                if (branch != null) {
+                    return branch;
+                }
+            }
+            return branchContaining(stmt.getFinallyBody(), cursorLine);
+        }
+        if (n instanceof Statement.Lock stmt) {
+            return stmt.getBody();
+        }
+        if (n instanceof ComptimeBlock stmt) {
+            return stmt.getBody();
+        }
+        return null;
+    }
+
+    /** Whether {@code cursorLine} falls within the line span actually covered by this specific body's statements. */
+    private static List<Node> branchContaining(List<Node> body, int cursorLine) {
+        if (body == null || body.isEmpty()) {
+            return null;
+        }
+        int min = Integer.MAX_VALUE;
+        int max = -1;
+        for (Node n : body) {
+            if (n instanceof Statement s && s.line > 0) {
+                min = Math.min(min, s.line);
+                max = Math.max(max, s.endLine > 0 ? s.endLine : s.line);
+            }
+        }
+        if (min == Integer.MAX_VALUE || max < 0) {
+            return null;
+        }
+        return (cursorLine >= min && cursorLine <= max) ? body : null;
+    }
+
+    private static Hover hoverInScopeLevel(Scope scope, String name, int cursorLine) {
+        if (scope.owner() instanceof Statement.Loop loop) {
+            if (loop.isForeach()) {
+                Statement.VarDecl iter = loop.getIterator();
+                if (iter.getName().equals(name)) {
+                    return hover("```mira\nvar $" + iter.getName() + "\n```");
+                }
+            } else {
+                Hover h = findDirectHoverInBody(loop.getVarDecls(), name, cursorLine);
+                if (h != null) {
+                    return h;
+                }
+            }
+        }
+        return findDirectHoverInBody(scope.body(), name, cursorLine);
+    }
+
+    /**
+     * Searches only the direct statements of {@code body} (not nested blocks) for a
+     * declaration of {@code name}, preferring the one closest to (and at or before)
+     * {@code cursorLine} - the nearest enclosing declaration - falling back to the
+     * nearest one after it if none precede.
+     */
+    private static Hover findDirectHoverInBody(List<Node> body, String name, int cursorLine) {
+        Hover before = null;
+        int beforeLine = -1;
+        Hover after = null;
+        int afterLine = Integer.MAX_VALUE;
+        for (Node n : body) {
+            Hover candidate = null;
+            int declLine = -1;
+            if (n instanceof Statement.FuncDecl f && f.getName().equals(name)) {
+                candidate = hoverForFuncDeclSelf(f);
+                declLine = f.line;
+            } else if (n instanceof Statement.VarDecl v && v.getName().equals(name)) {
+                candidate = hoverForVarDeclSelf(v);
+                declLine = v.line;
+            } else if (n instanceof Statement.VarDestructure vd && vd.getNames().contains(name)) {
+                candidate = hover("```mira\nvar $" + name + "\n```\n*destructured*");
+                declLine = vd.line;
+            } else if (n instanceof ComptimeBlock comptime) {
+                for (Node bodyNode : comptime.getBody()) {
+                    if (bodyNode instanceof Statement.VarDecl v && v.getName().equals(name)) {
+                        candidate = hover("```mira\ncomptime const $" + v.getName()
+                                + "\n```\n*compile-time constant*");
+                        declLine = v.line;
+                        break;
+                    }
+                }
+            }
+            if (candidate == null || declLine <= 0) {
+                continue;
+            }
+            if (declLine <= cursorLine && declLine > beforeLine) {
+                before = candidate;
+                beforeLine = declLine;
+            } else if (declLine > cursorLine && declLine < afterLine) {
+                after = candidate;
+                afterLine = declLine;
+            }
+        }
+        return before != null ? before : after;
+    }
+
+    private static Hover hoverForFuncDeclSelf(Statement.FuncDecl f) {
+        String params = f.getParameters().stream()
+                .map(Parameter::name)
+                .collect(Collectors.joining(", "));
+        String prefix = (f.isAsync() ? "async " : "") + (f.isPure() ? "pure " : "");
+        String sig = prefix + "fn " + f.getName() + "(" + params + ")";
+        return hover("```mira\n" + sig + "\n```");
+    }
+
+    private static Hover hoverForVarDeclSelf(Statement.VarDecl v) {
+        String kind = v.isConst() ? "const" : "var";
+        if (v.getInitializer() instanceof com.mira.parser.nodes.expression.Expression.ObjectExpression obj) {
+            StringBuilder sb = new StringBuilder("```mira\n")
+                    .append(kind).append(" $").append(v.getName()).append(" {\n");
+            for (Statement.VarDecl f : obj.getVarDecls()) {
+                sb.append("    ").append(f.isConst() ? "const" : "var")
+                        .append(" ").append(f.getName()).append("\n");
+            }
+            for (Statement.FuncDecl m : obj.getMethods()) {
+                String params = m.getParameters().stream()
+                        .map(Parameter::name).collect(Collectors.joining(", "));
+                sb.append("    fn ").append(m.getName())
+                        .append("(").append(params).append(")\n");
+            }
+            sb.append("}\n```");
+            return hover(sb.toString());
+        }
+        if (v.getInitializer() instanceof StructExpression st) {
+            StringBuilder sb = new StringBuilder("```mira\n")
+                    .append(kind).append(" $").append(v.getName()).append(" struct {\n");
+            for (Statement.VarDecl f : st.getVarDecls()) {
+                sb.append("    ").append(f.isConst() ? "const" : "var")
+                        .append(" ").append(f.getName()).append("\n");
+            }
+            for (Statement.FuncDecl m : st.getMethods()) {
+                String params = m.getParameters().stream()
+                        .map(Parameter::name).collect(Collectors.joining(", "));
+                sb.append("    fn ").append(m.getName())
+                        .append("(").append(params).append(")\n");
+            }
+            sb.append("}\n```");
+            return hover(sb.toString());
+        }
+        return hover("```mira\n" + kind + " $" + v.getName() + "\n```");
     }
 
     static boolean isFieldAccess(String content, Position pos) {
@@ -282,7 +460,17 @@ public class HoverProvider {
         return start < 2 || line.charAt(start - 2) != '.';
     }
 
-    private static Hover hoverForField(List<Node> ast, String fieldName) {
+    private static Hover hoverForField(List<Node> ast, String fieldName, String objectName, int cursorLine) {
+        if (objectName != null) {
+            Node type = DefinitionProvider.resolveObjectType(ast, objectName, cursorLine);
+            if (type != null) {
+                // objectName resolved to a specific, known declaration in scope -
+                // trust that resolution rather than falling through to a blind
+                // whole-file field search, which could land on an unrelated
+                // same-named field on a completely different (shadowed) object.
+                return searchNodeForField(type, fieldName);
+            }
+        }
         for (Node n : ast) {
             Hover h = searchNodeForField(n, fieldName);
             if (h != null) {

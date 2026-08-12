@@ -18,9 +18,6 @@ public class RenameProvider {
 
     public static Range prepareRename(List<Node> ast, String content, Position pos, String uri, Path docPath,
             WorkspaceIndex workspaceIndex, Path workspaceRoot, Map<String, String> openDocumentsByUri) {
-        if (HoverProvider.isFieldAccess(content, pos)) {
-            return null;
-        }
         String word = HoverProvider.wordAt(content, pos);
         if (word == null || word.isBlank()) {
             return null;

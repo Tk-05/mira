@@ -10,12 +10,21 @@ Mira ships with a built-in Language Server that implements the [Language Server 
 
 ### Features
 
-| Feature                 | Description                                                                                              |
-| ----------------------- | -------------------------------------------------------------------------------------------------------- |
-| **Syntax highlighting** | Keywords, strings, numbers, variables (`$x`), comments, function names                                   |
-| **Diagnostics**         | Parse errors, linter warnings, and hints shown inline as you type                                        |
-| **Code completion**     | Keywords, built-in functions, stdlib functions, local variables and functions, imported module functions |
-| **Document formatting** | Fixes indentation with `Shift+Alt+F` — preserves all string content                                      |
+| Feature                    | Description                                                                                              |
+| -------------------------- | --------------------------------------------------------------------------------------------------------- |
+| **Syntax highlighting**    | Keywords, strings, numbers, variables (`$x`), comments, function names — via the static TextMate grammar   |
+| **Semantic highlighting**  | Additional binding-aware coloring for variables, parameters, functions/methods, and object/struct fields   |
+| **Diagnostics**            | Parse errors, linter warnings, and hints shown inline as you type                                          |
+| **Code completion**        | Keywords, built-in functions, stdlib functions, local variables and functions, imported module functions   |
+| **Hover**                  | Signatures and doc comments for local functions/variables, stdlib functions, and object/struct fields       |
+| **Go to Definition**       | Jumps to the declaration of a local symbol or one imported from another module                             |
+| **Find All References**   | Lists every usage of a symbol in the current file, plus cross-file usages of top-level symbols             |
+| **Rename Symbol**          | Renames a symbol and all its known references in one edit (`F2` in VS Code)                                |
+| **Workspace Symbol Search**| Jumps to any function, variable, or enum by name across the whole project (`Ctrl+T` in VS Code)             |
+| **Document Symbols**       | Outline view of functions, variables, enums, and struct/object fields for the current file                 |
+| **Code Actions**           | Quick fixes offered inline for certain diagnostics                                                         |
+| **Signature Help**         | Parameter hints shown while typing a function call's arguments                                             |
+| **Document formatting**    | Re-prints the file from its parsed AST with `Shift+Alt+F` — see [Formatter](#formatter) below              |
 
 ### VS Code Extension
 
@@ -83,7 +92,7 @@ Additionally, for each open file the server provides:
 - **Local variables** declared with `var` or `const` — shown as `$name`
 - **Local functions** declared with `fn` — shown with their parameter list
 - **Imported stdlib symbols** — shown as `alias.name(params)` when imported with an alias; only the selected symbols when using brace or colon syntax
-- **Imported module symbols** — parsed from the imported `.mira` file; only `pub`-marked symbols are shown
+- **Imported module symbols** — parsed from the imported `.mira` file; only `pub`-marked symbols are shown. Shown as `alias.name` when imported with `as alias`, or as the bare `name` when imported without one (e.g. `import module "lib.mira" {greet};` suggests bare `greet`, not `greet` under a namespace); if the import selects specific names, only those are suggested
 
 Example — after `import math as m;`, typing `m.` suggests:
 
@@ -96,16 +105,14 @@ m.sin(x)
 
 ### Formatter
 
-The document formatter (`Shift+Alt+F` in VS Code) re-indents the entire file using 4-space indentation. It:
+The document formatter (`Shift+Alt+F` in VS Code) parses the file into an AST and re-prints it with consistent 4-space indentation — it is not a simple whitespace/re-indent pass. It:
 
-- Increases indent after `{`
-- Decreases indent before `}`
-- Preserves all string content exactly — no characters inside strings are modified
-- Preserves multi-line strings (`"""..."""`) verbatim
-- Preserves blank lines
-- Skips brace counting inside `//` line comments and `/* */` block comments
+- Normalizes indentation and spacing around every statement and expression form
+- Preserves string content exactly, including multi-line (`"""..."""`) strings, escaping it correctly when re-printing (e.g. a `"` inside a map key)
+- Preserves standalone and inline comments, including one left alone inside an otherwise-empty block
+- Preserves blank lines between top-level declarations
 
-The formatter does not change anything other than leading whitespace — it will not add or remove semicolons, reorder statements, or modify expressions.
+Since it re-prints from the AST rather than editing the original text in place, formatting is idempotent (formatting already-formatted code is a no-op) and always produces a program equivalent to the original — it will not silently change what the code means.
 
 ### Language Configuration
 
