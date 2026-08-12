@@ -98,7 +98,7 @@ mira test -C ../other-app
 
 `build`, `run`, `test`, and `release` also accept `--no-warn` (suppress warnings/hints)
 and `--no-color` (disable ANSI diagnostic colors, also honors `NO_COLOR`); `run` and
-`task <name>` additionally accept `--profile`.
+`task <name>` additionally accept `--profile` and `--stats`.
 
 ### Release Pipeline
 
@@ -452,6 +452,7 @@ Flags available for both single-file and build-system usage:
 | `--ast`           | Print the AST to stdout                                                                                                                                                                        |
 | `--imports`       | Show all loaded imports with their type and alias                                                                                                                                              |
 | `--version`       | Print the Mira version (no short form — `-v` is `--verbose`)                                                                                                                                   |
+| `--stats`         | Print compiler/parser stats (line, token, and AST node counts, function/variable/import/enum counts, per-phase timing) for the entry file and every module it imports, transitively             |
 
 `-v`/`--verbose` also works on the project subcommands (`build`, `run`,
 `test`, `release`) — e.g. `mira build -v` prints which dependencies are

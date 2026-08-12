@@ -43,6 +43,7 @@ public class Flags {
     public static boolean verbose = false;
 
     public static boolean profile = false;
+    public static boolean stats = false;
 
     public static void parse(String[] args) {
         if (args[0].equals("-h") || args[0].equals("--help")) {
@@ -108,6 +109,8 @@ public class Flags {
                     Flags.verbose = true;
                 case "--profile" ->
                     Flags.profile = true;
+                case "--stats" ->
+                    Flags.stats = true;
                 case "--" -> {
                     Flags.args = Arrays.copyOfRange(args, i + 1, args.length);
                     i = args.length;

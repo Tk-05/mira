@@ -9,7 +9,7 @@ public class Help {
                       [--project <dir>] [--no-warn] [--no-color] [-v]
                                                              Build the project
           mira run [--mode interpret|compile|package] [--slim|--full] [--watch]
-                    [--project <dir>] [--no-warn] [--no-color] [--profile] [-v] [-- <args>]
+                    [--project <dir>] [--no-warn] [--no-color] [--profile] [--stats] [-v] [-- <args>]
                                                              Run the project (default: mode from mira.toml)
           mira test [--project <dir>] [--no-warn] [--no-color] [-v]
                                                              Run all test files matching test.pattern
@@ -19,7 +19,7 @@ public class Help {
           mira release [--mode ...] [--slim|--full] [--project <dir>] [--no-warn] [-v]
                                                              Full pipeline: build -> post-build -> test
           mira task [--project <dir>]                       List all tasks defined in mira.toml
-          mira task <name> [--profile]                      Run the task named <name>
+          mira task <name> [--profile] [--stats]            Run the task named <name>
           mira install [--project <dir>]                    Install the project into the local registry
           mira deps [--project <dir>]                       Print the dependency tree
 
@@ -55,6 +55,10 @@ public class Help {
                --debug           Launch interactive debugger
                --profile         Print a function- and line-level timing report after execution
                                  (with --compile, only takes effect together with --run)
+               --stats           Print compiler/parser stats (line, token, and AST node counts,
+                                 declaration counts, per-phase timing) for the entry file and
+                                 every module it imports, transitively. Also available on
+                                 build/run/test/release.
                --compile         Compile to JVM bytecode and write .class files
                --run             (with --compile) Run the compiled bytecode in memory instead of just writing it
                --package         (with --compile) Bundle compiled classes and the Mira runtime into a standalone fat JAR

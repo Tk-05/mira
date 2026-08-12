@@ -29,6 +29,13 @@ public final class ModuleChecker {
     private ModuleChecker() {
     }
 
+    /** The entry file plus every module it imports, transitively (deduped, no stdlib/native imports). */
+    public static Map<Path, ParsedModule> collectAllModules(List<Node> rootAst, Path rootPath) {
+        Map<Path, ParsedModule> allModules = new LinkedHashMap<>();
+        collectAllModules(rootAst, rootPath, allModules, new LinkedHashSet<>());
+        return allModules;
+    }
+
     public static boolean check(List<Node> rootAst, Set<Path> visited) {
         Map<Path, ParsedModule> allModules = new LinkedHashMap<>();
         collectAllModules(rootAst, Flags.inputPath.get(), allModules, new LinkedHashSet<>(visited));
