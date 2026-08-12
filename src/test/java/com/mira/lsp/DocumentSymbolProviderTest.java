@@ -37,6 +37,18 @@ public class DocumentSymbolProviderTest {
     }
 
     @Test
+    void destructuredNamesAppearInOutline() {
+        String source = """
+                var (a, b) : {1, 2};
+                """;
+        List<DocumentSymbol> symbols = symbolsOf(source);
+        assertEquals(2, symbols.size());
+        assertEquals("a", symbols.get(0).getName());
+        assertEquals("b", symbols.get(1).getName());
+        assertEquals(SymbolKind.Variable, symbols.get(0).getKind());
+    }
+
+    @Test
     void enumWithMembers() {
         String source = """
                 enum Color {

@@ -24,6 +24,7 @@ import com.mira.parser.nodes.expression.Expression.MapExpression;
 import com.mira.parser.nodes.expression.Expression.MethodCallExpression;
 import com.mira.parser.nodes.expression.Expression.NamespaceCallExpression;
 import com.mira.parser.nodes.expression.Expression.ObjectExpression;
+import com.mira.parser.nodes.expression.Expression.StructExpression;
 import com.mira.parser.nodes.expression.Expression.RangeExpression;
 import com.mira.parser.nodes.expression.Expression.SwitchExpression;
 import com.mira.parser.nodes.expression.Expression.TernaryExpression;
@@ -51,11 +52,13 @@ import com.mira.parser.nodes.statement.Statement.While;
 
 public class SemanticTokenProvider {
 
-    public static final List<String> TOKEN_TYPES = List.of("variable", "parameter");
+    public static final List<String> TOKEN_TYPES = List.of("variable", "parameter", "function", "property");
     public static final List<String> TOKEN_MODIFIERS = List.of("declaration", "readonly");
 
     private static final int TYPE_VARIABLE = 0;
     private static final int TYPE_PARAMETER = 1;
+    private static final int TYPE_FUNCTION = 2;
+    private static final int TYPE_PROPERTY = 3;
     private static final int MOD_DECLARATION = 1;
     private static final int MOD_READONLY = 2;
 
@@ -74,6 +77,9 @@ public class SemanticTokenProvider {
 
     private static void walkNode(Node node, List<SemToken> out) {
         if (node instanceof FuncDecl f) {
+            if (f.nameColumn > 0) {
+                out.add(new SemToken(f.line - 1, f.nameColumn - 1, f.getName().length(), TYPE_FUNCTION, MOD_DECLARATION));
+            }
             for (Parameter p : f.getParameters()) {
                 if (p.column() > 0) {
                     out.add(new SemToken(f.line - 1, p.column() - 1, p.name().length(), TYPE_PARAMETER, MOD_DECLARATION));
@@ -91,6 +97,14 @@ public class SemanticTokenProvider {
                 walkExpr(v.getInitializer(), out);
             }
         } else if (node instanceof VarDestructure vd) {
+            List<String> names = vd.getNames();
+            List<Integer> cols = vd.getNameColumns();
+            for (int i = 0; i < names.size(); i++) {
+                if (cols.get(i) > 0) {
+                    out.add(new SemToken(vd.line - 1, cols.get(i) - 1, names.get(i).length(),
+                            TYPE_VARIABLE, MOD_DECLARATION));
+                }
+            }
             if (vd.getInitializer() != null) {
                 walkExpr(vd.getInitializer(), out);
             }
@@ -191,6 +205,16 @@ public class SemanticTokenProvider {
         }
     }
 
+    private static void emitPropertyToken(VarDecl v, List<SemToken> out) {
+        if (v.nameColumn > 0) {
+            int mods = MOD_DECLARATION | (v.isConst() ? MOD_READONLY : 0);
+            out.add(new SemToken(v.line - 1, v.nameColumn - 1, v.getName().length(), TYPE_PROPERTY, mods));
+        }
+        if (v.getInitializer() != null) {
+            walkExpr(v.getInitializer(), out);
+        }
+    }
+
     private static void walkExpr(Expression expr, List<SemToken> out) {
         if (expr == null) {
             return;
@@ -275,9 +299,16 @@ public class SemanticTokenProvider {
             }
         } else if (expr instanceof ObjectExpression obj) {
             for (VarDecl vd : obj.getVarDecls()) {
-                walkNode(vd, out);
+                emitPropertyToken(vd, out);
             }
             for (FuncDecl fd : obj.getMethods()) {
+                walkNode(fd, out);
+            }
+        } else if (expr instanceof StructExpression st) {
+            for (VarDecl vd : st.getVarDecls()) {
+                emitPropertyToken(vd, out);
+            }
+            for (FuncDecl fd : st.getMethods()) {
                 walkNode(fd, out);
             }
         } else if (expr instanceof RangeExpression rng) {

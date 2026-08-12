@@ -390,4 +390,65 @@ public class AstFormatterTest {
                 """;
         assertEquals(expected, fmt(input));
     }
+
+    @Test
+    void enumExplicitValuesRoundTrip() {
+        String source = """
+                enum Color {
+                    RED,
+                    GREEN : "g",
+                    BLUE
+                }
+                """;
+        assertEquals(source, fmt(source));
+    }
+
+    @Test
+    void varDestructureRoundTrip() {
+        String source = """
+                var (a, b) : {1, 2};
+                """;
+        assertEquals(source, fmt(source));
+    }
+
+    @Test
+    void varDestructureIsIdempotent() {
+        String once = fmt("var (a, b) : {1, 2};");
+        assertEquals(once, fmt(once));
+    }
+
+    @Test
+    void mapKeyWithEscapedQuoteRoundTrips() {
+        String source = """
+                var m : {"a\\"b" : 1};
+                """;
+        assertEquals(source, fmt(source));
+    }
+
+    @Test
+    void ternaryAsConditionKeepsParens() {
+        String source = """
+                var x : (1 ? 2 : 3) ? 4 : 5;
+                """;
+        assertEquals(source, fmt(source));
+    }
+
+    @Test
+    void ternaryInElsePositionNeedsNoParens() {
+        // right-associative by grammar: a ? b : c ? d : e == a ? b : (c ? d : e)
+        String source = """
+                var x : 1 ? 2 : 3 ? 4 : 5;
+                """;
+        assertEquals(source, fmt(source));
+    }
+
+    @Test
+    void commentInEmptyFunctionBodyIsPreserved() {
+        String source = """
+                fn foo() {
+                    // TODO implement
+                }
+                """;
+        assertEquals(source, fmt(source));
+    }
 }

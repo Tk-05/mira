@@ -23,8 +23,10 @@ import com.mira.format.AstWalker;
 import org.eclipse.lsp4j.jsonrpc.messages.Either;
 
 import com.mira.parser.nodes.Node;
+import com.mira.parser.nodes.expression.Expression.ImportExpression;
 import com.mira.parser.nodes.statement.Statement.FuncDecl;
 import com.mira.parser.nodes.statement.Statement.VarDecl;
+import com.mira.parser.nodes.statement.Statement.VarDestructure;
 
 public class CodeActionProvider {
 
@@ -58,7 +60,7 @@ public class CodeActionProvider {
             return actions;
         }
         for (Diagnostic d : params.getContext().getDiagnostics()) {
-            CodeAction action = buildUnusedSymbolFix(d, uri, content);
+            CodeAction action = buildUnusedSymbolFix(d, ast, uri, content);
             if (action == null) {
                 action = buildConstToVarFix(d, ast, uri, content);
             }
@@ -78,7 +80,7 @@ public class CodeActionProvider {
         return actions;
     }
 
-    private static CodeAction buildUnusedSymbolFix(Diagnostic d, String uri, String content) {
+    private static CodeAction buildUnusedSymbolFix(Diagnostic d, List<Node> ast, String uri, String content) {
         Matcher m = UNUSED_PATTERN.matcher(d.getMessage());
         if (!m.matches()) {
             return null;
@@ -90,8 +92,11 @@ public class CodeActionProvider {
             return null;
         }
 
-        Range deleteRange = new Range(new Position(line, 0), new Position(line + 1, 0));
-        TextEdit edit = new TextEdit(deleteRange, "");
+        TextEdit edit = buildSurgicalRemoval(ast, name, line, lines[line]);
+        if (edit == null) {
+            Range deleteRange = new Range(new Position(line, 0), new Position(line + 1, 0));
+            edit = new TextEdit(deleteRange, "");
+        }
         WorkspaceEdit workspaceEdit = new WorkspaceEdit(Map.of(uri, List.of(edit)));
 
         CodeAction action = new CodeAction("Remove unused '" + name + "'");
@@ -99,6 +104,72 @@ public class CodeActionProvider {
         action.setDiagnostics(List.of(d));
         action.setEdit(workspaceEdit);
         return action;
+    }
+
+    /**
+     * When {@code name}'s declaration shares its source line with other still-
+     * relevant names - a comma-separated {@code var a, b;}, a destructuring
+     * {@code var (a, b) : expr;}, or a selective {@code import ... {a, b};} -
+     * deleting the whole line (the default fix) would silently remove those
+     * other, still-used bindings too. In that case, edit out just {@code name}
+     * instead. Returns null when the declaration is alone on its line, meaning
+     * the whole-line delete is safe.
+     */
+    private static TextEdit buildSurgicalRemoval(List<Node> ast, String name, int lineIdx, String lineText) {
+        int declLine = lineIdx + 1;
+        Deque<Node> queue = new ArrayDeque<>(ast);
+        int siblingVarDecls = 0;
+        while (!queue.isEmpty()) {
+            Node n = queue.poll();
+            if (n == null) {
+                continue;
+            }
+            if (n instanceof VarDestructure vdx && vdx.line == declLine && vdx.getNames().contains(name)) {
+                if (vdx.getNames().size() <= 1) {
+                    return null;
+                }
+                return renameWordToUnderscore(lineIdx, lineText, name);
+            }
+            if (n instanceof ImportExpression imp && imp.line == declLine && imp.isSelective()
+                    && imp.getSelectedFunctions().contains(name)) {
+                if (imp.getSelectedFunctions().size() <= 1) {
+                    return null;
+                }
+                return removeFromSelectiveImport(lineIdx, lineText, name);
+            }
+            if (n instanceof VarDecl vd && vd.line == declLine) {
+                siblingVarDecls++;
+            }
+            AstWalker.children(n, queue);
+        }
+        return siblingVarDecls > 1 ? renameWordToUnderscore(lineIdx, lineText, name) : null;
+    }
+
+    private static TextEdit renameWordToUnderscore(int lineIdx, String lineText, String name) {
+        Matcher wm = Pattern.compile("\\b" + Pattern.quote(name) + "\\b").matcher(lineText);
+        if (!wm.find()) {
+            return null;
+        }
+        Range range = new Range(new Position(lineIdx, wm.start()), new Position(lineIdx, wm.end()));
+        return new TextEdit(range, "_");
+    }
+
+    private static TextEdit removeFromSelectiveImport(int lineIdx, String lineText, String name) {
+        int braceStart = lineText.indexOf('{');
+        int braceEnd = braceStart < 0 ? -1 : lineText.indexOf('}', braceStart + 1);
+        if (braceStart < 0 || braceEnd < 0) {
+            return null;
+        }
+        String inner = lineText.substring(braceStart + 1, braceEnd);
+        List<String> parts = new ArrayList<>();
+        for (String part : inner.split(",")) {
+            if (!part.trim().equals(name)) {
+                parts.add(part.trim());
+            }
+        }
+        String replacement = "{" + String.join(", ", parts) + "}";
+        Range range = new Range(new Position(lineIdx, braceStart), new Position(lineIdx, braceEnd + 1));
+        return new TextEdit(range, replacement);
     }
 
     private static CodeAction buildConstToVarFix(Diagnostic d, List<Node> ast, String uri, String content) {

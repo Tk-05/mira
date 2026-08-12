@@ -679,8 +679,13 @@ public class Parser {
                 FuncDecl method = (FuncDecl) parseFuncDecl(false);
                 methods.add(method);
             } else {
-                boolean isConst = peek().getLexeme().equals("const");
+                Token startToken = peek();
+                boolean isConst = startToken.getLexeme().equals("const");
                 for (Node n : parseVarDecl(isConst)) {
+                    if (n instanceof VarDecl vd) {
+                        vd.line = startToken.getLine();
+                        vd.column = startToken.getColumn();
+                    }
                     fields.add((VarDecl) n);
                 }
                 matchLexeme(";");
@@ -1146,8 +1151,11 @@ public class Parser {
         if (peek().getLexeme().equals("(")) {
             consume();
             List<String> names = new ArrayList<>();
+            List<Integer> nameColumns = new ArrayList<>();
             while (!peek().getLexeme().equals(")")) {
-                names.add(matchExpression().getLexeme());
+                Token nameToken = matchExpression();
+                names.add(nameToken.getLexeme());
+                nameColumns.add(nameToken.getColumn());
                 if (!peek().getLexeme().equals(")")) {
                     matchLexeme(",");
                 }
@@ -1155,7 +1163,7 @@ public class Parser {
             matchLexeme(")");
             matchLexeme(":");
             Expression initializer = parseExpression();
-            return List.of(new VarDestructure(names, initializer));
+            return List.of(new VarDestructure(names, nameColumns, initializer));
         }
         List<Node> decls = new ArrayList<>();
         while (true) {

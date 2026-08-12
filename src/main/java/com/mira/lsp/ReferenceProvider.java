@@ -6,12 +6,16 @@ import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.eclipse.lsp4j.Location;
 import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.Range;
 
 import com.mira.format.AstWalker;
+import com.mira.lexer.Tokenizer;
+import com.mira.lexer.token.Token;
+import com.mira.lexer.token.TokenType;
 import com.mira.parser.nodes.Node;
 import com.mira.parser.nodes.Parameter;
 import com.mira.parser.nodes.expression.Expression.CallExpression;
@@ -112,12 +116,32 @@ public class ReferenceProvider {
                 continue;
             }
             List<Node> otherAst = workspaceIndex.getAst(other, openDocumentsByUri);
+            String otherUri = other.toUri().toString();
             String alias = ModuleResolver.findAliasForModule(otherAst, other, docPath);
-            if (alias == null) {
+            if (alias != null) {
+                collectQualifiedCalls(otherAst, alias, name, otherUri, out);
+            }
+            Set<String> directNames = ModuleResolver.findDirectBoundNames(otherAst, other, docPath);
+            if (directNames.contains(name)) {
+                collectDirectCalls(otherAst, name, otherUri, out);
+            }
+        }
+    }
+
+    private static void collectDirectCalls(List<Node> ast, String name, String uri, List<Location> out) {
+        Deque<Node> queue = new ArrayDeque<>(ast);
+        while (!queue.isEmpty()) {
+            Node n = queue.poll();
+            if (n == null) {
                 continue;
             }
-            String otherUri = other.toUri().toString();
-            collectQualifiedCalls(otherAst, alias, name, otherUri, out);
+            if (n instanceof CallExpression e && e.getCallee() instanceof DumbExpression d
+                    && name.equals(d.getValue())) {
+                int line = Math.max(d.getLine() - 1, 0);
+                int col = Math.max(d.getColumn() - 1, 0);
+                out.add(new Location(uri, new Range(new Position(line, col), new Position(line, col + name.length()))));
+            }
+            AstWalker.children(n, queue);
         }
     }
 
@@ -139,26 +163,34 @@ public class ReferenceProvider {
         }
     }
 
+    /**
+     * Finds {@code .name} occurrences via the real token stream rather than a
+     * raw text scan, so matches inside string literals or comments (which
+     * produce no tokens, or a single opaque STRING_LITERAL token) are never
+     * mistaken for a genuine field reference.
+     */
     private static List<Location> textScanFieldReferences(String content, String uri, String name) {
         List<Location> out = new ArrayList<>();
-        String[] lines = content.split("\n", -1);
-        for (int lineIdx = 0; lineIdx < lines.length; lineIdx++) {
-            String line = lines[lineIdx];
-            int idx = 0;
-            while ((idx = line.indexOf(name, idx)) >= 0) {
-                int afterIdx = idx + name.length();
-                boolean wordBoundaryAfter = afterIdx >= line.length() || !isWordChar(line.charAt(afterIdx));
-                boolean precededByDot = idx > 0 && line.charAt(idx - 1) == '.';
-                if (wordBoundaryAfter && precededByDot) {
-                    out.add(new Location(uri, new Range(new Position(lineIdx, idx), new Position(lineIdx, afterIdx))));
-                }
-                idx = afterIdx;
+        List<Token> tokens;
+        try {
+            tokens = new Tokenizer().tokenize(content, false);
+        } catch (Exception e) {
+            return out;
+        }
+        List<Token> significant = tokens.stream()
+                .filter(t -> !(t.getTokenType() == TokenType.EXPRESSION && t.getLexeme().isBlank()))
+                .toList();
+        for (int i = 1; i < significant.size(); i++) {
+            Token prev = significant.get(i - 1);
+            Token curr = significant.get(i);
+            boolean prevIsDot = ".".equals(prev.getLexeme()) && prev.getTokenType() != TokenType.STRING_LITERAL;
+            boolean currIsName = name.equals(curr.getLexeme()) && curr.getTokenType() != TokenType.STRING_LITERAL;
+            if (prevIsDot && currIsName) {
+                int line = Math.max(curr.getLine() - 1, 0);
+                int col = Math.max(curr.getColumn() - 1, 0);
+                out.add(new Location(uri, new Range(new Position(line, col), new Position(line, col + name.length()))));
             }
         }
         return out;
-    }
-
-    private static boolean isWordChar(char c) {
-        return Character.isLetterOrDigit(c) || c == '_';
     }
 }

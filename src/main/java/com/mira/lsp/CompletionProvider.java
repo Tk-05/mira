@@ -30,9 +30,17 @@ import com.mira.parser.nodes.expression.Expression.ObjectExpression;
 import com.mira.parser.nodes.expression.Expression.StructExpression;
 import com.mira.parser.nodes.expression.Expression.StructInitExpression;
 import com.mira.parser.nodes.expression.Expression.UnaryExpression;
+import com.mira.parser.nodes.statement.Statement.Block;
 import com.mira.parser.nodes.statement.Statement.ComptimeBlock;
 import com.mira.parser.nodes.statement.Statement.FuncDecl;
+import com.mira.parser.nodes.statement.Statement.If;
+import com.mira.parser.nodes.statement.Statement.Lock;
+import com.mira.parser.nodes.statement.Statement.Loop;
+import com.mira.parser.nodes.statement.Statement.Switch;
+import com.mira.parser.nodes.statement.Statement.TryCatch;
 import com.mira.parser.nodes.statement.Statement.VarDecl;
+import com.mira.parser.nodes.statement.Statement.VarDestructure;
+import com.mira.parser.nodes.statement.Statement.While;
 import com.mira.runtime.functions.Callable;
 import com.mira.runtime.functions.NativeFunction;
 import com.mira.runtime.interpreter.Environment;
@@ -134,6 +142,13 @@ public class CompletionProvider {
                     items.add(item);
                     collectFromNodes(f.getBody(), rootAst, items);
                 }
+                case VarDestructure vd -> {
+                    for (String n : vd.getNames()) {
+                        CompletionItem item = new CompletionItem("$" + n);
+                        item.setKind(CompletionItemKind.Variable);
+                        items.add(item);
+                    }
+                }
                 case ComptimeBlock comptime -> {
                     for (Node bodyNode : comptime.getBody()) {
                         if (bodyNode instanceof VarDecl v) {
@@ -144,6 +159,45 @@ public class CompletionProvider {
                         }
                     }
                 }
+                case If s -> {
+                    collectFromNodes(s.getThenBody(), rootAst, items);
+                    if (s.getElseBody() != null) {
+                        collectFromNodes(s.getElseBody(), rootAst, items);
+                    }
+                }
+                case Loop s -> {
+                    if (s.isForeach()) {
+                        CompletionItem item = new CompletionItem("$" + s.getIterator().getName());
+                        item.setKind(CompletionItemKind.Variable);
+                        items.add(item);
+                    } else {
+                        collectFromNodes(s.getVarDecls(), rootAst, items);
+                    }
+                    collectFromNodes(s.getBody(), rootAst, items);
+                }
+                case While s ->
+                    collectFromNodes(s.getBody(), rootAst, items);
+                case Block s ->
+                    collectFromNodes(s.getBody(), rootAst, items);
+                case Switch s -> {
+                    for (Switch.SwitchCase sc : s.getCases()) {
+                        collectFromNodes(sc.getBody(), rootAst, items);
+                    }
+                    if (s.getDefaultBody() != null) {
+                        collectFromNodes(s.getDefaultBody(), rootAst, items);
+                    }
+                }
+                case TryCatch s -> {
+                    collectFromNodes(s.getTryBody(), rootAst, items);
+                    for (TryCatch.CatchClause cc : s.getCatchClauses()) {
+                        collectFromNodes(cc.getBody(), rootAst, items);
+                    }
+                    if (s.getFinallyBody() != null) {
+                        collectFromNodes(s.getFinallyBody(), rootAst, items);
+                    }
+                }
+                case Lock s ->
+                    collectFromNodes(s.getBody(), rootAst, items);
                 default -> {
                 }
             }
@@ -230,7 +284,8 @@ public class CompletionProvider {
                 case MODULE -> {
                     if (docPath != null) {
                         Path modulePath = ModuleResolver.resolveModulePath(imp.getModule(), docPath);
-                        addModuleFunctions(modulePath, alias, items);
+                        List<String> selected = imp.isSelective() ? imp.getSelectedFunctions() : null;
+                        addModuleFunctions(modulePath, alias, selected, items);
                     }
                 }
                 case NATIVE -> {
@@ -244,24 +299,41 @@ public class CompletionProvider {
         }
     }
 
-    private static void addModuleFunctions(Path modulePath, String alias, List<CompletionItem> items) {
+    private static void addModuleFunctions(Path modulePath, String alias, List<String> selectedNames,
+            List<CompletionItem> items) {
+        boolean bare = alias == null || alias.isBlank();
         try {
             String src = Files.readString(modulePath);
             List<Node> modAst = new Parser().parseTokens(new Tokenizer().tokenize(src, false));
             for (Node n : modAst) {
                 if (n instanceof FuncDecl f && !f.getName().equals("main") && f.isPublic()) {
+                    if (selectedNames != null && !selectedNames.contains(f.getName())) {
+                        continue;
+                    }
                     String params = f.getParameters().stream()
                             .map(Parameter::name)
                             .collect(Collectors.joining(", "));
-                    items.add(namespaceItem(alias, f.getName(), params, f.isPure()));
+                    if (bare) {
+                        CompletionItem item = new CompletionItem(f.getName());
+                        item.setKind(CompletionItemKind.Function);
+                        String prefix = f.isPure() ? "pure fn " : "fn ";
+                        item.setDetail(prefix + f.getName() + "(" + params + ")");
+                        items.add(item);
+                    } else {
+                        items.add(namespaceItem(alias, f.getName(), params, f.isPure()));
+                    }
                 } else if (n instanceof VarDecl v && v.isPublic()) {
-                    CompletionItem item = new CompletionItem(alias + "." + v.getName());
+                    if (selectedNames != null && !selectedNames.contains(v.getName())) {
+                        continue;
+                    }
+                    String label = bare ? v.getName() : alias + "." + v.getName();
+                    CompletionItem item = new CompletionItem(label);
                     item.setKind(CompletionItemKind.Variable);
                     item.setDetail((v.isConst() ? "const" : "var") + " " + v.getName());
                     items.add(item);
                     if (v.getInitializer() instanceof Expression.ObjectExpression obj) {
                         for (VarDecl f : obj.getVarDecls()) {
-                            CompletionItem fi = new CompletionItem(alias + "." + v.getName() + "." + f.getName());
+                            CompletionItem fi = new CompletionItem(label + "." + f.getName());
                             fi.setKind(CompletionItemKind.Field);
                             fi.setDetail((f.isConst() ? "const" : "var") + " " + f.getName());
                             items.add(fi);
@@ -269,7 +341,7 @@ public class CompletionProvider {
                         for (FuncDecl m : obj.getMethods()) {
                             String params = m.getParameters().stream()
                                     .map(Parameter::name).collect(Collectors.joining(", "));
-                            CompletionItem mi = new CompletionItem(alias + "." + v.getName() + "." + m.getName());
+                            CompletionItem mi = new CompletionItem(label + "." + m.getName());
                             mi.setKind(CompletionItemKind.Method);
                             mi.setDetail("fn " + m.getName() + "(" + params + ")");
                             items.add(mi);

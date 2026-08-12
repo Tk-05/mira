@@ -29,6 +29,18 @@ import com.mira.warning.WarningLevel;
 public class DiagnosticCollector {
 
     public static List<Diagnostic> collect(String source, Path filePath, Map<Path, String> openDocuments) {
+        return collect(source, filePath, openDocuments, null, null);
+    }
+
+    /**
+     * Same as the 3-arg overload, but routes sibling-file lookups (for
+     * external-call detection) through the shared {@link WorkspaceIndex}
+     * cache instead of re-reading/re-tokenizing/re-parsing every sibling
+     * {@code .mira} file from scratch on every call — the difference between
+     * O(1) cached lookups and a full reparse pass on every keystroke.
+     */
+    public static List<Diagnostic> collect(String source, Path filePath, Map<Path, String> openDocuments,
+            WorkspaceIndex workspaceIndex, Path workspaceRoot) {
         List<Diagnostic> result = new ArrayList<>();
         WarningCollector.clear();
         try {
@@ -36,7 +48,7 @@ public class DiagnosticCollector {
             List<Node> ast = new Parser().parseTokens(tokens);
             try {
                 Set<String> externalCalls = filePath != null
-                        ? collectExternalCalls(ast, filePath, openDocuments)
+                        ? collectExternalCalls(ast, filePath, openDocuments, workspaceIndex, workspaceRoot)
                         : Set.of();
                 new StaticCheck(externalCalls, filePath, openDocuments).check(ast);
             } catch (MultipleStaticCheckErrors mre) {
@@ -54,24 +66,36 @@ public class DiagnosticCollector {
         return result;
     }
 
-    private static Set<String> collectExternalCalls(List<Node> ast, Path filePath, Map<Path, String> openDocuments) {
+    private static Set<String> collectExternalCalls(List<Node> ast, Path filePath, Map<Path, String> openDocuments,
+            WorkspaceIndex workspaceIndex, Path workspaceRoot) {
         Set<String> externalCalls = new LinkedHashSet<>();
         Path dir = filePath.getParent();
         if (dir == null) {
             return externalCalls;
         }
-        ModuleResolver.findAllMiraFiles(dir).stream()
+        List<Path> siblings = workspaceIndex != null
+                ? workspaceIndex.allMiraFiles(workspaceRoot)
+                : ModuleResolver.findAllMiraFiles(dir);
+        Map<String, String> openByUri = workspaceIndex != null ? toUriKeyed(openDocuments) : Map.of();
+        siblings.stream()
                 .filter(p -> !p.equals(filePath))
                 .forEach(callerPath -> {
                     try {
-                        String src = openDocuments.getOrDefault(callerPath, Files.readString(callerPath));
-                        List<Node> callerAst = new Parser().parseTokens(
-                                new Tokenizer().tokenize(src, false));
+                        List<Node> callerAst = workspaceIndex != null
+                                ? workspaceIndex.getAst(callerPath, openByUri)
+                                : new Parser().parseTokens(new Tokenizer().tokenize(
+                                        openDocuments.getOrDefault(callerPath, Files.readString(callerPath)), false));
                         ModuleResolver.collectExternalCalls(callerAst, callerPath, filePath, externalCalls);
                     } catch (Exception ignored) {
                     }
                 });
         return externalCalls;
+    }
+
+    private static Map<String, String> toUriKeyed(Map<Path, String> byPath) {
+        Map<String, String> byUri = new java.util.HashMap<>();
+        byPath.forEach((path, content) -> byUri.put(path.toUri().toString(), content));
+        return byUri;
     }
 
     private static Diagnostic fromError(MiraError e, DiagnosticSeverity severity) {

@@ -162,6 +162,109 @@ public class CodeActionProviderTest {
     }
 
     @Test
+    void unusedFixRenamesInsteadOfDeletingSharedCommaLine() {
+        String source = """
+                module main;
+                fn main() {
+                    var a, b : 2;
+                    return $a;
+                }
+                """;
+        String uri = "file:///test.mira";
+        List<Diagnostic> diagnostics = DiagnosticCollector.collect(source, null, Map.of());
+        Diagnostic unusedB = diagnostics.stream()
+                .filter(d -> d.getMessage().contains("'b' is declared but never used"))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("expected unused 'b' diagnostic, got: " + diagnostics));
+
+        CodeActionParams params = new CodeActionParams(
+                new TextDocumentIdentifier(uri),
+                unusedB.getRange(),
+                new CodeActionContext(List.of(unusedB)));
+        List<Either<Command, CodeAction>> actions = CodeActionProvider.provide(params, parse(source), uri, source,
+                null, new WorkspaceIndex(), null, Map.of());
+
+        assertEquals(1, actions.size());
+        TextEdit edit = actions.get(0).getRight().getEdit().getChanges().get(uri).get(0);
+        assertEquals("_", edit.getNewText());
+        assertEquals(edit.getRange().getStart().getLine(), edit.getRange().getEnd().getLine(),
+                "fix must not span/delete the whole shared line, which would also remove 'a'");
+    }
+
+    @Test
+    void unusedFixRenamesInsteadOfDeletingSharedDestructureLine() {
+        String source = """
+                module main;
+                fn main() {
+                    var (a, b) : {1, 2};
+                    return $a;
+                }
+                """;
+        String uri = "file:///test.mira";
+        List<Diagnostic> diagnostics = DiagnosticCollector.collect(source, null, Map.of());
+        Diagnostic unusedB = diagnostics.stream()
+                .filter(d -> d.getMessage().contains("'b' is declared but never used"))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("expected unused 'b' diagnostic, got: " + diagnostics));
+
+        CodeActionParams params = new CodeActionParams(
+                new TextDocumentIdentifier(uri),
+                unusedB.getRange(),
+                new CodeActionContext(List.of(unusedB)));
+        List<Either<Command, CodeAction>> actions = CodeActionProvider.provide(params, parse(source), uri, source,
+                null, new WorkspaceIndex(), null, Map.of());
+
+        assertEquals(1, actions.size());
+        TextEdit edit = actions.get(0).getRight().getEdit().getChanges().get(uri).get(0);
+        assertEquals("_", edit.getNewText());
+        assertEquals(edit.getRange().getStart().getLine(), edit.getRange().getEnd().getLine(),
+                "fix must not span/delete the whole shared line, which would also remove 'a'");
+    }
+
+    @Test
+    void unusedFixEditsOnlyTheSelectiveImportEntry(@TempDir Path tempDir) throws IOException {
+        Path libPath = tempDir.resolve("lib.mira");
+        Files.writeString(libPath, """
+                pub fn greet() {
+                    return 1;
+                }
+                pub fn unused() {
+                    return 2;
+                }
+                """);
+        Path mainPath = tempDir.resolve("main.mira");
+        String source = """
+                module main;
+                import module "lib.mira" {greet, unused};
+                fn main() {
+                    return greet();
+                }
+                """;
+        Files.writeString(mainPath, source);
+
+        List<Diagnostic> diagnostics = DiagnosticCollector.collect(source, mainPath, Map.of());
+        Diagnostic unusedImport = diagnostics.stream()
+                .filter(d -> d.getMessage().contains("'unused' is imported but never used"))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("expected unused 'unused' import diagnostic, got: "
+                        + diagnostics));
+
+        String uri = mainPath.toUri().toString();
+        CodeActionParams params = new CodeActionParams(
+                new TextDocumentIdentifier(uri),
+                unusedImport.getRange(),
+                new CodeActionContext(List.of(unusedImport)));
+        List<Either<Command, CodeAction>> actions = CodeActionProvider.provide(params, parse(source), uri, source,
+                mainPath, new WorkspaceIndex(), tempDir, Map.of());
+
+        assertEquals(1, actions.size());
+        TextEdit edit = actions.get(0).getRight().getEdit().getChanges().get(uri).get(0);
+        assertEquals("{greet}", edit.getNewText());
+        assertEquals(edit.getRange().getStart().getLine(), edit.getRange().getEnd().getLine(),
+                "fix must not span/delete the whole import line, which would also remove 'greet'");
+    }
+
+    @Test
     void offersQuickFixForPrivateAccessAcrossFiles(@TempDir Path tempDir) throws IOException {
         Path libPath = tempDir.resolve("lib.mira");
         Files.writeString(libPath, """

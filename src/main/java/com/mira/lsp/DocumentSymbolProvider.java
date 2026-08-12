@@ -22,6 +22,7 @@ import com.mira.parser.nodes.statement.Statement.Lock;
 import com.mira.parser.nodes.statement.Statement.Switch;
 import com.mira.parser.nodes.statement.Statement.TryCatch;
 import com.mira.parser.nodes.statement.Statement.VarDecl;
+import com.mira.parser.nodes.statement.Statement.VarDestructure;
 import com.mira.parser.nodes.statement.Statement.While;
 
 public class DocumentSymbolProvider {
@@ -61,6 +62,12 @@ public class DocumentSymbolProvider {
                     walk(f.getBody(), content)));
         } else if (n instanceof VarDecl v) {
             out.add(varSymbol(v, content));
+        } else if (n instanceof VarDestructure vd) {
+            List<String> names = vd.getNames();
+            for (int i = 0; i < names.size(); i++) {
+                out.add(symbol(names.get(i), SymbolKind.Variable, content,
+                        vd.line, vd.getNameColumns().get(i), vd.line, List.of()));
+            }
         } else if (n instanceof EnumDecl ed) {
             out.add(enumSymbol(ed, content));
         } else if (n instanceof If s) {

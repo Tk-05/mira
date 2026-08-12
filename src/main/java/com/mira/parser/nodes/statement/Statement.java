@@ -672,15 +672,22 @@ public abstract class Statement implements Node {
     public static class VarDestructure extends Statement {
 
         private final List<String> names;
+        private final List<Integer> nameColumns;
         private final Expression initializer;
 
-        public VarDestructure(List<String> names, Expression initializer) {
+        public VarDestructure(List<String> names, List<Integer> nameColumns, Expression initializer) {
             this.names = names;
+            this.nameColumns = nameColumns;
             this.initializer = initializer;
         }
 
         public List<String> getNames() {
             return names;
+        }
+
+        /** Column of each name in {@link #getNames()}, in the same order; all on this statement's own {@link #line}. */
+        public List<Integer> getNameColumns() {
+            return nameColumns;
         }
 
         public Expression getInitializer() {
