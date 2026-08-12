@@ -90,6 +90,8 @@ public class BuildRunner {
         System.out.println(DiagnosticFormatter.formatInfo("running tests for " + config.name() + "..."));
         long totalStart = System.currentTimeMillis();
         boolean anyFailed = false;
+        long totalPassed = 0;
+        long totalFailed = 0;
 
         for (Path testFile : testFiles) {
             System.out.println("\n--- " + projectRoot.relativize(testFile) + " ---");
@@ -101,6 +103,8 @@ public class BuildRunner {
                 List<Token> tokens = new Tokenizer().tokenize(source, false);
                 List<Node> asts = new Parser().parseTokens(tokens);
                 boolean failed = TestRunner.runPrePassCollecting(asts, Flags.args);
+                totalPassed += TestRunner.getLastPassed();
+                totalFailed += TestRunner.getLastFailed();
                 if (failed) {
                     anyFailed = true;
                 }
@@ -110,6 +114,12 @@ public class BuildRunner {
             }
         }
 
+        System.out.println("\n─── Total Summary (" + testFiles.size() + " file(s)) ───");
+        System.out.println("  Passed : " + totalPassed);
+        System.out.println("  Failed : " + totalFailed);
+        System.out.println("  Total  : " + (totalPassed + totalFailed));
+        System.out.println(anyFailed ? "  " + DiagnosticFormatter.formatFail("FAILED")
+                : "  " + DiagnosticFormatter.formatPass("OK"));
         System.out.println(DiagnosticFormatter.formatInfo(
                 "all tests finished in " + (System.currentTimeMillis() - totalStart) + " ms"));
         runHook(ctx, config.test().postTest());

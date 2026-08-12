@@ -5,7 +5,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import com.mira.cli.Flags;
 import com.mira.error.DiagnosticFormatter;
 import com.mira.parser.nodes.Node;
 import com.mira.parser.nodes.expression.Expression.ImportExpression;
@@ -27,6 +26,8 @@ public class TestRunner {
     }
 
     private static final List<TestResult> results = Collections.synchronizedList(new ArrayList<>());
+    private static long lastPassed = 0;
+    private static long lastFailed = 0;
 
     public static void register(String name, Callable fn, Interpreter interpreter) {
         try {
@@ -62,20 +63,23 @@ public class TestRunner {
         return results.stream().anyMatch(r -> !r.passed());
     }
 
+    /** Passed/failed counts from the most recently completed run, surviving past {@link #reset()}. */
+    public static long getLastPassed() {
+        return lastPassed;
+    }
+
+    public static long getLastFailed() {
+        return lastFailed;
+    }
+
     public static void reset() {
+        lastPassed = results.stream().filter(TestResult::passed).count();
+        lastFailed = results.size() - lastPassed;
         results.clear();
     }
 
     public static Object nullValue() {
         return NullValue.INSTANCE;
-    }
-
-    public static void runPrePass(List<Node> asts, String[] args) {
-        boolean failed = runPrePassCollecting(asts, args);
-        if (failed) {
-            System.exit(1);
-        }
-        Flags.testsDone = true;
     }
 
     public static boolean runPrePassCollecting(List<Node> asts, String[] args) {

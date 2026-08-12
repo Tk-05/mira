@@ -106,17 +106,28 @@ public class FileRunner {
                 LibIndex.printImportInfo(asts);
             }
 
-            if (Flags.stats) {
-                printStats(readFile, tokens, asts, tokenizeMs, parseMs, comptimeMs, entryCheckMs, moduleCheckMs);
-            }
-
             if (Flags.checkOnly) {
+                if (Flags.stats) {
+                    printStats(readFile, tokens, asts, tokenizeMs, parseMs, comptimeMs, entryCheckMs, moduleCheckMs);
+                }
                 return true;
             }
 
             if (Flags.testMode) {
-                TestRunner.runPrePass(asts, Flags.args);
+                boolean testsFailed = TestRunner.runPrePassCollecting(asts, Flags.args);
+                Flags.testsDone = true;
+                if (Flags.stats) {
+                    printStats(readFile, tokens, asts, tokenizeMs, parseMs, comptimeMs, entryCheckMs, moduleCheckMs,
+                            new TestTotals(TestRunner.getLastPassed(), TestRunner.getLastFailed()));
+                }
+                if (testsFailed) {
+                    System.exit(1);
+                }
                 return true;
+            }
+
+            if (Flags.stats) {
+                printStats(readFile, tokens, asts, tokenizeMs, parseMs, comptimeMs, entryCheckMs, moduleCheckMs);
             }
 
             if (Flags.packageJar && !Flags.compile) {
@@ -196,13 +207,22 @@ public class FileRunner {
             int totalNodes, int functions, int variables, int imports, int enums) {
     }
 
+    private record TestTotals(long passed, long failed) {
+    }
+
+    private static void printStats(String source, List<Token> tokens, List<Node> asts,
+            long tokenizeMs, long parseMs, long comptimeMs, long entryCheckMs, long moduleCheckMs) {
+        printStats(source, tokens, asts, tokenizeMs, parseMs, comptimeMs, entryCheckMs, moduleCheckMs, null);
+    }
+
     /**
      * Prints stats for every file that makes up the program - the entry file plus
      * every module it imports, transitively - not just the entry file alone, since
      * a program's real size/shape is usually spread across its imported modules.
      */
     private static void printStats(String source, List<Token> tokens, List<Node> asts,
-            long tokenizeMs, long parseMs, long comptimeMs, long entryCheckMs, long moduleCheckMs) {
+            long tokenizeMs, long parseMs, long comptimeMs, long entryCheckMs, long moduleCheckMs,
+            TestTotals testTotals) {
         Path entryPath = Flags.inputPath.get();
         List<FileStats> files = new ArrayList<>();
         files.add(computeFileStats(entryPath, source, asts, tokens));
@@ -249,6 +269,9 @@ public class FileRunner {
         System.out.println("Variables: " + totalVariables);
         System.out.println("Imports: " + totalImports);
         System.out.println("Enums: " + totalEnums);
+        if (testTotals != null) {
+            System.out.println("Tests: " + testTotals.passed() + " passed, " + testTotals.failed() + " failed");
+        }
         System.out.println("--- Timing ---");
         System.out.println("Tokenize (entry file): " + tokenizeMs + " ms");
         System.out.println("Parse (entry file): " + parseMs + " ms");
