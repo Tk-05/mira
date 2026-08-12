@@ -446,8 +446,7 @@ Flags available for both single-file and build-system usage:
 | `--test`          | Run `test()` calls and print a pass/fail summary; exits 1 on fail                                                                                                                              |
 | `--debug`         | Launch the interactive debugger                                                                                                                                                                |
 | `--watch`         | Re-run the program whenever the source file or its imports change                                                                                                                              |
-| `--crash-dump`    | On error: print the Mira call stack and memory dump                                                                                                                                            |
-| `-v`, `--verbose` | Report progress as it happens (module cache hits/parses, dependency resolution, static-check summary, compile phase timing); combine with `--crash-dump` or `--imports` for extra detail there |
+| `-v`, `--verbose` | Report progress as it happens (module cache hits/parses, dependency resolution, static-check summary, compile phase timing); combine with `--imports` for extra detail there                   |
 | `-t`, `--tokens`  | Dump the token stream to stdout                                                                                                                                                                |
 | `--check-only`    | Exit after parsing and static check, before interpretation                                                                                                                                     |
 | `--ast`           | Print the AST to stdout                                                                                                                                                                        |
@@ -457,5 +456,9 @@ Flags available for both single-file and build-system usage:
 `-v`/`--verbose` also works on the project subcommands (`build`, `run`,
 `test`, `release`) — e.g. `mira build -v` prints which dependencies are
 resolved from cache versus fetched over the network.
+
+On an uncaught error, Mira always prints a crash dump (Mira call stack, Java
+stack trace, and memory dump) to stderr — this is unconditional, no flag
+needed.
 
 ---

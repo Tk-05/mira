@@ -158,12 +158,10 @@ public class FileRunner {
                 return false;
             }
             System.err.println(DiagnosticFormatter.format(e));
-            if (Flags.crashDump) {
-                if (Flags.compile && !com.mira.compiler.support.CompiledRuntimeSupport.getCallStack().isEmpty()) {
-                    com.mira.compiler.support.CompiledRuntimeSupport.dumpCallStack(e, System.err);
-                } else {
-                    interpreter.dumpState(e, System.err);
-                }
+            if (Flags.compile && !com.mira.compiler.support.CompiledRuntimeSupport.getCallStack().isEmpty()) {
+                com.mira.compiler.support.CompiledRuntimeSupport.dumpCallStack(e, System.err);
+            } else {
+                interpreter.dumpState(e, System.err);
             }
             return false;
         }

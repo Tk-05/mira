@@ -30,6 +30,9 @@ public class Help {
         Single-file usage:
           mira <file.mira> [flags]
 
+        On an uncaught error, Mira always prints a crash dump (Mira call stack,
+        Java stack trace, and memory dump) to stderr — no flag needed.
+
         Flags:
           -t,  --tokens          Dump tokens
           -b,  --dump-bytecode   Dump bytecode
@@ -42,11 +45,10 @@ public class Help {
                --imports         Show loaded imports with type and alias
           -v,  --verbose         Report progress as it happens: module cache hits/parses,
                                  dependency resolution, static-check summary, compile phase
-                                 timing. Combine with --imports or --crash-dump for extra
-                                 detail there. Also available on build/run/test/release.
+                                 timing. Combine with --imports for extra detail there.
+                                 Also available on build/run/test/release.
                --no-warn         Suppress all warnings and hints
                --no-color        Disable colored/ANSI diagnostic output (also honors NO_COLOR)
-               --crash-dump      On crash: print Mira call stack and memory dump
                --watch           Watch entry file and all imported modules for changes, restart on save
                --ast             Print AST
                --test            Run test() calls and print a pass/fail summary; exit 1 if any test fails

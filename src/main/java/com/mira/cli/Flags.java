@@ -20,8 +20,6 @@ public class Flags {
     public static boolean libInfoFull = false;
     public static boolean debug = false;
     public static boolean hotReload = false;
-    public static boolean crashDump = false;
-    public static boolean crashDumpFull = false;
     public static boolean testMode = false;
     public static boolean testsDone = false;
     public static boolean printAsts = false;
@@ -80,8 +78,6 @@ public class Flags {
                     Flags.debug = true;
                 case "--watch" ->
                     Flags.hotReload = true;
-                case "--crash-dump" ->
-                    Flags.crashDump = true;
                 case "--test" ->
                     Flags.testMode = true;
                 case "--ast" ->
@@ -129,6 +125,5 @@ public class Flags {
             System.exit(1);
         }
         Flags.libInfoFull = Flags.libInfo && Flags.verbose;
-        Flags.crashDumpFull = Flags.crashDump && Flags.verbose;
     }
 }
