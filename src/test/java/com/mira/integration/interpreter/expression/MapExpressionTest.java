@@ -14,10 +14,14 @@ public class MapExpressionTest extends AbstractMapExpressionTests {
     private final InterpreterRunner backend = new InterpreterRunner();
 
     @BeforeEach
-    void setup() { backend.reset(); }
+    void setup() {
+        backend.reset();
+    }
 
     @Override
-    protected String runForOutput(String source) { return backend.run(source); }
+    protected String runForOutput(String source) {
+        return backend.run(source);
+    }
 
     @Test
     void mapDeclarationReturnsNull() {
@@ -65,5 +69,26 @@ public class MapExpressionTest extends AbstractMapExpressionTests {
     @Test
     void mapPrintDoesNotThrow() {
         assertNull(backend.runAndGetValue("var m : {\"a\": 1}; print($m);"));
+    }
+
+    @Test
+    void structAssignedIntoMapSurvivesFieldAccess() {
+        assertEquals(1.0, InterpreterRunner.normNum(backend.runAndGetValue("""
+                var m : {"a": 1};
+                var key : "b";
+                $m[$key] : { var foo : 1; };
+                eval($m[$key].foo);
+                """)));
+    }
+
+    @Test
+    void structAssignedIntoMapSurvivesFieldAccessViaIntermediateVariable() {
+        assertEquals(1.0, InterpreterRunner.normNum(backend.runAndGetValue("""
+                var m : {"a": 1};
+                var key : "b";
+                $m[$key] : { var foo : 1; };
+                var v : $m[$key];
+                eval($v.foo);
+                """)));
     }
 }

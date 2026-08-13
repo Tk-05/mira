@@ -66,10 +66,10 @@ import com.mira.parser.nodes.statement.Statement.CatchClause;
 import com.mira.parser.nodes.statement.Statement.ComptimeBlock;
 import com.mira.parser.nodes.statement.Statement.Continue;
 import com.mira.parser.nodes.statement.Statement.EnumDecl;
-import com.mira.parser.nodes.statement.Statement.Loop;
 import com.mira.parser.nodes.statement.Statement.FuncDecl;
 import com.mira.parser.nodes.statement.Statement.If;
 import com.mira.parser.nodes.statement.Statement.Lock;
+import com.mira.parser.nodes.statement.Statement.Loop;
 import com.mira.parser.nodes.statement.Statement.ModuleDecl;
 import com.mira.parser.nodes.statement.Statement.Return;
 import com.mira.parser.nodes.statement.Statement.StaticAssert;
@@ -508,6 +508,14 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
     @Override
     public <T> T visitDumbExpr(DumbExpression expression) {
+        // A pre-set cached value (e.g. a struct/Environment or other runtime object
+        // wrapped by assignToAccess when storing an already-evaluated value into a
+        // collection) is authoritative and must win over re-interpreting the token
+        // text, which is only ever a human-readable label in that case.
+        Object cached = expression.getCachedValue();
+        if (cached != null) {
+            return (T) cached;
+        }
         String value = expression.getValue();
         if (value.equals("true")) {
             return (T) Boolean.TRUE;
@@ -520,10 +528,6 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         }
         if (expression.getTokenType() == TokenType.EXPRESSION
                 && !value.isEmpty() && Character.isDigit(value.charAt(0))) {
-            Object cached = expression.getCachedValue();
-            if (cached != null) {
-                return (T) cached;
-            }
             try {
                 Number parsed = parseNumber(value);
                 expression.setCachedValue(parsed);
@@ -1719,7 +1723,16 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                 if (evaluatedRhs instanceof Expression e) {
                     assignment = e;
                 } else {
-                    assignment = new DumbExpression(new Token(TokenType.EXPRESSION, String.valueOf(evaluatedRhs), 0, 0));
+                    // Collections store their elements as lazily-(re)evaluated Expression
+                    // nodes, but evaluatedRhs is already a concrete runtime value here (e.g.
+                    // a struct/Environment, list, or other object) - stringifying it into the
+                    // token text would be lossy (structs have no meaningful toString()) and
+                    // then get misread back as a bare identifier on the next read. Caching the
+                    // real object directly makes DumbExpression return it verbatim instead.
+                    DumbExpression dumb = new DumbExpression(
+                            new Token(TokenType.EXPRESSION, String.valueOf(evaluatedRhs), 0, 0));
+                    dumb.setCachedValue(evaluatedRhs);
+                    assignment = dumb;
                 }
 
                 switch (referencedObject) {

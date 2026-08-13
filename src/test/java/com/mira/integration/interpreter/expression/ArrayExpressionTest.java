@@ -14,10 +14,14 @@ public class ArrayExpressionTest extends AbstractArrayExpressionTests {
     private final InterpreterRunner backend = new InterpreterRunner();
 
     @BeforeEach
-    void setup() { backend.reset(); }
+    void setup() {
+        backend.reset();
+    }
 
     @Override
-    protected String runForOutput(String source) { return backend.run(source); }
+    protected String runForOutput(String source) {
+        return backend.run(source);
+    }
 
     @Test
     void emptyArrayAccessThrows() {
@@ -57,6 +61,15 @@ public class ArrayExpressionTest extends AbstractArrayExpressionTests {
                 var arr : [1,2,3];
                 $arr[2] : 7;
                 eval($arr[2]);
+                """)));
+    }
+
+    @Test
+    void structAssignedIntoArraySurvivesFieldAccess() {
+        assertEquals(42.0, InterpreterRunner.normNum(backend.runAndGetValue("""
+                var arr : [0];
+                $arr[0] : { var foo : 42; };
+                eval($arr[0].foo);
                 """)));
     }
 }
