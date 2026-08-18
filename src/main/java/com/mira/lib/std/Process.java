@@ -1,8 +1,14 @@
 package com.mira.lib.std;
 
 import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.io.PrintStream;
+import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -17,6 +23,20 @@ import com.mira.runtime.functions.NativeFunction;
 import com.mira.runtime.interpreter.Environment;
 
 public class Process implements Lib {
+
+    private static PrintStream originalStderr;
+    private static boolean crashLogInstalled = false;
+    private static FileOutputStream activeLogStream;
+
+    private static void closeActiveLogStreamQuietly() {
+        if (activeLogStream != null) {
+            try {
+                activeLogStream.close();
+            } catch (IOException ignored) {
+            }
+            activeLogStream = null;
+        }
+    }
 
     private static final Map<Double, java.lang.Process> processes = new ConcurrentHashMap<>();
     private static double nextId = 1;
@@ -172,5 +192,69 @@ public class Process implements Lib {
             }
             return null;
         }));
+
+        environment.define("installCrashLog", new NativeFunction(1, "path", args -> {
+            String path = String.valueOf(args.get(0));
+            try {
+                File f = new File(path);
+                File parent = f.getParentFile();
+                if (parent != null) {
+                    parent.mkdirs();
+                }
+                FileOutputStream fos = new FileOutputStream(f, true);
+                if (originalStderr == null) {
+                    originalStderr = System.err;
+                }
+                closeActiveLogStreamQuietly();
+                activeLogStream = fos;
+                PrintStream tee = new PrintStream(
+                        new TeeOutputStream(originalStderr, fos), true, StandardCharsets.UTF_8);
+                tee.println("\n===== Mira crash log - session started " + LocalDateTime.now() + " =====");
+                System.setErr(tee);
+                crashLogInstalled = true;
+                return true;
+            } catch (IOException e) {
+                return false;
+            }
+        }));
+
+        environment.define("uninstallCrashLog", new NativeFunction(0, args -> {
+            if (!crashLogInstalled) {
+                return false;
+            }
+            System.setErr(originalStderr);
+            closeActiveLogStreamQuietly();
+            crashLogInstalled = false;
+            return true;
+        }));
+    }
+
+    private static final class TeeOutputStream extends OutputStream {
+
+        private final OutputStream a;
+        private final OutputStream b;
+
+        TeeOutputStream(OutputStream a, OutputStream b) {
+            this.a = a;
+            this.b = b;
+        }
+
+        @Override
+        public void write(int x) throws IOException {
+            a.write(x);
+            b.write(x);
+        }
+
+        @Override
+        public void write(byte[] buf, int off, int len) throws IOException {
+            a.write(buf, off, len);
+            b.write(buf, off, len);
+        }
+
+        @Override
+        public void flush() throws IOException {
+            a.flush();
+            b.flush();
+        }
     }
 }

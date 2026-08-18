@@ -248,6 +248,8 @@ Constants: `pi`, `e`, `inf`, `nan`
 | `listProcesses()`        | Returns a list of all running PIDs                                 |
 | `processInfo(pid)`       | Returns the command of a process by PID                            |
 | `sleep(ms)`              | Pauses execution for the given number of milliseconds              |
+| `installCrashLog(path)`  | Tees this process's stderr (incl. the crash dump) to an append-mode file, in addition to the console; returns `false` instead of throwing if the file can't be opened |
+| `uninstallCrashLog()`    | Restores stderr to what it was before `installCrashLog`; returns `false` if no crash log is currently installed |
 
 ### `bytes`
 

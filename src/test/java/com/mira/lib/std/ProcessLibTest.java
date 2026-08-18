@@ -1,19 +1,25 @@
 package com.mira.lib.std;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 
+import org.junit.jupiter.api.AfterEach;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledOnOs;
 import org.junit.jupiter.api.condition.OS;
+import org.junit.jupiter.api.io.TempDir;
 
 import com.mira.parser.nodes.expression.Expression.ListExpression;
 import com.mira.runtime.functions.NativeFunction;
@@ -25,10 +31,18 @@ public class ProcessLibTest {
     Environment environment;
     Interpreter interpreter = new Interpreter();
 
+    @TempDir
+    Path tempDir;
+
     @BeforeEach
     void setup() {
         environment = new Environment();
         new Process().loadLib(environment);
+    }
+
+    @AfterEach
+    void restoreStderr() {
+        call("uninstallCrashLog");
     }
 
     private Object call(String name, Object... args) {
@@ -323,5 +337,91 @@ public class ProcessLibTest {
     void testProcessInfoReturnsString() {
         double pid = (double) call("pid");
         assertInstanceOf(String.class, call("processInfo", pid));
+    }
+
+    @Test
+    void testInstallCrashLogReturnsTrue() {
+        Path log = tempDir.resolve("crash.log");
+        assertEquals(true, call("installCrashLog", log.toString()));
+    }
+
+    @Test
+    void testInstallCrashLogWritesToFile() throws IOException {
+        Path log = tempDir.resolve("crash.log");
+        call("installCrashLog", log.toString());
+        System.err.println("boom");
+        System.err.flush();
+        String content = Files.readString(log);
+        assertTrue(content.contains("boom"));
+    }
+
+    @Test
+    void testInstallCrashLogWritesBannerLine() throws IOException {
+        Path log = tempDir.resolve("crash.log");
+        call("installCrashLog", log.toString());
+        String content = Files.readString(log);
+        assertTrue(content.contains("Mira crash log"));
+    }
+
+    @Test
+    void testInstallCrashLogCreatesParentDirectories() {
+        Path log = tempDir.resolve("nested/dir/crash.log");
+        assertEquals(true, call("installCrashLog", log.toString()));
+        assertTrue(Files.exists(log));
+    }
+
+    @Test
+    void testInstallCrashLogTeesOriginalStream() {
+        java.io.PrintStream before = System.err;
+        Path log = tempDir.resolve("crash.log");
+        call("installCrashLog", log.toString());
+        call("uninstallCrashLog");
+        assertSame(before, System.err);
+    }
+
+    @Test
+    void testUninstallCrashLogWithNothingInstalledReturnsFalse() {
+        java.io.PrintStream before = System.err;
+        assertEquals(false, call("uninstallCrashLog"));
+        assertSame(before, System.err);
+    }
+
+    @Test
+    void testUninstallCrashLogTwiceReturnsFalseSecondTime() {
+        Path log = tempDir.resolve("crash.log");
+        call("installCrashLog", log.toString());
+        assertEquals(true, call("uninstallCrashLog"));
+        assertEquals(false, call("uninstallCrashLog"));
+    }
+
+    @Test
+    void testInstallCrashLogTwiceOnlyLatestFileReceivesFurtherWrites() throws IOException {
+        Path log1 = tempDir.resolve("crash1.log");
+        Path log2 = tempDir.resolve("crash2.log");
+        call("installCrashLog", log1.toString());
+        call("installCrashLog", log2.toString());
+        System.err.println("after-second-install");
+        System.err.flush();
+
+        assertFalse(Files.readString(log1).contains("after-second-install"));
+        assertTrue(Files.readString(log2).contains("after-second-install"));
+    }
+
+    @Test
+    void testInstallCrashLogTwiceDoesNotNestTeesOnOriginal() {
+        java.io.PrintStream before = System.err;
+        call("installCrashLog", tempDir.resolve("crash1.log").toString());
+        call("installCrashLog", tempDir.resolve("crash2.log").toString());
+        call("uninstallCrashLog");
+        assertSame(before, System.err);
+    }
+
+    @Test
+    void testInstallCrashLogWithUnwritablePathReturnsFalse() throws IOException {
+        Path blockingFile = tempDir.resolve("not-a-directory");
+        Files.writeString(blockingFile, "i am a file, not a directory");
+        Path log = blockingFile.resolve("crash.log");
+
+        assertEquals(false, call("installCrashLog", log.toString()));
     }
 }

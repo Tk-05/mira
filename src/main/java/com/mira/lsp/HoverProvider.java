@@ -166,6 +166,9 @@ public class HoverProvider {
         STDLIB_DOCS.put("jsonKeys", "**json.jsonKeys(json)** — Returns an array of top-level keys in a JSON object");
         STDLIB_DOCS.put("jsonSize", "**json.jsonSize(json)** — Returns the number of top-level keys/elements");
         STDLIB_DOCS.put("jsonSet", "**json.jsonSet(json, key, value)** — Sets `key` to `value` in a JSON object string");
+        // process
+        STDLIB_DOCS.put("installCrashLog", "**process.installCrashLog(path)** — Tees this process's stderr (including the crash dump) to an append-mode file, in addition to the console. Returns `false` instead of throwing if the file can't be opened");
+        STDLIB_DOCS.put("uninstallCrashLog", "**process.uninstallCrashLog()** — Restores stderr to what it was before `installCrashLog`. Returns `false` if no crash log is currently installed");
         // thread
         STDLIB_DOCS.put("newMutex", "**thread.newMutex()** — Creates a new mutex for use with `lock`");
         // keywords
@@ -211,17 +214,22 @@ public class HoverProvider {
         return null;
     }
 
-    /** A lexical scope: the container statement that introduces it (null for top-level) and its body. */
+    /**
+     * A lexical scope: the container statement that introduces it (null for
+     * top-level) and its body.
+     */
     private record Scope(Node owner, List<Node> body) {
+
     }
 
     /**
-     * Resolves a plain (non-field) identifier reference at {@code cursorLine} by
-     * walking outward through the chain of lexical scopes actually enclosing the
-     * cursor - innermost first - so an inner declaration correctly shadows an
-     * unrelated same-named declaration elsewhere in the file (e.g. in a sibling
-     * branch, or at the top level), instead of returning whichever declaration
-     * happens to appear first in AST traversal order regardless of scope.
+     * Resolves a plain (non-field) identifier reference at {@code cursorLine}
+     * by walking outward through the chain of lexical scopes actually enclosing
+     * the cursor - innermost first - so an inner declaration correctly shadows
+     * an unrelated same-named declaration elsewhere in the file (e.g. in a
+     * sibling branch, or at the top level), instead of returning whichever
+     * declaration happens to appear first in AST traversal order regardless of
+     * scope.
      */
     private static Hover hoverScoped(List<Node> ast, String name, int cursorLine) {
         for (Scope scope : buildScopeChain(ast, cursorLine)) {
@@ -307,7 +315,10 @@ public class HoverProvider {
         return null;
     }
 
-    /** Whether {@code cursorLine} falls within the line span actually covered by this specific body's statements. */
+    /**
+     * Whether {@code cursorLine} falls within the line span actually covered by
+     * this specific body's statements.
+     */
     private static List<Node> branchContaining(List<Node> body, int cursorLine) {
         if (body == null || body.isEmpty()) {
             return null;
@@ -344,10 +355,10 @@ public class HoverProvider {
     }
 
     /**
-     * Searches only the direct statements of {@code body} (not nested blocks) for a
-     * declaration of {@code name}, preferring the one closest to (and at or before)
-     * {@code cursorLine} - the nearest enclosing declaration - falling back to the
-     * nearest one after it if none precede.
+     * Searches only the direct statements of {@code body} (not nested blocks)
+     * for a declaration of {@code name}, preferring the one closest to (and at
+     * or before) {@code cursorLine} - the nearest enclosing declaration -
+     * falling back to the nearest one after it if none precede.
      */
     private static Hover findDirectHoverInBody(List<Node> body, String name, int cursorLine) {
         Hover before = null;
