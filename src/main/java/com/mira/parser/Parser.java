@@ -1183,7 +1183,7 @@ public class Parser {
             consume();
             nullable = true;
         }
-        return new TypeAnnotation(nameToken.getLexeme(), nullable);
+        return new TypeAnnotation(nameToken.getLexeme(), nullable, nameToken.getLine(), nameToken.getColumn());
     }
 
     /**

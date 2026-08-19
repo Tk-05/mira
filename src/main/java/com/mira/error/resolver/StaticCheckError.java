@@ -245,4 +245,47 @@ public class StaticCheckError extends MiraError {
                     "Check the object literal for available fields");
         }
     }
+
+    public static class TypeMismatchError extends StaticCheckError {
+
+        public TypeMismatchError(String name, String expected, String actual, int line, int column) {
+            super("E324",
+                    "'" + name + "' expects type '" + expected + "' but got '" + actual + "'",
+                    line, column, name.length(),
+                    "Use a value of type '" + expected + "', or change the declared type");
+        }
+    }
+
+    public static class ArgumentTypeMismatchError extends StaticCheckError {
+
+        public ArgumentTypeMismatchError(String function, String param, String expected, String actual,
+                int line, int column) {
+            super("E325",
+                    "Argument '" + param + "' of '" + function + "' expects type '" + expected
+                    + "' but got '" + actual + "'",
+                    line, column, function.length(),
+                    "Pass a value of type '" + expected + "'");
+        }
+    }
+
+    public static class ReturnTypeMismatchError extends StaticCheckError {
+
+        public ReturnTypeMismatchError(String function, String expected, String actual, int line, int column) {
+            super("E326",
+                    "'" + function + "' declares return type '" + expected + "' but returns '" + actual + "'",
+                    line, column, "return".length(),
+                    "Return a value of type '" + expected + "', or change the declared return type");
+        }
+    }
+
+    public static class UnknownTypeNameError extends StaticCheckError {
+
+        public UnknownTypeNameError(String name, int line, int column) {
+            super("E327",
+                    "Unknown type '" + name + "'",
+                    line, column, name.length(),
+                    "Use a built-in type (Number, String, Bool, List, Array, Map, Object, Fn, Null, Any), "
+                    + "or check that '" + name + "' is declared before this point");
+        }
+    }
 }

@@ -677,4 +677,94 @@ public class StaticCheckTest {
 
         assertFalse(out.toString().contains("static check:"));
     }
+
+    // --- Type checking (E324-E327) ---
+
+    @Test
+    void typedVarDeclWithMismatchedInitializerIsE324() {
+        List<MiraError> errors = errorsFor("var x : Number : \"hi\";");
+        assertTrue(hasCode(errors, "E324"));
+    }
+
+    @Test
+    void typedVarDeclWithMatchingInitializerIsClean() {
+        assertClean("var x : Number : 5;");
+    }
+
+    @Test
+    void untypedVarDeclWithAnyValueIsUnaffected() {
+        assertClean("var x : \"hi\"; var y : 5; var z : true;");
+    }
+
+    @Test
+    void typedVarReassignmentMismatchIsE324() {
+        List<MiraError> errors = errorsFor("var x : Number : 5; $x : \"hi\";");
+        assertTrue(hasCode(errors, "E324"));
+    }
+
+    @Test
+    void typedVarReassignmentMatchingIsClean() {
+        assertClean("var x : Number : 5; $x : 6;");
+    }
+
+    @Test
+    void untypedVarReassignmentToDifferentShapeIsUnaffected() {
+        assertClean("var x : 5; $x : \"hi\";");
+    }
+
+    @Test
+    void nullableTypedVarAcceptsNull() {
+        assertClean("var x : Number? : null; $x : 5;");
+    }
+
+    @Test
+    void callArgumentTypeMismatchIsE325() {
+        List<MiraError> errors = errorsFor(
+                "fn add(a : Number, b : Number) { return eval($a + $b); } add(1, \"x\");");
+        assertTrue(hasCode(errors, "E325"));
+    }
+
+    @Test
+    void callArgumentTypeMatchingIsClean() {
+        assertClean("fn add(a : Number, b : Number) { return eval($a + $b); } add(1, 2);");
+    }
+
+    @Test
+    void callToUntypedFunctionIsUnaffected() {
+        assertClean("fn add(a, b) { return eval($a + $b); } add(1, \"x\");");
+    }
+
+    @Test
+    void returnTypeMismatchIsE326() {
+        List<MiraError> errors = errorsFor(
+                "fn greet() -> String { return 5; }");
+        assertTrue(hasCode(errors, "E326"));
+    }
+
+    @Test
+    void returnTypeMatchingIsClean() {
+        assertClean("fn greet() -> String { return \"hi\"; }");
+    }
+
+    @Test
+    void untypedFunctionReturnIsUnaffected() {
+        assertClean("fn greet() { return 5; }");
+    }
+
+    @Test
+    void unknownTypeNameInVarDeclIsE327() {
+        List<MiraError> errors = errorsFor("var x : Frobnicate : 5;");
+        assertTrue(hasCode(errors, "E327"));
+    }
+
+    @Test
+    void typeAliasResolvesToAliasedType() {
+        assertClean("type UserId : Number; var x : UserId : 5;");
+    }
+
+    @Test
+    void typeAliasMismatchIsE324() {
+        List<MiraError> errors = errorsFor("type UserId : Number; var x : UserId : \"hi\";");
+        assertTrue(hasCode(errors, "E324"));
+    }
 }
