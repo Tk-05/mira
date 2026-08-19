@@ -5,6 +5,7 @@ import java.util.Map;
 
 import com.mira.parser.nodes.Node;
 import com.mira.parser.nodes.Parameter;
+import com.mira.parser.nodes.TypeAnnotation;
 import com.mira.parser.nodes.expression.Expression;
 import com.mira.parser.nodes.expression.Expression.ThrownException;
 import com.mira.runtime.visitors.StmtVisitor;
@@ -27,6 +28,7 @@ public abstract class Statement implements Node {
         private final boolean isConst;
         private final boolean isPublic;
         public int nameColumn = 0;
+        public TypeAnnotation type;
 
         public VarDecl(String name, Expression initializer, boolean isConst) {
             this(name, initializer, isConst, false);
@@ -48,6 +50,7 @@ public abstract class Statement implements Node {
         public String toString() {
             String keyword = isConst ? "const" : "var";
             return (isPublic ? "pub " : "") + keyword + " " + name
+                    + (type != null ? " : " + type : "")
                     + (initializer != null ? " : " + initializer : "") + ";";
         }
 
@@ -66,6 +69,10 @@ public abstract class Statement implements Node {
         public boolean isPublic() {
             return isPublic;
         }
+
+        public TypeAnnotation getType() {
+            return type;
+        }
     }
 
     public static class FuncDecl extends Statement {
@@ -78,6 +85,7 @@ public abstract class Statement implements Node {
         private final boolean isPure;
         private final boolean isPublic;
         public int nameColumn = 0;
+        public TypeAnnotation returnType;
 
         public FuncDecl(String name, List<Parameter> parameters,
                 List<Node> body, String variadicParam) {
@@ -133,6 +141,10 @@ public abstract class Statement implements Node {
             return variadicParam;
         }
 
+        public TypeAnnotation getReturnType() {
+            return returnType;
+        }
+
         public int getArity() {
             if (variadicParam != null) {
                 return -1;
@@ -165,6 +177,9 @@ public abstract class Statement implements Node {
             for (int i = 0; i < parameters.size(); i++) {
                 Parameter p = parameters.get(i);
                 sb.append(p.name());
+                if (p.type() != null) {
+                    sb.append(" : ").append(p.type());
+                }
                 if (p.hasDefault()) {
                     sb.append(" : ").append(p.defaultValue());
                 }
@@ -175,7 +190,11 @@ public abstract class Statement implements Node {
             if (variadicParam != null) {
                 sb.append("...").append(variadicParam);
             }
-            sb.append(") {...}");
+            sb.append(")");
+            if (returnType != null) {
+                sb.append(" -> ").append(returnType);
+            }
+            sb.append(" {...}");
             return sb.toString();
         }
     }
@@ -502,6 +521,40 @@ public abstract class Statement implements Node {
 
         public String getModuleName() {
             return moduleName;
+        }
+    }
+
+    /**
+     * {@code type Name = TypeExpr;} - a type alias declaration. Purely a
+     * compile-time construct read by the static checker/LSP; like
+     * {@link ModuleDecl}, it does nothing at runtime.
+     */
+    public static class TypeAliasDecl extends Statement {
+
+        private final String name;
+        private final TypeAnnotation aliasedType;
+
+        public TypeAliasDecl(String name, TypeAnnotation aliasedType) {
+            this.name = name;
+            this.aliasedType = aliasedType;
+        }
+
+        @Override
+        public <T> T accept(StmtVisitor<T> visitor) {
+            return null;
+        }
+
+        @Override
+        public String toString() {
+            return "type " + name + " : " + aliasedType + ";";
+        }
+
+        public String getName() {
+            return name;
+        }
+
+        public TypeAnnotation getAliasedType() {
+            return aliasedType;
         }
     }
 

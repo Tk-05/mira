@@ -31,9 +31,9 @@ import com.mira.parser.nodes.statement.Statement.Break;
 import com.mira.parser.nodes.statement.Statement.ComptimeBlock;
 import com.mira.parser.nodes.statement.Statement.Continue;
 import com.mira.parser.nodes.statement.Statement.EnumDecl;
-import com.mira.parser.nodes.statement.Statement.Loop;
 import com.mira.parser.nodes.statement.Statement.If;
 import com.mira.parser.nodes.statement.Statement.Lock;
+import com.mira.parser.nodes.statement.Statement.Loop;
 import com.mira.parser.nodes.statement.Statement.ModuleDecl;
 import com.mira.parser.nodes.statement.Statement.Switch;
 import com.mira.parser.nodes.statement.Statement.Throw;
@@ -59,6 +59,73 @@ public class ParserTest {
 
         assertEquals("x", decl.getName());
         assertNull(decl.getInitializer());
+    }
+
+    @Test
+    void typedVarDeclParsesTypeAndInitializerSeparately() {
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize("var x : Int : 5;", false));
+        VarDecl decl = (VarDecl) ast.getFirst();
+
+        assertEquals("x", decl.getName());
+        assertNotNull(decl.getType());
+        assertEquals("Int", decl.getType().name());
+        assertFalse(decl.getType().nullable());
+        assertInstanceOf(DumbExpression.class, decl.getInitializer());
+        assertEquals("5", ((DumbExpression) decl.getInitializer()).getValue());
+    }
+
+    @Test
+    void typedVarDeclNullableMarksTypeNullable() {
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize("var x : Int? : null;", false));
+        VarDecl decl = (VarDecl) ast.getFirst();
+
+        assertNotNull(decl.getType());
+        assertEquals("Int", decl.getType().name());
+        assertTrue(decl.getType().nullable());
+    }
+
+    @Test
+    void untypedVarDeclHasNullType() {
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize("var x : 5;", false));
+        VarDecl decl = (VarDecl) ast.getFirst();
+
+        assertNull(decl.getType());
+        assertInstanceOf(DumbExpression.class, decl.getInitializer());
+    }
+
+    @Test
+    void funcDeclParsesParamTypesAndReturnType() {
+        List<Node> ast = parser.parseTokens(
+                tokenizer.tokenize("fn add(a : Int, b : Int : 0) -> Int { return 1; }", false));
+        Statement.FuncDecl decl = (Statement.FuncDecl) ast.getFirst();
+
+        assertNotNull(decl.getReturnType());
+        assertEquals("Int", decl.getReturnType().name());
+
+        assertEquals("Int", decl.getParameters().get(0).type().name());
+        assertNull(decl.getParameters().get(0).defaultValue());
+
+        assertEquals("Int", decl.getParameters().get(1).type().name());
+        assertNotNull(decl.getParameters().get(1).defaultValue());
+    }
+
+    @Test
+    void funcDeclUntypedHasNullReturnTypeAndParamTypes() {
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize("fn add(a, b) { return 1; }", false));
+        Statement.FuncDecl decl = (Statement.FuncDecl) ast.getFirst();
+
+        assertNull(decl.getReturnType());
+        assertNull(decl.getParameters().get(0).type());
+    }
+
+    @Test
+    void typeAliasDeclParsesNameAndAliasedType() {
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize("type UserId : Int;", false));
+
+        assertInstanceOf(Statement.TypeAliasDecl.class, ast.getFirst());
+        Statement.TypeAliasDecl decl = (Statement.TypeAliasDecl) ast.getFirst();
+        assertEquals("UserId", decl.getName());
+        assertEquals("Int", decl.getAliasedType().name());
     }
 
     @Test

@@ -15,6 +15,7 @@ import com.mira.lexer.token.Token;
 import com.mira.lexer.token.TokenType;
 import com.mira.parser.nodes.Node;
 import com.mira.parser.nodes.Parameter;
+import com.mira.parser.nodes.TypeAnnotation;
 import com.mira.parser.nodes.expression.Expression;
 import com.mira.parser.nodes.expression.Expression.AccessExpression;
 import com.mira.parser.nodes.expression.Expression.ArrayExpression;
@@ -60,6 +61,7 @@ import com.mira.parser.nodes.statement.Statement.SwitchCase;
 import com.mira.parser.nodes.statement.Statement.TestCall;
 import com.mira.parser.nodes.statement.Statement.Throw;
 import com.mira.parser.nodes.statement.Statement.TryCatch;
+import com.mira.parser.nodes.statement.Statement.TypeAliasDecl;
 import com.mira.parser.nodes.statement.Statement.VarDecl;
 import com.mira.parser.nodes.statement.Statement.VarDestructure;
 import com.mira.parser.nodes.statement.Statement.While;
@@ -1068,6 +1070,9 @@ public class Parser {
             case "module" -> {
                 node = parseModuleDecl();
             }
+            case "type" -> {
+                node = parseTypeAliasDecl();
+            }
             case "import" -> {
                 node = parseImportExpression();
                 if (node instanceof ImportExpression imp) {
@@ -1155,6 +1160,78 @@ public class Parser {
         return new ModuleDecl(name);
     }
 
+    private Node parseTypeAliasDecl() {
+        matchLexeme("type");
+        String name = matchExpression().getLexeme();
+        matchLexeme(":");
+        TypeAnnotation aliased = parseTypeExpression();
+        matchLexeme(";");
+        return new TypeAliasDecl(name, aliased);
+    }
+
+    /**
+     * A bare type name, optionally suffixed with {@code ?} for nullable (e.g.
+     * {@code Int}, {@code String?}). Deliberately narrow - never routed through
+     * {@link #parseExpression()}, since a type name followed by {@code ?} would
+     * otherwise be greedily read as the start of a ternary expression by the
+     * general expression parser.
+     */
+    private TypeAnnotation parseTypeExpression() {
+        Token nameToken = matchExpression();
+        boolean nullable = false;
+        if (peek().getLexeme().equals("?")) {
+            consume();
+            nullable = true;
+        }
+        return new TypeAnnotation(nameToken.getLexeme(), nullable);
+    }
+
+    /**
+     * True when positioned at a ':' that introduces a type annotation ahead of
+     * a value/default, i.e. the pattern ": TypeName[?] :" - a second ':'
+     * confirms the first clause was a type, not an initializer/default
+     * expression. Only bare-identifier-shaped tokens (not numbers, strings,
+     * keywords) are considered - anything else falls through to today's
+     * ordinary single-':' initializer/default parsing untouched.
+     */
+    private boolean isTypedDeclarationAhead() {
+        Token typeToken = peekOffset(1);
+        if (!looksLikeTypeName(typeToken)) {
+            return false;
+        }
+        int next = 2;
+        if (peekOffset(2).getLexeme().equals("?")) {
+            next = 3;
+        }
+        return peekOffset(next).getLexeme().equals(":");
+    }
+
+    /**
+     * True when positioned at a ':' that introduces a type with no default
+     * value in parameter position specifically - the pattern ": TypeName[?]"
+     * immediately followed by ',' or ')'. Parameters (unlike var decls) need
+     * this second heuristic because "typed, no default" is the common case
+     * there, and there's no second ':' available to disambiguate it with.
+     */
+    private boolean isTypeOnlyParameterAhead() {
+        Token typeToken = peekOffset(1);
+        if (!looksLikeTypeName(typeToken)) {
+            return false;
+        }
+        int next = 2;
+        if (peekOffset(2).getLexeme().equals("?")) {
+            next = 3;
+        }
+        String after = peekOffset(next).getLexeme();
+        return after.equals(",") || after.equals(")");
+    }
+
+    private boolean looksLikeTypeName(Token token) {
+        return token.getTokenType() == TokenType.EXPRESSION
+                && !token.getLexeme().isEmpty()
+                && !Character.isDigit(token.getLexeme().charAt(0));
+    }
+
     private List<Node> parseVarDecl(boolean isConst) {
         return parseVarDecl(isConst, false);
     }
@@ -1184,7 +1261,13 @@ public class Parser {
             Token nameToken = matchIdentifier();
             String identifier = nameToken.getLexeme();
             Expression initializer = null;
-            if (peek().getLexeme().equals(":")) {
+            TypeAnnotation type = null;
+            if (peek().getLexeme().equals(":") && isTypedDeclarationAhead()) {
+                consume();
+                type = parseTypeExpression();
+                matchLexeme(":");
+                initializer = parseExpression();
+            } else if (peek().getLexeme().equals(":")) {
                 consume();
                 initializer = parseExpression();
             } else if (isConst) {
@@ -1195,6 +1278,7 @@ public class Parser {
             }
             VarDecl vd = new VarDecl(identifier, initializer, isConst, isPublic);
             vd.nameColumn = nameToken.getColumn();
+            vd.type = type;
             decls.add(vd);
             if (peek().getLexeme().equals(",") && !peekOffset(1).getLexeme().equals("var")) {
                 consume();
@@ -1216,11 +1300,20 @@ public class Parser {
             Token paramToken = matchExpression();
             String paramName = paramToken.getLexeme();
             Expression defaultValue = null;
-            if (peek().getLexeme().equals(":")) {
+            TypeAnnotation type = null;
+            if (peek().getLexeme().equals(":") && isTypedDeclarationAhead()) {
+                consume();
+                type = parseTypeExpression();
+                matchLexeme(":");
+                defaultValue = parseExpression();
+            } else if (peek().getLexeme().equals(":") && isTypeOnlyParameterAhead()) {
+                consume();
+                type = parseTypeExpression();
+            } else if (peek().getLexeme().equals(":")) {
                 consume();
                 defaultValue = parseExpression();
             }
-            parameters.add(new Parameter(paramName, defaultValue, paramToken.getColumn()));
+            parameters.add(new Parameter(paramName, defaultValue, paramToken.getColumn(), type));
             if (!peek().getLexeme().equals(")")) {
                 matchLexeme(",");
             }
@@ -1247,12 +1340,19 @@ public class Parser {
         List<Parameter> parameters = parseParameterList(variadicHolder);
         matchLexeme(")");
 
+        TypeAnnotation returnType = null;
+        if (peek().getLexeme().equals("->")) {
+            consume();
+            returnType = parseTypeExpression();
+        }
+
         Token open = matchLexeme("{");
         List<Node> body = parseBlockBody(open);
 
         FuncDecl decl = new FuncDecl(name, parameters, body, variadicHolder[0], isAsync, isPure, isPublic);
         decl.line = kwToken.getLine();
         decl.nameColumn = nameToken.getColumn();
+        decl.returnType = returnType;
         return decl;
     }
 

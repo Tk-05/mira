@@ -53,6 +53,7 @@ import com.mira.parser.nodes.statement.Statement.If;
 import com.mira.parser.nodes.statement.Statement.Lock;
 import com.mira.parser.nodes.statement.Statement.Loop;
 import com.mira.parser.nodes.statement.Statement.ModuleDecl;
+import com.mira.parser.nodes.statement.Statement.TypeAliasDecl;
 import com.mira.parser.nodes.statement.Statement.Return;
 import com.mira.parser.nodes.statement.Statement.StaticAssert;
 import com.mira.parser.nodes.statement.Statement.Switch;
@@ -237,6 +238,9 @@ public class AstFormatter implements ExprVisitor<String>, StmtVisitor<String> {
         if (node instanceof ModuleDecl md) {
             return "module " + md.getModuleName() + ";";
         }
+        if (node instanceof TypeAliasDecl td) {
+            return "type " + td.getName() + " : " + td.getAliasedType() + ";";
+        }
         if (node instanceof ImportExpression imp) {
             return formatImport(imp);
         }
@@ -372,9 +376,11 @@ public class AstFormatter implements ExprVisitor<String>, StmtVisitor<String> {
 
     private String formatParams(List<Parameter> params, String variadicParam) {
         List<String> parts = params.stream()
-                .map(p -> p.hasDefault()
-                ? p.name() + " : " + formatExpr(p.defaultValue())
-                : p.name())
+                .map(p -> {
+                    String typePart = p.type() != null ? " : " + p.type() : "";
+                    String defaultPart = p.hasDefault() ? " : " + formatExpr(p.defaultValue()) : "";
+                    return p.name() + typePart + defaultPart;
+                })
                 .collect(Collectors.toCollection(java.util.ArrayList::new));
         if (variadicParam != null) {
             parts.add("..." + variadicParam);
@@ -402,8 +408,9 @@ public class AstFormatter implements ExprVisitor<String>, StmtVisitor<String> {
     public String visitVarDecl(VarDecl stmt) {
         String pub = stmt.isPublic() ? "pub " : "";
         String prefix = stmt.isConst() ? "const" : "var";
+        String typePart = stmt.getType() != null ? " : " + stmt.getType() : "";
         if (stmt.getInitializer() != null) {
-            return pub + prefix + " " + stmt.getName() + " : " + formatExpr(stmt.getInitializer()) + ";";
+            return pub + prefix + " " + stmt.getName() + typePart + " : " + formatExpr(stmt.getInitializer()) + ";";
         }
         return pub + prefix + " " + stmt.getName() + ";";
     }
@@ -422,6 +429,9 @@ public class AstFormatter implements ExprVisitor<String>, StmtVisitor<String> {
         }
         sb.append("fn ").append(stmt.getName())
                 .append("(").append(formatParams(stmt.getParameters(), stmt.getVariadicParam())).append(") ");
+        if (stmt.getReturnType() != null) {
+            sb.append("-> ").append(stmt.getReturnType()).append(" ");
+        }
         sb.append(formatBody(stmt.getBody(), stmt.line, stmt.endLine));
         return sb.toString();
     }

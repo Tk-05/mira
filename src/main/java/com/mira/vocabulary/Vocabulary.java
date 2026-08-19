@@ -44,7 +44,8 @@ public class Vocabulary {
             "test",
             "static_assert",
             "pub",
-            "struct"
+            "struct",
+            "type"
     );
 
     public static final Set<String> COMPARISON_OPERATORS = Set.of("==", "!=", "<", ">", "<=", ">=");
