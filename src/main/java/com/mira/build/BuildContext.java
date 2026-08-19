@@ -56,6 +56,7 @@ public class BuildContext {
         Flags.args = bc.args().length > 0 ? bc.args() : null;
         Flags.dependencyRoots = new ArrayList<>(depRoots);
         Flags.nativeRoots = new ArrayList<>(nativeRoots);
+        Flags.strictTypes = Flags.strictTypes || bc.strictTypes();
 
         Flags.testMode = false;
         Flags.hotReload = false;

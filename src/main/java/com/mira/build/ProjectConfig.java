@@ -26,7 +26,8 @@ public record ProjectConfig(
             Path outputDir, BuildMode mode, BuildMode runMode,
             boolean main, String[] args, JarBundle jarBundle,
             List<String> preBuild, List<String> postBuild,
-            List<String> preRun, List<String> postRun) {
+            List<String> preRun, List<String> postRun,
+            boolean strictTypes) {
 
         public BuildMode effectiveRunMode() {
             return runMode != null ? runMode : mode;
@@ -101,7 +102,7 @@ public record ProjectConfig(
 
         checkUnknownKeys("[project]", project, Set.of("name", "version", "entry", "description", "authors"));
         checkUnknownKeys("[build]", build, Set.of("mode", "run-mode", "main", "output", "args", "jar-bundle",
-                "pre-build", "post-build", "pre-run", "post-run"));
+                "pre-build", "post-build", "pre-run", "post-run", "strict-types"));
 
         String name = (String) project.getOrDefault("name", projectRoot.getFileName().toString());
         String version = (String) project.getOrDefault("version", "0.1.0");
@@ -141,6 +142,7 @@ public record ProjectConfig(
         List<String> postBuild = parseHookList(build.get("post-build"));
         List<String> preRun = parseHookList(build.get("pre-run"));
         List<String> postRun = parseHookList(build.get("post-run"));
+        boolean strictTypes = toBoolean(build.getOrDefault("strict-types", false));
 
         TestConfig testConfig = null;
         if (testRaw != null) {
@@ -251,7 +253,7 @@ public record ProjectConfig(
         return new ProjectConfig(
                 name, version, entry, description, authors,
                 new BuildConfig(outputDir, mode, runMode, mainFn, argsArr, jarBundle,
-                        preBuild, postBuild, preRun, postRun),
+                        preBuild, postBuild, preRun, postRun, strictTypes),
                 testConfig,
                 dependencies,
                 nativeDependencies,

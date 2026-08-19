@@ -61,6 +61,10 @@ public class Help {
                                  declaration counts, per-phase timing) for the entry file and
                                  every module it imports, transitively. Also available on
                                  build/run/test/release.
+               --strict-types    Require every top-level function's parameters and return type
+                                 to carry an explicit type annotation (see the double-colon
+                                 syntax, e.g. 'var x : Int : 5;'). Also settable via mira.toml
+                                 [build] strict-types = true, and available on build/run/test/release.
                --compile         Compile to JVM bytecode and write .class files
                --run             (with --compile) Run the compiled bytecode in memory instead of just writing it
                --package         (with --compile) Bundle compiled classes and the Mira runtime into a standalone fat JAR

@@ -43,6 +43,7 @@ public class StaticCheckTest {
     @AfterEach
     void resetVerbose() {
         Flags.verbose = false;
+        Flags.strictTypes = false;
     }
 
     @Test
@@ -679,7 +680,6 @@ public class StaticCheckTest {
     }
 
     // --- Type checking (E324-E327) ---
-
     @Test
     void typedVarDeclWithMismatchedInitializerIsE324() {
         List<MiraError> errors = errorsFor("var x : Number : \"hi\";");
@@ -766,5 +766,38 @@ public class StaticCheckTest {
     void typeAliasMismatchIsE324() {
         List<MiraError> errors = errorsFor("type UserId : Number; var x : UserId : \"hi\";");
         assertTrue(hasCode(errors, "E324"));
+    }
+
+    // --- Strict mode (E328) ---
+    @Test
+    void strictModeOffAllowsUnannotatedTopLevelFunction() {
+        assertClean("fn add(a, b) { return eval($a + $b); }");
+    }
+
+    @Test
+    void strictModeFlagsMissingParamType() {
+        Flags.strictTypes = true;
+        List<MiraError> errors = errorsFor("fn add(a, b : Number : 0) -> Number { return $b; }");
+        assertTrue(hasCode(errors, "E328"));
+    }
+
+    @Test
+    void strictModeFlagsMissingReturnType() {
+        Flags.strictTypes = true;
+        List<MiraError> errors = errorsFor("fn add(a : Number, b : Number) { return eval($a + $b); }");
+        assertTrue(hasCode(errors, "E328"));
+    }
+
+    @Test
+    void strictModeFlagsCompletelyUnannotatedFunction() {
+        Flags.strictTypes = true;
+        List<MiraError> errors = errorsFor("fn add(a, b) { return eval($a + $b); }");
+        assertTrue(hasCode(errors, "E328"));
+    }
+
+    @Test
+    void strictModeAllowsFullyAnnotatedFunction() {
+        Flags.strictTypes = true;
+        assertClean("fn add(a : Number, b : Number) -> Number { return eval($a + $b); }");
     }
 }

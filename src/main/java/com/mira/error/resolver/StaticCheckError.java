@@ -288,4 +288,14 @@ public class StaticCheckError extends MiraError {
                     + "or check that '" + name + "' is declared before this point");
         }
     }
+
+    public static class MissingTypeAnnotationError extends StaticCheckError {
+
+        public MissingTypeAnnotationError(String function, String what, int line, int column) {
+            super("E328",
+                    "'" + function + "' is missing a type annotation for " + what + " (--strict-types is on)",
+                    line, column, function.length(),
+                    "Add an explicit type, e.g. 'fn " + function + "(x : Number) -> Number { ... }'");
+        }
+    }
 }

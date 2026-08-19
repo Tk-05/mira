@@ -25,6 +25,7 @@ import com.mira.error.resolver.StaticCheckError.FieldAccessOnNonObjectError;
 import com.mira.error.resolver.StaticCheckError.ImmutableCollectionStaticError;
 import com.mira.error.resolver.StaticCheckError.LiteralNotCallableError;
 import com.mira.error.resolver.StaticCheckError.MissingModuleDeclarationError;
+import com.mira.error.resolver.StaticCheckError.MissingTypeAnnotationError;
 import com.mira.error.resolver.StaticCheckError.NotIterableStaticError;
 import com.mira.error.resolver.StaticCheckError.PostExprNaNStaticError;
 import com.mira.error.resolver.StaticCheckError.PrivateAccessError;
@@ -347,6 +348,9 @@ public class StaticCheck {
                         userFuncDecls.put(f.getName(), f);
                         if (f.getVariadicParam() == null) {
                             knownArities.put(f.getName(), new int[]{f.getArity(), f.getMaxArity()});
+                        }
+                        if (Flags.strictTypes) {
+                            checkStrictAnnotations(f);
                         }
                     }
                 }
@@ -1631,6 +1635,19 @@ public class StaticCheck {
         MiraType actual = inferMiraType(valueExpr);
         if (actual != null && !MiraType.isAssignable(actual, expected)) {
             onMismatch.accept(MiraType.display(expected), MiraType.display(actual));
+        }
+    }
+
+    private void checkStrictAnnotations(FuncDecl fn) {
+        for (Parameter p : fn.getParameters()) {
+            if (p.type() == null) {
+                errors.add(new MissingTypeAnnotationError(fn.getName(),
+                        "parameter '" + p.name() + "'", fn.line, fn.nameColumn));
+            }
+        }
+        if (fn.getReturnType() == null) {
+            errors.add(new MissingTypeAnnotationError(fn.getName(),
+                    "its return type", fn.line, fn.nameColumn));
         }
     }
 
