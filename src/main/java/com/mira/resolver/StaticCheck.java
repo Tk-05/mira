@@ -35,6 +35,7 @@ import com.mira.error.resolver.StaticCheckError.ReturnOutsideFunctionError;
 import com.mira.error.resolver.StaticCheckError.ReturnTypeMismatchError;
 import com.mira.error.resolver.StaticCheckError.StaticAssertFailedError;
 import com.mira.error.resolver.StaticCheckError.StaticAssertRuntimeValueError;
+import com.mira.error.resolver.StaticCheckError.StructFieldTypeMismatchError;
 import com.mira.error.resolver.StaticCheckError.TypeMismatchError;
 import com.mira.error.resolver.StaticCheckError.UndeclaredVariableError;
 import com.mira.error.resolver.StaticCheckError.UndefinedFunctionError;
@@ -729,10 +730,19 @@ public class StaticCheck {
                     String templateName = varRef != null ? varRef.getValue() : "struct";
                     for (var entry : e.getOverrides().entrySet()) {
                         String key = entry.getKey();
-                        boolean exists = structExpr.getVarDecls().stream().anyMatch(v -> key.equals(v.getName()))
+                        VarDecl field = structExpr.getVarDecls().stream()
+                                .filter(v -> key.equals(v.getName()))
+                                .findFirst().orElse(null);
+                        boolean exists = field != null
                                 || structExpr.getMethods().stream().anyMatch(m -> key.equals(m.getName()));
                         if (!exists) {
                             errors.add(new UndefinedObjectFieldStaticError(key, templateName, entry.getValue().line, 0));
+                        } else if (field != null && field.getType() != null) {
+                            MiraType expected = resolveTypeAnnotation(field.getType());
+                            Expression overrideValue = entry.getValue();
+                            checkAssignable(overrideValue, expected, (exp, actual) -> errors.add(
+                                    new StructFieldTypeMismatchError(key, templateName, exp, actual,
+                                            overrideValue.line, 0)));
                         }
                     }
                 }

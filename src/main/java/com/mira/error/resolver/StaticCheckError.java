@@ -298,4 +298,16 @@ public class StaticCheckError extends MiraError {
                     "Add an explicit type, e.g. 'fn " + function + "(x : Number) -> Number { ... }'");
         }
     }
+
+    public static class StructFieldTypeMismatchError extends StaticCheckError {
+
+        public StructFieldTypeMismatchError(String field, String structName, String expected, String actual,
+                int line, int column) {
+            super("E329",
+                    "Field '" + field + "' of '" + structName + "' expects type '" + expected
+                    + "' but got '" + actual + "'",
+                    line, column, field.length(),
+                    "Use a value of type '" + expected + "', or change the field's declared type");
+        }
+    }
 }

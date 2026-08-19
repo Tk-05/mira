@@ -679,7 +679,6 @@ public class StaticCheckTest {
         assertFalse(out.toString().contains("static check:"));
     }
 
-    // --- Type checking (E324-E327) ---
     @Test
     void typedVarDeclWithMismatchedInitializerIsE324() {
         List<MiraError> errors = errorsFor("var x : Number : \"hi\";");
@@ -768,7 +767,6 @@ public class StaticCheckTest {
         assertTrue(hasCode(errors, "E324"));
     }
 
-    // --- Strict mode (E328) ---
     @Test
     void strictModeOffAllowsUnannotatedTopLevelFunction() {
         assertClean("fn add(a, b) { return eval($a + $b); }");
@@ -799,5 +797,30 @@ public class StaticCheckTest {
     void strictModeAllowsFullyAnnotatedFunction() {
         Flags.strictTypes = true;
         assertClean("fn add(a : Number, b : Number) -> Number { return eval($a + $b); }");
+    }
+
+    @Test
+    void structFieldOverrideTypeMismatchIsE329() {
+        List<MiraError> errors = errorsFor(
+                "var point : struct { var x : Number : 0; }; var p : $point{$x : \"oops\"};");
+        assertTrue(hasCode(errors, "E329"));
+    }
+
+    @Test
+    void structFieldOverrideMatchingTypeIsClean() {
+        assertClean("var point : struct { var x : Number : 0; }; var p : $point{$x : 5};");
+    }
+
+    @Test
+    void structFieldWithoutTypeIsUnaffectedByOverrideShape() {
+        assertClean("var point : struct { var x : 0; }; var p : $point{$x : \"anything\"};");
+    }
+
+    @Test
+    void structFieldOverrideOnUnknownFieldStaysE323NotE329() {
+        List<MiraError> errors = errorsFor(
+                "var point : struct { var x : Number : 0; }; var p : $point{$z : 5};");
+        assertTrue(hasCode(errors, "E323"));
+        assertFalse(hasCode(errors, "E329"));
     }
 }
