@@ -11,7 +11,7 @@ public class Help {
           mira run [--mode interpret|compile|package] [--slim|--full] [--watch]
                     [--project <dir>] [--no-warn] [--no-color] [--profile] [--stats] [-v] [-- <args>]
                                                              Run the project (default: mode from mira.toml)
-          mira test [--project <dir>] [--no-warn] [--no-color] [-v]
+          mira test [--project <dir>] [--no-warn] [--no-color] [--coverage] [-v]
                                                              Run all test files matching test.pattern
           mira clean [--project <dir>]                      Delete the output directory
           mira clean build [--mode ...] [--slim|--full]      Delete the output directory, then build
@@ -52,6 +52,8 @@ public class Help {
                --watch           Watch entry file and all imported modules for changes, restart on save
                --ast             Print AST
                --test            Run test() calls and print a pass/fail summary; exit 1 if any test fails
+               --coverage        With --test: print a line-coverage report for the test file(s) and
+                                  every module they import, transitively. Also available on `mira test`.
                --debug           Launch interactive debugger
                --profile         Print a function- and line-level timing report after execution
                                  (with --compile, only takes effect together with --run)

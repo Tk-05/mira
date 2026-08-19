@@ -29,6 +29,7 @@ import com.mira.resolver.ModuleChecker;
 import com.mira.resolver.StaticCheck;
 import com.mira.runtime.functions.ReturnSignal;
 import com.mira.runtime.interpreter.Interpreter;
+import com.mira.testing.CoverageTracker;
 import com.mira.testing.TestRunner;
 import com.mira.utils.FileLoader;
 import com.mira.warning.WarningCollector;
@@ -114,11 +115,19 @@ public class FileRunner {
             }
 
             if (Flags.testMode) {
+                if (Flags.coverage) {
+                    CoverageTracker.reset();
+                    CoverageTracker.setEnabled(true);
+                }
                 boolean testsFailed = TestRunner.runPrePassCollecting(asts, Flags.args);
                 Flags.testsDone = true;
                 if (Flags.stats) {
                     printStats(readFile, tokens, asts, tokenizeMs, parseMs, comptimeMs, entryCheckMs, moduleCheckMs,
                             new TestTotals(TestRunner.getLastPassed(), TestRunner.getLastFailed()));
+                }
+                if (Flags.coverage) {
+                    printCoverage(asts, Flags.inputPath.get());
+                    CoverageTracker.setEnabled(false);
                 }
                 if (testsFailed) {
                     System.exit(1);
@@ -205,9 +214,11 @@ public class FileRunner {
 
     private record FileStats(String label, long bytes, int lines, int tokens, int topLevelNodes,
             int totalNodes, int functions, int variables, int imports, int enums) {
+
     }
 
     private record TestTotals(long passed, long failed) {
+
     }
 
     private static void printStats(String source, List<Token> tokens, List<Node> asts,
@@ -216,9 +227,10 @@ public class FileRunner {
     }
 
     /**
-     * Prints stats for every file that makes up the program - the entry file plus
-     * every module it imports, transitively - not just the entry file alone, since
-     * a program's real size/shape is usually spread across its imported modules.
+     * Prints stats for every file that makes up the program - the entry file
+     * plus every module it imports, transitively - not just the entry file
+     * alone, since a program's real size/shape is usually spread across its
+     * imported modules.
      */
     private static void printStats(String source, List<Token> tokens, List<Node> asts,
             long tokenizeMs, long parseMs, long comptimeMs, long entryCheckMs, long moduleCheckMs,
@@ -280,6 +292,23 @@ public class FileRunner {
         System.out.println("Static check (imported modules): " + moduleCheckMs + " ms");
         System.out.println("=== END STATS ===");
         System.out.println();
+    }
+
+    /**
+     * Prints a coverage report for every file that makes up the program - the
+     * entry file plus every module it imports, transitively - mirroring the
+     * same file discovery {@link #printStats} uses, since coverage of "the
+     * codebase" means both the test file itself and the code it exercises.
+     */
+    private static void printCoverage(List<Node> asts, Path entryPath) {
+        List<CoverageTracker.FileEntry> files = new ArrayList<>();
+        files.add(new CoverageTracker.FileEntry(
+                CoverageTracker.moduleNameOf(asts), entryPath.getFileName().toString(), asts));
+        for (ModuleChecker.ParsedModule module : ModuleChecker.collectAllModules(asts, entryPath).values()) {
+            files.add(new CoverageTracker.FileEntry(
+                    CoverageTracker.moduleNameOf(module.ast()), module.path().getFileName().toString(), module.ast()));
+        }
+        CoverageTracker.printReport(System.out, files);
     }
 
     private static FileStats computeFileStats(Path path, String source, List<Node> ast, List<Token> tokens) {

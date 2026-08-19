@@ -4,7 +4,9 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -16,8 +18,10 @@ import com.mira.lexer.Tokenizer;
 import com.mira.lexer.token.Token;
 import com.mira.parser.Parser;
 import com.mira.parser.nodes.Node;
+import com.mira.resolver.ModuleChecker;
 import com.mira.runtime.FileRunner;
 import com.mira.runtime.HotReloader;
+import com.mira.testing.CoverageTracker;
 import com.mira.testing.TestRunner;
 
 public class BuildRunner {
@@ -93,6 +97,12 @@ public class BuildRunner {
         long totalPassed = 0;
         long totalFailed = 0;
 
+        if (Flags.coverage) {
+            CoverageTracker.reset();
+            CoverageTracker.setEnabled(true);
+        }
+        Map<Path, CoverageTracker.FileEntry> coverageFiles = new LinkedHashMap<>();
+
         for (Path testFile : testFiles) {
             System.out.println("\n--- " + projectRoot.relativize(testFile) + " ---");
             Flags.inputPath.set(testFile);
@@ -108,6 +118,15 @@ public class BuildRunner {
                 if (failed) {
                     anyFailed = true;
                 }
+                if (Flags.coverage) {
+                    coverageFiles.put(testFile, new CoverageTracker.FileEntry(
+                            CoverageTracker.moduleNameOf(asts), testFile.getFileName().toString(), asts));
+                    for (var entry : ModuleChecker.collectAllModules(asts, testFile).entrySet()) {
+                        coverageFiles.putIfAbsent(entry.getKey(), new CoverageTracker.FileEntry(
+                                CoverageTracker.moduleNameOf(entry.getValue().ast()),
+                                entry.getKey().getFileName().toString(), entry.getValue().ast()));
+                    }
+                }
             } catch (Exception e) {
                 System.err.println(DiagnosticFormatter.format(e));
                 anyFailed = true;
@@ -122,6 +141,10 @@ public class BuildRunner {
                 : "  " + DiagnosticFormatter.formatPass("OK"));
         System.out.println(DiagnosticFormatter.formatInfo(
                 "all tests finished in " + (System.currentTimeMillis() - totalStart) + " ms"));
+        if (Flags.coverage) {
+            CoverageTracker.printReport(System.out, new ArrayList<>(coverageFiles.values()));
+            CoverageTracker.setEnabled(false);
+        }
         runHook(ctx, config.test().postTest());
         if (anyFailed) {
             System.exit(1);

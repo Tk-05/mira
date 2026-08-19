@@ -138,6 +138,8 @@ public class Commands {
                     Flags.profile = true;
                 case "--stats" ->
                     Flags.stats = true;
+                case "--coverage" ->
+                    Flags.coverage = true;
                 case "-v", "--verbose" ->
                     Flags.verbose = true;
                 default -> {

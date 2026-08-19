@@ -4,11 +4,11 @@ import java.io.PrintStream;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 
 import com.mira.cli.Flags;
@@ -94,6 +94,7 @@ import com.mira.runtime.values.MutexValue;
 import com.mira.runtime.values.NullValue;
 import com.mira.runtime.visitors.ExprVisitor;
 import com.mira.runtime.visitors.StmtVisitor;
+import com.mira.testing.CoverageTracker;
 import com.mira.testing.TestRunner;
 
 @SuppressWarnings("unchecked")
@@ -133,7 +134,12 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
     private final Deque<StackFrame> miraCallStack = new ArrayDeque<>();
     private DebugHook debugHook;
     private final Profiler profiler = new Profiler();
-    private final Map<String, String> functionModule = new HashMap<>();
+    // Populated from ImportResolver's parallel aliased-import resolution
+    // (multiple imports resolved concurrently on separate throwaway
+    // Interpreter instances), which registers directly onto this real
+    // instance's map rather than the throwaway one doing the resolving -
+    // must be thread-safe.
+    private final Map<String, String> functionModule = new ConcurrentHashMap<>();
     private String entryModuleName = "<script>";
 
     public Interpreter() {
@@ -419,14 +425,19 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
     }
 
     private void notifyDebugger(int line) {
-        if (profiler.enabled && line > 0) {
+        if (line > 0 && (profiler.enabled || CoverageTracker.isEnabled())) {
             StackFrame frame = miraCallStack.peek();
             String functionName = frame == null ? "<script>" : frame.name();
             String bareName = functionName.contains(".")
                     ? functionName.substring(functionName.lastIndexOf('.') + 1)
                     : functionName;
             String moduleName = functionModule.getOrDefault(bareName, entryModuleName);
-            profiler.onLine(line, functionName, moduleName);
+            if (profiler.enabled) {
+                profiler.onLine(line, functionName, moduleName);
+            }
+            if (CoverageTracker.isEnabled()) {
+                CoverageTracker.recordLine(moduleName, line);
+            }
         }
         if (debugHook != null && line > 0) {
             debugHook.onLine(line, localEnvironment != null ? localEnvironment : globalEnvironment);

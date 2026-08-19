@@ -98,7 +98,8 @@ mira test -C ../other-app
 
 `build`, `run`, `test`, and `release` also accept `--no-warn` (suppress warnings/hints)
 and `--no-color` (disable ANSI diagnostic colors, also honors `NO_COLOR`); `run` and
-`task <name>` additionally accept `--profile` and `--stats`.
+`task <name>` additionally accept `--profile` and `--stats`; `test` additionally accepts
+`--coverage` (see below).
 
 ### Release Pipeline
 
@@ -201,6 +202,27 @@ test("square root", fn() {
     assert(m.sqrt(9) == 3);
 });
 ```
+
+#### Coverage
+
+`--coverage` (single-file `mira <file> --test --coverage`, or `mira test --coverage`) prints a line-coverage report after the run: for the test file(s) plus every module they import (transitively), which lines actually executed vs. which exist but never ran.
+
+```bash
+mira test --coverage
+# ...
+# === MIRA COVERAGE ===
+# Files: 2
+#   math_test.mira       2/3 lines (66.7%)
+#   mathlib.mira          1/2 lines (50.0%)
+#
+# Totals: 3/5 lines covered (60.0%)
+#
+# Uncovered lines:
+#   mathlib.mira: 8
+# === END COVERAGE ===
+```
+
+Coverage is computed independently of `--profile` (which tracks timing, not test coverage, and is not test-aware in the same way); it only tracks the lines actually reached while running `test()` bodies.
 
 ### Local Dependencies
 
@@ -436,23 +458,24 @@ java -jar mira-RELEASE.jar script.mira --compile --run
 
 Flags available for both single-file and build-system usage:
 
-| Flag              | Description                                                                                                                                                                                    |
-| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `-m`, `--main`    | Call `main()` as the program entry point                                                                                                                                                       |
-| `-- <a> <b> ...`  | Pass arguments to the program (everything after `--`)                                                                                                                                          |
-| `--no-check`      | Skip the static check (linter / unused-variable analysis)                                                                                                                                      |
-| `--no-warn`       | Suppress all warnings and hints produced by the static checker                                                                                                                                 |
-| `--no-color`      | Disable colored/ANSI diagnostic output (also honors `NO_COLOR`)                                                                                                                                |
-| `--test`          | Run `test()` calls and print a pass/fail summary; exits 1 on fail                                                                                                                              |
-| `--debug`         | Launch the interactive debugger                                                                                                                                                                |
-| `--watch`         | Re-run the program whenever the source file or its imports change                                                                                                                              |
-| `-v`, `--verbose` | Report progress as it happens (module cache hits/parses, dependency resolution, static-check summary, compile phase timing); combine with `--imports` for extra detail there                   |
-| `-t`, `--tokens`  | Dump the token stream to stdout                                                                                                                                                                |
-| `--check-only`    | Exit after parsing and static check, before interpretation                                                                                                                                     |
-| `--ast`           | Print the AST to stdout                                                                                                                                                                        |
-| `--imports`       | Show all loaded imports with their type and alias                                                                                                                                              |
-| `--version`       | Print the Mira version (no short form — `-v` is `--verbose`)                                                                                                                                   |
-| `--stats`         | Print compiler/parser stats (line, token, and AST node counts, function/variable/import/enum counts, per-phase timing) for the entry file and every module it imports, transitively             |
+| Flag              | Description                                                                                                                                                                         |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `-m`, `--main`    | Call `main()` as the program entry point                                                                                                                                            |
+| `-- <a> <b> ...`  | Pass arguments to the program (everything after `--`)                                                                                                                               |
+| `--no-check`      | Skip the static check (linter / unused-variable analysis)                                                                                                                           |
+| `--no-warn`       | Suppress all warnings and hints produced by the static checker                                                                                                                      |
+| `--no-color`      | Disable colored/ANSI diagnostic output (also honors `NO_COLOR`)                                                                                                                     |
+| `--test`          | Run `test()` calls and print a pass/fail summary; exits 1 on fail                                                                                                                   |
+| `--coverage`      | With `--test`: print a line-coverage report for the test file(s) and every module they import, transitively                                                                         |
+| `--debug`         | Launch the interactive debugger                                                                                                                                                     |
+| `--watch`         | Re-run the program whenever the source file or its imports change                                                                                                                   |
+| `-v`, `--verbose` | Report progress as it happens (module cache hits/parses, dependency resolution, static-check summary, compile phase timing); combine with `--imports` for extra detail there        |
+| `-t`, `--tokens`  | Dump the token stream to stdout                                                                                                                                                     |
+| `--check-only`    | Exit after parsing and static check, before interpretation                                                                                                                          |
+| `--ast`           | Print the AST to stdout                                                                                                                                                             |
+| `--imports`       | Show all loaded imports with their type and alias                                                                                                                                   |
+| `--version`       | Print the Mira version (no short form — `-v` is `--verbose`)                                                                                                                        |
+| `--stats`         | Print compiler/parser stats (line, token, and AST node counts, function/variable/import/enum counts, per-phase timing) for the entry file and every module it imports, transitively |
 
 `-v`/`--verbose` also works on the project subcommands (`build`, `run`,
 `test`, `release`) — e.g. `mira build -v` prints which dependencies are

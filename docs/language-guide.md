@@ -1903,6 +1903,31 @@ When a test fails:
 
 The process exits with code `1` when any test fails, making it suitable for CI pipelines.
 
+### Coverage
+
+Add `--coverage` to get a line-coverage report after the run, for the test file itself and every module it imports, transitively:
+
+```
+java -jar mira.jar MyTests.mira --test --coverage
+```
+
+**Output (appended after the test summary):**
+
+```
+=== MIRA COVERAGE ===
+Files: 2
+  MyTests.mira    3/3 lines (100.0%)
+  mathlib.mira    1/2 lines (50.0%)
+
+Totals: 4/5 lines covered (80.0%)
+
+Uncovered lines:
+  mathlib.mira: 8
+=== END COVERAGE ===
+```
+
+`--coverage` also works with the `mira test` project command (see [Build System](build-system.md#coverage)), where it reports across every discovered test file plus everything they import.
+
 ### Notes
 
 - `test(name, fn)` is only available when running with `--test`. Defining a function named `test` in normal code works without conflicts.

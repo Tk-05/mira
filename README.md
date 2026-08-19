@@ -1,9 +1,5 @@
 # Mira
 
-Interpreted programming language written in Java.
-
----
-
 ## Requirements
 
 - Java 21
