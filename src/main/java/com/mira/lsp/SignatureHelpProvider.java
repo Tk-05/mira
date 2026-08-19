@@ -66,7 +66,7 @@ public class SignatureHelpProvider {
     private static List<String> paramNamesOf(FuncDecl f) {
         List<String> names = new ArrayList<>();
         for (Parameter p : f.getParameters()) {
-            names.add(p.name());
+            names.add(p.name() + (p.type() != null ? " : " + p.type() : ""));
         }
         return names;
     }

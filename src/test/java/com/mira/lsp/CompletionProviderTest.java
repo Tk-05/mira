@@ -86,4 +86,23 @@ public class CompletionProviderTest {
         List<CompletionItem> items = CompletionProvider.provide(parse(source), "file:///test.mira");
         assertTrue(items.stream().anyMatch(i -> i.getLabel().equals("nested")));
     }
+
+    @Test
+    void suggestsBuiltinTypeNames() {
+        List<CompletionItem> items = CompletionProvider.provide(parse(""), "file:///test.mira");
+        assertTrue(items.stream().anyMatch(i -> i.getLabel().equals("Number")));
+        assertTrue(items.stream().anyMatch(i -> i.getLabel().equals("String")));
+        assertTrue(items.stream().anyMatch(i -> i.getLabel().equals("Any")));
+    }
+
+    @Test
+    void suggestsDeclaredTypeAliasAndEnumNames() {
+        String source = """
+                type UserId : Number;
+                enum Color { RED, GREEN, BLUE }
+                """;
+        List<CompletionItem> items = CompletionProvider.provide(parse(source), "file:///test.mira");
+        assertTrue(items.stream().anyMatch(i -> i.getLabel().equals("UserId")));
+        assertTrue(items.stream().anyMatch(i -> i.getLabel().equals("Color")));
+    }
 }

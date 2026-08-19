@@ -110,4 +110,20 @@ public class SignatureHelpProviderTest {
         assertEquals(1, help.getSignatures().size());
         assertEquals("greet(name)", help.getSignatures().get(0).getLabel());
     }
+
+    @Test
+    void typedParametersShowDeclaredTypesInLabel() {
+        String source = """
+                fn add(a : Number, b : Number) -> Number {
+                    return eval($a + $b);
+                }
+                fn main() {
+                    return add(1, 2);
+                }
+                """;
+        Position pos = new Position(4, 19);
+        SignatureHelp help = SignatureHelpProvider.provide(parse(source), source, pos, null, null, Map.of());
+        assertEquals(1, help.getSignatures().size());
+        assertEquals("add(a : Number, b : Number)", help.getSignatures().get(0).getLabel());
+    }
 }

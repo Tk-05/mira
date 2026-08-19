@@ -32,12 +32,14 @@ import com.mira.parser.nodes.expression.Expression.StructInitExpression;
 import com.mira.parser.nodes.expression.Expression.UnaryExpression;
 import com.mira.parser.nodes.statement.Statement.Block;
 import com.mira.parser.nodes.statement.Statement.ComptimeBlock;
+import com.mira.parser.nodes.statement.Statement.EnumDecl;
 import com.mira.parser.nodes.statement.Statement.FuncDecl;
 import com.mira.parser.nodes.statement.Statement.If;
 import com.mira.parser.nodes.statement.Statement.Lock;
 import com.mira.parser.nodes.statement.Statement.Loop;
 import com.mira.parser.nodes.statement.Statement.Switch;
 import com.mira.parser.nodes.statement.Statement.TryCatch;
+import com.mira.parser.nodes.statement.Statement.TypeAliasDecl;
 import com.mira.parser.nodes.statement.Statement.VarDecl;
 import com.mira.parser.nodes.statement.Statement.VarDestructure;
 import com.mira.parser.nodes.statement.Statement.While;
@@ -57,6 +59,9 @@ public class CompletionProvider {
     );
 
     private static final List<String> GLOBALS = List.copyOf(LibIndex.GLOBAL_NAMES);
+
+    private static final List<String> BUILTIN_TYPE_NAMES = List.of(
+            "Number", "String", "Bool", "List", "Array", "Map", "Object", "Fn", "Null", "Any");
 
     private static final Map<String, List<String>> STDLIB;
     private static final Map<String, String> STDLIB_PARAMS;
@@ -92,6 +97,12 @@ public class CompletionProvider {
         for (String fn : GLOBALS) {
             CompletionItem item = new CompletionItem(fn);
             item.setKind(CompletionItemKind.Function);
+            items.add(item);
+        }
+
+        for (String type : BUILTIN_TYPE_NAMES) {
+            CompletionItem item = new CompletionItem(type);
+            item.setKind(CompletionItemKind.Class);
             items.add(item);
         }
 
@@ -148,6 +159,18 @@ public class CompletionProvider {
                         item.setKind(CompletionItemKind.Variable);
                         items.add(item);
                     }
+                }
+                case EnumDecl e -> {
+                    CompletionItem item = new CompletionItem(e.getIdentifier());
+                    item.setKind(CompletionItemKind.Class);
+                    item.setDetail("enum " + e.getIdentifier());
+                    items.add(item);
+                }
+                case TypeAliasDecl t -> {
+                    CompletionItem item = new CompletionItem(t.getName());
+                    item.setKind(CompletionItemKind.Class);
+                    item.setDetail("type " + t.getName() + " : " + t.getAliasedType());
+                    items.add(item);
                 }
                 case ComptimeBlock comptime -> {
                     for (Node bodyNode : comptime.getBody()) {

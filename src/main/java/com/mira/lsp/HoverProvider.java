@@ -13,7 +13,6 @@ import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.Range;
 
 import com.mira.parser.nodes.Node;
-import com.mira.parser.nodes.Parameter;
 import com.mira.parser.nodes.expression.Expression.ObjectExpression;
 import com.mira.parser.nodes.expression.Expression.StructExpression;
 import com.mira.parser.nodes.statement.Statement;
@@ -401,10 +400,11 @@ public class HoverProvider {
 
     private static Hover hoverForFuncDeclSelf(Statement.FuncDecl f) {
         String params = f.getParameters().stream()
-                .map(Parameter::name)
+                .map(p -> p.name() + (p.type() != null ? " : " + p.type() : ""))
                 .collect(Collectors.joining(", "));
         String prefix = (f.isAsync() ? "async " : "") + (f.isPure() ? "pure " : "");
-        String sig = prefix + "fn " + f.getName() + "(" + params + ")";
+        String returnPart = f.getReturnType() != null ? " -> " + f.getReturnType() : "";
+        String sig = prefix + "fn " + f.getName() + "(" + params + ")" + returnPart;
         return hover("```mira\n" + sig + "\n```");
     }
 
@@ -415,11 +415,13 @@ public class HoverProvider {
                     .append(kind).append(" ").append(v.getName()).append(" {\n");
             for (Statement.VarDecl f : obj.getVarDecls()) {
                 sb.append("    ").append(f.isConst() ? "const" : "var")
-                        .append(" ").append(f.getName()).append("\n");
+                        .append(" ").append(f.getName())
+                        .append(f.getType() != null ? " : " + f.getType() : "").append("\n");
             }
             for (Statement.FuncDecl m : obj.getMethods()) {
                 String params = m.getParameters().stream()
-                        .map(Parameter::name).collect(Collectors.joining(", "));
+                        .map(p -> p.name() + (p.type() != null ? " : " + p.type() : ""))
+                        .collect(Collectors.joining(", "));
                 sb.append("    fn ").append(m.getName())
                         .append("(").append(params).append(")\n");
             }
@@ -431,18 +433,21 @@ public class HoverProvider {
                     .append(kind).append(" ").append(v.getName()).append(" struct {\n");
             for (Statement.VarDecl f : st.getVarDecls()) {
                 sb.append("    ").append(f.isConst() ? "const" : "var")
-                        .append(" ").append(f.getName()).append("\n");
+                        .append(" ").append(f.getName())
+                        .append(f.getType() != null ? " : " + f.getType() : "").append("\n");
             }
             for (Statement.FuncDecl m : st.getMethods()) {
                 String params = m.getParameters().stream()
-                        .map(Parameter::name).collect(Collectors.joining(", "));
+                        .map(p -> p.name() + (p.type() != null ? " : " + p.type() : ""))
+                        .collect(Collectors.joining(", "));
                 sb.append("    fn ").append(m.getName())
                         .append("(").append(params).append(")\n");
             }
             sb.append("}\n```");
             return hover(sb.toString());
         }
-        return hover("```mira\n" + kind + " " + v.getName() + "\n```");
+        String typePart = v.getType() != null ? " : " + v.getType() : "";
+        return hover("```mira\n" + kind + " " + v.getName() + typePart + "\n```");
     }
 
     static boolean isFieldAccess(String content, Position pos) {
@@ -494,15 +499,18 @@ public class HoverProvider {
             for (Statement.VarDecl f : obj.getVarDecls()) {
                 if (f.getName().equals(fieldName)) {
                     String kind = f.isConst() ? "const" : "var";
-                    return hover("```mira\n" + kind + " " + f.getName() + "\n```\n*object field*");
+                    String typePart = f.getType() != null ? " : " + f.getType() : "";
+                    return hover("```mira\n" + kind + " " + f.getName() + typePart + "\n```\n*object field*");
                 }
             }
             for (Statement.FuncDecl m : obj.getMethods()) {
                 if (m.getName().equals(fieldName)) {
                     String params = m.getParameters().stream()
-                            .map(Parameter::name)
+                            .map(p -> p.name() + (p.type() != null ? " : " + p.type() : ""))
                             .collect(Collectors.joining(", "));
-                    return hover("```mira\nfn " + m.getName() + "(" + params + ")\n```\n*object method*");
+                    String returnPart = m.getReturnType() != null ? " -> " + m.getReturnType() : "";
+                    return hover("```mira\nfn " + m.getName() + "(" + params + ")" + returnPart
+                            + "\n```\n*object method*");
                 }
             }
         }
@@ -510,15 +518,18 @@ public class HoverProvider {
             for (Statement.VarDecl f : st.getVarDecls()) {
                 if (f.getName().equals(fieldName)) {
                     String kind = f.isConst() ? "const" : "var";
-                    return hover("```mira\n" + kind + " " + f.getName() + "\n```\n*struct field*");
+                    String typePart = f.getType() != null ? " : " + f.getType() : "";
+                    return hover("```mira\n" + kind + " " + f.getName() + typePart + "\n```\n*struct field*");
                 }
             }
             for (Statement.FuncDecl m : st.getMethods()) {
                 if (m.getName().equals(fieldName)) {
                     String params = m.getParameters().stream()
-                            .map(Parameter::name)
+                            .map(p -> p.name() + (p.type() != null ? " : " + p.type() : ""))
                             .collect(Collectors.joining(", "));
-                    return hover("```mira\nfn " + m.getName() + "(" + params + ")\n```\n*struct method*");
+                    String returnPart = m.getReturnType() != null ? " -> " + m.getReturnType() : "";
+                    return hover("```mira\nfn " + m.getName() + "(" + params + ")" + returnPart
+                            + "\n```\n*struct method*");
                 }
             }
         }
