@@ -875,7 +875,6 @@ public class StaticCheckTest {
     }
 
     // --- Struct nominal typing (return types) ---
-
     @Test
     void functionReturningMatchingStructTemplateIsClean() {
         assertClean(
@@ -903,5 +902,40 @@ public class StaticCheckTest {
         assertClean(
                 "var point : struct { var x; var y; }; "
                 + "fn make() { return $point{$x : 1, $y : 2}; } make();");
+    }
+
+    @Test
+    void barewordArgumentAgainstNumberParamIsE325() {
+        // a bareword read (no $) evaluates to its own text as a String at
+        // runtime - passing one where a Number is declared is a real mismatch
+        List<MiraError> errors = errorsFor("fn f(a : Number) { println($a); } f(hello);");
+        assertTrue(hasCode(errors, "E325"));
+    }
+
+    @Test
+    void barewordArgumentAgainstStringParamIsClean() {
+        assertClean("fn greet(name : String) { println(name); } greet(bob);");
+    }
+
+    @Test
+    void barewordVarDeclInitializerAgainstNumberTypeIsE324() {
+        List<MiraError> errors = errorsFor("var age : Number : bob;");
+        assertTrue(hasCode(errors, "E324"));
+    }
+
+    @Test
+    void barewordReturnAgainstNumberTypeIsE326() {
+        List<MiraError> errors = errorsFor("fn f() -> Number { return bob; }");
+        assertTrue(hasCode(errors, "E326"));
+    }
+
+    @Test
+    void barewordReturnAgainstStringTypeIsClean() {
+        assertClean("fn f() -> String { return bob; }");
+    }
+
+    @Test
+    void realDollarReferenceIsUnaffectedByBarewordInference() {
+        assertClean("fn f(a : Number) { println($a); } var n : Number : 5; f($n);");
     }
 }

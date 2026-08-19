@@ -1647,7 +1647,13 @@ public class StaticCheck {
                 String name = structTemplateNames.get(st);
                 yield name != null ? new MiraType.NamedType(name) : MiraType.OBJECT;
             }
-            case DumbExpression d when !isIdentifier(d) ->
+            case DumbExpression d ->
+                // covers plain literal tokens (numbers, true/false/null,
+                // string literals) AND bare identifier-shaped tokens - a
+                // bareword read without `$` deterministically evaluates to
+                // its own text as a String at runtime (Mira's bareword
+                // semantics), so it's just as safe to type as any other
+                // literal, not "unknown" the way an actual $-reference is
                 literalTokenType(d);
             default ->
                 null;
