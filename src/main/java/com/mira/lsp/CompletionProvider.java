@@ -61,7 +61,7 @@ public class CompletionProvider {
     private static final List<String> GLOBALS = List.copyOf(LibIndex.GLOBAL_NAMES);
 
     private static final List<String> BUILTIN_TYPE_NAMES = List.of(
-            "Number", "String", "Bool", "List", "Array", "Map", "Object", "Fn", "Null", "Any");
+            "Number", "String", "Bool", "List", "Array", "Map", "Object", "Fn", "Null", "Any", "Void");
 
     private static final Map<String, List<String>> STDLIB;
     private static final Map<String, String> STDLIB_PARAMS;

@@ -131,7 +131,7 @@ public class StaticCheck {
     // annotation is present somewhere in the comparison - unannotated code
     // is never newly rejected).
     private static final Set<String> BUILTIN_TYPE_NAMES = Set.of(
-            "Number", "String", "Bool", "List", "Array", "Map", "Object", "Fn", "Null", "Any");
+            "Number", "String", "Bool", "List", "Array", "Map", "Object", "Fn", "Null", "Any", "Void");
     private final Map<String, MiraType> typeAliases = new HashMap<>();
     // Explicit, declared types only - unlike varLiteralTypes (inferred literal
     // shapes), these persist across reassignment/loops/branches: an explicit
@@ -425,12 +425,24 @@ public class StaticCheck {
                 FuncDecl enclosing = functionStack.peek();
                 if (enclosing != null && enclosing.getReturnType() != null) {
                     MiraType expected = resolveTypeAnnotation(enclosing.getReturnType());
-                    if (stmt.getValue() != null) {
-                        checkAssignable(stmt.getValue(), expected, (exp, actual) -> errors.add(
-                                new ReturnTypeMismatchError(enclosing.getName(), exp, actual,
-                                        stmt.line, stmt.column)));
-                    } else if (expected != null && !(expected instanceof MiraType.NullableType)
-                            && !(expected instanceof MiraType.AnyType)) {
+                    boolean bare = isBareReturn(stmt.getValue());
+                    if (!bare) {
+                        if (MiraType.isVoid(expected)) {
+                            // any value at all is wrong for Void, regardless of its
+                            // type - unlike ordinary mismatches this doesn't need the
+                            // value's type to be inferable, so it bypasses checkAssignable's
+                            // "skip if unknown" behavior
+                            MiraType actual = inferMiraType(stmt.getValue());
+                            errors.add(new ReturnTypeMismatchError(enclosing.getName(), "Void",
+                                    actual != null ? MiraType.display(actual) : "a value",
+                                    stmt.line, stmt.column));
+                        } else {
+                            checkAssignable(stmt.getValue(), expected, (exp, actual) -> errors.add(
+                                    new ReturnTypeMismatchError(enclosing.getName(), exp, actual,
+                                            stmt.line, stmt.column)));
+                        }
+                    } else if (expected != null && !MiraType.isVoid(expected)
+                            && !MiraType.isAssignable(MiraType.NULL, expected)) {
                         errors.add(new ReturnTypeMismatchError(enclosing.getName(),
                                 MiraType.display(expected), "Null", stmt.line, stmt.column));
                     }
@@ -1476,6 +1488,18 @@ public class StaticCheck {
         }
         char first = expr.getValue().charAt(0);
         return Character.isLetter(first) || first == '_';
+    }
+
+    /**
+     * A bare {@code return;} isn't represented as a {@code null} value in the
+     * AST - {@code Parser.parseReturn} fills in a synthetic {@code 0.0} literal
+     * token at line/column {@code -1} so downstream code always has an
+     * {@code Expression} to work with. This tells that sentinel apart from a
+     * real, user-written return value (including a genuine
+     * {@code return 0.0;}).
+     */
+    private static boolean isBareReturn(Expression value) {
+        return value instanceof DumbExpression d && d.getLine() == -1;
     }
 
     private static boolean isKnownLiteral(Node n) {

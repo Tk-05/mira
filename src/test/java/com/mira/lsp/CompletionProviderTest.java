@@ -93,6 +93,7 @@ public class CompletionProviderTest {
         assertTrue(items.stream().anyMatch(i -> i.getLabel().equals("Number")));
         assertTrue(items.stream().anyMatch(i -> i.getLabel().equals("String")));
         assertTrue(items.stream().anyMatch(i -> i.getLabel().equals("Any")));
+        assertTrue(items.stream().anyMatch(i -> i.getLabel().equals("Void")));
     }
 
     @Test

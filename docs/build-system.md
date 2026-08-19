@@ -49,6 +49,7 @@ main       = true          # call main() as entry point (equivalent to --main fl
 lint       = false         # run linter before execution
 output     = "out"         # output directory for compiled files (default: "out/")
 args       = []            # default program arguments
+strict-types = false       # require type annotations on every top-level function (equivalent to --strict-types)
 pre-build  = "codegen"              # single task — or an array: ["codegen", "lint"]
 post-build = ["notify", "upload"]   # multiple tasks run in order
 pre-run    = "prepare"              # task to run before mira run   (optional)
@@ -99,7 +100,10 @@ mira test -C ../other-app
 `build`, `run`, `test`, and `release` also accept `--no-warn` (suppress warnings/hints)
 and `--no-color` (disable ANSI diagnostic colors, also honors `NO_COLOR`); `run` and
 `task <name>` additionally accept `--profile` and `--stats`; `test` additionally accepts
-`--coverage` (see below).
+`--coverage` (see below). `build`, `run`, `test`, `release`, and `task <name>` all accept
+`--strict-types`, equivalent to setting `mira.toml`'s `[build] strict-types = true`
+(see [General flags](#general-flags) and the [Type Annotations](language-guide.md#type-annotations)
+section of the Language Guide).
 
 ### Release Pipeline
 
@@ -476,6 +480,7 @@ Flags available for both single-file and build-system usage:
 | `--imports`       | Show all loaded imports with their type and alias                                                                                                                                   |
 | `--version`       | Print the Mira version (no short form — `-v` is `--verbose`)                                                                                                                        |
 | `--stats`         | Print compiler/parser stats (line, token, and AST node counts, function/variable/import/enum counts, per-phase timing) for the entry file and every module it imports, transitively |
+| `--strict-types`  | Require every top-level function's parameters and return type to carry an explicit [type annotation](language-guide.md#type-annotations) (`E328` if not); off by default and additive with `mira.toml`'s `strict-types` setting |
 
 `-v`/`--verbose` also works on the project subcommands (`build`, `run`,
 `test`, `release`) — e.g. `mira build -v` prints which dependencies are

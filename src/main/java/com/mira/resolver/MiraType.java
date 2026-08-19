@@ -29,6 +29,11 @@ public sealed interface MiraType permits MiraType.NamedType, MiraType.NullableTy
     MiraType OBJECT = new NamedType("Object");
     MiraType FN = new NamedType("Fn");
     MiraType NULL = new NamedType("Null");
+    MiraType VOID = new NamedType("Void");
+
+    static boolean isVoid(MiraType type) {
+        return type instanceof NamedType n && "Void".equals(n.name());
+    }
 
     static String display(MiraType type) {
         return switch (type) {

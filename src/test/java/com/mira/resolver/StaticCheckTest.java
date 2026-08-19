@@ -751,6 +751,56 @@ public class StaticCheckTest {
     }
 
     @Test
+    void voidFunctionWithNoReturnStatementIsClean() {
+        assertClean("fn log(msg) -> Void { println($msg); }");
+    }
+
+    @Test
+    void voidFunctionWithBareReturnIsClean() {
+        assertClean("fn log(msg) -> Void { println($msg); return; }");
+    }
+
+    @Test
+    void voidFunctionReturningValueIsE326() {
+        List<MiraError> errors = errorsFor("fn log(msg) -> Void { return 5; }");
+        assertTrue(hasCode(errors, "E326"));
+    }
+
+    @Test
+    void voidFunctionReturningNullLiteralIsStillE326() {
+        // returning an explicit value - even `null` itself - is still wrong for
+        // Void, unlike a `-> Null` declared function which would accept this
+        List<MiraError> errors = errorsFor("fn log(msg) -> Void { return null; }");
+        assertTrue(hasCode(errors, "E326"));
+    }
+
+    @Test
+    void nullReturnTypeStillAcceptsExplicitNull() {
+        assertClean("fn log(msg) -> Null { return null; }");
+    }
+
+    @Test
+    void bareReturnAgainstDeclaredNullTypeIsClean() {
+        // regression: a bare `return;` is parsed as a synthetic 0.0-literal
+        // sentinel value internally (Parser.parseReturn), not a true null -
+        // must not be misread as an explicit Number return
+        assertClean("fn f() -> Null { return; }");
+    }
+
+    @Test
+    void bareReturnAgainstDeclaredNumberTypeIsE326() {
+        List<MiraError> errors = errorsFor("fn f() -> Number { return; }");
+        assertTrue(hasCode(errors, "E326"));
+    }
+
+    @Test
+    void explicitZeroPointZeroReturnAgainstNumberTypeIsClean() {
+        // regression: must not be confused with the bare-return sentinel,
+        // which also happens to be a "0.0" literal internally
+        assertClean("fn f() -> Number { return 0.0; }");
+    }
+
+    @Test
     void unknownTypeNameInVarDeclIsE327() {
         List<MiraError> errors = errorsFor("var x : Frobnicate : 5;");
         assertTrue(hasCode(errors, "E327"));

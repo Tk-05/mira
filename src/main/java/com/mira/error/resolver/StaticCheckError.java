@@ -284,7 +284,7 @@ public class StaticCheckError extends MiraError {
             super("E327",
                     "Unknown type '" + name + "'",
                     line, column, name.length(),
-                    "Use a built-in type (Number, String, Bool, List, Array, Map, Object, Fn, Null, Any), "
+                    "Use a built-in type (Number, String, Bool, List, Array, Map, Object, Fn, Null, Any, Void), "
                     + "or check that '" + name + "' is declared before this point");
         }
     }

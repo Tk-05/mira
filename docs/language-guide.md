@@ -12,15 +12,16 @@ Core language reference: syntax, types, control flow, functions, and the built-i
 4. [Data Structures](#data-structures) — List, Array, Object, Map, Range
 5. [Control Flow](#control-flow) — If, While, For, Foreach, Switch, `exec { }`
 6. [Functions](#functions) — Default Parameters, Variadic, Inner Functions, Lambdas, Async/Await, spawn, Pure Functions
-7. [Comptime](#comptime) — Compile-Time Code Execution
-8. [static_assert](#static_assert) — Compile-Time Assertions
-9. [Objects with Methods](#objects-with-methods)
-10. [Structs](#structs)
-11. [Enums](#enums)
-12. [Built-in Functions](#built-in-functions)
-13. [Multithreading](#multithreading)
-14. [Testing](#testing)
-15. [Example Program](#example-program)
+7. [Type Annotations](#type-annotations) — Optional typing, type aliases, enforcement, strict mode
+8. [Comptime](#comptime) — Compile-Time Code Execution
+9. [static_assert](#static_assert) — Compile-Time Assertions
+10. [Objects with Methods](#objects-with-methods)
+11. [Structs](#structs)
+12. [Enums](#enums)
+13. [Built-in Functions](#built-in-functions)
+14. [Multithreading](#multithreading)
+15. [Testing](#testing)
+16. [Example Program](#example-program)
 
 ---
 
@@ -1317,6 +1318,117 @@ fib(30)   // returned from cache instantly
 | Deterministic transformations        | Functions whose result depends on time    |
 
 > **Note:** The interpreter also has an automatic purity analyzer (`PurityAnalyzer`) that detects functions without side effects and caches them silently. The `pure` keyword extends this: it forces caching even when automatic analysis would not classify the function as pure (e.g. because it calls another function whose purity cannot be statically proven).
+
+---
+
+## Type Annotations
+
+Mira is **gradually typed**: type annotations are entirely optional. Add them where they help; leave them off everywhere else and nothing changes — an unannotated program behaves exactly as it always has.
+
+An annotation is written with a **second colon**, right before the value/initializer position it normally occupies. The type comes first, the value second:
+
+```
+var <name> : <Type> : <expression>;    // typed, initialized
+var <name> : <expression>;             // unchanged — untyped
+```
+
+Example:
+
+```
+var age : Number : 30;
+var name : String : "Ada";
+var maybe : Number? : null;    // nullable — suffix `?`
+```
+
+A single `:` still means "here's the initializer," exactly as before. Mira only reinterprets it as a type when a **second** `:` follows — so every existing untyped program keeps parsing exactly as it did. Typed `var` declarations always need an initializer; there's no "typed but empty" form (use `<Type>?` with a `null` initializer instead).
+
+### Built-in Types
+
+`Number`, `String`, `Bool`, `List`, `Array`, `Map`, `Object`, `Fn`, `Null`, `Any`, `Void`. `Any` is an explicit escape hatch — it's always assignable in both directions. There's no separate `Int`/`Float`: Mira's numbers stay `Long`/`Double` under the hood exactly as before, and division still always widens to `Double`.
+
+`Void` is only meaningful as a function's return type — see [Void Return Type](#void-return-type) below.
+
+A declared struct variable name, `enum` name, or `type` alias name can also be used as a type (see [Type Aliases](#type-aliases) below).
+
+### Function Parameters and Return Types
+
+Parameters use the same double-colon rule. A parameter with a type but no default only needs a single colon — a bare type name immediately followed by `,` or `)` is unambiguous:
+
+```
+fn <name>(<param> : <Type>, <param2> : <Type2> : <default>) -> <ReturnType> {
+    <body>
+}
+```
+
+Example:
+
+```
+fn add(a : Number, b : Number) -> Number {
+    return eval($a + $b);
+}
+```
+
+`->` for the return type only applies to named `fn` declarations. Lambdas and arrow lambdas (`($x) -> expr`) don't support a return-type annotation — `->` there still introduces the lambda body.
+
+### Void Return Type
+
+`Void` declares that a function doesn't return a value:
+
+```mira
+fn log(msg) -> Void {
+    println($msg);
+}
+```
+
+- A bare `return;`, or simply reaching the end of the function body without a `return` at all, is fine.
+- `return <anything>;` — including `return null;` — is a compile-time error (`ReturnTypeMismatchError`, `E326`), even though `null` would normally be a valid value almost everywhere else. `Void` means "provides no value," which is a stricter statement than "provides `Null`."
+
+`Void` is therefore not the same as `Null`: a function declared `-> Null` must actually `return null;` (or another expression that evaluates to `null`) on every path, while `-> Void` forbids providing a value in the first place.
+
+### Struct Fields
+
+Struct field declarations reuse the same `var` syntax as top-level variables, so they can be typed the same way:
+
+```
+var Point : struct {
+    var x : Number : 0;
+    var y : Number : 0;
+};
+```
+
+Overriding a field at instantiation time (`$Point{$x : "oops"}`) with a value of the wrong type is a compile-time error — see [Enforcement](#enforcement) below.
+
+### Type Aliases
+
+```
+type <Name> : <Type>;
+```
+
+```
+type UserId : Number;
+var id : UserId : 42;
+```
+
+> **Note:** only a `type` declared at the true top level of a file is
+> currently recognized. One written inside a function or block parses
+> without error but has no effect — using the name it was meant to define
+> reports `UnknownTypeNameError` (`E327`).
+
+### Enforcement
+
+Type checking runs as part of the same static-check pass that already catches things like undeclared variables — violations are compile-time errors that stop the program from running, in both interpreted mode and `--compile`. Every check below only fires when an explicit annotation is present somewhere in the comparison, so untyped code is never newly rejected:
+
+| Check                                                          | Error                                   |
+| ---------------------------------------------------------------| -----------------------------------------|
+| Initializer or reassignment doesn't match the declared type    | `TypeMismatchError` (`E324`)             |
+| Call argument doesn't match a parameter's declared type        | `ArgumentTypeMismatchError` (`E325`)     |
+| Returned value doesn't match the declared return type          | `ReturnTypeMismatchError` (`E326`)       |
+| Unknown type name                                              | `UnknownTypeNameError` (`E327`)          |
+| Struct field override doesn't match the field's declared type  | `StructFieldTypeMismatchError` (`E329`)  |
+
+### Strict Mode
+
+`--strict-types` (or `mira.toml`'s `[build] strict-types = true` — see [Build System → General flags](build-system.md#general-flags)) requires every **top-level** function's parameters and return type to be explicitly annotated. It's off by default and doesn't change anything else — a project can adopt it incrementally without annotating every variable. A missing annotation under strict mode is `MissingTypeAnnotationError` (`E328`).
 
 ---
 

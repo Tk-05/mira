@@ -14,9 +14,9 @@ Mira ships with a built-in Language Server that implements the [Language Server 
 | -------------------------- | --------------------------------------------------------------------------------------------------------- |
 | **Syntax highlighting**    | Keywords, strings, numbers, variables (`x`), comments, function names — via the static TextMate grammar   |
 | **Semantic highlighting**  | Additional binding-aware coloring for variables, parameters, functions/methods, and object/struct fields   |
-| **Diagnostics**            | Parse errors, linter warnings, and hints shown inline as you type                                          |
-| **Code completion**        | Keywords, built-in functions, stdlib functions, local variables and functions, imported module functions   |
-| **Hover**                  | Signatures and doc comments for local functions/variables, stdlib functions, and object/struct fields       |
+| **Diagnostics**            | Parse errors, linter warnings, [type errors](language-guide.md#type-annotations), and hints shown inline as you type |
+| **Code completion**        | Keywords, built-in functions, stdlib functions, local variables and functions, imported module functions, built-in and declared type names |
+| **Hover**                  | Signatures and doc comments for local functions/variables, stdlib functions, and object/struct fields — including any declared [type annotation](language-guide.md#type-annotations) |
 | **Go to Definition**       | Jumps to the declaration of a local symbol or one imported from another module                             |
 | **Find All References**   | Lists every usage of a symbol in the current file, plus cross-file usages of top-level symbols             |
 | **Rename Symbol**          | Renames a symbol and all its known references in one edit (`F2` in VS Code)                                |
@@ -77,6 +77,9 @@ Errors and warnings appear as red/yellow underlines directly in the editor. Hove
 | Tokenizer | Error          | Unterminated string literal    |
 | Parser    | Error          | Unexpected token, missing `)`  |
 | Linter    | Warning / Info | Unused variable, shadowed name |
+| Static checker | Error    | Undeclared variable, arity mismatch, [type mismatch](language-guide.md#type-annotations) |
+
+Type errors (`E324`-`E329`) only appear for code that actually carries a [type annotation](language-guide.md#type-annotations) somewhere in the comparison — unannotated code never produces new diagnostics from this.
 
 Diagnostics are cleared automatically when the file is closed.
 
@@ -86,11 +89,13 @@ Completions trigger automatically as you type. The following are always availabl
 
 - All Mira **keywords** (`var`, `fn`, `if`, `for`, `switch`, `return`, `comptime`, `static_assert`, …)
 - All **built-in globals** (`print`, `scan`, `eval`, `length`, `assert`, …)
+- All **built-in type names** (`Number`, `String`, `Bool`, `List`, `Array`, `Map`, `Object`, `Fn`, `Null`, `Any`, `Void` — see [Type Annotations](language-guide.md#type-annotations))
 
 Additionally, for each open file the server provides:
 
 - **Local variables** declared with `var` or `const` — shown as `name`
-- **Local functions** declared with `fn` — shown with their parameter list
+- **Local functions** declared with `fn` — shown with their parameter list (including any declared parameter/return types)
+- **Declared `type` aliases and `enum` names** — usable as type names
 - **Imported stdlib symbols** — shown as `alias.name(params)` when imported with an alias; only the selected symbols when using brace or colon syntax
 - **Imported module symbols** — parsed from the imported `.mira` file; only `pub`-marked symbols are shown. Shown as `alias.name` when imported with `as alias`, or as the bare `name` when imported without one (e.g. `import module "lib.mira" {greet};` suggests bare `greet`, not `greet` under a namespace); if the import selects specific names, only those are suggested
 
