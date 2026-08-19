@@ -873,4 +873,35 @@ public class StaticCheckTest {
         assertTrue(hasCode(errors, "E323"));
         assertFalse(hasCode(errors, "E329"));
     }
+
+    // --- Struct nominal typing (return types) ---
+
+    @Test
+    void functionReturningMatchingStructTemplateIsClean() {
+        assertClean(
+                "var point : struct { var x; var y; }; "
+                + "fn make() -> point { return $point{$x : 1, $y : 2}; } make();");
+    }
+
+    @Test
+    void functionReturningStructInstanceThroughVariableIsClean() {
+        assertClean(
+                "var point : struct { var x; var y; }; var origin : $point{$x : 0, $y : 0}; "
+                + "fn get() -> point { return $origin; } get();");
+    }
+
+    @Test
+    void functionReturningDifferentStructTemplateIsE326() {
+        List<MiraError> errors = errorsFor(
+                "var point : struct { var x; var y; }; var color : struct { var r; }; "
+                + "fn make() -> point { return $color{$r : 1}; } make();");
+        assertTrue(hasCode(errors, "E326"));
+    }
+
+    @Test
+    void structInitReturnedWithoutDeclaredReturnTypeIsUnaffected() {
+        assertClean(
+                "var point : struct { var x; var y; }; "
+                + "fn make() { return $point{$x : 1, $y : 2}; } make();");
+    }
 }

@@ -137,6 +137,12 @@ public class StaticCheck {
     // shapes), these persist across reassignment/loops/branches: an explicit
     // annotation is a standing contract, not a best-effort guess.
     private final Map<String, MiraType> declaredVarTypes = new HashMap<>();
+    // A struct literal carries no name of its own - only the var that declares
+    // it as a template does (`var point : struct {...};`). Populated in lockstep
+    // with varLiteralTypes wherever a StructExpression is registered as a named
+    // template, so inferMiraType can report a struct instance's real nominal
+    // type instead of collapsing every struct/object alike to plain `Object`.
+    private final Map<StructExpression, String> structTemplateNames = new java.util.IdentityHashMap<>();
     // The innermost enclosing named function, for checking `return` against its
     // declared return type - null while inside a lambda/object-or-struct method,
     // since those have no return-type annotation in v1.
@@ -927,6 +933,9 @@ public class StaticCheck {
         scope.declare(stmt.getName(), stmt.line, stmt.nameColumn, stmt.isConst(), inComptimeBlock && stmt.isConst());
         if (stmt.getInitializer() != null && isKnownLiteral(stmt.getInitializer())) {
             varLiteralTypes.put(stmt.getName(), stmt.getInitializer());
+            if (stmt.getInitializer() instanceof StructExpression st) {
+                structTemplateNames.put(st, stmt.getName());
+            }
         } else if (stmt.getInitializer() instanceof StructInitExpression si) {
             Node templateLiteral = resolveLiteralBase(si.getTarget());
             if (templateLiteral instanceof StructExpression) {
@@ -1601,10 +1610,13 @@ public class StaticCheck {
             Node inferredLiteral = varLiteralTypes.get(d.getValue());
             return inferredLiteral != null ? literalNodeToType(inferredLiteral) : null;
         }
-        if (expr instanceof StructInitExpression) {
-            // Nominal struct field-type checking is a later milestone; for now
-            // a struct instance just types as the generic structural Object.
-            return MiraType.OBJECT;
+        if (expr instanceof StructInitExpression si) {
+            Node templateLiteral = resolveLiteralBase(si.getTarget());
+            // Resolves to the specific struct template's nominal name when known
+            // (e.g. NamedType("point") for `$point{...}`), falling back to the
+            // generic structural Object only if the template can't be traced.
+            return templateLiteral instanceof StructExpression
+                    ? literalNodeToType(templateLiteral) : MiraType.OBJECT;
         }
         if (expr instanceof CallExpression call && call.getCallee() instanceof DumbExpression callee
                 && isIdentifier(callee)) {
@@ -1631,8 +1643,10 @@ public class StaticCheck {
                 MiraType.MAP;
             case ObjectExpression ignored ->
                 MiraType.OBJECT;
-            case StructExpression ignored ->
-                MiraType.OBJECT;
+            case StructExpression st -> {
+                String name = structTemplateNames.get(st);
+                yield name != null ? new MiraType.NamedType(name) : MiraType.OBJECT;
+            }
             case DumbExpression d when !isIdentifier(d) ->
                 literalTokenType(d);
             default ->

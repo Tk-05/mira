@@ -1348,7 +1348,30 @@ A single `:` still means "here's the initializer," exactly as before. Mira only 
 
 `Void` is only meaningful as a function's return type — see [Void Return Type](#void-return-type) below.
 
-A declared struct variable name, `enum` name, or `type` alias name can also be used as a type (see [Type Aliases](#type-aliases) below).
+A declared struct variable name, `enum` name, or `type` alias name can also be used as a type (see [Type Aliases](#type-aliases) below). A struct instance is checked against the specific template it was created from, not just the generic `Object` shape:
+
+```mira
+var point : struct { var x; var y; };
+var color : struct { var r; var g; var b; };
+
+fn makePoint() -> point {
+    return $point{$x : 1, $y : 2};   // OK - matches the declared template
+}
+
+fn makeColor() -> point {
+    return $color{$r : 1, $g : 2, $b : 3};   // ReturnTypeMismatchError - wrong template
+}
+```
+
+This also works through a variable, not just a literal instantiation directly in the `return`:
+
+```mira
+var origin : $point{$x : 0, $y : 0};
+
+fn getOrigin() -> point {
+    return $origin;   // OK - $origin was created from the `point` template
+}
+```
 
 ### Function Parameters and Return Types
 

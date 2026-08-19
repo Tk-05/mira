@@ -134,6 +134,11 @@ public class CompletionProvider {
                             items.add(mi);
                         }
                     } else if (v.getInitializer() instanceof StructExpression st) {
+                        CompletionItem typeItem = new CompletionItem(v.getName());
+                        typeItem.setKind(CompletionItemKind.Class);
+                        typeItem.setDetail("struct " + v.getName()
+                                + " — usable as a type, e.g. \"-> " + v.getName() + "\"");
+                        items.add(typeItem);
                         addStructMemberItems(v.getName(), st, items);
                     } else if (v.getInitializer() instanceof StructInitExpression si) {
                         String templateName = extractName(si.getTarget());
