@@ -99,11 +99,16 @@ public class FileRunner {
                     mainErrors = true;
                 }
                 entryCheckMs = (System.nanoTime() - entryCheckStart) / 1_000_000;
+                // captured and flushed here, before ModuleChecker.check() runs - it flushes
+                // (prints + clears) warnings itself once per module, so anything still sitting
+                // in the collector at that point would get silently swept into the first
+                // module's flush instead of being counted/attributed to the entry file
+                int entryWarningCount = WarningCollector.getWarnings().size();
+                WarningCollector.flush();
                 ModuleChecker.ModuleCheckResult moduleResult = ModuleChecker.check(asts, new LinkedHashSet<>());
                 moduleCheckTimingsMs = moduleResult.checkTimingsMs();
                 checkedModules = moduleResult.modules();
-                warningCount = WarningCollector.getWarnings().size();
-                WarningCollector.flush();
+                warningCount = entryWarningCount + moduleResult.warningCount();
                 if (mainErrors || moduleResult.hadErrors()) {
                     return false;
                 }

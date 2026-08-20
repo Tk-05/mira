@@ -40,9 +40,14 @@ public final class ModuleChecker {
      * pass; modules is the same ParsedModule set that pass already parsed,
      * exposed so callers (e.g. --stats) can read real tokenize/parse timing and
      * size info off it instead of re-parsing every module a second time.
+     * warningCount is tallied module-by-module as each one is flushed - this
+     * loop already calls WarningCollector.flush() per module (so warnings print
+     * as each module is checked, not batched to the end), which drains the
+     * collector; a caller reading WarningCollector.getWarnings().size() only
+     * after this method returns would always see 0.
      */
     public record ModuleCheckResult(boolean hadErrors, Map<Path, Long> checkTimingsMs,
-            Map<Path, ParsedModule> modules) {
+            Map<Path, ParsedModule> modules, int warningCount) {
 
     }
 
@@ -68,6 +73,7 @@ public final class ModuleChecker {
         String[] savedSourceLines = Flags.sourceLines;
 
         boolean hadErrors = false;
+        int warningCount = 0;
         List<String> pendingErrors = new ArrayList<>();
         Map<Path, Long> timingsMs = new LinkedHashMap<>();
         for (ParsedModule module : allModules.values()) {
@@ -84,8 +90,10 @@ public final class ModuleChecker {
                 Flags.fileName = module.path().getFileName().toString();
                 Flags.sourceLines = module.source().split("\n", -1);
                 new StaticCheck(externalCalls).check(module.ast());
+                warningCount += WarningCollector.getWarnings().size();
                 WarningCollector.flush();
             } catch (MultipleStaticCheckErrors mse) {
+                warningCount += WarningCollector.getWarnings().size();
                 WarningCollector.flush();
                 mse.getErrors().stream()
                         .map(DiagnosticFormatter::format)
@@ -100,7 +108,7 @@ public final class ModuleChecker {
             }
         }
         pendingErrors.forEach(msg -> System.err.println(msg));
-        return new ModuleCheckResult(hadErrors, timingsMs, allModules);
+        return new ModuleCheckResult(hadErrors, timingsMs, allModules, warningCount);
     }
 
     public static Map<Path, List<Path>> collectDependencyGraph(List<Node> rootAst, Path rootPath) {
