@@ -938,4 +938,24 @@ public class StaticCheckTest {
     void realDollarReferenceIsUnaffectedByBarewordInference() {
         assertClean("fn f(a : Number) { println($a); } var n : Number : 5; f($n);");
     }
+
+    // --- Diagnostic position regressions ---
+
+    @Test
+    void argumentTypeMismatchPointsAtTheArgumentNotColumnZero() {
+        // regression: this used to hardcode column 0, so the editor
+        // underlined whatever happened to sit at the start of that line
+        // instead of the actual offending argument
+        List<MiraError> errors = errorsFor("fn f(a : Number) { println($a); } f(hello);");
+        MiraError err = errors.stream().filter(e -> "E325".equals(e.getErrorCode())).findFirst().orElseThrow();
+        assertTrue(err.getColumn() > 0);
+    }
+
+    @Test
+    void structFieldTypeMismatchPointsAtTheOverrideValueNotColumnZero() {
+        List<MiraError> errors = errorsFor(
+                "var Point : struct { var x : Number : 0; }; var p : $Point{$x : \"oops\"};");
+        MiraError err = errors.stream().filter(e -> "E329".equals(e.getErrorCode())).findFirst().orElseThrow();
+        assertTrue(err.getColumn() > 0);
+    }
 }

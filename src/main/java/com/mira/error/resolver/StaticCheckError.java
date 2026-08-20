@@ -259,11 +259,11 @@ public class StaticCheckError extends MiraError {
     public static class ArgumentTypeMismatchError extends StaticCheckError {
 
         public ArgumentTypeMismatchError(String function, String param, String expected, String actual,
-                int line, int column) {
+                int line, int column, int span) {
             super("E325",
                     "Argument '" + param + "' of '" + function + "' expects type '" + expected
                     + "' but got '" + actual + "'",
-                    line, column, function.length(),
+                    line, column, span,
                     "Pass a value of type '" + expected + "'");
         }
     }
@@ -302,11 +302,11 @@ public class StaticCheckError extends MiraError {
     public static class StructFieldTypeMismatchError extends StaticCheckError {
 
         public StructFieldTypeMismatchError(String field, String structName, String expected, String actual,
-                int line, int column) {
+                int line, int column, int span) {
             super("E329",
                     "Field '" + field + "' of '" + structName + "' expects type '" + expected
                     + "' but got '" + actual + "'",
-                    line, column, field.length(),
+                    line, column, span,
                     "Use a value of type '" + expected + "', or change the field's declared type");
         }
     }

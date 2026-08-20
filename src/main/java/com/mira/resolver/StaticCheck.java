@@ -758,9 +758,11 @@ public class StaticCheck {
                         } else if (field != null && field.getType() != null) {
                             MiraType expected = resolveTypeAnnotation(field.getType());
                             Expression overrideValue = entry.getValue();
+                            int column = expressionColumn(overrideValue, varRef != null ? varRef.getColumn() : 0);
+                            int span = expressionSpan(overrideValue, key.length());
                             checkAssignable(overrideValue, expected, (exp, actual) -> errors.add(
                                     new StructFieldTypeMismatchError(key, templateName, exp, actual,
-                                            overrideValue.line, 0)));
+                                            overrideValue.line, column, span)));
                         }
                     }
                 }
@@ -900,7 +902,7 @@ public class StaticCheck {
                     FuncDecl fn = userFuncDecls.get(name);
                     if (fn != null && !expr.getArguments().isEmpty()) {
                         checkCallParamFieldAccesses(fn, expr.getArguments());
-                        checkArgumentTypes(fn, expr.getArguments());
+                        checkArgumentTypes(fn, expr.getArguments(), callee);
                     }
                 }
             } else {
@@ -1705,7 +1707,7 @@ public class StaticCheck {
         }
     }
 
-    private void checkArgumentTypes(FuncDecl fn, List<Expression> args) {
+    private void checkArgumentTypes(FuncDecl fn, List<Expression> args, DumbExpression callee) {
         List<Parameter> params = fn.getParameters();
         for (int i = 0; i < Math.min(params.size(), args.size()); i++) {
             Parameter param = params.get(i);
@@ -1714,9 +1716,36 @@ public class StaticCheck {
             }
             Expression argNode = args.get(i);
             MiraType expected = resolveTypeAnnotation(param.type());
+            // point at the specific argument when it has a real position
+            // (a literal or a $-reference), otherwise fall back to the call
+            // site itself - either way a genuine token position, never a
+            // coincidental column that happens to land somewhere else on the line
+            int line = argNode.line > 0 ? argNode.line : callee.getLine();
+            int column = expressionColumn(argNode, callee.getColumn());
+            int span = expressionSpan(argNode, fn.getName().length());
             checkAssignable(argNode, expected, (exp, actual) -> errors.add(
-                    new ArgumentTypeMismatchError(fn.getName(), param.name(), exp, actual, argNode.line, 0)));
+                    new ArgumentTypeMismatchError(fn.getName(), param.name(), exp, actual, line, column, span)));
         }
+    }
+
+    private static int expressionColumn(Expression expr, int fallback) {
+        if (expr instanceof DumbExpression d) {
+            return d.getColumn();
+        }
+        if (expr instanceof UnaryExpression u) {
+            return u.getOperation().getColumn();
+        }
+        return fallback;
+    }
+
+    private static int expressionSpan(Expression expr, int fallback) {
+        if (expr instanceof DumbExpression d) {
+            return Math.max(1, d.getValue().length());
+        }
+        if (expr instanceof UnaryExpression u && u.getRight() instanceof DumbExpression d) {
+            return 1 + Math.max(1, d.getValue().length());
+        }
+        return Math.max(1, fallback);
     }
 
     private void checkCallParamFieldAccesses(FuncDecl fn, List<Expression> args) {
