@@ -5,6 +5,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Deque;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -24,6 +25,7 @@ import com.mira.lexer.token.Token;
 import com.mira.lib.LibIndex;
 import com.mira.parser.Parser;
 import com.mira.parser.nodes.Node;
+import com.mira.parser.nodes.Parameter;
 import com.mira.parser.nodes.expression.Expression.ImportExpression;
 import com.mira.parser.nodes.statement.Statement;
 import com.mira.resolver.ModuleChecker;
@@ -61,7 +63,7 @@ public class FileRunner {
             Tokenizer tokenizer = new Tokenizer();
             long tokenizeStart = System.nanoTime();
             List<Token> tokens = tokenizer.tokenize(readFile, false);
-            long tokenizeMs = (System.nanoTime() - tokenizeStart) / 1_000_000;
+            long tokenizeNanos = System.nanoTime() - tokenizeStart;
 
             if (Flags.dumpTokens) {
                 tokens.forEach(token -> System.out.println(token.getLexeme() + "-" + token.getTokenType() + "-" + token.getLine() + ";" + token.getColumn()));
@@ -70,7 +72,7 @@ public class FileRunner {
             Parser parser = new Parser();
             long parseStart = System.nanoTime();
             List<Node> asts = parser.parseTokens(tokens);
-            long parseMs = (System.nanoTime() - parseStart) / 1_000_000;
+            long parseNanos = System.nanoTime() - parseStart;
 
             if (Flags.printAsts) {
                 System.out.println(new AstPrinter().print(asts));
@@ -80,10 +82,12 @@ public class FileRunner {
             Map<String, Object> comptimeConsts = (!Flags.checkOnly && !Flags.testMode)
                     ? new ComptimeExecutor().execute(asts)
                     : null;
-            long comptimeMs = (System.nanoTime() - comptimeStart) / 1_000_000;
+            long comptimeNanos = System.nanoTime() - comptimeStart;
 
             long entryCheckMs = 0;
-            long moduleCheckMs = 0;
+            int warningCount = 0;
+            Map<Path, Long> moduleCheckTimingsMs = Map.of();
+            Map<Path, ModuleChecker.ParsedModule> checkedModules = Map.of();
             if (!Flags.noCheck) {
                 long entryCheckStart = System.nanoTime();
                 boolean mainErrors = false;
@@ -95,11 +99,12 @@ public class FileRunner {
                     mainErrors = true;
                 }
                 entryCheckMs = (System.nanoTime() - entryCheckStart) / 1_000_000;
-                long moduleCheckStart = System.nanoTime();
-                boolean moduleErrors = ModuleChecker.check(asts, new LinkedHashSet<>());
-                moduleCheckMs = (System.nanoTime() - moduleCheckStart) / 1_000_000;
+                ModuleChecker.ModuleCheckResult moduleResult = ModuleChecker.check(asts, new LinkedHashSet<>());
+                moduleCheckTimingsMs = moduleResult.checkTimingsMs();
+                checkedModules = moduleResult.modules();
+                warningCount = WarningCollector.getWarnings().size();
                 WarningCollector.flush();
-                if (mainErrors || moduleErrors) {
+                if (mainErrors || moduleResult.hadErrors()) {
                     return false;
                 }
             }
@@ -110,7 +115,8 @@ public class FileRunner {
 
             if (Flags.checkOnly) {
                 if (Flags.stats) {
-                    printStats(readFile, tokens, asts, tokenizeMs, parseMs, comptimeMs, entryCheckMs, moduleCheckMs);
+                    printStats(readFile, tokens, asts, tokenizeNanos, parseNanos, comptimeNanos, entryCheckMs,
+                            moduleCheckTimingsMs, checkedModules, warningCount, -1);
                 }
                 return true;
             }
@@ -123,7 +129,8 @@ public class FileRunner {
                 boolean testsFailed = TestRunner.runPrePassCollecting(asts, Flags.args);
                 Flags.testsDone = true;
                 if (Flags.stats) {
-                    printStats(readFile, tokens, asts, tokenizeMs, parseMs, comptimeMs, entryCheckMs, moduleCheckMs,
+                    printStats(readFile, tokens, asts, tokenizeNanos, parseNanos, comptimeNanos, entryCheckMs,
+                            moduleCheckTimingsMs, checkedModules, warningCount, -1,
                             new TestTotals(TestRunner.getLastPassed(), TestRunner.getLastFailed()));
                 }
                 if (Flags.coverage) {
@@ -136,8 +143,9 @@ public class FileRunner {
                 return true;
             }
 
-            if (Flags.stats) {
-                printStats(readFile, tokens, asts, tokenizeMs, parseMs, comptimeMs, entryCheckMs, moduleCheckMs);
+            if (Flags.stats && !Flags.compile) {
+                printStats(readFile, tokens, asts, tokenizeNanos, parseNanos, comptimeNanos, entryCheckMs,
+                        moduleCheckTimingsMs, checkedModules, warningCount, -1);
             }
 
             if (Flags.packageJar && !Flags.compile) {
@@ -149,7 +157,20 @@ public class FileRunner {
             }
 
             if (Flags.compile) {
-                new CompileRunner().run(asts, comptimeConsts);
+                long finalEntryCheckMs = entryCheckMs;
+                int finalWarningCount = warningCount;
+                Map<Path, Long> finalModuleCheckTimingsMs = moduleCheckTimingsMs;
+                Map<Path, ModuleChecker.ParsedModule> finalCheckedModules = checkedModules;
+                // afterCompile fires once bytecode generation is done but before --compile --run
+                // executes the result in memory (which happens inline, inside that same call) -
+                // without this, --stats output would print after the compiled program already ran
+                new CompileRunner().run(asts, comptimeConsts, compileMs -> {
+                    if (Flags.stats) {
+                        printStats(readFile, tokens, asts, tokenizeNanos, parseNanos, comptimeNanos,
+                                finalEntryCheckMs, finalModuleCheckTimingsMs, finalCheckedModules,
+                                finalWarningCount, compileMs);
+                    }
+                });
                 return true;
             }
 
@@ -221,7 +242,9 @@ public class FileRunner {
     }
 
     private record FileStats(String label, long bytes, int lines, int tokens, int topLevelNodes,
-            int totalNodes, int functions, int variables, int imports, int enums) {
+            int totalNodes, int functions, int variables, int imports, int enums,
+            int typedVars, int totalVarsDeep, int typedParams, int totalParams,
+            int typedReturns, int totalFunctionsDeep, int typeAliases) {
 
     }
 
@@ -230,25 +253,32 @@ public class FileRunner {
     }
 
     private static void printStats(String source, List<Token> tokens, List<Node> asts,
-            long tokenizeMs, long parseMs, long comptimeMs, long entryCheckMs, long moduleCheckMs) {
-        printStats(source, tokens, asts, tokenizeMs, parseMs, comptimeMs, entryCheckMs, moduleCheckMs, null);
+            long tokenizeNanos, long parseNanos, long comptimeNanos, long entryCheckMs,
+            Map<Path, Long> moduleCheckTimingsMs, Map<Path, ModuleChecker.ParsedModule> checkedModules,
+            int warningCount, long compileMs) {
+        printStats(source, tokens, asts, tokenizeNanos, parseNanos, comptimeNanos, entryCheckMs,
+                moduleCheckTimingsMs, checkedModules, warningCount, compileMs, null);
     }
 
     /**
      * Prints stats for every file that makes up the program - the entry file
      * plus every module it imports, transitively - not just the entry file
      * alone, since a program's real size/shape is usually spread across its
-     * imported modules.
+     * imported modules. compileMs is the bytecode-generation time when this run
+     * was a --compile run (measured by CompileRunner and passed back in, since
+     * compilation finishes after this method would otherwise have already
+     * printed); -1 means not applicable (an interpreted run).
      */
     private static void printStats(String source, List<Token> tokens, List<Node> asts,
-            long tokenizeMs, long parseMs, long comptimeMs, long entryCheckMs, long moduleCheckMs,
-            TestTotals testTotals) {
+            long tokenizeNanos, long parseNanos, long comptimeNanos, long entryCheckMs,
+            Map<Path, Long> moduleCheckTimingsMs, Map<Path, ModuleChecker.ParsedModule> checkedModules,
+            int warningCount, long compileMs, TestTotals testTotals) {
         Path entryPath = Flags.inputPath.get();
+        Collection<ModuleChecker.ParsedModule> modules = checkedModules.values();
         List<FileStats> files = new ArrayList<>();
-        files.add(computeFileStats(entryPath, source, asts, tokens));
-        for (ModuleChecker.ParsedModule module : ModuleChecker.collectAllModules(asts, entryPath).values()) {
-            List<Token> moduleTokens = new Tokenizer().tokenize(module.source(), false);
-            files.add(computeFileStats(module.path(), module.source(), module.ast(), moduleTokens));
+        files.add(computeFileStats(entryPath, source, asts, tokens.size()));
+        for (ModuleChecker.ParsedModule module : modules) {
+            files.add(computeFileStats(module.path(), module.source(), module.ast(), module.tokenCount()));
         }
 
         long totalBytes = 0;
@@ -260,6 +290,13 @@ public class FileRunner {
         int totalVariables = 0;
         int totalImports = 0;
         int totalEnums = 0;
+        int totalTypedVars = 0;
+        int totalVarsDeep = 0;
+        int totalTypedParams = 0;
+        int totalParams = 0;
+        int totalTypedReturns = 0;
+        int totalFunctionsDeep = 0;
+        int totalTypeAliases = 0;
         for (FileStats f : files) {
             totalBytes += f.bytes();
             totalLines += f.lines();
@@ -270,6 +307,13 @@ public class FileRunner {
             totalVariables += f.variables();
             totalImports += f.imports();
             totalEnums += f.enums();
+            totalTypedVars += f.typedVars();
+            totalVarsDeep += f.totalVarsDeep();
+            totalTypedParams += f.typedParams();
+            totalParams += f.totalParams();
+            totalTypedReturns += f.typedReturns();
+            totalFunctionsDeep += f.totalFunctionsDeep();
+            totalTypeAliases += f.typeAliases();
         }
 
         System.out.println();
@@ -286,20 +330,61 @@ public class FileRunner {
         System.out.println("Tokens: " + totalTokens);
         System.out.println("AST nodes: " + totalTopLevel + " top-level, " + totalNodes + " total");
         System.out.println("Functions: " + totalFunctions);
-        System.out.println("Variables: " + totalVariables);
+        System.out.println("Variables: " + totalVariables + " top-level, " + totalVarsDeep + " total");
         System.out.println("Imports: " + totalImports);
         System.out.println("Enums: " + totalEnums);
+        System.out.println("Warnings: " + warningCount);
         if (testTotals != null) {
             System.out.println("Tests: " + testTotals.passed() + " passed, " + testTotals.failed() + " failed");
         }
+        System.out.println("--- Type Checker ---");
+        System.out.println("Strict mode: " + (Flags.strictTypes ? "on (--strict-types)" : "off"));
+        System.out.println("Typed variables: " + totalTypedVars + " / " + totalVarsDeep
+                + percentSuffix(totalTypedVars, totalVarsDeep));
+        System.out.println("Typed parameters: " + totalTypedParams + " / " + totalParams
+                + percentSuffix(totalTypedParams, totalParams));
+        System.out.println("Typed return types: " + totalTypedReturns + " / " + totalFunctionsDeep
+                + percentSuffix(totalTypedReturns, totalFunctionsDeep));
+        System.out.println("Type aliases: " + totalTypeAliases);
         System.out.println("--- Timing ---");
-        System.out.println("Tokenize (entry file): " + tokenizeMs + " ms");
-        System.out.println("Parse (entry file): " + parseMs + " ms");
-        System.out.println("Comptime (entry file): " + comptimeMs + " ms");
+        System.out.println("Tokenize (entry file): " + formatMs(tokenizeNanos));
+        System.out.println("Parse (entry file): " + formatMs(parseNanos));
+        System.out.println("Comptime (entry file): " + formatMs(comptimeNanos));
         System.out.println("Static check (entry file): " + entryCheckMs + " ms");
-        System.out.println("Static check (imported modules): " + moduleCheckMs + " ms");
+        if (compileMs >= 0) {
+            System.out.println("Bytecode generation (all files): " + compileMs + " ms");
+        }
+        double totalTokenizeMs = tokenizeNanos / 1_000_000.0;
+        double totalParseMs = parseNanos / 1_000_000.0;
+        long totalCheckMs = entryCheckMs;
+        for (ModuleChecker.ParsedModule module : modules) {
+            long moduleCheckMs = moduleCheckTimingsMs.getOrDefault(module.path(), 0L);
+            String label = module.path().getFileName().toString();
+            System.out.println();
+            System.out.println("Tokenize (" + label + "): " + formatMs(module.tokenizeNanos()));
+            System.out.println("Parse (" + label + "): " + formatMs(module.parseNanos()));
+            System.out.println("Static check (" + label + "): " + moduleCheckMs + " ms");
+            totalTokenizeMs += module.tokenizeNanos() / 1_000_000.0;
+            totalParseMs += module.parseNanos() / 1_000_000.0;
+            totalCheckMs += moduleCheckMs;
+        }
+        if (!modules.isEmpty() || compileMs >= 0) {
+            System.out.println();
+            String compileSuffix = compileMs >= 0 ? ", bytecode generation " + compileMs + " ms" : "";
+            System.out.printf(java.util.Locale.US,
+                    "Total (all files): tokenize %.3f ms, parse %.3f ms, static check %d ms%s%n",
+                    totalTokenizeMs, totalParseMs, totalCheckMs, compileSuffix);
+        }
         System.out.println("=== END STATS ===");
         System.out.println();
+    }
+
+    private static String percentSuffix(int part, int whole) {
+        return whole == 0 ? "" : String.format(" (%.0f%%)", 100.0 * part / whole);
+    }
+
+    private static String formatMs(long nanos) {
+        return String.format(java.util.Locale.US, "%.3f ms", nanos / 1_000_000.0);
     }
 
     /**
@@ -319,7 +404,7 @@ public class FileRunner {
         CoverageTracker.printReport(System.out, files);
     }
 
-    private static FileStats computeFileStats(Path path, String source, List<Node> ast, List<Token> tokens) {
+    private static FileStats computeFileStats(Path path, String source, List<Node> ast, int tokenCount) {
         int functions = 0;
         int variables = 0;
         int imports = 0;
@@ -342,21 +427,57 @@ public class FileRunner {
             bytes = source.length();
         }
         int lines = source.split("\n", -1).length;
-        return new FileStats(path.getFileName().toString(), bytes, lines, tokens.size(),
-                ast.size(), countNodes(ast), functions, variables, imports, enums);
+        DeepStats deep = computeDeepStats(ast);
+        return new FileStats(path.getFileName().toString(), bytes, lines, tokenCount,
+                ast.size(), deep.totalNodes(), functions, variables, imports, enums,
+                deep.typedVars(), deep.totalVars(), deep.typedParams(), deep.totalParams(),
+                deep.typedReturns(), deep.totalFunctions(), deep.typeAliases());
     }
 
-    private static int countNodes(List<Node> ast) {
-        int count = 0;
+    private record DeepStats(int totalNodes, int typedVars, int totalVars,
+            int typedParams, int totalParams, int typedReturns, int totalFunctions,
+            int typeAliases) {
+
+    }
+
+    private static DeepStats computeDeepStats(List<Node> ast) {
+        int totalNodes = 0;
+        int typedVars = 0;
+        int totalVars = 0;
+        int typedParams = 0;
+        int totalParams = 0;
+        int typedReturns = 0;
+        int totalFunctions = 0;
+        int typeAliases = 0;
         Deque<Node> queue = new ArrayDeque<>(ast);
         while (!queue.isEmpty()) {
             Node n = queue.poll();
             if (n == null) {
                 continue;
             }
-            count++;
+            totalNodes++;
+            if (n instanceof Statement.VarDecl vd) {
+                totalVars++;
+                if (vd.getType() != null) {
+                    typedVars++;
+                }
+            } else if (n instanceof Statement.FuncDecl fd) {
+                totalFunctions++;
+                if (fd.getReturnType() != null) {
+                    typedReturns++;
+                }
+                for (Parameter p : fd.getParameters()) {
+                    totalParams++;
+                    if (p.type() != null) {
+                        typedParams++;
+                    }
+                }
+            } else if (n instanceof Statement.TypeAliasDecl) {
+                typeAliases++;
+            }
             AstWalker.children(n, queue);
         }
-        return count;
+        return new DeepStats(totalNodes, typedVars, totalVars, typedParams, totalParams,
+                typedReturns, totalFunctions, typeAliases);
     }
 }

@@ -58,9 +58,10 @@ public class Help {
                --profile         Print a function- and line-level timing report after execution
                                  (with --compile, only takes effect together with --run)
                --stats           Print compiler/parser stats (line, token, and AST node counts,
-                                 declaration counts, per-phase timing) for the entry file and
-                                 every module it imports, transitively. Also available on
-                                 build/run/test/release.
+                                 declaration counts, warning count, type-annotation coverage,
+                                 per-file timing plus a total) for the entry file and every
+                                 module it imports, transitively. With --compile, also reports
+                                 bytecode-generation time. Also available on build/run/test/release.
                --strict-types    Require every top-level function's parameters and return type
                                  to carry an explicit type annotation (see the double-colon
                                  syntax, e.g. 'var x : Int : 5;'). Also settable via mira.toml

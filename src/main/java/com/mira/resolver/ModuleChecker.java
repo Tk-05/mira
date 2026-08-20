@@ -12,6 +12,7 @@ import com.mira.cli.Flags;
 import com.mira.error.DiagnosticFormatter;
 import com.mira.error.resolver.MultipleStaticCheckErrors;
 import com.mira.lexer.Tokenizer;
+import com.mira.lexer.token.Token;
 import com.mira.parser.Parser;
 import com.mira.parser.nodes.Node;
 import com.mira.parser.nodes.expression.Expression.ImportExpression;
@@ -22,21 +23,43 @@ import com.mira.warning.WarningCollector;
 
 public final class ModuleChecker {
 
-    public record ParsedModule(Path path, List<Node> ast, String source) {
+    /**
+     * tokenizeNanos/parseNanos are captured at the one real, load-bearing
+     * tokenize+parse for this module (not a throwaway remeasurement for display
+     * purposes) - by the time any consumer re-tokenizes/re-parses the same
+     * source again later in the run, the JIT has already warmed up on this
+     * exact code path and the numbers stop being representative.
+     */
+    public record ParsedModule(Path path, List<Node> ast, String source,
+            int tokenCount, long tokenizeNanos, long parseNanos) {
+
+    }
+
+    /**
+     * hadErrors/checkTimingsMs come from the actual per-module static-check
+     * pass; modules is the same ParsedModule set that pass already parsed,
+     * exposed so callers (e.g. --stats) can read real tokenize/parse timing and
+     * size info off it instead of re-parsing every module a second time.
+     */
+    public record ModuleCheckResult(boolean hadErrors, Map<Path, Long> checkTimingsMs,
+            Map<Path, ParsedModule> modules) {
 
     }
 
     private ModuleChecker() {
     }
 
-    /** The entry file plus every module it imports, transitively (deduped, no stdlib/native imports). */
+    /**
+     * The entry file plus every module it imports, transitively (deduped, no
+     * stdlib/native imports).
+     */
     public static Map<Path, ParsedModule> collectAllModules(List<Node> rootAst, Path rootPath) {
         Map<Path, ParsedModule> allModules = new LinkedHashMap<>();
         collectAllModules(rootAst, rootPath, allModules, new LinkedHashSet<>());
         return allModules;
     }
 
-    public static boolean check(List<Node> rootAst, Set<Path> visited) {
+    public static ModuleCheckResult check(List<Node> rootAst, Set<Path> visited) {
         Map<Path, ParsedModule> allModules = new LinkedHashMap<>();
         collectAllModules(rootAst, Flags.inputPath.get(), allModules, new LinkedHashSet<>(visited));
 
@@ -46,6 +69,7 @@ public final class ModuleChecker {
 
         boolean hadErrors = false;
         List<String> pendingErrors = new ArrayList<>();
+        Map<Path, Long> timingsMs = new LinkedHashMap<>();
         for (ParsedModule module : allModules.values()) {
             Set<String> externalCalls = new LinkedHashSet<>();
             ModuleResolver.collectExternalCalls(rootAst, rootPath, module.path(), externalCalls);
@@ -54,6 +78,7 @@ public final class ModuleChecker {
                     ModuleResolver.collectExternalCalls(caller.ast(), caller.path(), module.path(), externalCalls);
                 }
             }
+            long moduleStart = System.nanoTime();
             try {
                 Flags.inputPath.set(module.path());
                 Flags.fileName = module.path().getFileName().toString();
@@ -68,13 +93,14 @@ public final class ModuleChecker {
                 hadErrors = true;
             } catch (Exception ignored) {
             } finally {
+                timingsMs.put(module.path(), (System.nanoTime() - moduleStart) / 1_000_000);
                 Flags.inputPath.set(rootPath);
                 Flags.fileName = savedFileName;
                 Flags.sourceLines = savedSourceLines;
             }
         }
         pendingErrors.forEach(msg -> System.err.println(msg));
-        return hadErrors;
+        return new ModuleCheckResult(hadErrors, timingsMs, allModules);
     }
 
     public static Map<Path, List<Path>> collectDependencyGraph(List<Node> rootAst, Path rootPath) {
@@ -117,8 +143,14 @@ public final class ModuleChecker {
             }
             try {
                 String source = FileLoader.readFileFromPath(modulePath.toString());
-                List<Node> moduleAst = new Parser().parseTokens(new Tokenizer().tokenize(source, false));
-                out.put(modulePath, new ParsedModule(modulePath, moduleAst, source));
+                long tokenizeStart = System.nanoTime();
+                List<Token> moduleTokens = new Tokenizer().tokenize(source, false);
+                long tokenizeNanos = System.nanoTime() - tokenizeStart;
+                long parseStart = System.nanoTime();
+                List<Node> moduleAst = new Parser().parseTokens(moduleTokens);
+                long parseNanos = System.nanoTime() - parseStart;
+                out.put(modulePath, new ParsedModule(modulePath, moduleAst, source,
+                        moduleTokens.size(), tokenizeNanos, parseNanos));
                 collectAllModules(moduleAst, modulePath, out, visited);
             } catch (Exception ignored) {
             }

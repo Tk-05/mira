@@ -29,9 +29,9 @@ import java.util.jar.Manifest;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.util.TraceClassVisitor;
 
+import com.mira.build.BuildCache;
 import com.mira.cli.Flags;
 import com.mira.cli.Main;
-import com.mira.build.BuildCache;
 import com.mira.compiler.Compiler.CompileResult;
 import com.mira.compiler.support.CompiledRuntimeSupport;
 import com.mira.parser.nodes.Node;
@@ -39,11 +39,25 @@ import com.mira.resolver.ModuleChecker;
 
 public class CompileRunner {
 
-    public void run(List<Node> ast) throws Exception {
-        run(ast, null);
+    public long run(List<Node> ast) throws Exception {
+        return run(ast, null);
     }
 
-    public void run(List<Node> ast, Map<String, Object> precomputedComptimeConsts) throws Exception {
+    /** Returns the bytecode-generation wall time in ms, for callers (e.g. --stats) that want to report it. */
+    public long run(List<Node> ast, Map<String, Object> precomputedComptimeConsts) throws Exception {
+        return run(ast, precomputedComptimeConsts, null);
+    }
+
+    /**
+     * afterCompile, if given, runs once compilation has finished but before
+     * any in-memory execution (--run) starts - the hook a caller needs to
+     * print something (e.g. --stats output including this compileMs) that
+     * must appear before the compiled program's own output, since --run
+     * executes inline at the end of this same call rather than returning
+     * control to the caller first.
+     */
+    public long run(List<Node> ast, Map<String, Object> precomputedComptimeConsts,
+            java.util.function.LongConsumer afterCompile) throws Exception {
         long compileStart = System.currentTimeMillis();
         CompileResult result = new Compiler().compile(ast, Flags.fileName, precomputedComptimeConsts);
         long compileMs = System.currentTimeMillis() - compileStart;
@@ -67,9 +81,15 @@ public class CompileRunner {
             dumpBytecode(result);
         }
 
+        if (afterCompile != null) {
+            afterCompile.accept(compileMs);
+        }
+
         if (Flags.compileAndRun) {
             executeInMemory(result);
         }
+
+        return compileMs;
     }
 
     private void packageToJar(CompileResult result, Path outDir) throws Exception {
