@@ -17,6 +17,7 @@ import com.mira.error.MiraError;
 import com.mira.error.resolver.MultipleStaticCheckErrors;
 import com.mira.error.resolver.StaticCheckError.ArgumentTypeMismatchError;
 import com.mira.error.resolver.StaticCheckError.ArityMismatchError;
+import com.mira.error.resolver.StaticCheckError.BinaryOperatorTypeMismatchError;
 import com.mira.error.resolver.StaticCheckError.BreakOutsideLoopError;
 import com.mira.error.resolver.StaticCheckError.ConstReassignmentError;
 import com.mira.error.resolver.StaticCheckError.ContinueOutsideLoopError;
@@ -124,6 +125,7 @@ public class StaticCheck {
     private final Map<String, String> moduleAliasFileName = new HashMap<>();
     private final Map<String, Node> varLiteralTypes = new HashMap<>();
     private final Map<String, FuncDecl> userFuncDecls = new HashMap<>();
+    private final Map<String, EnumDecl> userEnumDecls = new HashMap<>();
     private Map<Path, String> openDocuments = Map.of();
     private final Map<String, Object> comptimeConsts;
 
@@ -367,6 +369,7 @@ public class StaticCheck {
                     } else {
                         scope.declare(e.getIdentifier(), e.line, 0, true);
                         scope.markUsed(e.getIdentifier());
+                        userEnumDecls.put(e.getIdentifier(), e);
                     }
                 }
                 case ImportExpression imp ->
@@ -561,6 +564,16 @@ public class StaticCheck {
             case BinaryExpression e when "+".equals(e.getOperator().getLexeme()) -> {
                 resolveExpr(e.getLeft());
                 resolveExpr(e.getRight());
+                boolean leftStr = isStringLiteral(e.getLeft());
+                boolean rightStr = isStringLiteral(e.getRight());
+                boolean leftLit = isNonStringLiteral(e.getLeft());
+                boolean rightLit = isNonStringLiteral(e.getRight());
+                if ((leftStr && rightLit) || (leftLit && rightStr)) {
+                    WarningCollector.emit(WarningLevel.HINT,
+                            "Implicit string concatenation: mixed String and non-String operands",
+                            e.getOperator());
+                }
+                checkBinaryOperandTypes(e);
             }
             case BinaryExpression e when "/".equals(e.getOperator().getLexeme()) -> {
                 resolveExpr(e.getLeft());
@@ -575,12 +588,14 @@ public class StaticCheck {
                 }
                 warnIfStringOperand(e.getLeft(), e.getOperator());
                 warnIfStringOperand(e.getRight(), e.getOperator());
+                checkBinaryOperandTypes(e);
             }
             case BinaryExpression e when STRING_UNSAFE_OPERATORS.contains(e.getOperator().getLexeme()) -> {
                 resolveExpr(e.getLeft());
                 resolveExpr(e.getRight());
                 warnIfStringOperand(e.getLeft(), e.getOperator());
                 warnIfStringOperand(e.getRight(), e.getOperator());
+                checkBinaryOperandTypes(e);
             }
             case BinaryExpression e -> {
                 resolveExpr(e.getLeft());
@@ -698,7 +713,12 @@ public class StaticCheck {
                         .forEach(v -> resolveExpr(v.getInitializer()));
                 for (var method : e.getMethods()) {
                     scope.push();
-                    method.getParameters().forEach(p -> scope.declare(p.name(), method.line, 0, false));
+                    method.getParameters().forEach(p -> {
+                        scope.declare(p.name(), method.line, 0, false);
+                        if (p.type() != null) {
+                            checkParamDefaultValue(p, resolveTypeAnnotation(p.type()));
+                        }
+                    });
                     if (method.getVariadicParam() != null) {
                         scope.declare(method.getVariadicParam(), method.line, 0, false);
                     }
@@ -722,7 +742,12 @@ public class StaticCheck {
                         .forEach(v -> resolveExpr(v.getInitializer()));
                 for (var method : e.getMethods()) {
                     scope.push();
-                    method.getParameters().forEach(p -> scope.declare(p.name(), method.line, 0, false));
+                    method.getParameters().forEach(p -> {
+                        scope.declare(p.name(), method.line, 0, false);
+                        if (p.type() != null) {
+                            checkParamDefaultValue(p, resolveTypeAnnotation(p.type()));
+                        }
+                    });
                     if (method.getVariadicParam() != null) {
                         scope.declare(method.getVariadicParam(), method.line, 0, false);
                     }
@@ -806,7 +831,12 @@ public class StaticCheck {
             }
             case LambdaExpression e -> {
                 scope.push();
-                e.getParameters().forEach(p -> scope.declare(p.name(), 0, 0, false));
+                e.getParameters().forEach(p -> {
+                    scope.declare(p.name(), 0, 0, false);
+                    if (p.type() != null) {
+                        checkParamDefaultValue(p, resolveTypeAnnotation(p.type()));
+                    }
+                });
                 if (e.getVariadicParam() != null) {
                     scope.declare(e.getVariadicParam(), 0, 0, false);
                 }
@@ -1061,6 +1091,7 @@ public class StaticCheck {
                     typedParams.add(p.name());
                     savedParamTypes.put(p.name(), declaredVarTypes.get(p.name()));
                     declaredVarTypes.put(p.name(), paramType);
+                    checkParamDefaultValue(p, paramType);
                 }
             }
         });
@@ -1493,8 +1524,18 @@ public class StaticCheck {
     private static final Set<String> STRING_UNSAFE_OPERATORS = Set.of(
             "-", "*", "%", "\\%", "**", "&", "|", "^", "<<", ">>");
 
+    private static final Set<String> ARITHMETIC_TYPE_CHECKED_OPERATORS = Set.of(
+            "+", "-", "*", "/", "%", "\\%", "**");
+
     private static boolean isStringLiteral(Node n) {
         return n instanceof DumbExpression d && d.getTokenType() == TokenType.STRING_LITERAL;
+    }
+
+    private static boolean isNonStringLiteral(Node n) {
+        if (!(n instanceof DumbExpression d)) {
+            return false;
+        }
+        return d.getTokenType() != TokenType.STRING_LITERAL && !isIdentifier(d);
     }
 
     private void warnIfStringOperand(Node operand, Token operator) {
@@ -1642,6 +1683,14 @@ public class StaticCheck {
             FuncDecl fn = userFuncDecls.get(callee.getValue());
             if (fn != null && fn.getReturnType() != null) {
                 return resolveTypeAnnotation(fn.getReturnType());
+            }
+            return null;
+        }
+        if (expr instanceof FieldAccessExpression fae && fae.getObject() instanceof DumbExpression obj
+                && isIdentifier(obj)) {
+            EnumDecl enumDecl = userEnumDecls.get(obj.getValue());
+            if (enumDecl != null && enumDecl.getValues().containsKey(fae.getField())) {
+                return new MiraType.NamedType(enumDecl.getIdentifier());
             }
             return null;
         }
@@ -1820,6 +1869,74 @@ public class StaticCheck {
         int span = expressionSpan(rhsValue, field.length());
         checkAssignable(rhsValue, expected, (exp, actual) -> errors.add(
                 new StructFieldTypeMismatchError(field, owner, exp, actual, line, column, span)));
+    }
+
+    private void checkParamDefaultValue(Parameter p, MiraType paramType) {
+        if (paramType == null || !p.hasDefault()) {
+            return;
+        }
+        checkAssignable(p.defaultValue(), paramType, (expected, actual) -> errors.add(
+                new TypeMismatchError(p.name(), expected, actual, p.defaultValue().line, p.column())));
+    }
+
+    private void checkBinaryOperandTypes(BinaryExpression e) {
+        String op = e.getOperator().getLexeme();
+        if (!ARITHMETIC_TYPE_CHECKED_OPERATORS.contains(op)) {
+            return;
+        }
+        // gated on an explicit annotation on at least one side, same as every other
+        // check in this file - a bare literal mismatch like `5 - "oops"` is already
+        // covered by the pre-existing, softer isStringLiteral-based warnings above
+        // and must stay a warning, not escalate into a hard error here too
+        MiraType leftExplicit = inferExplicitlyTypedOperand(e.getLeft());
+        MiraType rightExplicit = inferExplicitlyTypedOperand(e.getRight());
+        if (leftExplicit == null && rightExplicit == null) {
+            return;
+        }
+        MiraType leftType = leftExplicit != null ? leftExplicit : inferMiraType(e.getLeft());
+        MiraType rightType = rightExplicit != null ? rightExplicit : inferMiraType(e.getRight());
+        if (leftType == null || rightType == null
+                || leftType instanceof MiraType.AnyType || rightType instanceof MiraType.AnyType
+                || leftType instanceof MiraType.NullableType || rightType instanceof MiraType.NullableType) {
+            return;
+        }
+        boolean mismatch = "+".equals(op)
+                ? !sameNamedType(leftType, rightType)
+                : !isNumberType(leftType) || !isNumberType(rightType);
+        if (mismatch) {
+            errors.add(new BinaryOperatorTypeMismatchError(op, MiraType.display(leftType), MiraType.display(rightType),
+                    e.getOperator().getLine(), e.getOperator().getColumn()));
+        }
+    }
+
+    /**
+     * Explicit-annotation-only variant of inferMiraType, used to gate
+     * checkBinaryOperandTypes.
+     */
+    private MiraType inferExplicitlyTypedOperand(Node expr) {
+        if (expr instanceof UnaryExpression u
+                && "$".equals(u.getOperation().getLexeme())
+                && u.getRight() instanceof DumbExpression d
+                && isIdentifier(d)) {
+            return declaredVarTypes.get(d.getValue());
+        }
+        if (expr instanceof CallExpression call && call.getCallee() instanceof DumbExpression callee
+                && isIdentifier(callee)) {
+            FuncDecl fn = userFuncDecls.get(callee.getValue());
+            if (fn != null && fn.getReturnType() != null) {
+                return resolveTypeAnnotation(fn.getReturnType());
+            }
+        }
+        return null;
+    }
+
+    private static boolean sameNamedType(MiraType a, MiraType b) {
+        return a instanceof MiraType.NamedType na && b instanceof MiraType.NamedType nb
+                && na.name().equals(nb.name());
+    }
+
+    private static boolean isNumberType(MiraType t) {
+        return t instanceof MiraType.NamedType n && "Number".equals(n.name());
     }
 
     private static int expressionColumn(Expression expr, int fallback) {

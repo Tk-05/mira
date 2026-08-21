@@ -1441,13 +1441,19 @@ var id : UserId : 42;
 
 Type checking runs as part of the same static-check pass that already catches things like undeclared variables — violations are compile-time errors that stop the program from running, in both interpreted mode and `--compile`. Every check below only fires when an explicit annotation is present somewhere in the comparison, so untyped code is never newly rejected:
 
-| Check                                                                          | Error                                   |
-| --------------------------------------------------------------------------------| -----------------------------------------|
-| Initializer or reassignment doesn't match the declared type                    | `TypeMismatchError` (`E324`)             |
-| Call argument doesn't match a parameter's declared type (function, method, or a lambda value held in a variable) | `ArgumentTypeMismatchError` (`E325`)     |
-| Returned value doesn't match the declared return type                          | `ReturnTypeMismatchError` (`E326`)       |
-| Unknown type name                                                              | `UnknownTypeNameError` (`E327`)          |
-| Struct/object field value doesn't match the field's declared type, at instantiation *or* on a later reassignment | `StructFieldTypeMismatchError` (`E329`)  |
+| Check                                                                                                                         | Error                                      |
+| ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| Initializer or reassignment doesn't match the declared type                                                                   | `TypeMismatchError` (`E324`)               |
+| Call argument doesn't match a parameter's declared type (function, method, or a lambda value held in a variable)              | `ArgumentTypeMismatchError` (`E325`)       |
+| Returned value doesn't match the declared return type                                                                         | `ReturnTypeMismatchError` (`E326`)         |
+| Unknown type name                                                                                                             | `UnknownTypeNameError` (`E327`)            |
+| Struct/object field value doesn't match the field's declared type, at instantiation _or_ on a later reassignment              | `StructFieldTypeMismatchError` (`E329`)    |
+| A parameter's own default value doesn't match its declared type                                                               | `TypeMismatchError` (`E324`)               |
+| Binary arithmetic operator (`+ - * / % \% **`) used with mismatched operand types, when at least one side is explicitly typed | `BinaryOperatorTypeMismatchError` (`E330`) |
+
+An enum member access like `Color.RED` is also inferred as the enum's own nominal type (`Color`), so it participates in every check above — assigning it to a variable typed as a _different_ enum, passing it as an argument of the wrong enum type, and so on.
+
+For binary operators specifically, only operands with an explicit type — a `$`-referenced, explicitly annotated variable or a call to a function with an explicit return type — gate the check; a bare literal or bareword operand (e.g. `"foo" - 1`) is unaffected here and stays covered only by the pre-existing, softer runtime-safety warnings that already flag risky literal/bareword operands.
 
 ### Strict Mode
 

@@ -310,4 +310,17 @@ public class StaticCheckError extends MiraError {
                     "Use a value of type '" + expected + "', or change the field's declared type");
         }
     }
+
+    public static class BinaryOperatorTypeMismatchError extends StaticCheckError {
+
+        public BinaryOperatorTypeMismatchError(String operator, String leftType, String rightType,
+                int line, int column) {
+            super("E330",
+                    "Operator '" + operator + "' used with mismatched operand types '" + leftType
+                    + "' and '" + rightType + "'",
+                    line, column, operator.length(),
+                    "Use matching operand types, or convert one side explicitly before applying '"
+                    + operator + "'");
+        }
+    }
 }

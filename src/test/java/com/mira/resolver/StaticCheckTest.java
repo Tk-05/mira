@@ -1028,4 +1028,111 @@ public class StaticCheckTest {
         MiraError err = errors.stream().filter(e -> "E329".equals(e.getErrorCode())).findFirst().orElseThrow();
         assertTrue(err.getColumn() > 0);
     }
+
+    // --- Binary operator operand type checking ---
+    @Test
+    void explicitlyTypedOperandMismatchInPlusIsE330() {
+        List<MiraError> errors = errorsFor(
+                "var n : Number : 5; var s : String : \"x\"; var r : $n + $s;");
+        assertTrue(hasCode(errors, "E330"));
+    }
+
+    @Test
+    void explicitlyTypedOperandsSameTypeInPlusIsClean() {
+        assertClean("var a : Number : 5; var b : Number : 3; var r : $a + $b;");
+    }
+
+    @Test
+    void explicitlyTypedNonNumberOperandInMinusIsE330() {
+        List<MiraError> errors = errorsFor("var s : String : \"x\"; var r : $s - 1;");
+        assertTrue(hasCode(errors, "E330"));
+    }
+
+    @Test
+    void explicitlyTypedNumberOperandsInMinusIsClean() {
+        assertClean("var a : Number : 5; var r : $a - 1;");
+    }
+
+    @Test
+    void bareLiteralMismatchInMinusStaysSoftWarningNotE330() {
+        // regression guard: with no explicit annotation on either side, this must
+        // stay covered only by the pre-existing soft-warning system (see
+        // arithmeticOnStringLiteralProducesWarning above), never escalate to E330
+        assertClean("var r : \"foo\" - 1;");
+    }
+
+    @Test
+    void untypedVariablesInPlusAreUnaffected() {
+        assertClean("var a : 5; var b : 3; var r : $a + $b;");
+    }
+
+    @Test
+    void typedFunctionReturnMismatchInPlusIsE330() {
+        List<MiraError> errors = errorsFor(
+                "fn getNum() -> Number { return 1; } var s : String : \"x\"; var r : getNum() + $s;");
+        assertTrue(hasCode(errors, "E330"));
+    }
+
+    // --- Parameter default value type checking ---
+    @Test
+    void paramDefaultMismatchIsE324() {
+        List<MiraError> errors = errorsFor("fn f(a : Number : \"wrong\") { println($a); }");
+        assertTrue(hasCode(errors, "E324"));
+    }
+
+    @Test
+    void paramDefaultMatchingTypeIsClean() {
+        assertClean("fn f(a : Number : 5) { println($a); }");
+    }
+
+    @Test
+    void untypedParamDefaultIsUnaffected() {
+        assertClean("fn f(a : \"anything\") { println($a); }");
+    }
+
+    @Test
+    void structMethodParamDefaultMismatchIsE324() {
+        List<MiraError> errors = errorsFor(
+                "var Point : struct { fn set(v : Number : \"wrong\") { println($v); } };");
+        assertTrue(hasCode(errors, "E324"));
+    }
+
+    @Test
+    void objectMethodParamDefaultMismatchIsE324() {
+        List<MiraError> errors = errorsFor(
+                "var o : { fn set(v : Number : \"wrong\") { println($v); } };");
+        assertTrue(hasCode(errors, "E324"));
+    }
+
+    @Test
+    void lambdaParamDefaultMismatchIsE324() {
+        List<MiraError> errors = errorsFor("var f : fn(a : Number : \"wrong\") { return $a; };");
+        assertTrue(hasCode(errors, "E324"));
+    }
+
+    // --- Enum member type inference ---
+    @Test
+    void enumMemberTypeMismatchIsE324() {
+        List<MiraError> errors = errorsFor(
+                "enum Color { RED, GREEN } enum Size { SMALL, LARGE } var c : Color : Size.SMALL;");
+        assertTrue(hasCode(errors, "E324"));
+    }
+
+    @Test
+    void enumMemberMatchingTypeIsClean() {
+        assertClean("enum Color { RED, GREEN } var c : Color : Color.RED;");
+    }
+
+    @Test
+    void enumMemberUnannotatedUsageIsUnaffected() {
+        assertClean("enum Color { RED, GREEN } var c : Color.RED; println($c);");
+    }
+
+    @Test
+    void enumMemberArgumentTypeMismatchIsE325() {
+        List<MiraError> errors = errorsFor(
+                "enum Color { RED, GREEN } enum Size { SMALL, LARGE } "
+                + "fn f(c : Color) { println($c); } f(Size.SMALL);");
+        assertTrue(hasCode(errors, "E325"));
+    }
 }
