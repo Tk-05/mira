@@ -939,8 +939,78 @@ public class StaticCheckTest {
         assertClean("fn f(a : Number) { println($a); } var n : Number : 5; f($n);");
     }
 
-    // --- Diagnostic position regressions ---
+    // --- Field reassignment type checking (after struct-init, not just at instantiation) ---
+    @Test
+    void structFieldReassignmentTypeMismatchIsE329() {
+        List<MiraError> errors = errorsFor(
+                "var Point : struct { var x : Number : 0; }; var p : $Point{}; $p.x : \"oops\";");
+        assertTrue(hasCode(errors, "E329"));
+    }
 
+    @Test
+    void structFieldReassignmentMatchingTypeIsClean() {
+        assertClean("var Point : struct { var x : Number : 0; }; var p : $Point{}; $p.x : 5;");
+    }
+
+    @Test
+    void objectFieldReassignmentTypeMismatchIsE329() {
+        List<MiraError> errors = errorsFor("var o : { var x : Number : 0; }; $o.x : \"oops\";");
+        assertTrue(hasCode(errors, "E329"));
+    }
+
+    @Test
+    void untypedFieldReassignmentIsUnaffected() {
+        assertClean("var Point : struct { var x : 0; }; var p : $Point{}; $p.x : \"anything\";");
+    }
+
+    @Test
+    void constCollectionFieldReassignmentStillReportsE321() {
+        // regression: the const-mutation check that already lived in this code path
+        // must survive being refactored to share logic with the new type check
+        List<MiraError> errors = errorsFor("const p : { var x : 0; }; $p.x : 5;");
+        assertTrue(hasCode(errors, "E321"));
+    }
+
+    // --- Method-call and call-via-variable argument type checking ---
+    @Test
+    void structMethodCallArgumentMismatchIsE325() {
+        List<MiraError> errors = errorsFor(
+                "var Point : struct { var x : Number : 0; fn set(v : Number) { $this.x : $v; } }; "
+                + "var p : $Point{}; $p.set(\"oops\");");
+        assertTrue(hasCode(errors, "E325"));
+    }
+
+    @Test
+    void structMethodCallMatchingArgumentIsClean() {
+        assertClean(
+                "var Point : struct { var x : Number : 0; fn set(v : Number) { $this.x : $v; } }; "
+                + "var p : $Point{}; $p.set(5);");
+    }
+
+    @Test
+    void objectMethodCallArgumentMismatchIsE325() {
+        List<MiraError> errors = errorsFor(
+                "var o : { var x : Number : 0; fn set(v : Number) { $this.x : $v; } }; $o.set(\"oops\");");
+        assertTrue(hasCode(errors, "E325"));
+    }
+
+    @Test
+    void lambdaValueCallArgumentMismatchIsE325() {
+        List<MiraError> errors = errorsFor("var f : fn(a : Number) { return $a; }; $f(\"oops\");");
+        assertTrue(hasCode(errors, "E325"));
+    }
+
+    @Test
+    void lambdaValueCallMatchingArgumentIsClean() {
+        assertClean("var f : fn(a : Number) { return $a; }; $f(5);");
+    }
+
+    @Test
+    void untypedLambdaValueCallIsUnaffected() {
+        assertClean("var f : fn(a) { return $a; }; $f(\"anything\");");
+    }
+
+    // --- Diagnostic position regressions ---
     @Test
     void argumentTypeMismatchPointsAtTheArgumentNotColumnZero() {
         // regression: this used to hardcode column 0, so the editor

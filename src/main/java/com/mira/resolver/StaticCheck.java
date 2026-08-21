@@ -684,6 +684,7 @@ public class StaticCheck {
             case MethodCallExpression e -> {
                 resolveExpr(e.getObject());
                 e.getArguments().forEach(this::resolveExpr);
+                checkMethodArgumentTypes(e);
             }
             case ArrayExpression e ->
                 e.getMembers().forEach(this::resolveExpr);
@@ -793,6 +794,13 @@ public class StaticCheck {
                                     new TypeMismatchError(name, expected, actual, d.getLine(), d.getColumn())));
                         }
                     }
+                } else {
+                    // mirrors resolveAssign's else-branch (the statement form of assignment) -
+                    // this expression form previously had no equivalent at all, so a field
+                    // target here ($obj.field : value used as an expression, not a statement)
+                    // got neither the const-check nor any resolution of its own reference
+                    checkFieldAssignment(e.getReference(), e.getValue());
+                    resolveExpr(e.getReference());
                 }
                 resolveExpr(e.getValue());
             }
@@ -911,6 +919,23 @@ public class StaticCheck {
             }
         } else {
             resolveExpr(expr.getCallee());
+            // calling a lambda held in a variable ($f(args), not a bareword function
+            // name) never went through argument type checking before - only direct
+            // calls to a named top-level function did. Reuses the same varLiteralTypes
+            // tracking that already remembers a variable's last-known literal shape
+            // (now including lambdas, see isKnownLiteral) to recover the lambda's own
+            // parameter list; silently skips when that shape isn't known or isn't a lambda.
+            if (expr.getCallee() instanceof UnaryExpression u
+                    && "$".equals(u.getOperation().getLexeme())
+                    && u.getRight() instanceof DumbExpression d
+                    && isIdentifier(d)
+                    && !expr.getArguments().isEmpty()) {
+                Node tracked = varLiteralTypes.get(d.getValue());
+                if (tracked instanceof LambdaExpression lambda) {
+                    checkArgumentTypes(d.getValue(), lambda.getParameters(), expr.getArguments(),
+                            d.getLine(), d.getColumn());
+                }
+            }
         }
         expr.getArguments().forEach(this::resolveExpr);
     }
@@ -1092,16 +1117,7 @@ public class StaticCheck {
                 }
             }
         } else {
-            DumbExpression rootRef = null;
-            if (stmt.getReference() instanceof AccessExpression ae) {
-                rootRef = extractVarRef(ae.getReference());
-            } else if (stmt.getReference() instanceof FieldAccessExpression fae) {
-                rootRef = extractVarRef(fae.getObject());
-            }
-            if (rootRef != null && scope.isDeclared(rootRef.getValue()) && scope.isConst(rootRef.getValue())) {
-                errors.add(new ImmutableCollectionStaticError(
-                        rootRef.getValue(), rootRef.getLine(), rootRef.getColumn()));
-            }
+            checkFieldAssignment(stmt.getReference(), stmt.getExpression());
             resolveExpr(stmt.getReference());
         }
         resolveExpr(stmt.getExpression());
@@ -1519,6 +1535,7 @@ public class StaticCheck {
                 || n instanceof MapExpression
                 || n instanceof ObjectExpression
                 || n instanceof StructExpression
+                || n instanceof LambdaExpression
                 || (n instanceof DumbExpression d && !isIdentifier(d));
     }
 
@@ -1708,7 +1725,18 @@ public class StaticCheck {
     }
 
     private void checkArgumentTypes(FuncDecl fn, List<Expression> args, DumbExpression callee) {
-        List<Parameter> params = fn.getParameters();
+        checkArgumentTypes(fn.getName(), fn.getParameters(), args, callee.getLine(), callee.getColumn());
+    }
+
+    /**
+     * Shared by every call shape that can carry typed parameters: a plain
+     * top-level function call, a method call on an object/struct instance, and
+     * calling a lambda value held in a variable - callableName is whatever
+     * reads naturally in the error message (the function's own name, the
+     * method's name, or the variable holding the lambda).
+     */
+    private void checkArgumentTypes(String callableName, List<Parameter> params, List<Expression> args,
+            int fallbackLine, int fallbackColumn) {
         for (int i = 0; i < Math.min(params.size(), args.size()); i++) {
             Parameter param = params.get(i);
             if (param.type() == null) {
@@ -1720,12 +1748,78 @@ public class StaticCheck {
             // (a literal or a $-reference), otherwise fall back to the call
             // site itself - either way a genuine token position, never a
             // coincidental column that happens to land somewhere else on the line
-            int line = argNode.line > 0 ? argNode.line : callee.getLine();
-            int column = expressionColumn(argNode, callee.getColumn());
-            int span = expressionSpan(argNode, fn.getName().length());
+            int line = argNode.line > 0 ? argNode.line : fallbackLine;
+            int column = expressionColumn(argNode, fallbackColumn);
+            int span = expressionSpan(argNode, callableName.length());
             checkAssignable(argNode, expected, (exp, actual) -> errors.add(
-                    new ArgumentTypeMismatchError(fn.getName(), param.name(), exp, actual, line, column, span)));
+                    new ArgumentTypeMismatchError(callableName, param.name(), exp, actual, line, column, span)));
         }
+    }
+
+    private void checkMethodArgumentTypes(MethodCallExpression e) {
+        if (e.getArguments().isEmpty()) {
+            return;
+        }
+        Node literalBase = resolveLiteralBase(e.getObject());
+        List<FuncDecl> methods;
+        if (literalBase instanceof StructExpression structExpr) {
+            methods = structExpr.getMethods();
+        } else if (literalBase instanceof ObjectExpression objExpr) {
+            methods = objExpr.getMethods();
+        } else {
+            return;
+        }
+        String methodName = e.getMethod();
+        FuncDecl method = methods.stream().filter(m -> methodName.equals(m.getName())).findFirst().orElse(null);
+        if (method == null) {
+            return;
+        }
+        DumbExpression varRef = extractVarRef(e.getObject());
+        int fallbackLine = varRef != null ? varRef.getLine() : e.line;
+        int fallbackColumn = varRef != null ? varRef.getColumn() + varRef.getValue().length() + 1 : 0;
+        checkArgumentTypes(methodName, method.getParameters(), e.getArguments(), fallbackLine, fallbackColumn);
+    }
+
+    private void checkFieldAssignment(Expression reference, Expression rhsValue) {
+        DumbExpression rootRef = null;
+        if (reference instanceof AccessExpression ae) {
+            rootRef = extractVarRef(ae.getReference());
+        } else if (reference instanceof FieldAccessExpression fae) {
+            rootRef = extractVarRef(fae.getObject());
+        }
+        if (rootRef != null && scope.isDeclared(rootRef.getValue()) && scope.isConst(rootRef.getValue())) {
+            errors.add(new ImmutableCollectionStaticError(
+                    rootRef.getValue(), rootRef.getLine(), rootRef.getColumn()));
+        }
+        if (reference instanceof FieldAccessExpression fae) {
+            checkFieldAssignmentType(fae, rhsValue);
+        }
+    }
+
+    private void checkFieldAssignmentType(FieldAccessExpression fae, Expression rhsValue) {
+        Node literalBase = resolveLiteralBase(fae.getObject());
+        String field = fae.getField();
+        VarDecl fieldDecl;
+        if (literalBase instanceof StructExpression structExpr) {
+            fieldDecl = structExpr.getVarDecls().stream()
+                    .filter(v -> field.equals(v.getName())).findFirst().orElse(null);
+        } else if (literalBase instanceof ObjectExpression objExpr) {
+            fieldDecl = objExpr.getVarDecls().stream()
+                    .filter(v -> field.equals(v.getName())).findFirst().orElse(null);
+        } else {
+            return;
+        }
+        if (fieldDecl == null || fieldDecl.getType() == null) {
+            return;
+        }
+        MiraType expected = resolveTypeAnnotation(fieldDecl.getType());
+        DumbExpression varRef = extractVarRef(fae.getObject());
+        String owner = varRef != null ? varRef.getValue() : "object";
+        int line = varRef != null ? varRef.getLine() : fae.getObject().line;
+        int column = expressionColumn(rhsValue, varRef != null ? varRef.getColumn() : 0);
+        int span = expressionSpan(rhsValue, field.length());
+        checkAssignable(rhsValue, expected, (exp, actual) -> errors.add(
+                new StructFieldTypeMismatchError(field, owner, exp, actual, line, column, span)));
     }
 
     private static int expressionColumn(Expression expr, int fallback) {

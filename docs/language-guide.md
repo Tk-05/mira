@@ -1441,13 +1441,13 @@ var id : UserId : 42;
 
 Type checking runs as part of the same static-check pass that already catches things like undeclared variables — violations are compile-time errors that stop the program from running, in both interpreted mode and `--compile`. Every check below only fires when an explicit annotation is present somewhere in the comparison, so untyped code is never newly rejected:
 
-| Check                                                          | Error                                   |
-| ---------------------------------------------------------------| -----------------------------------------|
-| Initializer or reassignment doesn't match the declared type    | `TypeMismatchError` (`E324`)             |
-| Call argument doesn't match a parameter's declared type        | `ArgumentTypeMismatchError` (`E325`)     |
-| Returned value doesn't match the declared return type          | `ReturnTypeMismatchError` (`E326`)       |
-| Unknown type name                                              | `UnknownTypeNameError` (`E327`)          |
-| Struct field override doesn't match the field's declared type  | `StructFieldTypeMismatchError` (`E329`)  |
+| Check                                                                          | Error                                   |
+| --------------------------------------------------------------------------------| -----------------------------------------|
+| Initializer or reassignment doesn't match the declared type                    | `TypeMismatchError` (`E324`)             |
+| Call argument doesn't match a parameter's declared type (function, method, or a lambda value held in a variable) | `ArgumentTypeMismatchError` (`E325`)     |
+| Returned value doesn't match the declared return type                          | `ReturnTypeMismatchError` (`E326`)       |
+| Unknown type name                                                              | `UnknownTypeNameError` (`E327`)          |
+| Struct/object field value doesn't match the field's declared type, at instantiation *or* on a later reassignment | `StructFieldTypeMismatchError` (`E329`)  |
 
 ### Strict Mode
 
