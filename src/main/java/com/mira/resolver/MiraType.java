@@ -46,10 +46,6 @@ public sealed interface MiraType permits MiraType.NamedType, MiraType.NullableTy
         };
     }
 
-    /**
-     * True if a value of type {@code from} may be used where {@code to} is
-     * expected.
-     */
     static boolean isAssignable(MiraType from, MiraType to) {
         if (from instanceof AnyType || to instanceof AnyType) {
             return true;

@@ -1453,8 +1453,11 @@ Type checking runs as part of the same static-check pass that already catches th
 | Binary arithmetic operator (`+ - * / % \% **`) used with mismatched operand types, when at least one side is explicitly typed | `BinaryOperatorTypeMismatchError` (`E330`) |
 | Comparison operator (`< > <= >=`) used with mismatched operand types, when at least one side is explicitly typed              | `BinaryOperatorTypeMismatchError` (`E330`) |
 | Unary `-`/`~` applied to an explicitly-typed non-`Number` operand                                                             | `UnaryOperatorTypeMismatchError` (`E331`)  |
+| Calling `$var(...)` where `var`'s declared or last-known-literal type isn't `Fn`/`Any`/nullable                               | `VariableNotCallableError` (`E332`)        |
 
 An enum member access like `Color.RED` is also inferred as the enum's own nominal type (`Color`), so it participates in every check above — assigning it to a variable typed as a _different_ enum, passing it as an argument of the wrong enum type, and so on.
+
+`E332` catches, at compile time, the exact failure the interpreter otherwise raises at runtime (`NotCallableError`, `E212`) when a variable holding a non-function value is called. It's silent whenever the variable's type can't be determined at all (e.g. an untyped function parameter) — declare the parameter as type `Fn` to opt into the check for callback-style code. This tracking understands: plain literals, negative numbers (`-1`) and inverted booleans/bits (`!true`, `~5`), a ternary/switch reassignment whose branches all agree on one type, and reassigning from a call to a function with an explicit return type (e.g. `$a : getNum();` where `getNum` returns `Number`) — each of these updates what's known about the variable instead of silently forgetting it.
 
 A ternary (`cond ? a : b`) or `switch` expression has no type of its own — instead, every branch/case result is checked individually against whatever type the expression is being assigned/passed/returned into, so a mismatched branch is caught even when the other branches are fine.
 

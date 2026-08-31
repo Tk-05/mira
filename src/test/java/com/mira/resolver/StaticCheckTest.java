@@ -1244,4 +1244,132 @@ public class StaticCheckTest {
         List<MiraError> errors = errorsFor("var s : String : \"hi\"; var r : ~$s;");
         assertTrue(hasCode(errors, "E331"));
     }
+
+    // --- Calling a variable known to hold a non-callable value ---
+    @Test
+    void callingLiteralNumberVariableIsE332() {
+        List<MiraError> errors = errorsFor("var x : 5; $x();");
+        assertTrue(hasCode(errors, "E332"));
+    }
+
+    @Test
+    void callingExplicitlyTypedNonFnVariableIsE332() {
+        List<MiraError> errors = errorsFor("var s : String : \"hi\"; $s();");
+        assertTrue(hasCode(errors, "E332"));
+    }
+
+    @Test
+    void callingStructInstanceVariableIsE332() {
+        List<MiraError> errors = errorsFor(
+                "var Point : struct { var x : 0; }; var p : $Point{}; $p();");
+        assertTrue(hasCode(errors, "E332"));
+    }
+
+    @Test
+    void callingLambdaVariableIsClean() {
+        assertClean("var f : fn() { return 1; }; $f();");
+    }
+
+    @Test
+    void callingFnTypedParameterIsClean() {
+        assertClean("fn apply(cb : Fn) { $cb(); }");
+    }
+
+    @Test
+    void callingUntypedParameterIsUnaffected() {
+        assertClean("fn apply(cb) { $cb(); }");
+    }
+
+    @Test
+    void callingUntypedUntrackedVariableIsUnaffected() {
+        // gradual typing: no declared type and no known literal shape means the
+        // check has nothing to go on, so it must stay silent rather than guess
+        assertClean("fn wrap(v) { var f : $v; $f(); }");
+    }
+
+    // --- Negative-number-literal tracking (a UnaryExpression, not a DumbExpression) ---
+    @Test
+    void callingNegativeLiteralVariableIsE332() {
+        List<MiraError> errors = errorsFor("var x : -1; $x();");
+        assertTrue(hasCode(errors, "E332"));
+    }
+
+    @Test
+    void negativeLiteralArithmeticStaysClean() {
+        // regression guard: recognizing `-1` as a known Number literal must not
+        // disturb ordinary arithmetic on it
+        assertClean("var n : -5; var r : $n - 1; println($r);");
+    }
+
+    // --- Reassignment through a ternary/switch whose branches agree on type ---
+    @Test
+    void callingVariableReassignedViaTernaryWithAgreeingBranchesIsE332() {
+        List<MiraError> errors = errorsFor("var a : () -> 0; $a : true ? 69 : -1; $a();");
+        assertTrue(hasCode(errors, "E332"));
+    }
+
+    @Test
+    void callingVariableReassignedViaTernaryWithDisagreeingBranchesIsUnaffected() {
+        // branches disagree on type (Number vs String) - the reassignment can't
+        // be classified, so tracking is dropped (falls back to "unknown") rather
+        // than guessed; this must not produce a false positive
+        assertClean("var a : () -> 0; $a : true ? 1 : \"two\"; $a();");
+    }
+
+    @Test
+    void callingVariableReassignedViaSwitchWithAgreeingBranchesIsE332() {
+        List<MiraError> errors = errorsFor(
+                "var a : () -> 0; var n : Number : 1; "
+                + "$a : switch($n) { case(1) -> 1 default -> 2 }; $a();");
+        assertTrue(hasCode(errors, "E332"));
+    }
+
+    @Test
+    void ternaryReassignmentToAFunctionStaysCallable() {
+        assertClean("var a : () -> 0; $a : true ? (() -> 1) : (() -> 2); println($a());");
+    }
+
+    // --- Boolean negation / bitwise NOT literal tracking ---
+    @Test
+    void callingBooleanNegationLiteralVariableIsE332() {
+        List<MiraError> errors = errorsFor("var y : !true; $y();");
+        assertTrue(hasCode(errors, "E332"));
+    }
+
+    @Test
+    void callingBitwiseNotLiteralVariableIsE332() {
+        List<MiraError> errors = errorsFor("var z : ~5; $z();");
+        assertTrue(hasCode(errors, "E332"));
+    }
+
+    @Test
+    void booleanNegationStaysUsableAsABool() {
+        assertClean("var y : !true; var b : Bool : $y;");
+    }
+
+    // --- Tracking a variable's type through a typed-function-call result ---
+    @Test
+    void callingVariableDeclaredFromTypedFunctionCallIsE332() {
+        List<MiraError> errors = errorsFor(
+                "fn getNum() -> Number { return 1; } var a : getNum(); $a();");
+        assertTrue(hasCode(errors, "E332"));
+    }
+
+    @Test
+    void callingVariableReassignedFromTypedFunctionCallIsE332() {
+        List<MiraError> errors = errorsFor(
+                "fn getNum() -> Number { return 1; } var a : () -> 0; $a : getNum(); $a();");
+        assertTrue(hasCode(errors, "E332"));
+    }
+
+    @Test
+    void reassigningFromFnTypedFunctionCallStaysCallable() {
+        assertClean(
+                "fn getFn() -> Fn { return () -> 42; } var a : () -> 0; $a : getFn(); println($a());");
+    }
+
+    @Test
+    void reassigningFromUntypedFunctionCallIsUnaffected() {
+        assertClean("fn getNum() { return 1; } var a : () -> 0; $a : getNum(); $a();");
+    }
 }

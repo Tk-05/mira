@@ -334,4 +334,14 @@ public class StaticCheckError extends MiraError {
                     + operator + "'");
         }
     }
+
+    public static class VariableNotCallableError extends StaticCheckError {
+
+        public VariableNotCallableError(String name, String actualType, int line, int column) {
+            super("E332",
+                    "Variable '$" + name + "' holds a '" + actualType + "' and cannot be called as a function",
+                    line, column, name.length() + 1,
+                    "Only functions and lambdas can be called with '()', or declare '" + name + "' as type 'Fn'");
+        }
+    }
 }

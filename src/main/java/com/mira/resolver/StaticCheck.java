@@ -18,7 +18,6 @@ import com.mira.error.resolver.MultipleStaticCheckErrors;
 import com.mira.error.resolver.StaticCheckError.ArgumentTypeMismatchError;
 import com.mira.error.resolver.StaticCheckError.ArityMismatchError;
 import com.mira.error.resolver.StaticCheckError.BinaryOperatorTypeMismatchError;
-import com.mira.error.resolver.StaticCheckError.UnaryOperatorTypeMismatchError;
 import com.mira.error.resolver.StaticCheckError.BreakOutsideLoopError;
 import com.mira.error.resolver.StaticCheckError.ConstReassignmentError;
 import com.mira.error.resolver.StaticCheckError.ContinueOutsideLoopError;
@@ -39,6 +38,7 @@ import com.mira.error.resolver.StaticCheckError.StaticAssertFailedError;
 import com.mira.error.resolver.StaticCheckError.StaticAssertRuntimeValueError;
 import com.mira.error.resolver.StaticCheckError.StructFieldTypeMismatchError;
 import com.mira.error.resolver.StaticCheckError.TypeMismatchError;
+import com.mira.error.resolver.StaticCheckError.UnaryOperatorTypeMismatchError;
 import com.mira.error.resolver.StaticCheckError.UndeclaredVariableError;
 import com.mira.error.resolver.StaticCheckError.UndefinedFunctionError;
 import com.mira.error.resolver.StaticCheckError.UndefinedModuleSymbolError;
@@ -46,6 +46,7 @@ import com.mira.error.resolver.StaticCheckError.UndefinedObjectFieldStaticError;
 import com.mira.error.resolver.StaticCheckError.UnknownModuleSymbolError;
 import com.mira.error.resolver.StaticCheckError.UnknownNamespaceError;
 import com.mira.error.resolver.StaticCheckError.UnknownTypeNameError;
+import com.mira.error.resolver.StaticCheckError.VariableNotCallableError;
 import com.mira.lexer.Tokenizer;
 import com.mira.lexer.token.Token;
 import com.mira.lexer.token.TokenType;
@@ -136,16 +137,28 @@ public class StaticCheck {
     private static final Set<String> BUILTIN_TYPE_NAMES = Set.of(
             "Number", "String", "Bool", "List", "Array", "Map", "Object", "Fn", "Null", "Any", "Void");
     private final Map<String, MiraType> typeAliases = new HashMap<>();
+
     // Explicit, declared types only - unlike varLiteralTypes (inferred literal
     // shapes), these persist across reassignment/loops/branches: an explicit
     // annotation is a standing contract, not a best-effort guess.
     private final Map<String, MiraType> declaredVarTypes = new HashMap<>();
+
+    // A broader, best-effort type inference cache alongside varLiteralTypes:
+    // consulted only when there's no declared type AND no known literal-node
+    // shape, so it can cover value sources varLiteralTypes structurally can't
+    // represent as a Node (e.g. the result of calling a function with an
+    // explicit return type) without disturbing any of varLiteralTypes' own
+    // Node-based consumers (isZeroLiteral, structTemplateNames, etc.). Same
+    // "put if determinable, else remove" drop-on-reassignment discipline.
+    private final Map<String, MiraType> varInferredTypes = new HashMap<>();
+
     // A struct literal carries no name of its own - only the var that declares
     // it as a template does (`var point : struct {...};`). Populated in lockstep
     // with varLiteralTypes wherever a StructExpression is registered as a named
     // template, so inferMiraType can report a struct instance's real nominal
     // type instead of collapsing every struct/object alike to plain `Object`.
     private final Map<StructExpression, String> structTemplateNames = new java.util.IdentityHashMap<>();
+
     // The innermost enclosing named function, for checking `return` against its
     // declared return type - null while inside a lambda/object-or-struct method,
     // since those have no return-type annotation in v1.
@@ -832,8 +845,10 @@ public class StaticCheck {
                             Node rhsType = resolveRhsLiteralType(e.getValue());
                             if (rhsType != null) {
                                 varLiteralTypes.put(name, rhsType);
+                                varInferredTypes.remove(name);
                             } else {
                                 varLiteralTypes.remove(name);
+                                trackInferredType(name, e.getValue());
                             }
                         }
                         MiraType declared = declaredVarTypes.get(name);
@@ -981,12 +996,14 @@ public class StaticCheck {
             if (expr.getCallee() instanceof UnaryExpression u
                     && "$".equals(u.getOperation().getLexeme())
                     && u.getRight() instanceof DumbExpression d
-                    && isIdentifier(d)
-                    && !expr.getArguments().isEmpty()) {
-                Node tracked = varLiteralTypes.get(d.getValue());
-                if (tracked instanceof LambdaExpression lambda) {
-                    checkArgumentTypes(d.getValue(), lambda.getParameters(), expr.getArguments(),
-                            d.getLine(), d.getColumn());
+                    && isIdentifier(d)) {
+                checkVariableCallable(u, d);
+                if (!expr.getArguments().isEmpty()) {
+                    Node tracked = varLiteralTypes.get(d.getValue());
+                    if (tracked instanceof LambdaExpression lambda) {
+                        checkArgumentTypes(d.getValue(), lambda.getParameters(), expr.getArguments(),
+                                d.getLine(), d.getColumn());
+                    }
                 }
             }
         }
@@ -1021,6 +1038,8 @@ public class StaticCheck {
             if (templateLiteral instanceof StructExpression) {
                 varLiteralTypes.put(stmt.getName(), templateLiteral);
             }
+        } else if (stmt.getInitializer() != null) {
+            trackInferredType(stmt.getName(), stmt.getInitializer());
         }
         if (stmt.getType() != null) {
             MiraType declared = resolveTypeAnnotation(stmt.getType());
@@ -1160,8 +1179,10 @@ public class StaticCheck {
                     Node rhsType = resolveRhsLiteralType(stmt.getExpression());
                     if (rhsType != null) {
                         varLiteralTypes.put(name, rhsType);
+                        varInferredTypes.remove(name);
                     } else {
                         varLiteralTypes.remove(name);
+                        trackInferredType(name, stmt.getExpression());
                     }
                 }
                 MiraType declared = declaredVarTypes.get(name);
@@ -1606,7 +1627,48 @@ public class StaticCheck {
                 || n instanceof ObjectExpression
                 || n instanceof StructExpression
                 || n instanceof LambdaExpression
-                || (n instanceof DumbExpression d && !isIdentifier(d));
+                || (n instanceof DumbExpression d && !isIdentifier(d))
+                // `-1`/`~1`/`!true` are each a UnaryExpression wrapping the literal
+                // token, not themselves a DumbExpression - without this, e.g. `var x :
+                // -1;` was invisible to every varLiteralTypes-based check (E332 calling
+                // it, or the division-by-zero/bareword warnings elsewhere)
+                || isInvertedLiteral(n);
+    }
+
+    private static boolean isInvertedLiteral(Node n) {
+        return n instanceof UnaryExpression u && u.getRight() instanceof DumbExpression d
+                && switch (u.getOperation().getLexeme()) {
+            case "-", "~" ->
+                isNumericLiteralToken(d);
+            case "!" ->
+                isBooleanLiteralToken(d);
+            default ->
+                false;
+        };
+    }
+
+    private static boolean isNumericLiteralToken(DumbExpression d) {
+        if (d.getTokenType() == TokenType.STRING_LITERAL || isIdentifier(d)) {
+            return false;
+        }
+        String value = d.getValue();
+        return !value.isEmpty() && Character.isDigit(value.charAt(0));
+    }
+
+    private static boolean isBooleanLiteralToken(DumbExpression d) {
+        if (d.getTokenType() == TokenType.STRING_LITERAL || isIdentifier(d)) {
+            return false;
+        }
+        return "true".equals(d.getValue()) || "false".equals(d.getValue());
+    }
+
+    private void trackInferredType(String name, Node valueExpr) {
+        MiraType inferred = inferMiraType(valueExpr);
+        if (inferred != null) {
+            varInferredTypes.put(name, inferred);
+        } else {
+            varInferredTypes.remove(name);
+        }
     }
 
     private Node resolveRhsLiteralType(Node rhs) {
@@ -1620,7 +1682,51 @@ public class StaticCheck {
                 return t;
             }
         }
+        if (rhs instanceof TernaryExpression te) {
+            return agreeingLiteralType(List.of(te.getThenExpr(), te.getElseExpr()));
+        }
+        if (rhs instanceof SwitchExpression se) {
+            List<Node> branches = new java.util.ArrayList<>();
+            se.getCases().forEach(c -> branches.add(c.result()));
+            if (se.getDefaultExpr() != null) {
+                branches.add(se.getDefaultExpr());
+            }
+            return agreeingLiteralType(branches);
+        }
         return null;
+    }
+
+    /**
+     * When every branch of a ternary/switch resolves to the same known literal
+     * shape (e.g. both sides of `cond ? 1 : 2` are Numbers), tracking survives
+     * a reassignment through it instead of being dropped as "unknown" - a
+     * reassignment like `$a : cond ? 1 : 2;` (previously invisible to
+     * varLiteralTypes, since neither branch is itself a literal *node* the way
+     * a plain `$a : 1;` reassignment is) now correctly updates what's tracked
+     * for `a`. Returns one representative branch's literal node (any one works,
+     * since callers only ever consult its *type* via literalNodeToType), or
+     * null if the branches disagree or any branch's own shape isn't known.
+     */
+    private Node agreeingLiteralType(List<Node> branches) {
+        Node first = null;
+        MiraType firstType = null;
+        for (Node branch : branches) {
+            Node lit = resolveRhsLiteralType(branch);
+            if (lit == null) {
+                return null;
+            }
+            MiraType type = literalNodeToType(lit);
+            if (type == null) {
+                return null;
+            }
+            if (first == null) {
+                first = lit;
+                firstType = type;
+            } else if (!sameNamedType(firstType, type)) {
+                return null;
+            }
+        }
+        return first;
     }
 
     private Node resolveLiteralBase(Node objectExpr) {
@@ -1697,7 +1803,10 @@ public class StaticCheck {
                 return declared;
             }
             Node inferredLiteral = varLiteralTypes.get(d.getValue());
-            return inferredLiteral != null ? literalNodeToType(inferredLiteral) : null;
+            if (inferredLiteral != null) {
+                return literalNodeToType(inferredLiteral);
+            }
+            return varInferredTypes.get(d.getValue());
         }
         if (expr instanceof StructInitExpression si) {
             Node templateLiteral = resolveLiteralBase(si.getTarget());
@@ -1752,6 +1861,8 @@ public class StaticCheck {
                 // semantics), so it's just as safe to type as any other
                 // literal, not "unknown" the way an actual $-reference is
                 literalTokenType(d);
+            case UnaryExpression u when isInvertedLiteral(u) ->
+                "!".equals(u.getOperation().getLexeme()) ? MiraType.BOOL : MiraType.NUMBER;
             default ->
                 null;
         };
@@ -1927,16 +2038,17 @@ public class StaticCheck {
     }
 
     private record OperandTypes(MiraType left, MiraType right) {
+
     }
 
     /**
-     * Shared gate for every operand-type check below: resolves both operand types
-     * only when at least one side carries an explicit annotation (same rule as
-     * checkAssignable's callers everywhere else in this file - a bare literal/
-     * bareword mismatch like `5 - "oops"` stays covered by the pre-existing,
-     * softer isStringLiteral-based warnings and must not escalate into a hard
-     * error here), and only when both sides resolve to a concrete, non-Any,
-     * non-nullable type worth comparing.
+     * Shared gate for every operand-type check below: resolves both operand
+     * types only when at least one side carries an explicit annotation (same
+     * rule as checkAssignable's callers everywhere else in this file - a bare
+     * literal/ bareword mismatch like `5 - "oops"` stays covered by the
+     * pre-existing, softer isStringLiteral-based warnings and must not escalate
+     * into a hard error here), and only when both sides resolve to a concrete,
+     * non-Any, non-nullable type worth comparing.
      */
     private OperandTypes resolveGatedOperandTypes(Node left, Node right) {
         MiraType leftExplicit = inferExplicitlyTypedOperand(left);
@@ -1979,6 +2091,18 @@ public class StaticCheck {
         }
         errors.add(new BinaryOperatorTypeMismatchError(e.getOperator().getLexeme(), MiraType.display(types.left()),
                 MiraType.display(types.right()), e.getOperator().getLine(), e.getOperator().getColumn()));
+    }
+
+    private void checkVariableCallable(UnaryExpression dollarRef, DumbExpression nameExpr) {
+        MiraType type = inferMiraType(dollarRef);
+        if (type == null || type instanceof MiraType.AnyType || type instanceof MiraType.NullableType) {
+            return;
+        }
+        if (type instanceof MiraType.NamedType n && "Fn".equals(n.name())) {
+            return;
+        }
+        errors.add(new VariableNotCallableError(nameExpr.getValue(), MiraType.display(type),
+                nameExpr.getLine(), nameExpr.getColumn()));
     }
 
     private void checkUnaryOperandType(UnaryExpression e) {
