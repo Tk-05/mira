@@ -1449,11 +1449,16 @@ Type checking runs as part of the same static-check pass that already catches th
 | Unknown type name                                                                                                             | `UnknownTypeNameError` (`E327`)            |
 | Struct/object field value doesn't match the field's declared type, at instantiation _or_ on a later reassignment              | `StructFieldTypeMismatchError` (`E329`)    |
 | A parameter's own default value doesn't match its declared type                                                               | `TypeMismatchError` (`E324`)               |
+| A struct/object field's own default value (in its declaration, not an override) doesn't match its declared type               | `TypeMismatchError` (`E324`)               |
 | Binary arithmetic operator (`+ - * / % \% **`) used with mismatched operand types, when at least one side is explicitly typed | `BinaryOperatorTypeMismatchError` (`E330`) |
+| Comparison operator (`< > <= >=`) used with mismatched operand types, when at least one side is explicitly typed              | `BinaryOperatorTypeMismatchError` (`E330`) |
+| Unary `-`/`~` applied to an explicitly-typed non-`Number` operand                                                             | `UnaryOperatorTypeMismatchError` (`E331`)  |
 
 An enum member access like `Color.RED` is also inferred as the enum's own nominal type (`Color`), so it participates in every check above — assigning it to a variable typed as a _different_ enum, passing it as an argument of the wrong enum type, and so on.
 
-For binary operators specifically, only operands with an explicit type — a `$`-referenced, explicitly annotated variable or a call to a function with an explicit return type — gate the check; a bare literal or bareword operand (e.g. `"foo" - 1`) is unaffected here and stays covered only by the pre-existing, softer runtime-safety warnings that already flag risky literal/bareword operands.
+A ternary (`cond ? a : b`) or `switch` expression has no type of its own — instead, every branch/case result is checked individually against whatever type the expression is being assigned/passed/returned into, so a mismatched branch is caught even when the other branches are fine.
+
+For binary/comparison/unary operators specifically, only operands with an explicit type — a `$`-referenced, explicitly annotated variable or a call to a function with an explicit return type — gate the check; a bare literal or bareword operand (e.g. `"foo" - 1`) is unaffected here and stays covered only by the pre-existing, softer runtime-safety warnings that already flag risky literal/bareword operands. `==`/`!=` are deliberately not type-checked — comparing an explicitly-typed value against `null` (a common nullable-check pattern) would otherwise be falsely flagged.
 
 ### Strict Mode
 

@@ -18,6 +18,7 @@ import com.mira.error.resolver.MultipleStaticCheckErrors;
 import com.mira.error.resolver.StaticCheckError.ArgumentTypeMismatchError;
 import com.mira.error.resolver.StaticCheckError.ArityMismatchError;
 import com.mira.error.resolver.StaticCheckError.BinaryOperatorTypeMismatchError;
+import com.mira.error.resolver.StaticCheckError.UnaryOperatorTypeMismatchError;
 import com.mira.error.resolver.StaticCheckError.BreakOutsideLoopError;
 import com.mira.error.resolver.StaticCheckError.ConstReassignmentError;
 import com.mira.error.resolver.StaticCheckError.ContinueOutsideLoopError;
@@ -546,6 +547,7 @@ public class StaticCheck {
                 if (e.getRight() != null) {
                     resolveExpr(e.getRight());
                     warnIfStringOperand(e.getRight(), e.getOperation());
+                    checkUnaryOperandType(e);
                 }
             }
             case UnaryExpression e -> {
@@ -596,6 +598,11 @@ public class StaticCheck {
                 warnIfStringOperand(e.getLeft(), e.getOperator());
                 warnIfStringOperand(e.getRight(), e.getOperator());
                 checkBinaryOperandTypes(e);
+            }
+            case BinaryExpression e when COMPARISON_TYPE_CHECKED_OPERATORS.contains(e.getOperator().getLexeme()) -> {
+                resolveExpr(e.getLeft());
+                resolveExpr(e.getRight());
+                checkComparisonOperandTypes(e);
             }
             case BinaryExpression e -> {
                 resolveExpr(e.getLeft());
@@ -710,7 +717,15 @@ public class StaticCheck {
             case ObjectExpression e -> {
                 e.getVarDecls().stream()
                         .filter(v -> v.getInitializer() != null)
-                        .forEach(v -> resolveExpr(v.getInitializer()));
+                        .forEach(v -> {
+                            resolveExpr(v.getInitializer());
+                            if (v.getType() != null) {
+                                MiraType expected = resolveTypeAnnotation(v.getType());
+                                checkAssignable(v.getInitializer(), expected, (exp, act) -> errors.add(
+                                        new TypeMismatchError(v.getName(), exp, act,
+                                                v.getInitializer().line, v.nameColumn)));
+                            }
+                        });
                 for (var method : e.getMethods()) {
                     scope.push();
                     method.getParameters().forEach(p -> {
@@ -739,7 +754,15 @@ public class StaticCheck {
             case StructExpression e -> {
                 e.getVarDecls().stream()
                         .filter(v -> v.getInitializer() != null)
-                        .forEach(v -> resolveExpr(v.getInitializer()));
+                        .forEach(v -> {
+                            resolveExpr(v.getInitializer());
+                            if (v.getType() != null) {
+                                MiraType expected = resolveTypeAnnotation(v.getType());
+                                checkAssignable(v.getInitializer(), expected, (exp, act) -> errors.add(
+                                        new TypeMismatchError(v.getName(), exp, act,
+                                                v.getInitializer().line, v.nameColumn)));
+                            }
+                        });
                 for (var method : e.getMethods()) {
                     scope.push();
                     method.getParameters().forEach(p -> {
@@ -1527,6 +1550,12 @@ public class StaticCheck {
     private static final Set<String> ARITHMETIC_TYPE_CHECKED_OPERATORS = Set.of(
             "+", "-", "*", "/", "%", "\\%", "**");
 
+    // "==" / "!=" are deliberately excluded: comparing an explicitly-typed value
+    // against e.g. a nullable's `null` check is a common, legitimate pattern this
+    // check must not flag - only ordering comparisons are unambiguously nonsensical
+    // across mismatched named types.
+    private static final Set<String> COMPARISON_TYPE_CHECKED_OPERATORS = Set.of("<", ">", "<=", ">=");
+
     private static boolean isStringLiteral(Node n) {
         return n instanceof DumbExpression d && d.getTokenType() == TokenType.STRING_LITERAL;
     }
@@ -1754,6 +1783,24 @@ public class StaticCheck {
         if (expected == null) {
             return;
         }
+        // a ternary/switch has no type of its own - check each branch against the
+        // same expected type individually, rather than trying to first infer one
+        // combined type for the whole expression (inferMiraType has no case for
+        // either shape, so without this every branch was silently unchecked)
+        if (valueExpr instanceof TernaryExpression te) {
+            checkAssignable(te.getThenExpr(), expected, onMismatch);
+            checkAssignable(te.getElseExpr(), expected, onMismatch);
+            return;
+        }
+        if (valueExpr instanceof SwitchExpression se) {
+            for (var c : se.getCases()) {
+                checkAssignable(c.result(), expected, onMismatch);
+            }
+            if (se.getDefaultExpr() != null) {
+                checkAssignable(se.getDefaultExpr(), expected, onMismatch);
+            }
+            return;
+        }
         MiraType actual = inferMiraType(valueExpr);
         if (actual != null && !MiraType.isAssignable(actual, expected)) {
             onMismatch.accept(MiraType.display(expected), MiraType.display(actual));
@@ -1879,39 +1926,73 @@ public class StaticCheck {
                 new TypeMismatchError(p.name(), expected, actual, p.defaultValue().line, p.column())));
     }
 
+    private record OperandTypes(MiraType left, MiraType right) {
+    }
+
+    /**
+     * Shared gate for every operand-type check below: resolves both operand types
+     * only when at least one side carries an explicit annotation (same rule as
+     * checkAssignable's callers everywhere else in this file - a bare literal/
+     * bareword mismatch like `5 - "oops"` stays covered by the pre-existing,
+     * softer isStringLiteral-based warnings and must not escalate into a hard
+     * error here), and only when both sides resolve to a concrete, non-Any,
+     * non-nullable type worth comparing.
+     */
+    private OperandTypes resolveGatedOperandTypes(Node left, Node right) {
+        MiraType leftExplicit = inferExplicitlyTypedOperand(left);
+        MiraType rightExplicit = inferExplicitlyTypedOperand(right);
+        if (leftExplicit == null && rightExplicit == null) {
+            return null;
+        }
+        MiraType leftType = leftExplicit != null ? leftExplicit : inferMiraType(left);
+        MiraType rightType = rightExplicit != null ? rightExplicit : inferMiraType(right);
+        if (leftType == null || rightType == null
+                || leftType instanceof MiraType.AnyType || rightType instanceof MiraType.AnyType
+                || leftType instanceof MiraType.NullableType || rightType instanceof MiraType.NullableType) {
+            return null;
+        }
+        return new OperandTypes(leftType, rightType);
+    }
+
     private void checkBinaryOperandTypes(BinaryExpression e) {
         String op = e.getOperator().getLexeme();
         if (!ARITHMETIC_TYPE_CHECKED_OPERATORS.contains(op)) {
             return;
         }
-        // gated on an explicit annotation on at least one side, same as every other
-        // check in this file - a bare literal mismatch like `5 - "oops"` is already
-        // covered by the pre-existing, softer isStringLiteral-based warnings above
-        // and must stay a warning, not escalate into a hard error here too
-        MiraType leftExplicit = inferExplicitlyTypedOperand(e.getLeft());
-        MiraType rightExplicit = inferExplicitlyTypedOperand(e.getRight());
-        if (leftExplicit == null && rightExplicit == null) {
-            return;
-        }
-        MiraType leftType = leftExplicit != null ? leftExplicit : inferMiraType(e.getLeft());
-        MiraType rightType = rightExplicit != null ? rightExplicit : inferMiraType(e.getRight());
-        if (leftType == null || rightType == null
-                || leftType instanceof MiraType.AnyType || rightType instanceof MiraType.AnyType
-                || leftType instanceof MiraType.NullableType || rightType instanceof MiraType.NullableType) {
+        OperandTypes types = resolveGatedOperandTypes(e.getLeft(), e.getRight());
+        if (types == null) {
             return;
         }
         boolean mismatch = "+".equals(op)
-                ? !sameNamedType(leftType, rightType)
-                : !isNumberType(leftType) || !isNumberType(rightType);
+                ? !sameNamedType(types.left(), types.right())
+                : !isNumberType(types.left()) || !isNumberType(types.right());
         if (mismatch) {
-            errors.add(new BinaryOperatorTypeMismatchError(op, MiraType.display(leftType), MiraType.display(rightType),
-                    e.getOperator().getLine(), e.getOperator().getColumn()));
+            errors.add(new BinaryOperatorTypeMismatchError(op, MiraType.display(types.left()),
+                    MiraType.display(types.right()), e.getOperator().getLine(), e.getOperator().getColumn()));
         }
+    }
+
+    private void checkComparisonOperandTypes(BinaryExpression e) {
+        OperandTypes types = resolveGatedOperandTypes(e.getLeft(), e.getRight());
+        if (types == null || sameNamedType(types.left(), types.right())) {
+            return;
+        }
+        errors.add(new BinaryOperatorTypeMismatchError(e.getOperator().getLexeme(), MiraType.display(types.left()),
+                MiraType.display(types.right()), e.getOperator().getLine(), e.getOperator().getColumn()));
+    }
+
+    private void checkUnaryOperandType(UnaryExpression e) {
+        MiraType type = inferExplicitlyTypedOperand(e.getRight());
+        if (type == null || isNumberType(type)) {
+            return;
+        }
+        errors.add(new UnaryOperatorTypeMismatchError(e.getOperation().getLexeme(), MiraType.display(type),
+                e.getOperation().getLine(), e.getOperation().getColumn()));
     }
 
     /**
      * Explicit-annotation-only variant of inferMiraType, used to gate
-     * checkBinaryOperandTypes.
+     * resolveGatedOperandTypes/checkUnaryOperandType.
      */
     private MiraType inferExplicitlyTypedOperand(Node expr) {
         if (expr instanceof UnaryExpression u

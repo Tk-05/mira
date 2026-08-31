@@ -323,4 +323,15 @@ public class StaticCheckError extends MiraError {
                     + operator + "'");
         }
     }
+
+    public static class UnaryOperatorTypeMismatchError extends StaticCheckError {
+
+        public UnaryOperatorTypeMismatchError(String operator, String actualType, int line, int column) {
+            super("E331",
+                    "Operator '" + operator + "' requires a Number operand but got '" + actualType + "'",
+                    line, column, operator.length(),
+                    "Use a numeric value, or convert '" + actualType + "' explicitly before applying '"
+                    + operator + "'");
+        }
+    }
 }

@@ -1135,4 +1135,113 @@ public class StaticCheckTest {
                 + "fn f(c : Color) { println($c); } f(Size.SMALL);");
         assertTrue(hasCode(errors, "E325"));
     }
+
+    // --- Struct/object field's own default value type checking ---
+    @Test
+    void structFieldOwnDefaultMismatchIsE324() {
+        List<MiraError> errors = errorsFor("var Point : struct { var x : Number : \"wrong\"; };");
+        assertTrue(hasCode(errors, "E324"));
+    }
+
+    @Test
+    void structFieldOwnDefaultMatchingTypeIsClean() {
+        assertClean("var Point : struct { var x : Number : 0; };");
+    }
+
+    @Test
+    void objectFieldOwnDefaultMismatchIsE324() {
+        List<MiraError> errors = errorsFor("var o : { var x : Number : \"wrong\"; };");
+        assertTrue(hasCode(errors, "E324"));
+    }
+
+    @Test
+    void untypedStructFieldOwnDefaultIsUnaffected() {
+        assertClean("var Point : struct { var x : \"anything\"; };");
+    }
+
+    // --- Ternary/switch branches checked against the declaring type ---
+    @Test
+    void ternaryBranchMismatchAgainstDeclaredTypeIsE324() {
+        List<MiraError> errors = errorsFor("var c : Number : true ? 1 : \"two\";");
+        assertTrue(hasCode(errors, "E324"));
+    }
+
+    @Test
+    void ternaryBranchesMatchingDeclaredTypeIsClean() {
+        assertClean("var c : Number : true ? 1 : 2;");
+    }
+
+    @Test
+    void switchCaseResultMismatchAgainstDeclaredTypeIsE324() {
+        List<MiraError> errors = errorsFor(
+                "var n : Number : 1; "
+                + "var c : Number : switch($n) { case(1) -> \"one\" default -> 2 };");
+        assertTrue(hasCode(errors, "E324"));
+    }
+
+    @Test
+    void switchCaseResultsMatchingDeclaredTypeIsClean() {
+        assertClean(
+                "var n : Number : 1; "
+                + "var c : Number : switch($n) { case(1) -> 1 default -> 2 };");
+    }
+
+    @Test
+    void untypedTernaryIsUnaffected() {
+        assertClean("var c : true ? 1 : \"two\";");
+    }
+
+    // --- Comparison operator operand type checking ---
+    @Test
+    void explicitlyTypedOperandMismatchInLessThanIsE330() {
+        List<MiraError> errors = errorsFor("var n : Number : 5; var t : String : \"x\"; var r : $n < $t;");
+        assertTrue(hasCode(errors, "E330"));
+    }
+
+    @Test
+    void explicitlyTypedOperandsSameTypeInLessThanIsClean() {
+        assertClean("var a : Number : 5; var b : Number : 3; var r : $a < $b;");
+    }
+
+    @Test
+    void bareLiteralMismatchInLessThanIsUnaffected() {
+        assertClean("var r : \"foo\" < 1;");
+    }
+
+    @Test
+    void untypedVariablesInLessThanAreUnaffected() {
+        assertClean("var a : 5; var b : 3; var r : $a < $b;");
+    }
+
+    @Test
+    void explicitlyTypedOperandMismatchInGreaterEqualIsE330() {
+        List<MiraError> errors = errorsFor("var n : Number : 5; var t : String : \"x\"; var r : $n >= $t;");
+        assertTrue(hasCode(errors, "E330"));
+    }
+
+    // --- Unary minus/tilde operand type checking ---
+    @Test
+    void unaryMinusOnExplicitlyTypedStringIsE331() {
+        List<MiraError> errors = errorsFor("var s : String : \"hi\"; var r : -$s;");
+        assertTrue(hasCode(errors, "E331"));
+    }
+
+    @Test
+    void unaryMinusOnExplicitlyTypedNumberIsClean() {
+        assertClean("var n : Number : 5; var r : -$n;");
+    }
+
+    @Test
+    void unaryMinusOnBarewordStaysUnaffected() {
+        // regression guard: bare literals/barewords have no explicit type to gate
+        // on, so this must stay covered only by the pre-existing warnIfStringOperand
+        // warning (see unaryMinusOnStringLiteralProducesWarning), never escalate
+        assertClean("var r : -\"foo\";");
+    }
+
+    @Test
+    void unaryTildeOnExplicitlyTypedStringIsE331() {
+        List<MiraError> errors = errorsFor("var s : String : \"hi\"; var r : ~$s;");
+        assertTrue(hasCode(errors, "E331"));
+    }
 }
