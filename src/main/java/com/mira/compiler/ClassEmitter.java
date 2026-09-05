@@ -39,7 +39,7 @@ public class ClassEmitter {
 
     public ClassEmitter(String internalName) {
         this.internalName = internalName;
-        this.cw = new ClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS);
+        this.cw = new MiraClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS);
         cw.visit(V21, ACC_PUBLIC | ACC_FINAL, internalName, null, "java/lang/Object", null);
         cw.visitField(ACC_PRIVATE | ACC_STATIC | ACC_FINAL, "GLOBALS", ENV_DESC, null, null).visitEnd();
     }
@@ -68,7 +68,7 @@ public class ClassEmitter {
 
     public void emitLambdaClass(String lambdaClassName, String outerClassName,
             String methodName, int arity) {
-        ClassWriter lcw = new ClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS);
+        ClassWriter lcw = new MiraClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS);
         lcw.visit(V21, ACC_PUBLIC | ACC_FINAL, lambdaClassName, null,
                 "java/lang/Object", new String[]{"com/mira/runtime/functions/Callable"});
 
@@ -110,7 +110,7 @@ public class ClassEmitter {
 
     public void emitLambdaClassWithCaptures(String lambdaClassName, String outerClassName,
             String methodName, int arity) {
-        ClassWriter lcw = new ClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS);
+        ClassWriter lcw = new MiraClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS);
         lcw.visit(V21, ACC_PUBLIC | ACC_FINAL, lambdaClassName, null,
                 "java/lang/Object", new String[]{"com/mira/runtime/functions/Callable"});
 
@@ -159,7 +159,7 @@ public class ClassEmitter {
     }
 
     public void emitAsyncLambdaClassWithCaptures(String asyncClassName, String syncClassName, int arity) {
-        ClassWriter acw = new ClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS);
+        ClassWriter acw = new MiraClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS);
         acw.visit(V21, ACC_PUBLIC | ACC_FINAL, asyncClassName, null,
                 "java/lang/Object", new String[]{"com/mira/runtime/functions/Callable"});
 
@@ -212,7 +212,7 @@ public class ClassEmitter {
     }
 
     public void emitAsyncLambdaClass(String asyncClassName, String syncClassName, int arity) {
-        ClassWriter acw = new ClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS);
+        ClassWriter acw = new MiraClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS);
         acw.visit(V21, ACC_PUBLIC | ACC_FINAL, asyncClassName, null,
                 "java/lang/Object", new String[]{"com/mira/runtime/functions/Callable"});
 

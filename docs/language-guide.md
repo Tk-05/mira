@@ -410,6 +410,13 @@ Ternaries can be nested:
 $x > 10 ? "high" : ($x > 5 ? "mid" : "low")
 ```
 
+Branches can be lambdas, picking which function to use based on a condition:
+
+```
+var op : $useDouble ? (x) -> eval($x * 2) : (x) -> eval($x + 1);
+print(op(5));   // 10
+```
+
 Both branches support string concatenation:
 
 ```

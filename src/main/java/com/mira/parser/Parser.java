@@ -231,6 +231,10 @@ public class Parser {
         return token.getTokenType() == TokenType.EXPRESSION && token.getLexeme().isBlank();
     }
 
+    private boolean isBareColon(Token token) {
+        return token.getLexeme().equals(":") && token.getTokenType() != TokenType.STRING_LITERAL;
+    }
+
     private boolean isAssignment() {
         if (!peek().getLexeme().equals("$")) {
             return false;
@@ -315,9 +319,13 @@ public class Parser {
         List<Expression> items = new ArrayList<>();
 
         while (peek().getTokenType() != TokenType.EOF && !isStructuralDelimiter(peek())) {
-            if (isWhitespaceToken(peek())) {
+            Token t = peek();
+            if (isWhitespaceToken(t)) {
                 consume();
                 continue;
+            }
+            if (isBareColon(t)) {
+                break;
             }
             Expression item = parseAssignmentExpression();
             items.add(item);
@@ -375,7 +383,7 @@ public class Parser {
                 consume();
                 continue;
             }
-            if (t.getLexeme().equals(":") && t.getTokenType() != TokenType.STRING_LITERAL) {
+            if (isBareColon(t)) {
                 break;
             }
             items.add(parsePratt(0));
