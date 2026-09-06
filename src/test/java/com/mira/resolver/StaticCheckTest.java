@@ -561,6 +561,19 @@ public class StaticCheckTest {
     }
 
     @Test
+    void callNonexistentMethodOnStructInstanceIsE323() {
+        List<MiraError> errors = errorsFor(
+                "var counter : struct { var count : 0; fn get() { return this.count; } }; "
+                + "var c : counter{}; c.missing();");
+        assertTrue(hasCode(errors, "E323"));
+    }
+
+    @Test
+    void callLambdaHeldInStructFieldIsClean() {
+        assertClean("var box : struct { var run; }; var b : box{ run : fn() { return 1; } }; b.run();");
+    }
+
+    @Test
     void assignStructInstancePropagatesTypeForFieldCheck() {
         List<MiraError> errors = errorsFor("var point : struct { var x; var y; }; var q; q : point{}; print(q.z);");
         assertTrue(hasCode(errors, "E323"));
@@ -594,6 +607,21 @@ public class StaticCheckTest {
                 "var point : struct { var x; var y; }; var origin : point{}; "
                 + "fn hello(name) { println(name.z); } hello(origin);");
         assertTrue(hasCode(errors, "E323"));
+    }
+
+    @Test
+    void callNonexistentMethodOnFunctionParamViaCallSiteIsE323() {
+        List<MiraError> errors = errorsFor(
+                "var point : struct { var x; fn get() { return this.x; } }; var origin : point{}; "
+                + "fn hello(name) { name.missing(); } hello(origin);");
+        assertTrue(hasCode(errors, "E323"));
+    }
+
+    @Test
+    void callExistingMethodOnFunctionParamViaCallSiteIsClean() {
+        assertClean(
+                "var point : struct { var x; fn get() { return this.x; } }; var origin : point{}; "
+                + "fn hello(name) { name.get(); } hello(origin);");
     }
 
     @Test

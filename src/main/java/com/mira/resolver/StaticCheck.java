@@ -692,24 +692,13 @@ public class StaticCheck {
                     int col = e.getObject() instanceof DumbExpression de
                             ? de.getColumn() + de.getValue().length() + 1 : 0;
                     errors.add(new FieldAccessOnNonObjectError(e.getField(), typeName, line, col));
-                } else if (!e.isOptional() && literalBase instanceof ObjectExpression objExpr) {
+                } else if (!e.isOptional()
+                        && (literalBase instanceof ObjectExpression || literalBase instanceof StructExpression)) {
                     String field = e.getField();
-                    boolean fieldExists = objExpr.getVarDecls().stream().anyMatch(v -> field.equals(v.getName()))
-                            || objExpr.getMethods().stream().anyMatch(m -> field.equals(m.getName()));
-                    if (!fieldExists) {
+                    if (!memberExists(literalBase, field)) {
                         DumbExpression varRef = extractVarRef(e.getObject());
-                        String objectName = varRef != null ? varRef.getValue() : "object";
-                        int line = varRef != null ? varRef.getLine() : e.getObject().line;
-                        int col = varRef != null ? varRef.getColumn() + varRef.getValue().length() + 1 : 0;
-                        errors.add(new UndefinedObjectFieldStaticError(field, objectName, line, col));
-                    }
-                } else if (!e.isOptional() && literalBase instanceof StructExpression structExpr) {
-                    String field = e.getField();
-                    boolean fieldExists = structExpr.getVarDecls().stream().anyMatch(v -> field.equals(v.getName()))
-                            || structExpr.getMethods().stream().anyMatch(m -> field.equals(m.getName()));
-                    if (!fieldExists) {
-                        DumbExpression varRef = extractVarRef(e.getObject());
-                        String objectName = varRef != null ? varRef.getValue() : "struct";
+                        String objectName = varRef != null ? varRef.getValue()
+                                : literalBase instanceof StructExpression ? "struct" : "object";
                         int line = varRef != null ? varRef.getLine() : e.getObject().line;
                         int col = varRef != null ? varRef.getColumn() + varRef.getValue().length() + 1 : 0;
                         errors.add(new UndefinedObjectFieldStaticError(field, objectName, line, col));
@@ -2028,10 +2017,19 @@ public class StaticCheck {
         }
     }
 
-    private void checkMethodArgumentTypes(MethodCallExpression e) {
-        if (e.getArguments().isEmpty()) {
-            return;
+    private static boolean memberExists(Node literalBase, String name) {
+        if (literalBase instanceof ObjectExpression objExpr) {
+            return objExpr.getVarDecls().stream().anyMatch(v -> name.equals(v.getName()))
+                    || objExpr.getMethods().stream().anyMatch(m -> name.equals(m.getName()));
         }
+        if (literalBase instanceof StructExpression structExpr) {
+            return structExpr.getVarDecls().stream().anyMatch(v -> name.equals(v.getName()))
+                    || structExpr.getMethods().stream().anyMatch(m -> name.equals(m.getName()));
+        }
+        return false;
+    }
+
+    private void checkMethodArgumentTypes(MethodCallExpression e) {
         Node literalBase = resolveLiteralBase(e.getObject());
         List<FuncDecl> methods;
         if (literalBase instanceof StructExpression structExpr) {
@@ -2043,13 +2041,20 @@ public class StaticCheck {
         }
         String methodName = e.getMethod();
         FuncDecl method = methods.stream().filter(m -> methodName.equals(m.getName())).findFirst().orElse(null);
-        if (method == null) {
-            return;
-        }
         DumbExpression varRef = extractVarRef(e.getObject());
         int fallbackLine = varRef != null ? varRef.getLine() : e.line;
         int fallbackColumn = varRef != null ? varRef.getColumn() + varRef.getValue().length() + 1 : 0;
-        checkArgumentTypes(methodName, method.getParameters(), e.getArguments(), fallbackLine, fallbackColumn);
+        if (method == null) {
+            if (!e.isOptional() && !memberExists(literalBase, methodName)) {
+                String objectName = varRef != null ? varRef.getValue()
+                        : literalBase instanceof StructExpression ? "struct" : "object";
+                errors.add(new UndefinedObjectFieldStaticError(methodName, objectName, fallbackLine, fallbackColumn));
+            }
+            return;
+        }
+        if (!e.getArguments().isEmpty()) {
+            checkArgumentTypes(methodName, method.getParameters(), e.getArguments(), fallbackLine, fallbackColumn);
+        }
     }
 
     private void checkFieldAssignment(Expression reference, Expression rhsValue) {
@@ -2314,6 +2319,21 @@ public class StaticCheck {
                     }
                 }
                 queue.add(fae.getObject());
+            } else if (n instanceof MethodCallExpression mce && !mce.isOptional()) {
+                DumbExpression varRef = extractVarRef(mce.getObject());
+                if (varRef != null && paramTypes.containsKey(varRef.getValue())) {
+                    Node type = paramTypes.get(varRef.getValue());
+                    if ((type instanceof ObjectExpression || type instanceof StructExpression)
+                            && !memberExists(type, mce.getMethod())) {
+                        int errLine = callSiteLine > 0 ? callSiteLine : varRef.getLine();
+                        int errCol = callSiteLine > 0 ? callSiteCol
+                                : varRef.getColumn() + varRef.getValue().length() + 1;
+                        errors.add(new UndefinedObjectFieldStaticError(
+                                mce.getMethod(), varRef.getValue(), errLine, errCol));
+                    }
+                }
+                queue.add(mce.getObject());
+                queue.addAll(mce.getArguments());
             } else {
                 if (n instanceof CallExpression ce
                         && ce.getCallee() instanceof DumbExpression callee
