@@ -61,7 +61,7 @@ public final class ReflectiveBinder {
         }
     }
 
-    private static Map<String, Method> selectMethods(Class<?> source) {
+    static Map<String, Method> selectMethods(Class<?> source) {
         Map<String, List<Method>> grouped = new LinkedHashMap<>();
         for (Method m : source.getMethods()) {
             if (!Modifier.isStatic(m.getModifiers())) {
@@ -135,7 +135,7 @@ public final class ReflectiveBinder {
         }));
     }
 
-    private static Object coerceArg(Object val, Class<?> target) {
+    static Object coerceArg(Object val, Class<?> target) {
         if (target == int.class || target == Integer.class) {
             return ((Number) val).intValue();
         }

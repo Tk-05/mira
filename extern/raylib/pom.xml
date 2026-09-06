@@ -30,6 +30,26 @@
     <build>
         <plugins>
             <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.2.0</version>
+                <executions>
+                    <execution>
+                        <id>describe-reflective-lib</id>
+                        <phase>process-classes</phase>
+                        <goals><goal>java</goal></goals>
+                        <configuration>
+                            <mainClass>com.mira.buildtools.DescribeReflectiveLib</mainClass>
+                            <classpathScope>compile</classpathScope>
+                            <arguments>
+                                <argument>com.mira.Raylib</argument>
+                                <argument>${project.build.outputDirectory}/META-INF/mira/interface.properties</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
                 <version>3.5.3</version>

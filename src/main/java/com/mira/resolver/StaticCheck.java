@@ -51,6 +51,9 @@ import com.mira.lexer.Tokenizer;
 import com.mira.lexer.token.Token;
 import com.mira.lexer.token.TokenType;
 import com.mira.lib.LibIndex;
+import com.mira.lib.NativeInterfaceManifest;
+import com.mira.lib.NativeInterfaceManifest.Signature;
+import com.mira.lib.NativeLibLocator;
 import com.mira.parser.Parser;
 import com.mira.parser.nodes.Node;
 import com.mira.parser.nodes.Parameter;
@@ -125,6 +128,16 @@ public class StaticCheck {
     private final Set<String> checkedModuleImports = new HashSet<>();
     private final Map<String, Map<String, Boolean>> moduleAliasSymbols = new HashMap<>();
     private final Map<String, String> moduleAliasFileName = new HashMap<>();
+    // Populated for `import native ... as alias` when the jar carries a
+    // classloading-free ReflectiveLib manifest (see NativeInterfaceManifest) -
+    // lets namespace calls into a native lib be argument-type-checked the same
+    // way as a call to a declared Mira function, without ever loading the
+    // native jar's actual Java classes during a check/LSP pass.
+    private final Map<String, Map<String, Signature>> nativeNamespaceSignatures = new HashMap<>();
+    private static final Map<String, CachedManifest> NATIVE_MANIFEST_CACHE = new java.util.concurrent.ConcurrentHashMap<>();
+
+    private record CachedManifest(long mtime, Map<String, Signature> signatures) {
+    }
     private final Map<String, Node> varLiteralTypes = new HashMap<>();
     private final Map<String, FuncDecl> userFuncDecls = new HashMap<>();
     private final Map<String, EnumDecl> userEnumDecls = new HashMap<>();
@@ -639,18 +652,24 @@ public class StaticCheck {
                 }
                 scope.markUsed(alias);
                 e.getArguments().forEach(this::resolveExpr);
-                FuncDecl nsFn = userFuncDecls.get(e.getFunctionName());
-                if (nsFn != null) {
-                    int min = nsFn.getArity();
-                    int max = nsFn.getMaxArity();
-                    int actual = e.getArguments().size();
-                    if (min == max && actual != min) {
-                        errors.add(new ArityMismatchError(e.getFunctionName(), min, actual, e.getLine(), e.getColumn()));
-                    } else if (min != max && (actual < min || (max != -1 && actual > max))) {
-                        errors.add(new ArityMismatchError(e.getFunctionName(), min, max, actual, e.getLine(), e.getColumn()));
-                    }
-                    if (!e.getArguments().isEmpty()) {
-                        walkFuncWithParamTypes(nsFn, e.getArguments(), Map.of(), new HashSet<>(), e.getLine(), e.getColumn());
+                Map<String, Signature> nativeSigs = nativeNamespaceSignatures.get(alias);
+                Signature nativeSig = nativeSigs != null ? nativeSigs.get(e.getFunctionName()) : null;
+                if (nativeSig != null) {
+                    checkNativeArgumentTypes(e, nativeSig);
+                } else {
+                    FuncDecl nsFn = userFuncDecls.get(e.getFunctionName());
+                    if (nsFn != null) {
+                        int min = nsFn.getArity();
+                        int max = nsFn.getMaxArity();
+                        int actual = e.getArguments().size();
+                        if (min == max && actual != min) {
+                            errors.add(new ArityMismatchError(e.getFunctionName(), min, actual, e.getLine(), e.getColumn()));
+                        } else if (min != max && (actual < min || (max != -1 && actual > max))) {
+                            errors.add(new ArityMismatchError(e.getFunctionName(), min, max, actual, e.getLine(), e.getColumn()));
+                        }
+                        if (!e.getArguments().isEmpty()) {
+                            walkFuncWithParamTypes(nsFn, e.getArguments(), Map.of(), new HashSet<>(), e.getLine(), e.getColumn());
+                        }
                     }
                 }
             }
@@ -1322,6 +1341,8 @@ public class StaticCheck {
             knownNamespaces.add(expr.getNamespace());
             if (expr.isExternalModule()) {
                 loadModuleSymbolsForAlias(expr);
+            } else if (expr.isNativeJar()) {
+                loadNativeLibSignatures(expr);
             }
         } else {
             String libName = expr.getModule().replace("\"", "");
@@ -1331,6 +1352,43 @@ public class StaticCheck {
                     knownArities.put(name, new int[]{arity, arity});
                 }
             });
+        }
+    }
+
+    private void loadNativeLibSignatures(ImportExpression expr) {
+        String rawPath = expr.getModule().replace("\"", "");
+        Path importingFile = sourcePath != null ? sourcePath : com.mira.cli.Flags.inputPath.get();
+        Path jarPath = NativeLibLocator.locate(rawPath, importingFile);
+        if (jarPath == null) {
+            return;
+        }
+        Map<String, Signature> signatures = readNativeManifest(jarPath);
+        if (!signatures.isEmpty()) {
+            nativeNamespaceSignatures.put(expr.getNamespace(), signatures);
+        }
+    }
+
+    private static Map<String, Signature> readNativeManifest(Path jarPath) {
+        try {
+            String key = jarPath.toAbsolutePath().toString();
+            long mtime = Files.getLastModifiedTime(jarPath).toMillis();
+            CachedManifest cached = NATIVE_MANIFEST_CACHE.get(key);
+            if (cached != null && cached.mtime() == mtime) {
+                return cached.signatures();
+            }
+            try (java.util.jar.JarFile jar = new java.util.jar.JarFile(jarPath.toFile())) {
+                java.util.jar.JarEntry entry = jar.getJarEntry(NativeInterfaceManifest.RESOURCE_PATH);
+                if (entry == null) {
+                    return Map.of();
+                }
+                try (java.io.InputStream in = jar.getInputStream(entry)) {
+                    Map<String, Signature> signatures = NativeInterfaceManifest.read(in);
+                    NATIVE_MANIFEST_CACHE.put(key, new CachedManifest(mtime, signatures));
+                    return signatures;
+                }
+            }
+        } catch (java.io.IOException e) {
+            return Map.of();
         }
     }
 
@@ -1960,6 +2018,32 @@ public class StaticCheck {
             int span = expressionSpan(argNode, callableName.length());
             checkAssignable(argNode, expected, (exp, actual) -> errors.add(
                     new ArgumentTypeMismatchError(callableName, param.name(), exp, actual, line, column, span)));
+        }
+    }
+
+    /**
+     * Same idea as {@link #checkArgumentTypes}, but for a call into a native
+     * lib whose signature came from a {@link NativeInterfaceManifest} rather
+     * than a Mira {@code FuncDecl} - the manifest carries only types, no
+     * parameter names, so arguments are labeled positionally ('#1', '#2', ...).
+     */
+    private void checkNativeArgumentTypes(NamespaceCallExpression e, Signature sig) {
+        List<String> paramTypes = sig.paramTypes();
+        int expected = paramTypes.size();
+        int actual = e.getArguments().size();
+        if (expected != actual) {
+            errors.add(new ArityMismatchError(e.getFunctionName(), expected, actual, e.getLine(), e.getColumn()));
+            return;
+        }
+        for (int i = 0; i < expected; i++) {
+            MiraType expectedType = resolveNamedType(paramTypes.get(i), e.getLine(), e.getColumn());
+            Expression argNode = e.getArguments().get(i);
+            int line = argNode.line > 0 ? argNode.line : e.getLine();
+            int column = expressionColumn(argNode, e.getColumn());
+            int span = expressionSpan(argNode, e.getFunctionName().length());
+            String argLabel = "#" + (i + 1);
+            checkAssignable(argNode, expectedType, (exp, act) -> errors.add(
+                    new ArgumentTypeMismatchError(e.getFunctionName(), argLabel, exp, act, line, column, span)));
         }
     }
 

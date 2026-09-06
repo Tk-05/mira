@@ -309,4 +309,13 @@ public class RuntimeError extends MiraError {
                     "Check that the path is correct and relative to the importing file");
         }
     }
+
+    public static class NativeBindingError extends RuntimeError {
+
+        public NativeBindingError(String name, String reason) {
+            super("E235",
+                    "Cannot bind native member '" + name + "': " + reason,
+                    "Check the ReflectiveLib's targets() and overrides() for '" + name + "'");
+        }
+    }
 }
