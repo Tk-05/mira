@@ -1,5 +1,6 @@
 package com.mira.lsp;
 
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -12,7 +13,11 @@ import org.eclipse.lsp4j.MarkupKind;
 import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.Range;
 
+import com.mira.lib.NativeInterfaceManifest;
+import com.mira.lib.NativeInterfaceManifest.Signature;
+import com.mira.lib.NativeLibLocator;
 import com.mira.parser.nodes.Node;
+import com.mira.parser.nodes.expression.Expression.ImportExpression;
 import com.mira.parser.nodes.expression.Expression.ObjectExpression;
 import com.mira.parser.nodes.expression.Expression.StructExpression;
 import com.mira.parser.nodes.statement.Statement;
@@ -184,6 +189,10 @@ public class HoverProvider {
     }
 
     public static Hover provide(List<Node> ast, String content, Position pos) {
+        return provide(ast, content, pos, null);
+    }
+
+    public static Hover provide(List<Node> ast, String content, Position pos, Path docPath) {
         String word = wordAt(content, pos);
         if (word == null || word.isBlank()) {
             return null;
@@ -191,6 +200,10 @@ public class HoverProvider {
 
         if (isFieldAccess(content, pos)) {
             String objectName = DefinitionProvider.objectBefore(content, pos);
+            Hover nativeHover = hoverForNativeMember(ast, objectName, word, docPath);
+            if (nativeHover != null) {
+                return nativeHover;
+            }
             Hover fieldHover = hoverForField(ast, word, objectName, pos.getLine() + 1);
             if (fieldHover != null) {
                 return fieldHover;
@@ -472,6 +485,37 @@ public class HoverProvider {
             return false;
         }
         return start < 2 || line.charAt(start - 2) != '.';
+    }
+
+    /**
+     * Hover for {@code alias.Member} where {@code alias} is a native import -
+     * reads the declared signature straight out of the jar's classloading-free
+     * manifest (see {@link NativeInterfaceManifest}), never loading the jar's
+     * actual Java classes just to show a hover.
+     */
+    private static Hover hoverForNativeMember(List<Node> ast, String objectName, String member, Path docPath) {
+        if (objectName == null || docPath == null) {
+            return null;
+        }
+        for (Node n : ast) {
+            if (!(n instanceof ImportExpression imp) || !imp.isNativeJar() || !objectName.equals(imp.getNamespace())) {
+                continue;
+            }
+            String rawPath = imp.getModule().replace("\"", "");
+            Path jarPath = NativeLibLocator.locate(rawPath, docPath);
+            if (jarPath == null) {
+                return null;
+            }
+            Signature sig = NativeInterfaceManifest.readFromJar(jarPath).get(member);
+            if (sig == null) {
+                return null;
+            }
+            String signature = sig.paramTypes().isEmpty()
+                    ? member + " : " + sig.returnType()
+                    : member + "(" + String.join(", ", sig.paramTypes()) + ") -> " + sig.returnType();
+            return hover("```mira\n" + signature + "\n```\n*native: " + objectName + "*");
+        }
+        return null;
     }
 
     private static Hover hoverForField(List<Node> ast, String fieldName, String objectName, int cursorLine) {

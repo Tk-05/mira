@@ -55,11 +55,11 @@ import static com.raylib.Raylib.rlUnloadFramebuffer;
 /**
  * The bulk of Jaylib's static methods/constants are auto-bound reflectively
  * from {@link #targets()} - zero glue code needed for e.g. {@code InitWindow}
- * or {@code DrawRectangle}. {@link #overrides()} covers exactly what
- * reflection can't: struct constructors (instance methods in Jaylib, not
- * static), field accessors on opaque native struct handles, functions
- * needing native pointer construction, ambiguous overloads, and pure
- * Java-side helpers with no raylib equivalent.
+ * or {@code DrawRectangle}. {@link #overrides()} covers exactly what reflection
+ * can't: struct constructors (instance methods in Jaylib, not static), field
+ * accessors on opaque native struct handles, functions needing native pointer
+ * construction, ambiguous overloads, and pure Java-side helpers with no raylib
+ * equivalent.
  */
 public class Raylib implements ReflectiveLib {
 
@@ -76,6 +76,12 @@ public class Raylib implements ReflectiveLib {
     @Override
     public List<Class<?>> targets() {
         return List.of(com.raylib.Colors.class, com.raylib.Raylib.class);
+    }
+
+    @Override
+    public java.util.Map<String, Object> constants() {
+        // Short aliases for mouse buttons (MOUSE_BUTTON_* are auto-bound from Jaylib)
+        return java.util.Map.of("MOUSE_LEFT", 0.0, "MOUSE_RIGHT", 1.0, "MOUSE_MIDDLE", 2.0);
     }
 
     private static double toDouble(Object arg) {
@@ -115,31 +121,31 @@ public class Raylib implements ReflectiveLib {
                 // Struct constructors — not static methods in Jaylib, so can't be auto-bound
                 custom("Color", List.of(NUMBER, NUMBER, NUMBER, NUMBER), OBJECT, args
                         -> new Color().r((byte) toInt(args.get(0))).g((byte) toInt(args.get(1)))
-                                .b((byte) toInt(args.get(2))).a((byte) toInt(args.get(3)))),
+                        .b((byte) toInt(args.get(2))).a((byte) toInt(args.get(3)))),
                 custom("Vector2", List.of(NUMBER, NUMBER), OBJECT, args
                         -> v2(args.get(0), args.get(1))),
                 custom("Vector3", List.of(NUMBER, NUMBER, NUMBER), OBJECT, args
                         -> v3(args.get(0), args.get(1), args.get(2))),
                 custom("Rectangle", List.of(NUMBER, NUMBER, NUMBER, NUMBER), OBJECT, args
                         -> new Rectangle().x(toFloat(args.get(0))).y(toFloat(args.get(1)))
-                                .width(toFloat(args.get(2))).height(toFloat(args.get(3)))),
+                        .width(toFloat(args.get(2))).height(toFloat(args.get(3)))),
                 custom("Ray", List.of(NUMBER, NUMBER, NUMBER, NUMBER, NUMBER, NUMBER), OBJECT, args
                         -> new Ray()._position(v3(args.get(0), args.get(1), args.get(2)))
-                                .direction(v3(args.get(3), args.get(4), args.get(5)))),
+                        .direction(v3(args.get(3), args.get(4), args.get(5)))),
                 custom("BoundingBox", List.of(NUMBER, NUMBER, NUMBER, NUMBER, NUMBER, NUMBER), OBJECT, args
                         -> new BoundingBox().min(v3(args.get(0), args.get(1), args.get(2)))
-                                .max(v3(args.get(3), args.get(4), args.get(5)))),
+                        .max(v3(args.get(3), args.get(4), args.get(5)))),
                 custom("Camera3D", List.of(NUMBER, NUMBER, NUMBER, NUMBER, NUMBER, NUMBER, NUMBER), OBJECT, args
                         -> new Camera3D()._position(v3(args.get(0), args.get(1), args.get(2)))
-                                .target(v3(args.get(3), args.get(4), args.get(5)))
-                                .up(new Vector3().x(0).y(1).z(0))
-                                .fovy(toFloat(args.get(6)))
-                                .projection(CAMERA_PERSPECTIVE)),
+                        .target(v3(args.get(3), args.get(4), args.get(5)))
+                        .up(new Vector3().x(0).y(1).z(0))
+                        .fovy(toFloat(args.get(6)))
+                        .projection(CAMERA_PERSPECTIVE)),
                 custom("Camera2D", List.of(NUMBER, NUMBER, NUMBER, NUMBER, NUMBER, NUMBER), OBJECT, args
                         -> new Camera2D().offset(v2(args.get(0), args.get(1)))
-                                .target(v2(args.get(2), args.get(3)))
-                                .rotation(toFloat(args.get(4)))
-                                .zoom(toFloat(args.get(5)))),
+                        .target(v2(args.get(2), args.get(3)))
+                        .rotation(toFloat(args.get(4)))
+                        .zoom(toFloat(args.get(5)))),
                 // Field accessors — instance methods on opaque struct handles
                 custom("Vector2X", List.of(OBJECT), NUMBER, args -> (double) ((Vector2) args.get(0)).x()),
                 custom("Vector2Y", List.of(OBJECT), NUMBER, args -> (double) ((Vector2) args.get(0)).y()),
@@ -255,10 +261,10 @@ public class Raylib implements ReflectiveLib {
                 // pass — the regular Camera3D constructor always hardcodes perspective.
                 custom("OrthoCamera3D", List.of(NUMBER, NUMBER, NUMBER, NUMBER, NUMBER, NUMBER, NUMBER), OBJECT, args
                         -> new Camera3D()._position(v3(args.get(0), args.get(1), args.get(2)))
-                                .target(v3(args.get(3), args.get(4), args.get(5)))
-                                .up(new Vector3().x(0).y(1).z(0))
-                                .fovy(toFloat(args.get(6)))
-                                .projection(CAMERA_ORTHOGRAPHIC)),
+                        .target(v3(args.get(3), args.get(4), args.get(5)))
+                        .up(new Vector3().x(0).y(1).z(0))
+                        .fovy(toFloat(args.get(6)))
+                        .projection(CAMERA_ORTHOGRAPHIC)),
                 // Skeletal animation — LoadModelAnimations has ambiguous overloads once
                 // reflectively scanned (String/BytePointer x IntPointer/IntBuffer/int[]
                 // all score equally under the auto-scanner's heuristic), so it's bound
@@ -347,10 +353,6 @@ public class Raylib implements ReflectiveLib {
                     float spacing = toFloat(args.get(3));
                     return (double) com.raylib.Raylib.MeasureTextEx(font, text, fontSize, spacing).x();
                 }),
-                // Short aliases for mouse buttons (MOUSE_BUTTON_* are auto-bound from Jaylib)
-                custom("MOUSE_LEFT", List.of(), NUMBER, args -> 0.0),
-                custom("MOUSE_RIGHT", List.of(), NUMBER, args -> 1.0),
-                custom("MOUSE_MIDDLE", List.of(), NUMBER, args -> 2.0),
                 custom("WindowShouldClose", List.of(), BOOL, args
                         -> stopping.get() || com.raylib.Raylib.WindowShouldClose()));
     }

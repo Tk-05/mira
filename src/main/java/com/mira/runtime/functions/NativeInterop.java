@@ -14,24 +14,32 @@ import com.mira.lib.ReflectiveLib;
 import com.mira.runtime.interpreter.Environment;
 
 /**
- * Shared resolution core for {@link ReflectiveLib}: binds a library's
- * declared {@code overrides()} and auto-scanned {@code targets()} into an
+ * Shared resolution core for {@link ReflectiveLib}: binds a library's declared
+ * {@code overrides()} and auto-scanned {@code targets()} into an
  * {@link Environment} at native-import time, and (via {@link #describe})
- * produces the same signatures for the build-time manifest generator - the
- * two paths share this logic so they can never drift apart.
+ * produces the same signatures for the build-time manifest generator - the two
+ * paths share this logic so they can never drift apart.
  */
 public final class NativeInterop {
 
     private NativeInterop() {
     }
 
-    /** A single exposed member's declared Mira-facing signature. */
+    /**
+     * A single exposed member's declared Mira-facing signature.
+     */
     public record ResolvedBinding(String name, List<NativeType> paramTypes, NativeType returnType) {
+
     }
 
     public static void bind(ReflectiveLib lib, Environment env) {
         for (NativeOverride override : lib.overrides()) {
             bindOverride(lib, override, env);
+        }
+        for (Map.Entry<String, Object> entry : lib.constants().entrySet()) {
+            if (!env.exists(entry.getKey())) {
+                env.define(entry.getKey(), entry.getValue());
+            }
         }
         for (Class<?> target : lib.targets()) {
             ReflectiveBinder.bindMethods(target, env);
@@ -117,6 +125,11 @@ public final class NativeInterop {
         for (NativeOverride override : lib.overrides()) {
             result.add(new ResolvedBinding(override.name(), override.paramTypes(), override.returnType()));
         }
+        for (Map.Entry<String, Object> entry : lib.constants().entrySet()) {
+            Object value = entry.getValue();
+            NativeType type = value != null ? NativeType.fromJavaClass(value.getClass()) : NativeType.ANY;
+            result.add(new ResolvedBinding(entry.getKey(), List.of(), type));
+        }
         for (Class<?> target : lib.targets()) {
             for (Map.Entry<String, Method> entry : ReflectiveBinder.selectMethods(target).entrySet()) {
                 Method m = entry.getValue();
@@ -125,6 +138,11 @@ public final class NativeInterop {
                     params.add(NativeType.fromJavaClass(p));
                 }
                 result.add(new ResolvedBinding(entry.getKey(), params, NativeType.fromJavaClass(m.getReturnType())));
+            }
+            for (Map.Entry<String, java.lang.reflect.Field> entry
+                    : ReflectiveBinder.selectConstants(target).entrySet()) {
+                result.add(new ResolvedBinding(entry.getKey(), List.of(),
+                        NativeType.fromJavaClass(entry.getValue().getType())));
             }
         }
         return result;

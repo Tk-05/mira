@@ -21,6 +21,9 @@ import org.eclipse.lsp4j.CompletionItemKind;
 import com.mira.lexer.Tokenizer;
 import com.mira.lib.Lib;
 import com.mira.lib.LibIndex;
+import com.mira.lib.NativeInterfaceManifest;
+import com.mira.lib.NativeInterfaceManifest.Signature;
+import com.mira.lib.NativeLibLocator;
 import com.mira.parser.Parser;
 import com.mira.parser.nodes.Node;
 import com.mira.parser.nodes.Parameter;
@@ -319,8 +322,10 @@ public class CompletionProvider {
                 case NATIVE -> {
                     if (docPath != null) {
                         String rawPath = imp.getModule().replace("\"", "");
-                        Path jarPath = docPath.getParent().resolve(rawPath).normalize();
-                        addNativeCompletions(jarPath, alias, items);
+                        Path jarPath = NativeLibLocator.locate(rawPath, docPath);
+                        if (jarPath != null) {
+                            addNativeCompletions(jarPath, alias, items);
+                        }
                     }
                 }
             }
@@ -382,8 +387,35 @@ public class CompletionProvider {
         }
     }
 
+    /**
+     * Fast path: builds completions straight from the jar's classloading-free
+     * manifest (see {@link NativeInterfaceManifest}), with real declared types
+     * in the detail text - never loads the native jar's actual Java classes.
+     */
+    private static void addNativeCompletionsFromManifest(Map<String, Signature> manifest, String alias,
+            List<CompletionItem> items) {
+        for (Map.Entry<String, Signature> entry : manifest.entrySet()) {
+            String name = entry.getKey();
+            Signature sig = entry.getValue();
+            CompletionItem item = new CompletionItem(alias + "." + name);
+            if (sig.paramTypes().isEmpty()) {
+                item.setKind(CompletionItemKind.Constant);
+                item.setDetail(name + " : " + sig.returnType());
+            } else {
+                item.setKind(CompletionItemKind.Function);
+                item.setDetail("fn " + name + "(" + String.join(", ", sig.paramTypes()) + ") -> " + sig.returnType());
+            }
+            items.add(item);
+        }
+    }
+
     private static void addNativeCompletions(Path jarPath, String alias, List<CompletionItem> items) {
         if (!Files.exists(jarPath)) {
+            return;
+        }
+        Map<String, Signature> manifest = NativeInterfaceManifest.readFromJar(jarPath);
+        if (!manifest.isEmpty()) {
+            addNativeCompletionsFromManifest(manifest, alias, items);
             return;
         }
         try {

@@ -134,10 +134,6 @@ public class StaticCheck {
     // way as a call to a declared Mira function, without ever loading the
     // native jar's actual Java classes during a check/LSP pass.
     private final Map<String, Map<String, Signature>> nativeNamespaceSignatures = new HashMap<>();
-    private static final Map<String, CachedManifest> NATIVE_MANIFEST_CACHE = new java.util.concurrent.ConcurrentHashMap<>();
-
-    private record CachedManifest(long mtime, Map<String, Signature> signatures) {
-    }
     private final Map<String, Node> varLiteralTypes = new HashMap<>();
     private final Map<String, FuncDecl> userFuncDecls = new HashMap<>();
     private final Map<String, EnumDecl> userEnumDecls = new HashMap<>();
@@ -1362,33 +1358,9 @@ public class StaticCheck {
         if (jarPath == null) {
             return;
         }
-        Map<String, Signature> signatures = readNativeManifest(jarPath);
+        Map<String, Signature> signatures = NativeInterfaceManifest.readFromJar(jarPath);
         if (!signatures.isEmpty()) {
             nativeNamespaceSignatures.put(expr.getNamespace(), signatures);
-        }
-    }
-
-    private static Map<String, Signature> readNativeManifest(Path jarPath) {
-        try {
-            String key = jarPath.toAbsolutePath().toString();
-            long mtime = Files.getLastModifiedTime(jarPath).toMillis();
-            CachedManifest cached = NATIVE_MANIFEST_CACHE.get(key);
-            if (cached != null && cached.mtime() == mtime) {
-                return cached.signatures();
-            }
-            try (java.util.jar.JarFile jar = new java.util.jar.JarFile(jarPath.toFile())) {
-                java.util.jar.JarEntry entry = jar.getJarEntry(NativeInterfaceManifest.RESOURCE_PATH);
-                if (entry == null) {
-                    return Map.of();
-                }
-                try (java.io.InputStream in = jar.getInputStream(entry)) {
-                    Map<String, Signature> signatures = NativeInterfaceManifest.read(in);
-                    NATIVE_MANIFEST_CACHE.put(key, new CachedManifest(mtime, signatures));
-                    return signatures;
-                }
-            }
-        } catch (java.io.IOException e) {
-            return Map.of();
         }
     }
 

@@ -41,24 +41,29 @@ public final class ReflectiveBinder {
     }
 
     public static void bindConstants(Class<?> source, Environment env) {
-        for (Field f : source.getFields()) {
-            if (!Modifier.isStatic(f.getModifiers())) {
+        for (Map.Entry<String, Field> entry : selectConstants(source).entrySet()) {
+            if (env.exists(entry.getKey())) {
                 continue;
             }
-            if (!Modifier.isFinal(f.getModifiers())) {
+            try {
+                env.define(entry.getKey(), coerceReturn(entry.getValue().get(null), entry.getValue().getType()));
+            } catch (IllegalAccessException ignored) {
+            }
+        }
+    }
+
+    static Map<String, Field> selectConstants(Class<?> source) {
+        Map<String, Field> result = new LinkedHashMap<>();
+        for (Field f : source.getFields()) {
+            if (!Modifier.isStatic(f.getModifiers()) || !Modifier.isFinal(f.getModifiers())) {
                 continue;
             }
             if (f.getDeclaringClass() != source) {
                 continue;
             }
-            if (env.exists(f.getName())) {
-                continue;
-            }
-            try {
-                env.define(f.getName(), coerceReturn(f.get(null), f.getType()));
-            } catch (IllegalAccessException ignored) {
-            }
+            result.put(f.getName(), f);
         }
+        return result;
     }
 
     static Map<String, Method> selectMethods(Class<?> source) {
