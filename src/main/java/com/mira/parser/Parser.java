@@ -84,6 +84,19 @@ public class Parser {
      */
     private final java.util.Set<String> knownAliases = new java.util.HashSet<>();
 
+    private static final java.util.Set<String> BUILTIN_TYPE_NAMES = java.util.Set.of(
+            "Number", "String", "Bool", "List", "Array", "Map", "Object", "Fn", "Null", "Any", "Void");
+
+    /**
+     * Type/enum/struct-template names declared so far in this parse. Needed
+     * to resolve the single-colon parameter ambiguity ("offset : base" - a
+     * type with no default, or an untyped default value expression?) the
+     * same way knownAliases resolves the call-vs-namespace one: both shapes
+     * are spelled identically now that a bareword can be a plain value read,
+     * so only "is this name actually a declared type" can tell them apart.
+     */
+    private final java.util.Set<String> declaredTypeNames = new java.util.HashSet<>(BUILTIN_TYPE_NAMES);
+
     public List<Node> parseTokens(List<Token> tokens) {
         reset();
         this.tokens = tokens;
@@ -310,6 +323,8 @@ public class Parser {
         errors.clear();
         lastConsumed = null;
         knownAliases.clear();
+        declaredTypeNames.clear();
+        declaredTypeNames.addAll(BUILTIN_TYPE_NAMES);
     }
 
     private void increaseDepth() {
@@ -1163,6 +1178,7 @@ public class Parser {
     private Node parseTypeAliasDecl() {
         matchLexeme("type");
         String name = matchExpression().getLexeme();
+        declaredTypeNames.add(name);
         matchLexeme(":");
         TypeAnnotation aliased = parseTypeExpression();
         matchLexeme(";");
@@ -1211,11 +1227,16 @@ public class Parser {
      * value in parameter position specifically - the pattern ": TypeName[?]"
      * immediately followed by ',' or ')'. Parameters (unlike var decls) need
      * this second heuristic because "typed, no default" is the common case
-     * there, and there's no second ':' available to disambiguate it with.
+     * there, and there's no second ':' available to disambiguate it with -
+     * unlike isTypedDeclarationAhead, a bareword here is genuinely ambiguous
+     * with an untyped default value expression (e.g. "offset : base"), so
+     * this requires typeToken to be a name actually declared as a type
+     * (enum, struct template, type alias, or builtin), not just identifier-
+     * shaped, to avoid misreading "default value base" as "type base".
      */
     private boolean isTypeOnlyParameterAhead() {
         Token typeToken = peekOffset(1);
-        if (!looksLikeTypeName(typeToken)) {
+        if (!isKnownTypeName(typeToken)) {
             return false;
         }
         int next = 2;
@@ -1230,6 +1251,22 @@ public class Parser {
         return token.getTokenType() == TokenType.EXPRESSION
                 && !token.getLexeme().isEmpty()
                 && !Character.isDigit(token.getLexeme().charAt(0));
+    }
+
+    private boolean isKnownTypeName(Token token) {
+        if (!looksLikeTypeName(token)) {
+            return false;
+        }
+        String lex = token.getLexeme();
+        if (declaredTypeNames.contains(lex)) {
+            return true;
+        }
+        // Not declared anywhere the parser has seen so far (a type imported
+        // from a module/native lib, or simply not declared yet) - fall back
+        // to the capitalization convention every type name in this codebase
+        // follows (builtins and user types alike), which a default-value
+        // bareword never does.
+        return Character.isUpperCase(lex.charAt(0));
     }
 
     private List<Node> parseVarDecl(boolean isConst) {
@@ -1280,6 +1317,13 @@ public class Parser {
             vd.nameColumn = nameToken.getColumn();
             vd.type = type;
             decls.add(vd);
+            if (initializer instanceof StructExpression) {
+                // `var Point : struct {...};` binds a nominal struct template -
+                // the var's own name doubles as a type name from here on (e.g.
+                // `fn make() -> Point { ... }`), same ambiguity knownAliases
+                // already resolves for import aliases.
+                declaredTypeNames.add(identifier);
+            }
             if (peek().getLexeme().equals(",") && !peekOffset(1).getLexeme().equals("var")) {
                 consume();
             } else {
@@ -1814,6 +1858,7 @@ public class Parser {
     private Node parseEnumDecl(boolean isPublic) {
         matchLexeme("enum");
         String identifier = matchType(TokenType.EXPRESSION).getLexeme();
+        declaredTypeNames.add(identifier);
         matchLexeme("{");
 
         Map<String, Expression> values = new LinkedHashMap<>();
