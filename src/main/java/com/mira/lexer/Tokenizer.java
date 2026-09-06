@@ -5,9 +5,12 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import com.mira.error.MiraError;
+import com.mira.error.lexer.LexerError;
 import com.mira.error.lexer.LexerError.InvalidEscapeSequenceError;
 import com.mira.error.lexer.LexerError.UnexpectedCharacterError;
 import com.mira.error.lexer.LexerError.UnterminatedStringError;
+import com.mira.error.lexer.MultipleLexerErrors;
 import com.mira.lexer.token.Token;
 import com.mira.lexer.token.TokenType;
 import com.mira.vocabulary.Vocabulary;
@@ -30,6 +33,7 @@ public class Tokenizer {
 
     private String source;
     private final List<Token> tokens = new ArrayList<>();
+    private final List<MiraError> errors = new ArrayList<>();
     private boolean ignoreSequences;
 
     private int start = 0;
@@ -46,11 +50,34 @@ public class Tokenizer {
 
         while (!isAtEnd()) {
             start = current;
-            scanToken();
+            try {
+                scanToken();
+            } catch (LexerError e) {
+                errors.add(e);
+                recoverFromError();
+            }
         }
 
         tokens.add(new Token(TokenType.EOF, "", line, column));
+
+        if (!errors.isEmpty()) {
+            throw new MultipleLexerErrors(errors);
+        }
+
         return tokens;
+    }
+
+    /**
+     * Guarantees the scan makes forward progress after a bad token so the outer
+     * loop in {@link #tokenize} can keep collecting further errors instead of
+     * looping forever at the same position. Most error sites already consume at
+     * least one character before throwing; this is a safety net for any that
+     * don't.
+     */
+    private void recoverFromError() {
+        if (current == start && !isAtEnd()) {
+            advance();
+        }
     }
 
     private void reset() {
@@ -61,6 +88,7 @@ public class Tokenizer {
         tokenStartLine = 1;
         tokenStartColumn = 1;
         tokens.clear();
+        errors.clear();
     }
 
     private void scanToken() {
@@ -178,18 +206,25 @@ public class Tokenizer {
                     case 'u' -> {
                         advance();
                         StringBuilder hex = new StringBuilder();
+                        boolean validEscape = true;
                         for (int i = 0; i < 4; i++) {
                             if (isAtEnd() || !isHexDigit(peek())) {
-                                throw new InvalidEscapeSequenceError(line, column, 'u');
+                                errors.add(new InvalidEscapeSequenceError(line, column, 'u'));
+                                validEscape = false;
+                                break;
                             }
                             hex.append(peek());
                             advance();
                         }
-                        valueBuilder.append((char) Integer.parseInt(hex.toString(), 16));
+                        if (validEscape) {
+                            valueBuilder.append((char) Integer.parseInt(hex.toString(), 16));
+                        }
                         continue;
                     }
-                    default ->
-                        throw new InvalidEscapeSequenceError(line, column, escaped);
+                    default -> {
+                        errors.add(new InvalidEscapeSequenceError(line, column, escaped));
+                        valueBuilder.append(escaped);
+                    }
                 }
 
             } else {

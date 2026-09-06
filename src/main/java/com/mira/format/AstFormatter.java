@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import com.mira.error.MiraError;
+import com.mira.error.lexer.MultipleLexerErrors;
 import com.mira.error.parser.MultipleParserErrors;
 import com.mira.lexer.Tokenizer;
 import com.mira.lexer.token.Token;
@@ -47,10 +48,10 @@ import com.mira.parser.nodes.statement.Statement.Break;
 import com.mira.parser.nodes.statement.Statement.ComptimeBlock;
 import com.mira.parser.nodes.statement.Statement.Continue;
 import com.mira.parser.nodes.statement.Statement.EnumDecl;
-import com.mira.parser.nodes.statement.Statement.Loop;
 import com.mira.parser.nodes.statement.Statement.FuncDecl;
 import com.mira.parser.nodes.statement.Statement.If;
 import com.mira.parser.nodes.statement.Statement.Lock;
+import com.mira.parser.nodes.statement.Statement.Loop;
 import com.mira.parser.nodes.statement.Statement.ModuleDecl;
 import com.mira.parser.nodes.statement.Statement.Return;
 import com.mira.parser.nodes.statement.Statement.StaticAssert;
@@ -85,7 +86,7 @@ public class AstFormatter implements ExprVisitor<String>, StmtVisitor<String> {
             AstFormatter formatter = new AstFormatter();
             extractComments(src, formatter.standaloneComments, formatter.inlineComments);
             return formatter.formatProgram(ast);
-        } catch (MiraError | MultipleParserErrors e) {
+        } catch (MiraError | MultipleLexerErrors | MultipleParserErrors e) {
             return Formatter.format(src);
         }
     }

@@ -36,14 +36,15 @@ import org.eclipse.lsp4j.SemanticTokens;
 import org.eclipse.lsp4j.SemanticTokensParams;
 import org.eclipse.lsp4j.SignatureHelp;
 import org.eclipse.lsp4j.SignatureHelpParams;
-import org.eclipse.lsp4j.TextEdit;
 import org.eclipse.lsp4j.SymbolInformation;
+import org.eclipse.lsp4j.TextEdit;
 import org.eclipse.lsp4j.WorkspaceEdit;
 import org.eclipse.lsp4j.jsonrpc.messages.Either;
 import org.eclipse.lsp4j.jsonrpc.messages.Either3;
 import org.eclipse.lsp4j.services.TextDocumentService;
 
 import com.mira.error.MiraError;
+import com.mira.error.lexer.MultipleLexerErrors;
 import com.mira.error.parser.MultipleParserErrors;
 import com.mira.format.AstFormatter;
 import com.mira.lexer.Tokenizer;
@@ -206,8 +207,8 @@ public class DocumentService implements TextDocumentService {
         Path docPath = uriToPath(uri);
         Range range = RenameProvider.prepareRename(ast, content, params.getPosition(), uri,
                 docPath, workspaceIndex, workspaceRoot, documents);
-        Either3<Range, PrepareRenameResult, PrepareRenameDefaultBehavior> result =
-                range != null ? Either3.forFirst(range) : null;
+        Either3<Range, PrepareRenameResult, PrepareRenameDefaultBehavior> result
+                = range != null ? Either3.forFirst(range) : null;
         return CompletableFuture.completedFuture(result);
     }
 
@@ -238,7 +239,7 @@ public class DocumentService implements TextDocumentService {
             List<Token> tokens = new Tokenizer().tokenize(content, false);
             List<Node> ast = new Parser().parseTokens(tokens);
             astCache.put(uri, ast);
-        } catch (MiraError | MultipleParserErrors ignored) {
+        } catch (MiraError | MultipleLexerErrors | MultipleParserErrors ignored) {
             // Parsing failed for the text just stored in `documents` — remove any
             // previously cached AST rather than leaving it paired with the new
             // (unparseable) text. Every position-based feature reads both maps

@@ -8,6 +8,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
 import com.mira.error.MiraError;
+import com.mira.error.lexer.MultipleLexerErrors;
 import com.mira.error.parser.MultipleParserErrors;
 import com.mira.error.runtime.RuntimeError.ArgMismatchError;
 import com.mira.error.runtime.RuntimeError.AssertionFailedError;
@@ -364,7 +365,7 @@ public class Internal implements Lib {
             Tokenizer tokenizer = new Tokenizer();
             Parser parser = new Parser();
             ast = parser.parseTokens(tokenizer.tokenize(normalized, false));
-        } catch (MiraError | MultipleParserErrors e) {
+        } catch (MiraError | MultipleLexerErrors | MultipleParserErrors e) {
             throw new ThrowSignal("EvalError", e.getMessage());
         }
         try {

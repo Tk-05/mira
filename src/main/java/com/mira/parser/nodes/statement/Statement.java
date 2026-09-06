@@ -685,7 +685,10 @@ public abstract class Statement implements Node {
             return names;
         }
 
-        /** Column of each name in {@link #getNames()}, in the same order; all on this statement's own {@link #line}. */
+        /**
+         * Column of each name in {@link #getNames()}, in the same order; all on
+         * this statement's own {@link #line}.
+         */
         public List<Integer> getNameColumns() {
             return nameColumns;
         }

@@ -14,6 +14,7 @@ import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.Range;
 
 import com.mira.error.MiraError;
+import com.mira.error.lexer.MultipleLexerErrors;
 import com.mira.error.parser.MultipleParserErrors;
 import com.mira.error.resolver.MultipleStaticCheckErrors;
 import com.mira.lexer.Tokenizer;
@@ -34,8 +35,8 @@ public class DiagnosticCollector {
 
     /**
      * Same as the 3-arg overload, but routes sibling-file lookups (for
-     * external-call detection) through the shared {@link WorkspaceIndex}
-     * cache instead of re-reading/re-tokenizing/re-parsing every sibling
+     * external-call detection) through the shared {@link WorkspaceIndex} cache
+     * instead of re-reading/re-tokenizing/re-parsing every sibling
      * {@code .mira} file from scratch on every call — the difference between
      * O(1) cached lookups and a full reparse pass on every keystroke.
      */
@@ -54,6 +55,8 @@ public class DiagnosticCollector {
             } catch (MultipleStaticCheckErrors mre) {
                 mre.getErrors().forEach(e -> result.add(fromError(e, DiagnosticSeverity.Error)));
             }
+        } catch (MultipleLexerErrors mle) {
+            mle.getErrors().forEach(e -> result.add(fromError(e, DiagnosticSeverity.Error)));
         } catch (MultipleParserErrors mpe) {
             mpe.getErrors().forEach(e -> result.add(fromError(e, DiagnosticSeverity.Error)));
         } catch (MiraError e) {

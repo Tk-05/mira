@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import com.mira.error.lexer.LexerError.InvalidEscapeSequenceError;
 import com.mira.error.lexer.LexerError.UnexpectedCharacterError;
 import com.mira.error.lexer.LexerError.UnterminatedStringError;
+import com.mira.error.lexer.MultipleLexerErrors;
 import com.mira.lexer.token.Token;
 import com.mira.lexer.token.TokenType;
 import com.mira.vocabulary.Vocabulary;
@@ -173,13 +174,25 @@ public class LexerTest {
     @Test
     void testUnterminatedString() {
         String unterminatedString = "\"Hello World";
-        assertThrows(UnterminatedStringError.class, () -> tokenizer.tokenize(unterminatedString, false));
+        MultipleLexerErrors ex = assertThrows(MultipleLexerErrors.class, () -> tokenizer.tokenize(unterminatedString, false));
+        assertEquals(1, ex.getErrors().size());
+        assertTrue(ex.getErrors().getFirst() instanceof UnterminatedStringError);
     }
 
     @Test
     void testUnexpectedSymbol() {
         String unexpectedSymbol = "@";
-        assertThrows(UnexpectedCharacterError.class, () -> tokenizer.tokenize(unexpectedSymbol, false));
+        MultipleLexerErrors ex = assertThrows(MultipleLexerErrors.class, () -> tokenizer.tokenize(unexpectedSymbol, false));
+        assertEquals(1, ex.getErrors().size());
+        assertTrue(ex.getErrors().getFirst() instanceof UnexpectedCharacterError);
+    }
+
+    @Test
+    void testMultipleUnexpectedSymbolsAreAllCollected() {
+        String source = "@ # `";
+        MultipleLexerErrors ex = assertThrows(MultipleLexerErrors.class, () -> tokenizer.tokenize(source, false));
+        assertEquals(3, ex.getErrors().size());
+        assertTrue(ex.getErrors().stream().allMatch(e -> e instanceof UnexpectedCharacterError));
     }
 
     @Test
@@ -484,11 +497,25 @@ public class LexerTest {
 
     @Test
     void testUnknownEscapeThrows() {
-        assertThrows(InvalidEscapeSequenceError.class, () -> tokenizer.tokenize("\"\\q\"", false));
+        MultipleLexerErrors ex = assertThrows(MultipleLexerErrors.class, () -> tokenizer.tokenize("\"\\q\"", false));
+        assertEquals(1, ex.getErrors().size());
+        assertTrue(ex.getErrors().getFirst() instanceof InvalidEscapeSequenceError);
     }
 
     @Test
     void testIncompleteUnicodeEscapeThrows() {
-        assertThrows(InvalidEscapeSequenceError.class, () -> tokenizer.tokenize("\"\\u12\"", false));
+        MultipleLexerErrors ex = assertThrows(MultipleLexerErrors.class, () -> tokenizer.tokenize("\"\\u12\"", false));
+        assertEquals(1, ex.getErrors().size());
+        assertTrue(ex.getErrors().getFirst() instanceof InvalidEscapeSequenceError);
+    }
+
+    @Test
+    void testMultipleErrorsAcrossFileAreAllCollected() {
+        String source = """
+                var x : @;
+                var y : #;
+                """;
+        MultipleLexerErrors ex = assertThrows(MultipleLexerErrors.class, () -> tokenizer.tokenize(source, false));
+        assertEquals(2, ex.getErrors().size());
     }
 }
