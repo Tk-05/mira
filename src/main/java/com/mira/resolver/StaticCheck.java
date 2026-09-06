@@ -994,6 +994,25 @@ public class StaticCheck {
                     if (fn != null && !expr.getArguments().isEmpty()) {
                         checkCallParamFieldAccesses(fn, expr.getArguments());
                         checkArgumentTypes(fn, expr.getArguments(), callee);
+                    } else if (fn == null && !knownFunctions.contains(name)) {
+                        // `name(...)` with no `fn name` and no stdlib/builtin of that
+                        // name is a plain variable being called - unlike a real
+                        // function, its held value might not be callable at all, so
+                        // reuse the same $-ref type-tracking checkVariableCallable
+                        // already does, via the identical synthetic "$" wrapper the
+                        // parser itself builds for a bareword variable read. Also
+                        // reuses varLiteralTypes' remembered literal shape (now
+                        // including lambdas, see isKnownLiteral) to recover a tracked
+                        // lambda's own parameter list for argument type checking,
+                        // silently skipping when that shape isn't known or isn't one.
+                        checkVariableCallable(asDollarRef(callee), callee);
+                        if (!expr.getArguments().isEmpty()) {
+                            Node tracked = varLiteralTypes.get(name);
+                            if (tracked instanceof LambdaExpression lambda) {
+                                checkArgumentTypes(name, lambda.getParameters(), expr.getArguments(),
+                                        callee.getLine(), callee.getColumn());
+                            }
+                        }
                     }
                 }
             } else {
@@ -1002,25 +1021,6 @@ public class StaticCheck {
             }
         } else {
             resolveExpr(expr.getCallee());
-            // calling a lambda held in a variable ($f(args), not a bareword function
-            // name) never went through argument type checking before - only direct
-            // calls to a named top-level function did. Reuses the same varLiteralTypes
-            // tracking that already remembers a variable's last-known literal shape
-            // (now including lambdas, see isKnownLiteral) to recover the lambda's own
-            // parameter list; silently skips when that shape isn't known or isn't a lambda.
-            if (expr.getCallee() instanceof UnaryExpression u
-                    && "$".equals(u.getOperation().getLexeme())
-                    && u.getRight() instanceof DumbExpression d
-                    && isIdentifier(d)) {
-                checkVariableCallable(u, d);
-                if (!expr.getArguments().isEmpty()) {
-                    Node tracked = varLiteralTypes.get(d.getValue());
-                    if (tracked instanceof LambdaExpression lambda) {
-                        checkArgumentTypes(d.getValue(), lambda.getParameters(), expr.getArguments(),
-                                d.getLine(), d.getColumn());
-                    }
-                }
-            }
         }
         expr.getArguments().forEach(this::resolveExpr);
     }
@@ -1854,11 +1854,20 @@ public class StaticCheck {
             }
             return null;
         }
-        if (expr instanceof FieldAccessExpression fae && fae.getObject() instanceof DumbExpression obj
-                && isIdentifier(obj)) {
-            EnumDecl enumDecl = userEnumDecls.get(obj.getValue());
-            if (enumDecl != null && enumDecl.getValues().containsKey(fae.getField())) {
-                return new MiraType.NamedType(enumDecl.getIdentifier());
+        if (expr instanceof FieldAccessExpression fae) {
+            Node fieldObject = fae.getObject();
+            // a bareword type/enum name (e.g. Color in Color.RED) is wrapped in the
+            // same synthetic "$" the parser gives every bareword value read - it
+            // looks identical to a real variable reference at this point, so unwrap
+            // it the same way the rest of this method does before checking identity
+            if (fieldObject instanceof UnaryExpression u && "$".equals(u.getOperation().getLexeme())) {
+                fieldObject = u.getRight();
+            }
+            if (fieldObject instanceof DumbExpression obj && isIdentifier(obj)) {
+                EnumDecl enumDecl = userEnumDecls.get(obj.getValue());
+                if (enumDecl != null && enumDecl.getValues().containsKey(fae.getField())) {
+                    return new MiraType.NamedType(enumDecl.getIdentifier());
+                }
             }
             return null;
         }
@@ -2147,6 +2156,17 @@ public class StaticCheck {
         }
         errors.add(new BinaryOperatorTypeMismatchError(e.getOperator().getLexeme(), MiraType.display(types.left()),
                 MiraType.display(types.right()), e.getOperator().getLine(), e.getOperator().getColumn()));
+    }
+
+    /**
+     * Builds the same synthetic "$" unary wrapper the parser itself builds for
+     * a bareword variable read (see {@code Parser.wrapAsVariableRef}) - lets
+     * name-only-callee checks reuse $-ref-shaped inference (inferMiraType,
+     * checkVariableCallable) without duplicating it.
+     */
+    private UnaryExpression asDollarRef(DumbExpression nameExpr) {
+        Token dollar = new Token(TokenType.OPERATION, "$", nameExpr.getLine(), nameExpr.getColumn());
+        return new UnaryExpression(dollar, nameExpr);
     }
 
     private void checkVariableCallable(UnaryExpression dollarRef, DumbExpression nameExpr) {

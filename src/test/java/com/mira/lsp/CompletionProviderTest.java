@@ -1,4 +1,4 @@
-package com.mira.lsp;
+﻿package com.mira.lsp;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -111,7 +111,7 @@ public class CompletionProviderTest {
     void suggestsStructTemplateNameAsBareType() {
         // regression: a struct template variable is a valid nominal type
         // (e.g. usable as "-> point"), so its bare name - not just its
-        // "$point"/"$point.field" member-access forms - must be suggested
+        // "point"/"point.field" member-access forms - must be suggested
         String source = """
                 var point : struct {
                     var x;
@@ -121,6 +121,6 @@ public class CompletionProviderTest {
         List<CompletionItem> items = CompletionProvider.provide(parse(source), "file:///test.mira");
         assertTrue(items.stream().anyMatch(i -> i.getLabel().equals("point")));
         // the field-access forms should still be offered too, just not exclusively
-        assertTrue(items.stream().anyMatch(i -> i.getLabel().equals("$point.x")));
+        assertTrue(items.stream().anyMatch(i -> i.getLabel().equals("point.x")));
     }
 }

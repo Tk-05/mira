@@ -1,4 +1,4 @@
-package com.mira.lsp;
+﻿package com.mira.lsp;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -115,7 +115,7 @@ public class SignatureHelpProviderTest {
     void typedParametersShowDeclaredTypesInLabel() {
         String source = """
                 fn add(a : Number, b : Number) -> Number {
-                    return eval($a + $b);
+                    return eval(a + b);
                 }
                 fn main() {
                     return add(1, 2);
