@@ -1195,6 +1195,56 @@ public class StaticCheckTest {
     }
 
     @Test
+    void nonExhaustiveSwitchStatementOverEnumWarns() {
+        WarningCollector.clear();
+        assertClean(
+                "enum Color { RED, GREEN, BLUE } var c : Color : Color.RED; "
+                + "switch (c) { case (Color.RED) { println(1); } case (Color.GREEN) { println(2); } }");
+        assertTrue(WarningCollector.getWarnings().stream()
+                .anyMatch(w -> w.message().contains("not exhaustive") && w.message().contains("BLUE")));
+        WarningCollector.clear();
+    }
+
+    @Test
+    void exhaustiveSwitchStatementOverEnumIsClean() {
+        WarningCollector.clear();
+        assertClean(
+                "enum Color { RED, GREEN } var c : Color : Color.RED; "
+                + "switch (c) { case (Color.RED) { println(1); } case (Color.GREEN) { println(2); } }");
+        assertTrue(WarningCollector.getWarnings().stream().noneMatch(w -> w.message().contains("not exhaustive")));
+        WarningCollector.clear();
+    }
+
+    @Test
+    void nonExhaustiveSwitchStatementWithDefaultIsUnaffected() {
+        WarningCollector.clear();
+        assertClean(
+                "enum Color { RED, GREEN, BLUE } var c : Color : Color.RED; "
+                + "switch (c) { case (Color.RED) { println(1); } default { println(2); } }");
+        assertTrue(WarningCollector.getWarnings().stream().noneMatch(w -> w.message().contains("not exhaustive")));
+        WarningCollector.clear();
+    }
+
+    @Test
+    void nonExhaustiveSwitchOverNonEnumIsUnaffected() {
+        WarningCollector.clear();
+        assertClean("var n : Number : 1; switch (n) { case (1) { println(1); } }");
+        assertTrue(WarningCollector.getWarnings().stream().noneMatch(w -> w.message().contains("not exhaustive")));
+        WarningCollector.clear();
+    }
+
+    @Test
+    void nonExhaustiveSwitchExpressionOverEnumWarns() {
+        WarningCollector.clear();
+        assertClean(
+                "enum Color { RED, GREEN, BLUE } var c : Color : Color.RED; "
+                + "var label : String : switch (c) { case (Color.RED) -> \"r\" case (Color.GREEN) -> \"g\" };");
+        assertTrue(WarningCollector.getWarnings().stream()
+                .anyMatch(w -> w.message().contains("not exhaustive") && w.message().contains("BLUE")));
+        WarningCollector.clear();
+    }
+
+    @Test
     void untypedTernaryIsUnaffected() {
         assertClean("var c : true ? 1 : \"two\";");
     }

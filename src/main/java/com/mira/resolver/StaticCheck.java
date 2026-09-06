@@ -99,6 +99,7 @@ import com.mira.parser.nodes.statement.Statement.ModuleDecl;
 import com.mira.parser.nodes.statement.Statement.Return;
 import com.mira.parser.nodes.statement.Statement.StaticAssert;
 import com.mira.parser.nodes.statement.Statement.Switch;
+import com.mira.parser.nodes.statement.Statement.SwitchCase;
 import com.mira.parser.nodes.statement.Statement.TestCall;
 import com.mira.parser.nodes.statement.Statement.Throw;
 import com.mira.parser.nodes.statement.Statement.TryCatch;
@@ -907,6 +908,9 @@ public class StaticCheck {
                 if (e.getDefaultExpr() != null) {
                     resolveExpr(e.getDefaultExpr());
                 }
+                checkSwitchExhaustiveness(e.getSubject(),
+                        e.getCases().stream().map(SwitchExpression.SwitchExprCase::value).toList(),
+                        e.getDefaultExpr() != null, e.line, 0);
             }
             case RangeExpression e -> {
                 if (e.getStart() != null) {
@@ -1279,6 +1283,43 @@ public class StaticCheck {
             scope.push();
             resolveBody(stmt.getDefaultBody());
             popScope();
+        }
+        checkSwitchExhaustiveness(stmt.getSubject(),
+                stmt.getCases().stream().map(SwitchCase::getValue).toList(),
+                stmt.getDefaultBody() != null, stmt.line, stmt.column);
+    }
+
+    /**
+     * Warns when a switch over a known enum-typed subject has no default and
+     * doesn't cover every member - a default (or an unrecognized subject type)
+     * always makes this a no-op, so it never fires on a switch over a
+     * Number/String/whatever else.
+     */
+    private void checkSwitchExhaustiveness(Expression subject, List<Expression> caseValues, boolean hasDefault,
+            int line, int column) {
+        if (hasDefault) {
+            return;
+        }
+        MiraType subjectType = inferMiraType(subject);
+        if (!(subjectType instanceof MiraType.NamedType nt)) {
+            return;
+        }
+        EnumDecl enumDecl = userEnumDecls.get(nt.name());
+        if (enumDecl == null) {
+            return;
+        }
+        Set<String> missing = new HashSet<>(enumDecl.getValues().keySet());
+        for (Expression value : caseValues) {
+            if (value instanceof FieldAccessExpression fae) {
+                missing.remove(fae.getField());
+            }
+        }
+        if (!missing.isEmpty()) {
+            List<String> sorted = new ArrayList<>(missing);
+            java.util.Collections.sort(sorted);
+            WarningCollector.emit(WarningLevel.WARNING,
+                    "Switch over enum '" + nt.name() + "' is not exhaustive - missing: " + String.join(", ", sorted),
+                    line, column);
         }
     }
 
