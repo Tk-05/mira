@@ -53,17 +53,17 @@ public class BitwiseExpressionTest extends AbstractBitwiseExpressionTests {
 
     @Test
     void shiftLeftWithVariable() {
-        assertEquals(16.0, InterpreterRunner.normNum(backend.runAndGetValue("var x : 2; eval($x << 3);")));
+        assertEquals(16.0, InterpreterRunner.normNum(backend.runAndGetValue("var x : 2; (x << 3);")));
     }
 
     @Test
     void shiftRightWithVariable() {
-        assertEquals(4.0, InterpreterRunner.normNum(backend.runAndGetValue("var x : 32; eval($x >> 3);")));
+        assertEquals(4.0, InterpreterRunner.normNum(backend.runAndGetValue("var x : 32; (x >> 3);")));
     }
 
     @Test
     void bitwiseXorCompoundAssign() {
-        assertEquals(10.0, InterpreterRunner.normNum(backend.runAndGetValue("var x : 12; $x ^: 6; eval($x);")));
+        assertEquals(10.0, InterpreterRunner.normNum(backend.runAndGetValue("var x : 12; x ^: 6; (x);")));
     }
 
     @Test

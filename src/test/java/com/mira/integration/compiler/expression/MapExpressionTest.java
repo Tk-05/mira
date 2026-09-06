@@ -20,8 +20,8 @@ public class MapExpressionTest extends AbstractMapExpressionTests {
         assertEquals("1", backend.run("""
                 var m : {"a": 1};
                 var key : "b";
-                $m[$key] : { var foo : 1; };
-                print($m[$key].foo);
+                m[key] : { var foo : 1; };
+                print(m[key].foo);
                 """));
     }
 
@@ -30,9 +30,9 @@ public class MapExpressionTest extends AbstractMapExpressionTests {
         assertEquals("1", backend.run("""
                 var m : {"a": 1};
                 var key : "b";
-                $m[$key] : { var foo : 1; };
-                var v : $m[$key];
-                print($v.foo);
+                m[key] : { var foo : 1; };
+                var v : m[key];
+                print(v.foo);
                 """));
     }
 }

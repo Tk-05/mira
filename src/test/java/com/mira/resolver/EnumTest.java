@@ -27,11 +27,11 @@ public class EnumTest {
     }
 
     @Test void enumFieldAccessIsClean() {
-        assertClean("enum direction { NORTH, EAST, SOUTH, WEST } var dir : $direction.EAST;");
+        assertClean("enum direction { NORTH, EAST, SOUTH, WEST } var dir : direction.EAST;");
     }
 
     @Test void enumInSwitchIsClean() {
-        assertClean("enum direction { NORTH, EAST, SOUTH, WEST } var dir : $direction.EAST; var label : switch($dir) { case($direction.NORTH) -> \"N\" case($direction.EAST) -> \"E\" default -> \"?\" };");
+        assertClean("enum direction { NORTH, EAST, SOUTH, WEST } var dir : direction.EAST; var label : switch(dir) { case(direction.NORTH) -> \"N\" case(direction.EAST) -> \"E\" default -> \"?\" };");
     }
 
     @Test void enumPassedToFunctionWithKnownStructArgIsClean() {
@@ -39,17 +39,17 @@ public class EnumTest {
         assertClean(
             "enum direction { NORTH, EAST } " +
             "var point : struct { var x; var y; }; " +
-            "var origin : $point{}; " +
-            "fn hello(name) { println($name.x); } " +
-            "hello($origin); " +
-            "var dir : $direction.EAST;"
+            "var origin : point{}; " +
+            "fn hello(name) { println(name.x); } " +
+            "hello(origin); " +
+            "var dir : direction.EAST;"
         );
     }
 
     @Test void enumAccessInsideFunctionIsClean() {
         assertClean(
             "enum direction { NORTH, EAST, SOUTH, WEST } " +
-            "fn main() { var dir : $direction.EAST; println($dir); }"
+            "fn main() { var dir : direction.EAST; println(dir); }"
         );
     }
 
@@ -57,13 +57,13 @@ public class EnumTest {
         assertClean(
             "enum direction { NORTH, EAST, SOUTH, WEST } " +
             "fn main() { " +
-            "  var dir : $direction.EAST; " +
-            "  var label : switch($dir) { " +
-            "    case($direction.NORTH) -> \"N\" " +
-            "    case($direction.EAST) -> \"E\" " +
+            "  var dir : direction.EAST; " +
+            "  var label : switch(dir) { " +
+            "    case(direction.NORTH) -> \"N\" " +
+            "    case(direction.EAST) -> \"E\" " +
             "    default -> \"?\" " +
             "  }; " +
-            "  println($label); " +
+            "  println(label); " +
             "}"
         );
     }

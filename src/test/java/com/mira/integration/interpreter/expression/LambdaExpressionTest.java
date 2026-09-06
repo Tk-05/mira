@@ -24,7 +24,7 @@ public class LambdaExpressionTest extends AbstractLambdaExpressionTests {
     @Test
     void lambdaAssignedToVariableIsFunction() {
         try {
-            backend.runAndGetValue("var f : fn(x) { return $x; }; return $f;");
+            backend.runAndGetValue("var f : fn(x) { return x; }; return f;");
         } catch (ReturnSignal r) {
             assertInstanceOf(Function.class, r.getValue());
         }
@@ -33,7 +33,7 @@ public class LambdaExpressionTest extends AbstractLambdaExpressionTests {
     @Test
     void lambdaReturnsString() {
         try {
-            backend.runAndGetValue("var greet : fn(name) { return \"Hello \" $name; }; return greet(\"World\");");
+            backend.runAndGetValue("var greet : fn(name) { return \"Hello \" + name; }; return greet(\"World\");");
         } catch (ReturnSignal r) {
             assertEquals("Hello World", r.getValue());
         }
@@ -47,23 +47,23 @@ public class LambdaExpressionTest extends AbstractLambdaExpressionTests {
     @Test
     void lambdaInlineAsArgument() {
         assertEquals(9.0, InterpreterRunner.normNum(backend.runAndGetValue("""
-                fn apply(f, x) { return $f($x); }
-                eval(apply(fn(n) { return eval($n * $n); }, 3));
+                fn apply(f, x) { return f(x); }
+                (apply(fn(n) { return eval(n * n); }, 3));
                 """)));
     }
 
     @Test
     void higherOrderFunctionWithMultipleParams() {
         assertEquals(12.0, InterpreterRunner.normNum(backend.runAndGetValue("""
-                fn applyTwo(f, a, b) { return $f($a, $b); }
-                var multiply : fn(x, y) { return eval($x * $y); };
-                eval(applyTwo($multiply, 3, 4));
+                fn applyTwo(f, a, b) { return f(a, b); }
+                var multiply : fn(x, y) { return (x * y); };
+                (applyTwo(multiply, 3, 4));
                 """)));
     }
 
     @Test
     void constLambda() {
         assertEquals(4.0, InterpreterRunner.normNum(backend.runAndGetValue(
-                "const square : fn(x) { return eval($x * $x); }; eval(square(2));")));
+                "const square : fn(x) { return (x * x); }; (square(2));")));
     }
 }

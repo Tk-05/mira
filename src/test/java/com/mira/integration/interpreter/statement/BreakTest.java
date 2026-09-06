@@ -30,12 +30,12 @@ public class BreakTest extends AbstractBreakTests {
                 var outer : 0;
                 var middle : 0;
                 var inner : 0;
-                while ($outer < 3) {
-                    $outer : eval($outer + 1);
-                    while ($middle < 5) {
-                        $middle : eval($middle + 1);
+                while (outer < 3) {
+                    outer : (outer + 1);
+                    while (middle < 5) {
+                        middle : (middle + 1);
                         while (1) {
-                            $inner : eval($inner + 1);
+                            inner : (inner + 1);
                             break;
                         }
                     }
@@ -50,11 +50,11 @@ public class BreakTest extends AbstractBreakTests {
     void breakDoesNotAffectPostLoopExecution() {
         backend.runAndGetValue("""
                 var x : 0;
-                while ($x < 3) {
-                    $x : eval($x + 1);
+                while (x < 3) {
+                    x : (x + 1);
                     while (1) { break; }
                 }
-                $x : eval($x + 10);
+                x : (x + 10);
                 """);
         assertEquals(13.0, InterpreterRunner.normNum(backend.getInterpreter().getGlobalEnvironment().get("x")));
     }

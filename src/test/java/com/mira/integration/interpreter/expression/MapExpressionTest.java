@@ -30,30 +30,30 @@ public class MapExpressionTest extends AbstractMapExpressionTests {
 
     @Test
     void mapAccessMultipleKeys() {
-        assertEquals("Bob", backend.runAndGetValue("var m : {\"a\": \"Alice\", \"b\": \"Bob\"}; $m[\"b\"];"));
+        assertEquals("Bob", backend.runAndGetValue("var m : {\"a\": \"Alice\", \"b\": \"Bob\"}; m[\"b\"];"));
     }
 
     @Test
     void mapKeyNotFoundThrows() {
-        assertThrows(RuntimeException.class, () -> backend.runAndGetValue("var m : {\"a\": 1}; $m[\"missing\"];"));
+        assertThrows(RuntimeException.class, () -> backend.runAndGetValue("var m : {\"a\": 1}; m[\"missing\"];"));
     }
 
     @Test
     void mapWithBooleanValue() {
-        assertEquals(true, backend.runAndGetValue("var m : {\"flag\": true}; $m[\"flag\"];"));
+        assertEquals(true, backend.runAndGetValue("var m : {\"flag\": true}; m[\"flag\"];"));
     }
 
     @Test
     void mapValueFromExpression() {
-        assertEquals(5.0, InterpreterRunner.normNum(backend.runAndGetValue("var m : {\"x\": eval(2+3)}; eval($m[\"x\"]);")));
+        assertEquals(5.0, InterpreterRunner.normNum(backend.runAndGetValue("var m : {\"x\": (2+3)}; (m[\"x\"]);")));
     }
 
     @Test
     void mapStoredInVariable() {
         assertEquals("yes", backend.runAndGetValue("""
                 var m : {"key": "yes"};
-                var copy : $m;
-                $copy["key"];
+                var copy : m;
+                copy["key"];
                 """));
     }
 
@@ -61,14 +61,14 @@ public class MapExpressionTest extends AbstractMapExpressionTests {
     void mapAssignmentMutatesOriginal() {
         assertEquals("new", backend.runAndGetValue("""
                 var m : {"k": "old"};
-                $m["k"] : "new";
-                $m["k"];
+                m["k"] : "new";
+                m["k"];
                 """));
     }
 
     @Test
     void mapPrintDoesNotThrow() {
-        assertNull(backend.runAndGetValue("var m : {\"a\": 1}; print($m);"));
+        assertNull(backend.runAndGetValue("var m : {\"a\": 1}; print(m);"));
     }
 
     @Test
@@ -76,8 +76,8 @@ public class MapExpressionTest extends AbstractMapExpressionTests {
         assertEquals(1.0, InterpreterRunner.normNum(backend.runAndGetValue("""
                 var m : {"a": 1};
                 var key : "b";
-                $m[$key] : { var foo : 1; };
-                eval($m[$key].foo);
+                m[key] : { var foo : 1; };
+                (m[key].foo);
                 """)));
     }
 
@@ -86,9 +86,9 @@ public class MapExpressionTest extends AbstractMapExpressionTests {
         assertEquals(1.0, InterpreterRunner.normNum(backend.runAndGetValue("""
                 var m : {"a": 1};
                 var key : "b";
-                $m[$key] : { var foo : 1; };
-                var v : $m[$key];
-                eval($v.foo);
+                m[key] : { var foo : 1; };
+                var v : m[key];
+                (v.foo);
                 """)));
     }
 }

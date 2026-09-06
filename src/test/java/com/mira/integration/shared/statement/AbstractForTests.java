@@ -11,10 +11,10 @@ public abstract class AbstractForTests {
     void simpleCounterLoop() {
         assertEquals("5", runForOutput("""
                 var count : 0;
-                for (var i : 0; $i < 5; $i : eval($i + 1)) {
-                    $count : eval($count + 1);
+                for (var i : 0; i < 5; i : (i + 1)) {
+                    count : (count + 1);
                 }
-                print($count);
+                print(count);
                 """));
     }
 
@@ -23,14 +23,14 @@ public abstract class AbstractForTests {
         assertEquals("88", runForOutput("""
                 var result : 0;
                 fn fibonacci(n){
-                    if($n<=1){ return $n; }
-                    else{ return fibonacci(eval($n-2)) + fibonacci(eval($n-1)); }
+                    if(n<=1){ return n; }
+                    else{ return fibonacci((n-2)) + fibonacci((n-1)); }
                     return 0;
                 }
-                for (var i : 0, var j : 0; $i < 10 && $j == 0; $i : eval($i + 1)) {
-                    $result : $result + fibonacci($i);
+                for (var i : 0, var j : 0; i < 10 && j == 0; i : (i + 1)) {
+                    result : result + fibonacci(i);
                 }
-                print($result);
+                print(result);
                 """));
     }
 
@@ -38,11 +38,11 @@ public abstract class AbstractForTests {
     void forWithBreak() {
         assertEquals("5", runForOutput("""
                 var count : 0;
-                for (var i : 0; $i < 100; $i : eval($i + 1)) {
-                    if($i == 5) { break; }
-                    $count : eval($count + 1);
+                for (var i : 0; i < 100; i : (i + 1)) {
+                    if(i == 5) { break; }
+                    count : (count + 1);
                 }
-                print($count);
+                print(count);
                 """));
     }
 
@@ -51,9 +51,9 @@ public abstract class AbstractForTests {
         assertEquals("4", runForOutput("""
                 var last : 0;
                 for(var i in <0..5>) {
-                    $last : $i;
+                    last : i;
                 }
-                print($last);
+                print(last);
                 """));
     }
 
@@ -61,8 +61,8 @@ public abstract class AbstractForTests {
     void forSingleStatementNoBraces() {
         assertEquals("5", runForOutput("""
                 var count : 0;
-                for (var i : 0; $i < 5; $i : eval($i + 1)) $count : eval($count + 1);
-                print($count);
+                for (var i : 0; i < 5; i : (i + 1)) count : (count + 1);
+                print(count);
                 """));
     }
 
@@ -70,8 +70,8 @@ public abstract class AbstractForTests {
     void forRangeSingleStatementNoBraces() {
         assertEquals("4", runForOutput("""
                 var last : 0;
-                for(var i in <0..5>) $last : $i;
-                print($last);
+                for(var i in <0..5>) last : i;
+                print(last);
                 """));
     }
 }

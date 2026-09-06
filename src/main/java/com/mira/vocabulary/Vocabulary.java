@@ -61,7 +61,7 @@ public class Vocabulary {
 
     public static final Set<String> UNARY_OPERATORS = Set.of("++", "--", "!", "~");
 
-    public static final Set<String> SPECIAL_OPERATORS = Set.of("|>", "??", "?.", "$", ":", "?");
+    public static final Set<String> SPECIAL_OPERATORS = Set.of("|>", "??", "?.", ":", "?");
 
     public static final Map<String, Integer> OPERATOR_PRECEDENCE = Map.ofEntries(
             Map.entry("|>", 1), Map.entry("||", 1), Map.entry("??", 1),
@@ -88,7 +88,7 @@ public class Vocabulary {
             "<<", ">>",
             "|>",
             "??", "?.",
-            "$", ":", "!", "?",
+            ":", "!", "?",
             "->"
     );
 

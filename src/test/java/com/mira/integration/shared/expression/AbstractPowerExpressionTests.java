@@ -9,26 +9,26 @@ public abstract class AbstractPowerExpressionTests {
 
     @Test
     void basicPower() {
-        assertEquals("8.0", runForOutput("print(eval(2 ** 3));"));
+        assertEquals("8.0", runForOutput("print((2 ** 3));"));
     }
 
     @Test
     void powerOfZero() {
-        assertEquals("1.0", runForOutput("print(eval(5 ** 0));"));
+        assertEquals("1.0", runForOutput("print((5 ** 0));"));
     }
 
     @Test
     void powerOfOne() {
-        assertEquals("7.0", runForOutput("print(eval(7 ** 1));"));
+        assertEquals("7.0", runForOutput("print((7 ** 1));"));
     }
 
     @Test
     void powerWithVariable() {
-        assertEquals("9.0", runForOutput("var x : 3; print(eval($x ** 2));"));
+        assertEquals("9.0", runForOutput("var x : 3; print((x ** 2));"));
     }
 
     @Test
     void powerAssignment() {
-        assertEquals("8.0", runForOutput("var x : 2; $x **: 3; print($x);"));
+        assertEquals("8.0", runForOutput("var x : 2; x **: 3; print(x);"));
     }
 }

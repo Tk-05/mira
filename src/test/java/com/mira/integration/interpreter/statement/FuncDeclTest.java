@@ -34,10 +34,10 @@ public class FuncDeclTest extends AbstractFuncDeclTests {
         try {
             backend.runAndGetValue("""
                     fn greet(name) {
-                        return "Hello " $name;
+                        return "Hello " + name;
                     }
                     var greeting : "return greet(\\"World\\");";
-                    exec($greeting);
+                    eval(greeting);
                     """);
         } catch (ReturnSignal r) {
             assertEquals("Hello World", r.getValue());

@@ -70,8 +70,8 @@ public class CompletionProviderTest {
                 var (a, b) : {1, 2};
                 """;
         List<CompletionItem> items = CompletionProvider.provide(parse(source), "file:///test.mira");
-        assertTrue(items.stream().anyMatch(i -> i.getLabel().equals("$a")));
-        assertTrue(items.stream().anyMatch(i -> i.getLabel().equals("$b")));
+        assertTrue(items.stream().anyMatch(i -> i.getLabel().equals("a")));
+        assertTrue(items.stream().anyMatch(i -> i.getLabel().equals("b")));
     }
 
     @Test
@@ -84,6 +84,6 @@ public class CompletionProviderTest {
                 }
                 """;
         List<CompletionItem> items = CompletionProvider.provide(parse(source), "file:///test.mira");
-        assertTrue(items.stream().anyMatch(i -> i.getLabel().equals("$nested")));
+        assertTrue(items.stream().anyMatch(i -> i.getLabel().equals("nested")));
     }
 }

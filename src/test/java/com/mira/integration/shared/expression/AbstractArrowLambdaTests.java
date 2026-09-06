@@ -14,16 +14,16 @@ public abstract class AbstractArrowLambdaTests {
 
     @Test
     void singleParam() {
-        assertEquals("6", runForOutput("var f : (x) -> eval($x * 2); print(f(3));"));
+        assertEquals("6", runForOutput("var f : (x) -> (x * 2); print(f(3));"));
     }
 
     @Test
     void multiParams() {
-        assertEquals("7", runForOutput("var add : (a, b) -> eval($a + $b); print(add(3, 4));"));
+        assertEquals("7", runForOutput("var add : (a, b) -> (a + b); print(add(3, 4));"));
     }
 
     @Test
     void blockBody() {
-        assertEquals("5", runForOutput("var f : (x) -> { return eval($x + 1); }; print(f(4));"));
+        assertEquals("5", runForOutput("var f : (x) -> { return (x + 1); }; print(f(4));"));
     }
 }

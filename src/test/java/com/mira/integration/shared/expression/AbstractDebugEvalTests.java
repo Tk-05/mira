@@ -9,11 +9,11 @@ public abstract class AbstractDebugEvalTests {
 
     @Test
     void evalInTopLevel() {
-        assertEquals("5", runForOutput("print(eval(2 + 3));"));
+        assertEquals("5", runForOutput("print((2 + 3));"));
     }
 
     @Test
     void evalInFunction() {
-        assertEquals("10", runForOutput("fn f(n) { return eval($n * 2); } print(f(5));"));
+        assertEquals("10", runForOutput("fn f(n) { return (n * 2); } print(f(5));"));
     }
 }

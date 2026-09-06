@@ -12,7 +12,7 @@ public class StaticCheckError extends MiraError {
 
         public UndeclaredVariableError(String name, int line, int column) {
             super("E301",
-                    "Variable '$" + name + "' is used but never declared",
+                    "Variable '" + name + "' is used but never declared",
                     line, column, name.length(),
                     "Declare the variable with 'var " + name + "' or 'const " + name + "'");
         }
@@ -120,7 +120,7 @@ public class StaticCheckError extends MiraError {
 
         public StaticAssertRuntimeValueError(String name, int line, int column) {
             super("E311",
-                    "'static_assert' requires a compile-time expression, but '$" + name + "' is a runtime variable",
+                    "'static_assert' requires a compile-time expression, but '" + name + "' is a runtime variable",
                     line, column, name.length(),
                     "Declare the variable inside a 'comptime { }' block to use it in static_assert");
         }
@@ -230,7 +230,7 @@ public class StaticCheckError extends MiraError {
 
         public PostExprNaNStaticError(String name, int line, int column) {
             super("E322",
-                    "Cannot apply numeric increment/decrement to '$" + name + "' — it is not a number",
+                    "Cannot apply numeric increment/decrement to '" + name + "' — it is not a number",
                     line, column, name.length(),
                     "Make sure '" + name + "' holds a numeric value before using '++' or '--'");
         }

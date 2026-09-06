@@ -30,8 +30,8 @@ public class RenameProviderTest {
     void renamesLocalVariableEverywhere() {
         String source = """
                 fn add(a, b) {
-                    var sum : $a + $b;
-                    return $sum;
+                    var sum : a + b;
+                    return sum;
                 }
                 """;
         List<Node> ast = parse(source);
@@ -51,11 +51,11 @@ public class RenameProviderTest {
                     var count : 0;
                 };
                 fn use() {
-                    return $obj.count;
+                    return obj.count;
                 }
                 """;
         List<Node> ast = parse(source);
-        // cursor on "count" in "$obj.count"
+        // cursor on "count" in "obj.count"
         Position pos = new Position(4, 18);
         Range range = RenameProvider.prepareRename(ast, source, pos, "file:///test.mira",
                 null, new WorkspaceIndex(), null, Map.of());
@@ -73,7 +73,7 @@ public class RenameProviderTest {
                     var count : 0;
                 };
                 fn use() {
-                    return $obj.count;
+                    return obj.count;
                 }
                 """;
         List<Node> ast = parse(source);

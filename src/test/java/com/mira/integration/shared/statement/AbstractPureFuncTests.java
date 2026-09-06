@@ -9,18 +9,18 @@ public abstract class AbstractPureFuncTests {
 
     @Test
     void pureFunctionReturnsCorrectResult() {
-        assertEquals("25", runForOutput("pure fn square(n) { return eval($n * $n); } print(square(5));"));
+        assertEquals("25", runForOutput("pure fn square(n) { return (n * n); } print(square(5));"));
     }
 
     @Test
     void pureFunctionWithMultipleParams() {
-        assertEquals("7", runForOutput("pure fn add(a, b) { return eval($a + $b); } print(add(3, 4));"));
+        assertEquals("7", runForOutput("pure fn add(a, b) { return (a + b); } print(add(3, 4));"));
     }
 
     @Test
     void pureFunctionSameResultOnRepeatedCalls() {
         assertEquals("25", runForOutput("""
-                pure fn square(n) { return eval($n * $n); }
+                pure fn square(n) { return (n * n); }
                 print(square(5));
                 """));
     }
@@ -29,8 +29,8 @@ public abstract class AbstractPureFuncTests {
     void pureRecursiveFibonacci() {
         assertEquals("55", runForOutput("""
                 pure fn fib(n) {
-                    if($n <= 1) { return $n; }
-                    return eval(fib(eval($n-1)) + fib(eval($n-2)));
+                    if(n <= 1) { return n; }
+                    return (fib(eval(n-1)) + fib(eval(n-2)));
                 }
                 print(fib(10));
                 """));

@@ -14,7 +14,7 @@ public abstract class AbstractCallExpressionTests {
 
     @Test
     void callFunctionWithArguments() {
-        assertEquals("5", runForOutput("fn add(a, b) { return eval($a + $b); } print(add(2, 3));"));
+        assertEquals("5", runForOutput("fn add(a, b) { return (a + b); } print(add(2, 3));"));
     }
 
     @Test
@@ -24,6 +24,6 @@ public abstract class AbstractCallExpressionTests {
 
     @Test
     void callFunctionResultUsedInExpression() {
-        assertEquals("14", runForOutput("fn double(n) { return eval($n * 2); } print(eval(double(5) + 4));"));
+        assertEquals("14", runForOutput("fn double(n) { return (n * 2); } print((double(5) + 4));"));
     }
 }

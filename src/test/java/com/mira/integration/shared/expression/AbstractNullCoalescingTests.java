@@ -9,26 +9,26 @@ public abstract class AbstractNullCoalescingTests {
 
     @Test
     void returnsRightWhenLeftIsNull() {
-        assertEquals("default", runForOutput("var x; print($x ?? \"default\");"));
+        assertEquals("default", runForOutput("var x; print(x ?? \"default\");"));
     }
 
     @Test
     void returnsLeftWhenLeftIsNotNull() {
-        assertEquals("value", runForOutput("var x : \"value\"; print($x ?? \"default\");"));
+        assertEquals("value", runForOutput("var x : \"value\"; print(x ?? \"default\");"));
     }
 
     @Test
     void returnsLeftWhenLeftIsZero() {
-        assertEquals("0", runForOutput("var x : 0; print($x ?? \"default\");"));
+        assertEquals("0", runForOutput("var x : 0; print(x ?? \"default\");"));
     }
 
     @Test
     void returnsLeftWhenLeftIsFalse() {
-        assertEquals("false", runForOutput("var x : false; print($x ?? \"default\");"));
+        assertEquals("false", runForOutput("var x : false; print(x ?? \"default\");"));
     }
 
     @Test
     void returnsLeftWhenLeftIsEmptyString() {
-        assertEquals("", runForOutput("var x : \"\"; print($x ?? \"default\");"));
+        assertEquals("", runForOutput("var x : \"\"; print(x ?? \"default\");"));
     }
 }

@@ -74,8 +74,8 @@ public class NodeToStringTest {
 
     @Test
     void assignStatement() {
-        assertEquals("$x : 5;", first("$x : 5;").toString());
-        assertEquals(Assign.class, first("$x : 5;").getClass());
+        assertEquals("x : 5;", first("x : 5;").toString());
+        assertEquals(Assign.class, first("x : 5;").getClass());
     }
 
     @Test
@@ -92,9 +92,9 @@ public class NodeToStringTest {
 
     @Test
     void forLoop() {
-        Node node = first("for (var i : 0; $i < 5; $i++) { print(1); }");
+        Node node = first("for (var i : 0; i < 5; i++) { print(1); }");
         assertEquals(Loop.class, node.getClass());
-        assertEquals("for (...; ($i < 5); ...) {...}", node.toString());
+        assertEquals("for (...; (i < 5); ...) {...}", node.toString());
     }
 
     @Test
@@ -188,16 +188,16 @@ public class NodeToStringTest {
 
     @Test
     void lockStatement() {
-        Node node = first("lock ($mutex) { print(1); }");
+        Node node = first("lock (mutex) { print(1); }");
         assertEquals(Lock.class, node.getClass());
-        assertEquals("lock ($mutex) {...}", node.toString());
+        assertEquals("lock (mutex) {...}", node.toString());
     }
 
     @Test
     void varDestructure() {
-        Node node = first("var (a, b) : $pair;");
+        Node node = first("var (a, b) : pair;");
         assertEquals(VarDestructure.class, node.getClass());
-        assertEquals("var (a, b) : $pair;", node.toString());
+        assertEquals("var (a, b) : pair;", node.toString());
     }
 
     @Test
@@ -281,8 +281,8 @@ public class NodeToStringTest {
 
     @Test
     void structInitExpression() {
-        VarDecl decl = (VarDecl) first("var p : Point { $x: 1, $y: 2 };");
+        VarDecl decl = (VarDecl) first("var p : Point { x: 1, y: 2 };");
         assertEquals(StructInitExpression.class, decl.getInitializer().getClass());
-        assertEquals("Point { $x: 1, $y: 2 }", decl.getInitializer().toString());
+        assertEquals("Point { x: 1, y: 2 }", decl.getInitializer().toString());
     }
 }

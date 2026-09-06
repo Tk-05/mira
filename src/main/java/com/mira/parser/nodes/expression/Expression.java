@@ -109,11 +109,13 @@ public abstract class Expression implements Node {
 
         @Override
         public String toString() {
-            if (right != null) {
-                return operation.getLexeme() + right.toString();
-            } else {
+            if (right == null) {
                 return operation.getLexeme();
             }
+            if ("$".equals(operation.getLexeme())) {
+                return right.toString();
+            }
+            return operation.getLexeme() + right.toString();
         }
     }
 
@@ -566,7 +568,7 @@ public abstract class Expression implements Node {
             sb.append(target).append(" { ");
             int i = 0;
             for (var entry : overrides.entrySet()) {
-                sb.append("$").append(entry.getKey()).append(": ").append(entry.getValue());
+                sb.append(entry.getKey()).append(": ").append(entry.getValue());
                 if (++i < overrides.size()) {
                     sb.append(", ");
                 }

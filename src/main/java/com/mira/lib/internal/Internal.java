@@ -86,8 +86,19 @@ public class Internal implements Lib {
         environment.define("eval",
                 new NativeFunction(1, args -> evalOrExec(args.get(0))));
 
-        environment.define("exec",
-                new NativeFunction(1, args -> evalOrExec(args.get(0))));
+        environment.define("format",
+                new NativeFunction(-1, args -> {
+                    if (args.isEmpty()) {
+                        throw new ArgMismatchError("format", 1, args.size());
+                    }
+                    String pattern = String.valueOf(args.get(0));
+                    Object[] rest = args.subList(1, args.size()).toArray();
+                    try {
+                        return String.format(pattern, rest);
+                    } catch (java.util.IllegalFormatException e) {
+                        throw new InvalidArgumentError("format", e.getMessage());
+                    }
+                }));
 
         environment.define("importDynamic",
                 new NativeFunction(-1, args -> {

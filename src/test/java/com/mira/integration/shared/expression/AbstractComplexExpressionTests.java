@@ -9,56 +9,59 @@ public abstract class AbstractComplexExpressionTests {
 
     @Test
     void addition() {
-        assertEquals("5", runForOutput("print(eval(2 + 3));"));
+        assertEquals("5", runForOutput("print((2 + 3));"));
     }
 
     @Test
     void subtraction() {
-        assertEquals("3", runForOutput("print(eval(7 - 4));"));
+        assertEquals("3", runForOutput("print((7 - 4));"));
     }
 
     @Test
     void multiplication() {
-        assertEquals("12", runForOutput("print(eval(3 * 4));"));
+        assertEquals("12", runForOutput("print((3 * 4));"));
     }
 
     @Test
     void division() {
-        assertEquals("2.5", runForOutput("print(eval(5 / 2));"));
+        assertEquals("2.5", runForOutput("print((5 / 2));"));
     }
 
     @Test
     void complexExpressionWithVariables() {
-        assertEquals("14", runForOutput("var a : 2; var b : 3; print(eval($a * $b + $b * $b - 1));"));
+        assertEquals("14", runForOutput("var a : 2; var b : 3; print((a * b + b * b - 1));"));
     }
 
     @Test
     void operatorPrecedence() {
-        assertEquals("7", runForOutput("print(eval(1 + 2 * 3));"));
+        assertEquals("7", runForOutput("print((1 + 2 * 3));"));
     }
 
     @Test
-    void stringNumberJuxtaposition() {
-        assertEquals("53", runForOutput("print(\"5\" 3);"));
+    void stringNumberConcatenation() {
+        // "+" tries numeric addition first, falling back to string concatenation
+        // only when a side doesn't parse as a number -- a numeric-looking string
+        // like "5" would just add (5 + 3 = 8.0), so use a non-numeric string here.
+        assertEquals("x3", runForOutput("print(\"x\" + 3);"));
     }
 
     @Test
-    void numberStringJuxtaposition() {
-        assertEquals("35", runForOutput("print(3 \"5\");"));
+    void numberStringConcatenation() {
+        assertEquals("3x", runForOutput("print(3 + \"x\");"));
     }
 
     @Test
-    void numberNumberJuxtaposition() {
-        assertEquals("53", runForOutput("print(5 3);"));
-    }
-
-    @Test
-    void multiplePartsJuxtaposition() {
+    void adjacentStringLiteralsSplice() {
         assertEquals("Hello World", runForOutput("print(\"Hello\" \" \" \"World\");"));
     }
 
     @Test
-    void variableStringJuxtaposition() {
-        assertEquals("Hello World", runForOutput("var x : \"Hello\"; print($x \" World\");"));
+    void multiplePartsConcatenation() {
+        assertEquals("Hello World", runForOutput("print(\"Hello\" + \" \" + \"World\");"));
+    }
+
+    @Test
+    void variableStringConcatenation() {
+        assertEquals("Hello World", runForOutput("var x : \"Hello\"; print(x + \" World\");"));
     }
 }

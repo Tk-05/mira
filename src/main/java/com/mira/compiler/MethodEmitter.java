@@ -579,11 +579,7 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
                 });
             } else {
                 Integer slot = ctx.slots.slotOf(name);
-                if (slot != null && !ctx.localFunctions.contains(name)) {
-                    mv.visitLdcInsn(name);
-                    mv.visitMethodInsn(INVOKESTATIC, RT, "localCallableError",
-                            "(Ljava/lang/String;)" + OBJ_D, false);
-                } else if (slot != null) {
+                if (slot != null) {
                     emitTrackedCall(name, line, () -> {
                         mv.visitVarInsn(ALOAD, slot);
                         emitObjectArray(expression.getArguments());
@@ -1286,7 +1282,6 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
             mv.visitMethodInsn(INVOKEVIRTUAL, ENV, "defineFunction",
                     "(Ljava/lang/String;" + OBJ_D + ")V", false);
         } else {
-            ctx.localFunctions.add(stmt.getName());
             emitVarStore(stmt.getName(), true);
         }
         return null;

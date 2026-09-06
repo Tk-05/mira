@@ -19,8 +19,8 @@ public class ArrayExpressionTest extends AbstractArrayExpressionTests {
     void structAssignedIntoArraySurvivesFieldAccess() {
         assertEquals("42", backend.run("""
                 var arr : [0];
-                $arr[0] : { var foo : 42; };
-                print($arr[0].foo);
+                arr[0] : { var foo : 42; };
+                print(arr[0].foo);
                 """));
     }
 }

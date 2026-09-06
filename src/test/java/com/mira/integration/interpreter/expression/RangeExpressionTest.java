@@ -23,9 +23,9 @@ public class RangeExpressionTest extends AbstractRangeExpressionTests {
         assertEquals(2.0, InterpreterRunner.normNum(backend.runAndGetValue("""
                 var last : 0;
                 for(var element in <0..4,2>) {
-                    $last : $element;
+                    last : element;
                 }
-                $last;
+                last;
                 """)));
     }
 
@@ -34,7 +34,7 @@ public class RangeExpressionTest extends AbstractRangeExpressionTests {
         try {
             backend.runAndGetValue("""
                     for(var element in <0..4>) {
-                        if($element == 3) { break; }
+                        if(element == 3) { break; }
                     }
                     """);
         } catch (BreakSignal ignored) {
@@ -46,7 +46,7 @@ public class RangeExpressionTest extends AbstractRangeExpressionTests {
         backend.runAndGetValue("""
                 var first : 0;
                 for(var element in <3..6>) {
-                    $first : $element;
+                    first : element;
                     break;
                 }
                 """);
@@ -58,9 +58,9 @@ public class RangeExpressionTest extends AbstractRangeExpressionTests {
         assertEquals(5.0, InterpreterRunner.normNum(backend.runAndGetValue("""
                 var count : 0;
                 for(var element in <0..10,2>) {
-                    $count : eval($count + 1);
+                    count : (count + 1);
                 }
-                eval($count);
+                (count);
                 """)));
     }
 
@@ -69,7 +69,7 @@ public class RangeExpressionTest extends AbstractRangeExpressionTests {
         backend.runAndGetValue("""
                 var last : 0;
                 for(var i in <0..5>) {
-                    $last : $i;
+                    last : i;
                 }
                 """);
         assertEquals(4.0, InterpreterRunner.normNum(backend.getInterpreter().getGlobalEnvironment().get("last")));

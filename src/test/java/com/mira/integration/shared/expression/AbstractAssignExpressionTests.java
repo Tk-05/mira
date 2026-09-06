@@ -11,7 +11,7 @@ public abstract class AbstractAssignExpressionTests {
     void assignExprReturnsAssignedValue() {
         assertEquals("42", runForOutput("""
                 var x : 0;
-                fn f() { return $x : 42; }
+                fn f() { return x : 42; }
                 print(f());
                 """));
     }
@@ -20,9 +20,9 @@ public abstract class AbstractAssignExpressionTests {
     void assignExprMutatesVariable() {
         assertEquals("42", runForOutput("""
                 var x : 0;
-                fn f() { return $x : 42; }
+                fn f() { return x : 42; }
                 f();
-                print($x);
+                print(x);
                 """));
     }
 
@@ -30,7 +30,7 @@ public abstract class AbstractAssignExpressionTests {
     void assignExprInIfCondition() {
         assertEquals("yes", runForOutput("""
                 var x : 0;
-                if ($x : 1) { print("yes"); } else { print("no"); }
+                if (x : 1) { print("yes"); } else { print("no"); }
                 """));
     }
 
@@ -39,8 +39,8 @@ public abstract class AbstractAssignExpressionTests {
         assertEquals("5,5", runForOutput("""
                 var a : 0;
                 var b : 0;
-                $a : $b : 5;
-                print($a); print(","); print($b);
+                a : b : 5;
+                print(a); print(","); print(b);
                 """));
     }
 
@@ -48,7 +48,7 @@ public abstract class AbstractAssignExpressionTests {
     void assignExprInPrint() {
         assertEquals("7", runForOutput("""
                 var x : 0;
-                print($x : 7);
+                print(x : 7);
                 """));
     }
 }

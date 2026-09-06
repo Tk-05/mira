@@ -23,8 +23,8 @@ public class LockTest extends AbstractLockTests {
                 import thread as thread;
                 var mu : thread.newMutex();
                 var x : 0;
-                lock($mu) { $x : 1; }
-                $x;
+                lock(mu) { x : 1; }
+                x;
                 """)));
     }
 
@@ -34,11 +34,11 @@ public class LockTest extends AbstractLockTests {
                 import thread as thread;
                 var mu : thread.newMutex();
                 var counter : 0;
-                lock($mu) {
-                    $counter : eval($counter + 1);
-                    $counter : eval($counter + 4);
+                lock(mu) {
+                    counter : (counter + 1);
+                    counter : (counter + 4);
                 }
-                $counter;
+                counter;
                 """)));
     }
 
@@ -50,16 +50,16 @@ public class LockTest extends AbstractLockTests {
                 var mu      : thread.newMutex();
                 var counter : 0;
                 fn inc() {
-                    lock($mu) { $counter : eval($counter + 1); }
+                    lock(mu) { counter : (counter + 1); }
                 }
                 var tasks : {};
                 var i : 0;
-                while ($i < 10) {
-                    col.push($tasks, spawn(fn() { inc(); }));
-                    $i : eval($i + 1);
+                while (i < 10) {
+                    col.push(tasks, spawn(fn() { inc(); }));
+                    i : (i + 1);
                 }
-                for (var t in $tasks) { await($t); }
-                $counter;
+                for (var t in tasks) { await(t); }
+                counter;
                 """);
         assertEquals(10.0, ((Number) result).doubleValue(), 0);
     }
@@ -71,9 +71,9 @@ public class LockTest extends AbstractLockTests {
                 var mu1 : thread.newMutex();
                 var mu2 : thread.newMutex();
                 var x : 0;
-                lock($mu1) { $x : eval($x + 1); }
-                lock($mu2) { $x : eval($x + 1); }
-                $x;
+                lock(mu1) { x : (x + 1); }
+                lock(mu2) { x : (x + 1); }
+                x;
                 """)));
     }
 
@@ -84,10 +84,10 @@ public class LockTest extends AbstractLockTests {
                 var mu      : thread.newMutex();
                 var reached : false;
                 try {
-                    lock($mu) { throw oob("boom"); }
+                    lock(mu) { throw oob("boom"); }
                 } catch(oob) {}
-                lock($mu) { $reached : true; }
-                $reached;
+                lock(mu) { reached : true; }
+                reached;
                 """);
         assertEquals(true, result);
     }
@@ -99,11 +99,11 @@ public class LockTest extends AbstractLockTests {
                 var mu1 : thread.newMutex();
                 var mu2 : thread.newMutex();
                 var x : 0;
-                lock($mu1) {
-                    $x : eval($x + 1);
-                    lock($mu2) { $x : eval($x + 2); }
+                lock(mu1) {
+                    x : (x + 1);
+                    lock(mu2) { x : (x + 2); }
                 }
-                $x;
+                x;
                 """)));
     }
 
@@ -113,8 +113,8 @@ public class LockTest extends AbstractLockTests {
                 import thread as thread;
                 var mu : thread.newMutex();
                 var result : 0;
-                lock($mu) { $result : 42; }
-                $result;
+                lock(mu) { result : 42; }
+                result;
                 """)));
     }
 
@@ -127,19 +127,19 @@ public class LockTest extends AbstractLockTests {
                 var counter : 0;
                 fn inc() {
                     var j : 0;
-                    while ($j < 10) {
-                        lock($mu) { $counter : eval($counter + 1); }
-                        $j : eval($j + 1);
+                    while (j < 10) {
+                        lock(mu) { counter : (counter + 1); }
+                        j : (j + 1);
                     }
                 }
                 var tasks : {};
                 var i : 0;
-                while ($i < 5) {
-                    col.push($tasks, spawn(fn() { inc(); }));
-                    $i : eval($i + 1);
+                while (i < 5) {
+                    col.push(tasks, spawn(fn() { inc(); }));
+                    i : (i + 1);
                 }
-                for (var t in $tasks) { await($t); }
-                $counter;
+                for (var t in tasks) { await(t); }
+                counter;
                 """);
         assertEquals(50.0, ((Number) result).doubleValue(), 0);
     }

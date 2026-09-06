@@ -28,14 +28,14 @@ public class HoverProviderTest {
         String source = """
                 fn main() {
                     var x : 5;
-                    return $x;
+                    return x;
                 }
                 """;
-        // cursor on "x" in "return $x;"
+        // cursor on "x" in "return x;"
         Position pos = new Position(2, 12);
         Hover hover = HoverProvider.provide(parse(source), source, pos);
         assertNotNull(hover);
-        assertTrue(text(hover).contains("var $x"));
+        assertTrue(text(hover).contains("var x"));
     }
 
     @Test
@@ -44,15 +44,15 @@ public class HoverProviderTest {
                 fn main() {
                     if (true) {
                         var y : 1;
-                        return $y;
+                        return y;
                     }
                 }
                 """;
-        // cursor on "y" in "return $y;"
-        Position pos = new Position(3, 17);
+        // cursor on "y" in "return y;"
+        Position pos = new Position(3, 16);
         Hover hover = HoverProvider.provide(parse(source), source, pos);
         assertNotNull(hover);
-        assertTrue(text(hover).contains("var $y"));
+        assertTrue(text(hover).contains("var y"));
     }
 
     @Test
@@ -60,13 +60,13 @@ public class HoverProviderTest {
         String source = """
                 var (a, b) : {1, 2};
                 fn main() {
-                    return $b;
+                    return b;
                 }
                 """;
-        Position pos = new Position(2, 12); // "b" in "return $b;"
+        Position pos = new Position(2, 12); // "b" in "return b;"
         Hover hover = HoverProvider.provide(parse(source), source, pos);
         assertNotNull(hover);
-        assertTrue(text(hover).contains("var $b"));
+        assertTrue(text(hover).contains("var b"));
     }
 
     @Test
@@ -78,14 +78,14 @@ public class HoverProviderTest {
                 } else {
                     var i : 0;
                     do {
-                        $i++;
-                    } while ($i < 5);
+                        i++;
+                    } while (i < 5);
                 }
                 """;
-        Position pos = new Position(6, 9); // "i" in "$i++;" inside the do-while
+        Position pos = new Position(6, 9); // "i" in "i++;" inside the do-while
         Hover hover = HoverProvider.provide(parse(source), source, pos);
         assertNotNull(hover);
-        assertTrue(text(hover).contains("var $i"));
+        assertTrue(text(hover).contains("var i"));
     }
 
     @Test
@@ -95,10 +95,10 @@ public class HoverProviderTest {
 
                 fn helper() {
                     var obj : { var count : 1; };
-                    return $obj.count;
+                    return obj.count;
                 }
                 """;
-        Position pos = new Position(4, 17); // "count" in "return $obj.count;"
+        Position pos = new Position(4, 17); // "count" in "return obj.count;"
         Hover hover = HoverProvider.provide(parse(source), source, pos);
         assertNotNull(hover);
         assertTrue(text(hover).contains("var count"));
@@ -108,7 +108,7 @@ public class HoverProviderTest {
     void hoverOnUndeclaredNameReturnsNull() {
         String source = """
                 fn main() {
-                    return $doesNotExist;
+                    return doesNotExist;
                 }
                 """;
         Position pos = new Position(1, 15);

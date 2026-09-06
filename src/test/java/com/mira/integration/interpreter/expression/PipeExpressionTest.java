@@ -20,7 +20,7 @@ public class PipeExpressionTest extends AbstractPipeExpressionTests {
     @Test
     void pipeToFunctionNoArgsValue() {
         assertEquals(10.0, InterpreterRunner.normNum(backend.runAndGetValue("""
-                fn double(x) { return eval($x * 2); }
+                fn double(x) { return (x * 2); }
                 5 |> double();
                 """)));
     }
@@ -28,7 +28,7 @@ public class PipeExpressionTest extends AbstractPipeExpressionTests {
     @Test
     void pipeToStoredLambda() {
         assertEquals(15.0, InterpreterRunner.normNum(backend.runAndGetValue("""
-                var triple : fn(x) { return eval($x * 3); };
+                var triple : fn(x) { return (x * 3); };
                 5 |> triple();
                 """)));
     }
@@ -36,8 +36,8 @@ public class PipeExpressionTest extends AbstractPipeExpressionTests {
     @Test
     void pipeWithComplexLeftSide() {
         assertEquals(5.0, InterpreterRunner.normNum(backend.runAndGetValue("""
-                fn id(x) { return $x; }
-                eval(2 + 3) |> id();
+                fn id(x) { return x; }
+                (2 + 3) |> id();
                 """)));
     }
 }

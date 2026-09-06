@@ -19,7 +19,7 @@ public class EvalExecTest extends AbstractEvalExecTests {
     void evalDeclaredTopLevelVariableIsVisibleToCompiledCode() {
         assertEquals("42", backend.run("""
                 eval("var dynamicVar : 42;");
-                print($dynamicVar);
+                print(dynamicVar);
                 """));
     }
 }

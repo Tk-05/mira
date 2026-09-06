@@ -28,7 +28,7 @@ public class SpawnTest extends AbstractSpawnTests {
     @Test
     void awaitSpawnedNumber() {
         assertEquals(42.0, InterpreterRunner.normNum(backend.runAndGetValue(
-                "eval(await spawn(fn() { return 42; }));")));
+                "(await spawn(fn() { return 42; }));")));
     }
 
     @Test
@@ -47,7 +47,7 @@ public class SpawnTest extends AbstractSpawnTests {
         assertEquals(3.0, InterpreterRunner.normNum(backend.runAndGetValue("""
                 var h1 : spawn(fn() { return 1; });
                 var h2 : spawn(fn() { return 2; });
-                eval(await($h1) + await($h2));
+                (await(h1) + await(h2));
                 """)));
     }
 
@@ -55,7 +55,7 @@ public class SpawnTest extends AbstractSpawnTests {
     void spawnWithCapture() {
         assertEquals(10.0, InterpreterRunner.normNum(backend.runAndGetValue("""
                 var x : 10;
-                eval(await spawn(fn() { return $x; }));
+                (await spawn(fn() { return x; }));
                 """)));
     }
 
@@ -66,15 +66,15 @@ public class SpawnTest extends AbstractSpawnTests {
                 try {
                     await spawn(fn() { throw oob("fail"); });
                 } catch(oob) {
-                    $caught : "caught";
+                    caught : "caught";
                 }
-                $caught;
+                caught;
                 """);
         assertEquals("caught", result);
     }
 
     @Test
     void awaitOnNonPromisePassesThrough() {
-        assertEquals(7.0, InterpreterRunner.normNum(backend.runAndGetValue("eval(await 7);")));
+        assertEquals(7.0, InterpreterRunner.normNum(backend.runAndGetValue("(await 7);")));
     }
 }

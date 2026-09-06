@@ -704,10 +704,6 @@ public final class CompiledRuntimeSupport {
         return methodCall(obj, method, args);
     }
 
-    public static Object localCallableError(String name) {
-        throw new com.mira.error.runtime.RuntimeError.LocalCallableError(name);
-    }
-
     public static void adoptGlobalsForDynamicExec(Environment globals) {
         Interpreter.adoptAsActive(globals);
     }

@@ -17,7 +17,7 @@ public abstract class AbstractEnumDeclTests {
         assertEquals("true", runForOutput("""
                 enum Status { OK, ERR }
                 var s : Status.OK;
-                print($s == Status.OK);
+                print(s == Status.OK);
                 """));
     }
 
@@ -26,7 +26,7 @@ public abstract class AbstractEnumDeclTests {
         assertEquals("ok", runForOutput("""
                 enum Status { OK, ERR }
                 var s : Status.OK;
-                switch($s) {
+                switch(s) {
                     case(Status.OK) { print("ok"); }
                     default { print("err"); }
                 }

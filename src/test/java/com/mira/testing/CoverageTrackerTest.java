@@ -81,11 +81,11 @@ public class CoverageTrackerTest {
                 module m;
 
                 fn add(a, b) {
-                    return $a + $b;
+                    return a + b;
                 }
 
                 fn unused(a) {
-                    return $a;
+                    return a;
                 }
                 """;
         List<Node> ast = parse(source);
@@ -110,7 +110,7 @@ public class CoverageTrackerTest {
                 module m;
 
                 fn add(a, b) {
-                    return $a + $b;
+                    return a + b;
                 }
                 """;
         List<Node> ast = parse(source);

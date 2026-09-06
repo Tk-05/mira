@@ -53,7 +53,7 @@ public class InternalLibTest {
     @Test
     void testEvalMultiStatement() {
         if (environment.get("eval") instanceof NativeFunction nativeFunction) {
-            double result = ((Number) nativeFunction.call(interpreter, List.of("var evalX : 10; $evalX * 2;"))).doubleValue();
+            double result = ((Number) nativeFunction.call(interpreter, List.of("var evalX : 10; evalX * 2;"))).doubleValue();
             assertEquals(20.0, result);
         }
     }
@@ -62,7 +62,7 @@ public class InternalLibTest {
     void testEvalSeesLiveEnvironmentState() {
         if (environment.get("eval") instanceof NativeFunction nativeFunction) {
             nativeFunction.call(interpreter, List.of("var evalShared : 5;"));
-            double result = ((Number) nativeFunction.call(interpreter, List.of("$evalShared + 1;"))).doubleValue();
+            double result = ((Number) nativeFunction.call(interpreter, List.of("evalShared + 1;"))).doubleValue();
             assertEquals(6.0, result);
         }
     }
@@ -80,7 +80,7 @@ public class InternalLibTest {
     void testEvalRuntimeErrorThrowsCatchableSignal() {
         if (environment.get("eval") instanceof NativeFunction nativeFunction) {
             ThrowSignal signal = assertThrows(ThrowSignal.class,
-                    () -> nativeFunction.call(interpreter, List.of("$undefinedEvalVar + 1;")));
+                    () -> nativeFunction.call(interpreter, List.of("undefinedEvalVar + 1;")));
             assertEquals("EvalError", signal.getExceptionType());
         }
     }
@@ -89,7 +89,7 @@ public class InternalLibTest {
     void testEvalNotMemoizedAcrossCalls() {
         if (environment.get("eval") instanceof NativeFunction nativeFunction) {
             nativeFunction.call(interpreter, List.of("var evalCounter : 0;"));
-            String bump = "$evalCounter : $evalCounter + 1; $evalCounter;";
+            String bump = "evalCounter : evalCounter + 1; evalCounter;";
             double first = ((Number) nativeFunction.call(interpreter, List.of(bump))).doubleValue();
             double second = ((Number) nativeFunction.call(interpreter, List.of(bump))).doubleValue();
             assertNotEquals(first, second);
@@ -100,7 +100,7 @@ public class InternalLibTest {
 
     @Test
     void testExec() {
-        if (environment.get("exec") instanceof NativeFunction nativeFunction) {
+        if (environment.get("eval") instanceof NativeFunction nativeFunction) {
             try {
                 nativeFunction.call(interpreter, List.of("return 2.0;"));
             } catch (ReturnSignal returnSignal) {

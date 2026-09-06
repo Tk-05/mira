@@ -492,17 +492,6 @@ public class StaticCheck {
             case BinaryExpression e when "+".equals(e.getOperator().getLexeme()) -> {
                 resolveExpr(e.getLeft());
                 resolveExpr(e.getRight());
-                boolean leftStr = isStringLiteral(e.getLeft());
-                boolean rightStr = isStringLiteral(e.getRight());
-                boolean leftLit = isNonStringLiteral(e.getLeft());
-                boolean rightLit = isNonStringLiteral(e.getRight());
-                if ((leftStr && rightLit) || (leftLit && rightStr)) {
-                    WarningCollector.emit(WarningLevel.HINT,
-                            "Implicit string concatenation: mixed String and non-String operands",
-                            e.getOperator());
-                }
-                warnIfBarewordOperand(e.getLeft(), e.getOperator());
-                warnIfBarewordOperand(e.getRight(), e.getOperator());
             }
             case BinaryExpression e when "/".equals(e.getOperator().getLexeme()) -> {
                 resolveExpr(e.getLeft());
@@ -1353,40 +1342,12 @@ public class StaticCheck {
         return n instanceof DumbExpression d && d.getTokenType() == TokenType.STRING_LITERAL;
     }
 
-    private static boolean isReservedWord(String value) {
-        return "true".equals(value) || "false".equals(value) || "null".equals(value);
-    }
-
-    private static boolean isBareword(Node n) {
-        return n instanceof DumbExpression d && isIdentifier(d) && !isReservedWord(d.getValue());
-    }
-
-    private void warnIfBarewordOperand(Node operand, Token operator) {
-        if (isBareword(operand)) {
-            String name = ((DumbExpression) operand).getValue();
-            WarningCollector.emit(WarningLevel.WARNING,
-                    "Operator '" + operator.getLexeme() + "' used on '" + name
-                    + "', which is treated as the String literal \"" + name
-                    + "\" — missing '$" + name + "'?",
-                    operator);
-        }
-    }
-
     private void warnIfStringOperand(Node operand, Token operator) {
         if (isStringLiteral(operand)) {
             WarningCollector.emit(WarningLevel.WARNING,
                     "Operator '" + operator.getLexeme() + "' used on a String literal",
                     operator);
-        } else {
-            warnIfBarewordOperand(operand, operator);
         }
-    }
-
-    private static boolean isNonStringLiteral(Node n) {
-        if (!(n instanceof DumbExpression d)) {
-            return false;
-        }
-        return d.getTokenType() != TokenType.STRING_LITERAL && !isIdentifier(d);
     }
 
     private static boolean isZeroLiteral(Node n) {

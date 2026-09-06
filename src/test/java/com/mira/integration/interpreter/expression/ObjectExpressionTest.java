@@ -28,7 +28,7 @@ public class ObjectExpressionTest extends AbstractObjectExpressionTests {
                     var field : 0;
                     var field2;
                 };
-                $obj.field2;
+                obj.field2;
                 """));
     }
 

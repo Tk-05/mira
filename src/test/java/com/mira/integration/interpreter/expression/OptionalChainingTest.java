@@ -22,7 +22,7 @@ public class OptionalChainingTest extends AbstractOptionalChainingTests {
     void returnsNullWhenObjectIsUninitialized() {
         backend.runAndGetValue("""
                 var obj;
-                var result : $obj?.name;
+                var result : obj?.name;
                 """);
         assertEquals(NullValue.INSTANCE, backend.getInterpreter().getGlobalEnvironment().get("result"));
     }
@@ -31,7 +31,7 @@ public class OptionalChainingTest extends AbstractOptionalChainingTests {
     void combinesWithNullCoalescingNonNull() {
         backend.runAndGetValue("""
                 var obj : { var name : "Bob"; };
-                var result : $obj?.name ?? "unknown";
+                var result : obj?.name ?? "unknown";
                 """);
         assertEquals("Bob", backend.getInterpreter().getGlobalEnvironment().get("result"));
     }
@@ -40,8 +40,8 @@ public class OptionalChainingTest extends AbstractOptionalChainingTests {
     void chainsMultipleOptionalAccesses() {
         backend.runAndGetValue("""
                 var inner : { var value : 42; };
-                var outer : { var inner : $inner; };
-                var result : $outer?.inner?.value;
+                var outer : { var inner : inner; };
+                var result : outer?.inner?.value;
                 """);
         assertEquals(42.0, InterpreterRunner.normNum(backend.getInterpreter().getGlobalEnvironment().get("result")));
     }
@@ -50,7 +50,7 @@ public class OptionalChainingTest extends AbstractOptionalChainingTests {
     void chainShortCircuitsToNullOnFirstNull() {
         backend.runAndGetValue("""
                 var outer : null;
-                var result : $outer?.inner?.value;
+                var result : outer?.inner?.value;
                 """);
         assertEquals(NullValue.INSTANCE, backend.getInterpreter().getGlobalEnvironment().get("result"));
     }
@@ -59,8 +59,8 @@ public class OptionalChainingTest extends AbstractOptionalChainingTests {
     void optionalAndNormalChainMixed() {
         backend.runAndGetValue("""
                 var inner : { var city : "Berlin"; };
-                var outer : { var address : $inner; };
-                var result : $outer?.address.city;
+                var outer : { var address : inner; };
+                var result : outer?.address.city;
                 """);
         assertEquals("Berlin", backend.getInterpreter().getGlobalEnvironment().get("result"));
     }

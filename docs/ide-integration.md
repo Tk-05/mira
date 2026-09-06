@@ -12,7 +12,7 @@ Mira ships with a built-in Language Server that implements the [Language Server 
 
 | Feature                    | Description                                                                                              |
 | -------------------------- | --------------------------------------------------------------------------------------------------------- |
-| **Syntax highlighting**    | Keywords, strings, numbers, variables (`$x`), comments, function names — via the static TextMate grammar   |
+| **Syntax highlighting**    | Keywords, strings, numbers, variables (`x`), comments, function names — via the static TextMate grammar   |
 | **Semantic highlighting**  | Additional binding-aware coloring for variables, parameters, functions/methods, and object/struct fields   |
 | **Diagnostics**            | Parse errors, linter warnings, and hints shown inline as you type                                          |
 | **Code completion**        | Keywords, built-in functions, stdlib functions, local variables and functions, imported module functions   |
@@ -89,7 +89,7 @@ Completions trigger automatically as you type. The following are always availabl
 
 Additionally, for each open file the server provides:
 
-- **Local variables** declared with `var` or `const` — shown as `$name`
+- **Local variables** declared with `var` or `const` — shown as `name`
 - **Local functions** declared with `fn` — shown with their parameter list
 - **Imported stdlib symbols** — shown as `alias.name(params)` when imported with an alias; only the selected symbols when using brace or colon syntax
 - **Imported module symbols** — parsed from the imported `.mira` file; only `pub`-marked symbols are shown. Shown as `alias.name` when imported with `as alias`, or as the bare `name` when imported without one (e.g. `import module "lib.mira" {greet};` suggests bare `greet`, not `greet` under a namespace); if the import selects specific names, only those are suggested

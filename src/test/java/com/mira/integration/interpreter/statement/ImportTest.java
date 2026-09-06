@@ -126,7 +126,7 @@ public class ImportTest extends AbstractImportTests {
                         return helper.trim(" hi ");
                     }
                 };
-                $obj.helper();
+                obj.helper();
                 """));
     }
 
@@ -139,7 +139,7 @@ public class ImportTest extends AbstractImportTests {
                         return str.trim(" hi ");
                     }
                 };
-                $obj.run();
+                obj.run();
                 """));
     }
 }

@@ -21,7 +21,7 @@ public class FieldAccessExpressionTest extends AbstractFieldAccessExpressionTest
     void accessUninitializedField() {
         assertNull(backend.runAndGetValue("""
                 var obj : { var x; };
-                $obj.x;
+                obj.x;
                 """));
     }
 
@@ -29,7 +29,7 @@ public class FieldAccessExpressionTest extends AbstractFieldAccessExpressionTest
     void accessStringField() {
         org.junit.jupiter.api.Assertions.assertEquals("hello", backend.runAndGetValue("""
                 var obj : { var name : "hello"; };
-                $obj.name;
+                obj.name;
                 """));
     }
 }

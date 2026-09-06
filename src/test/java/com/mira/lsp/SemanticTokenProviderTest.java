@@ -31,7 +31,7 @@ public class SemanticTokenProviderTest {
     void emitsFunctionTokenForDeclaredFunctionName() {
         String source = """
                 fn add(a, b) {
-                    return $a + $b;
+                    return a + b;
                 }
                 """;
         SemanticTokens tokens = SemanticTokenProvider.provide(parse(source));

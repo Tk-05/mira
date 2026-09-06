@@ -47,13 +47,6 @@ public class Environment {
         declaredFunctions.add(name);
     }
 
-    public boolean isDeclaredFunction(String name) {
-        if (declaredFunctions.contains(name)) {
-            return true;
-        }
-        return parent != null && parent.isDeclaredFunction(name);
-    }
-
     public void forceDefine(String name, Object value) {
         values.put(name, value);
         constants.remove(name);

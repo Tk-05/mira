@@ -12,8 +12,8 @@ public abstract class AbstractVariadicFuncTests {
         assertEquals("0", runForOutput("""
                 fn countArgs(...args) {
                     var n : 0;
-                    for(var x in $args) { $n : eval($n + 1); }
-                    return $n;
+                    for(var x in args) { n : (n + 1); }
+                    return n;
                 }
                 print(countArgs());
                 """));
@@ -24,8 +24,8 @@ public abstract class AbstractVariadicFuncTests {
         assertEquals("3", runForOutput("""
                 fn countArgs(...args) {
                     var n : 0;
-                    for(var x in $args) { $n : eval($n + 1); }
-                    return $n;
+                    for(var x in args) { n : (n + 1); }
+                    return n;
                 }
                 print(countArgs(1, 2, 3));
                 """));
@@ -36,8 +36,8 @@ public abstract class AbstractVariadicFuncTests {
         assertEquals("6", runForOutput("""
                 fn sum(...args) {
                     var total : 0;
-                    for(var n in $args) { $total : eval($total + $n); }
-                    return $total;
+                    for(var n in args) { total : (total + n); }
+                    return total;
                 }
                 print(sum(1, 2, 3));
                 """));
@@ -48,8 +48,8 @@ public abstract class AbstractVariadicFuncTests {
         assertEquals("3", runForOutput("""
                 fn countRest(first, ...rest) {
                     var n : 0;
-                    for(var x in $rest) { $n : eval($n + 1); }
-                    return $n;
+                    for(var x in rest) { n : (n + 1); }
+                    return n;
                 }
                 print(countRest(1, 2, 3, 4));
                 """));
@@ -60,10 +60,10 @@ public abstract class AbstractVariadicFuncTests {
         assertEquals("3", runForOutput("""
                 var countArgs : fn(...args) {
                     var n : 0;
-                    for(var x in $args) { $n : eval($n + 1); }
-                    return $n;
+                    for(var x in args) { n : (n + 1); }
+                    return n;
                 };
-                print($countArgs(1, 2, 3));
+                print(countArgs(1, 2, 3));
                 """));
     }
 }

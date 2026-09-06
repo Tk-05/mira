@@ -40,11 +40,11 @@ public class CoverageIntegrationTest {
                 module mathlib;
 
                 pub fn square(n) {
-                    return $n * $n;
+                    return n * n;
                 }
 
                 pub fn cube(n) {
-                    return $n * $n * $n;
+                    return n * n * n;
                 }
                 """);
 

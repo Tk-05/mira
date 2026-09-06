@@ -27,7 +27,7 @@ public class SignatureHelpProviderTest {
     void firstParameterActive() {
         String source = """
                 fn add(a, b, c) {
-                    return $a;
+                    return a;
                 }
                 fn main() {
                     return add(1, 2, 3);
@@ -44,7 +44,7 @@ public class SignatureHelpProviderTest {
     void secondParameterActiveAfterComma() {
         String source = """
                 fn add(a, b, c) {
-                    return $a;
+                    return a;
                 }
                 fn main() {
                     return add(1, 2, 3);
@@ -74,11 +74,11 @@ public class SignatureHelpProviderTest {
         String source = """
                 var obj : {
                     fn increment(step) {
-                        return $step;
+                        return step;
                     }
                 };
                 fn main() {
-                    return $obj.increment(1);
+                    return obj.increment(1);
                 }
                 """;
         Position pos = new Position(6, 26);
@@ -92,7 +92,7 @@ public class SignatureHelpProviderTest {
         Path libPath = tempDir.resolve("lib.mira");
         Files.writeString(libPath, """
                 pub fn greet(name) {
-                    return $name;
+                    return name;
                 }
                 """);
         Path mainPath = tempDir.resolve("main.mira");

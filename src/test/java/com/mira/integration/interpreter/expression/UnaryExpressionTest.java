@@ -22,13 +22,13 @@ public class UnaryExpressionTest extends AbstractUnaryExpressionTests {
 
     @Test
     void prefixNegation() {
-        assertEquals("-5.0", runForOutput("print(eval(-5));"));
+        assertEquals("-5.0", runForOutput("print((-5));"));
     }
 
     @Test
     void referenceAccess() {
         try {
-            backend.runAndGetValue("var x : \"hello\"; return $x;");
+            backend.runAndGetValue("var x : \"hello\"; return x;");
         } catch (ReturnSignal r) {
             assertEquals("hello", r.getValue());
         }
@@ -40,21 +40,21 @@ public class UnaryExpressionTest extends AbstractUnaryExpressionTests {
                 var x : 1;
                 var y : x;
                 var z : y;
-                print($$$z);
+                print(z);
                 """);
     }
 
     @Test
     void postIncrementAndDecrement() {
-        assertEquals(10.0, InterpreterRunner.normNum(backend.runAndGetValue("var num : 10; $num++; $num--;")));
+        assertEquals(10.0, InterpreterRunner.normNum(backend.runAndGetValue("var num : 10; num++; num--;")));
     }
 
     @Test
     void postUnaryInExpression() {
         assertEquals(12.0, InterpreterRunner.normNum(backend.runAndGetValue("""
                 var num : 10;
-                $num : $num+++1;
-                eval($num);
+                num : num+++1;
+                (num);
                 """)));
     }
 
@@ -62,8 +62,8 @@ public class UnaryExpressionTest extends AbstractUnaryExpressionTests {
     void multiplePostUnaryInExpression() {
         assertEquals(20.0, InterpreterRunner.normNum(backend.runAndGetValue("""
                 var num : 5;
-                $num : $num+++$num+++$num;
-                eval($num);
+                num : num+++num+++num;
+                (num);
                 """)));
     }
 
@@ -71,8 +71,8 @@ public class UnaryExpressionTest extends AbstractUnaryExpressionTests {
     void nestedPostUnary() {
         assertEquals(3.0, InterpreterRunner.normNum(backend.runAndGetValue("""
                 var num : 0;
-                $num : (($num++) + 1) + $num;
-                eval($num);
+                num : ((num++) + 1) + num;
+                (num);
                 """)));
     }
 
@@ -85,21 +85,21 @@ public class UnaryExpressionTest extends AbstractUnaryExpressionTests {
     void postIncrementNonNumericFieldThrowsNaN() {
         assertThrows(PostExprNaNError.class, () -> backend.runAndGetValue("""
                 var obj : { var name : "abc"; };
-                eval($obj.name++);
+                (obj.name++);
                 """));
     }
 
     @Test
     void postIncrementLiteralHasNoReferentAndReturnsValue() {
-        assertEquals(2.0, InterpreterRunner.normNum(backend.runAndGetValue("eval(1++);")));
+        assertEquals(2.0, InterpreterRunner.normNum(backend.runAndGetValue("(1++);")));
     }
 
     @Test
     void postIncrementComputedExpressionDoesNotMutateSourceVariable() {
         assertEquals(2.0, InterpreterRunner.normNum(backend.runAndGetValue("""
                 var x : 2;
-                var result : ($x + 1)++;
-                eval($x);
+                var result : (x + 1)++;
+                (x);
                 """)));
     }
 
@@ -107,15 +107,15 @@ public class UnaryExpressionTest extends AbstractUnaryExpressionTests {
     void postIncrementComputedExpressionReturnsIncrementedValue() {
         assertEquals(4.0, InterpreterRunner.normNum(backend.runAndGetValue("""
                 var x : 2;
-                var result : ($x + 1)++;
-                eval($result);
+                var result : (x + 1)++;
+                (result);
                 """)));
     }
 
     @Test
     void booleanNegationVariable() {
         try {
-            backend.runAndGetValue("var x : true; return !$x;");
+            backend.runAndGetValue("var x : true; return !x;");
         } catch (ReturnSignal r) {
             assertEquals(Boolean.FALSE, r.getValue());
         }

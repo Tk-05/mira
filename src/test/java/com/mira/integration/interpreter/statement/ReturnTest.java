@@ -25,7 +25,7 @@ public class ReturnTest extends AbstractReturnTests {
     @Test
     void returnWithNumericValue() {
         try {
-            backend.runAndGetValue("return eval(42);");
+            backend.runAndGetValue("return (42);");
         } catch (ReturnSignal r) {
             assertEquals(42.0, InterpreterRunner.normNum(r.getValue()));
         }
@@ -36,7 +36,7 @@ public class ReturnTest extends AbstractReturnTests {
         try {
             Tokenizer tokenizer = new Tokenizer();
             Parser parser = new Parser();
-            backend.getInterpreter().run(parser.parseTokens(tokenizer.tokenize("return eval(0);", true)), false);
+            backend.getInterpreter().run(parser.parseTokens(tokenizer.tokenize("return (0);", true)), false);
         } catch (ReturnSignal r) {
             assertEquals(0.0, InterpreterRunner.normNum(r.getValue()));
         }
@@ -54,7 +54,7 @@ public class ReturnTest extends AbstractReturnTests {
     @Test
     void returnFromVariable() {
         try {
-            backend.runAndGetValue("var x : 24; var y : 18; var z : eval($x + $y); return $z;");
+            backend.runAndGetValue("var x : 24; var y : 18; var z : (x + y); return z;");
         } catch (ReturnSignal r) {
             assertEquals(42.0, InterpreterRunner.normNum(r.getValue()));
         }
@@ -63,7 +63,7 @@ public class ReturnTest extends AbstractReturnTests {
     @Test
     void returnUninitializedVariable() {
         try {
-            backend.runAndGetValue("var x; return $x;");
+            backend.runAndGetValue("var x; return x;");
         } catch (ReturnSignal r) {
             assertInstanceOf(NullValue.class, r.getValue());
         }

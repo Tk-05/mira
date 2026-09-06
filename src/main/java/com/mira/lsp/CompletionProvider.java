@@ -104,12 +104,12 @@ public class CompletionProvider {
         for (Node node : nodes) {
             switch (node) {
                 case VarDecl v -> {
-                    CompletionItem item = new CompletionItem("$" + v.getName());
+                    CompletionItem item = new CompletionItem(v.getName());
                     item.setKind(CompletionItemKind.Variable);
                     items.add(item);
                     if (v.getInitializer() instanceof ObjectExpression obj) {
                         for (VarDecl f : obj.getVarDecls()) {
-                            CompletionItem fi = new CompletionItem("$" + v.getName() + "." + f.getName());
+                            CompletionItem fi = new CompletionItem(v.getName() + "." + f.getName());
                             fi.setKind(CompletionItemKind.Field);
                             fi.setDetail((f.isConst() ? "const" : "var") + " " + f.getName());
                             items.add(fi);
@@ -117,7 +117,7 @@ public class CompletionProvider {
                         for (FuncDecl m : obj.getMethods()) {
                             String params = m.getParameters().stream()
                                     .map(Parameter::name).collect(Collectors.joining(", "));
-                            CompletionItem mi = new CompletionItem("$" + v.getName() + "." + m.getName());
+                            CompletionItem mi = new CompletionItem(v.getName() + "." + m.getName());
                             mi.setKind(CompletionItemKind.Method);
                             mi.setDetail("fn " + m.getName() + "(" + params + ")");
                             items.add(mi);
@@ -144,7 +144,7 @@ public class CompletionProvider {
                 }
                 case VarDestructure vd -> {
                     for (String n : vd.getNames()) {
-                        CompletionItem item = new CompletionItem("$" + n);
+                        CompletionItem item = new CompletionItem(n);
                         item.setKind(CompletionItemKind.Variable);
                         items.add(item);
                     }
@@ -152,7 +152,7 @@ public class CompletionProvider {
                 case ComptimeBlock comptime -> {
                     for (Node bodyNode : comptime.getBody()) {
                         if (bodyNode instanceof VarDecl v) {
-                            CompletionItem item = new CompletionItem("$" + v.getName());
+                            CompletionItem item = new CompletionItem(v.getName());
                             item.setKind(CompletionItemKind.Constant);
                             item.setDetail("comptime const " + v.getName());
                             items.add(item);
@@ -167,7 +167,7 @@ public class CompletionProvider {
                 }
                 case Loop s -> {
                     if (s.isForeach()) {
-                        CompletionItem item = new CompletionItem("$" + s.getIterator().getName());
+                        CompletionItem item = new CompletionItem(s.getIterator().getName());
                         item.setKind(CompletionItemKind.Variable);
                         items.add(item);
                     } else {
@@ -206,7 +206,7 @@ public class CompletionProvider {
 
     private static void addStructMemberItems(String varName, StructExpression st, List<CompletionItem> items) {
         for (VarDecl f : st.getVarDecls()) {
-            CompletionItem fi = new CompletionItem("$" + varName + "." + f.getName());
+            CompletionItem fi = new CompletionItem(varName + "." + f.getName());
             fi.setKind(CompletionItemKind.Field);
             fi.setDetail((f.isConst() ? "const" : "var") + " " + f.getName() + " (struct)");
             items.add(fi);
@@ -214,7 +214,7 @@ public class CompletionProvider {
         for (FuncDecl m : st.getMethods()) {
             String params = m.getParameters().stream()
                     .map(Parameter::name).collect(Collectors.joining(", "));
-            CompletionItem mi = new CompletionItem("$" + varName + "." + m.getName());
+            CompletionItem mi = new CompletionItem(varName + "." + m.getName());
             mi.setKind(CompletionItemKind.Method);
             mi.setDetail("fn " + m.getName() + "(" + params + ") (struct)");
             items.add(mi);

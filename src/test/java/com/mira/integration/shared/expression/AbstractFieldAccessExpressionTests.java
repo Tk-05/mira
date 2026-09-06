@@ -11,7 +11,7 @@ public abstract class AbstractFieldAccessExpressionTests {
     void accessInitializedField() {
         assertEquals("42", runForOutput("""
                 var obj : { var x : 42; };
-                print($obj.x);
+                print(obj.x);
                 """));
     }
 
@@ -19,7 +19,7 @@ public abstract class AbstractFieldAccessExpressionTests {
     void accessFieldInArithmetic() {
         assertEquals("10", runForOutput("""
                 var obj : { var x : 5; };
-                print(eval($obj.x * 2));
+                print((obj.x * 2));
                 """));
     }
 
@@ -27,7 +27,7 @@ public abstract class AbstractFieldAccessExpressionTests {
     void multipleFieldsOnSameObject() {
         assertEquals("3", runForOutput("""
                 var p : { var x : 1; var y : 2; };
-                print(eval($p.x + $p.y));
+                print((p.x + p.y));
                 """));
     }
 
@@ -35,8 +35,8 @@ public abstract class AbstractFieldAccessExpressionTests {
     void fieldAccessAfterAssignment() {
         assertEquals("99", runForOutput("""
                 var obj : { var val : 1; };
-                $obj.val : 99;
-                print($obj.val);
+                obj.val : 99;
+                print(obj.val);
                 """));
     }
 }

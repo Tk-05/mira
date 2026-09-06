@@ -19,7 +19,7 @@ public class NullCoalescingTest extends AbstractNullCoalescingTests {
 
     @Test
     void rightSideIsNumber() {
-        assertEquals(42.0, InterpreterRunner.normNum(backend.runAndGetValue("var x : null; $x ?? 42;")));
+        assertEquals(42.0, InterpreterRunner.normNum(backend.runAndGetValue("var x : null; x ?? 42;")));
     }
 
     @Test
@@ -28,7 +28,7 @@ public class NullCoalescingTest extends AbstractNullCoalescingTests {
                 var a : null;
                 var b : null;
                 var c : "found";
-                var result : $a ?? $b ?? $c;
+                var result : a ?? b ?? c;
                 """);
         assertEquals("found", backend.getInterpreter().getGlobalEnvironment().get("result"));
     }
@@ -39,7 +39,7 @@ public class NullCoalescingTest extends AbstractNullCoalescingTests {
                 var a : null;
                 var b : "b";
                 var c : "c";
-                var result : $a ?? $b ?? $c;
+                var result : a ?? b ?? c;
                 """);
         assertEquals("b", backend.getInterpreter().getGlobalEnvironment().get("result"));
     }
@@ -49,11 +49,11 @@ public class NullCoalescingTest extends AbstractNullCoalescingTests {
         backend.runAndGetValue("""
                 var count : 0;
                 fn sideEffect() {
-                    $count : eval($count + 1);
+                    count : (count + 1);
                     return "side";
                 }
                 var x : "left";
-                var result : $x ?? sideEffect();
+                var result : x ?? sideEffect();
                 """);
         assertEquals("left", backend.getInterpreter().getGlobalEnvironment().get("result"));
         assertEquals(0.0, InterpreterRunner.normNum(backend.getInterpreter().getGlobalEnvironment().get("count")));
@@ -64,11 +64,11 @@ public class NullCoalescingTest extends AbstractNullCoalescingTests {
         backend.runAndGetValue("""
                 var count : 0;
                 fn sideEffect() {
-                    $count : eval($count + 1);
+                    count : (count + 1);
                     return "side";
                 }
                 var x : null;
-                var result : $x ?? sideEffect();
+                var result : x ?? sideEffect();
                 """);
         assertEquals("side", backend.getInterpreter().getGlobalEnvironment().get("result"));
         assertEquals(1.0, InterpreterRunner.normNum(backend.getInterpreter().getGlobalEnvironment().get("count")));

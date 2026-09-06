@@ -23,27 +23,27 @@ public class ExecBlockTest extends AbstractExecBlockTests {
 
     @Test
     void returnValueFromExecBlock() {
-        assertEquals(42.0, InterpreterRunner.normNum(backend.runAndGetValue("eval(exec { return 42; });")));
+        assertEquals(42.0, InterpreterRunner.normNum(backend.runAndGetValue("(exec { return 42; });")));
     }
 
     @Test
     void returnWithComputation() {
         assertEquals(20.0, InterpreterRunner.normNum(backend.runAndGetValue("""
-                var result : exec { var x : 10; return eval($x * 2); };
-                eval($result);
+                var result : exec { var x : 10; return (x * 2); };
+                (result);
                 """)));
     }
 
     @Test
     void noReturnYieldsNull() {
-        assertInstanceOf(NullValue.class, backend.runAndGetValue("var result : exec { var x : 1; }; $result;"));
+        assertInstanceOf(NullValue.class, backend.runAndGetValue("var result : exec { var x : 1; }; result;"));
     }
 
     @Test
     void variablesDoNotLeakOutside() {
         assertThrows(UndefinedReferenceError.class, () -> backend.runAndGetValue("""
                 exec { var secret : 5; };
-                $secret;
+                secret;
                 """));
     }
 
@@ -51,7 +51,7 @@ public class ExecBlockTest extends AbstractExecBlockTests {
     void canReadOuterVariable() {
         assertEquals(10.0, InterpreterRunner.normNum(backend.runAndGetValue("""
                 var x : 10;
-                eval(exec { return eval($x); });
+                (exec { return eval(x); });
                 """)));
     }
 
@@ -59,8 +59,8 @@ public class ExecBlockTest extends AbstractExecBlockTests {
     void canModifyOuterVariable() {
         assertEquals(99.0, InterpreterRunner.normNum(backend.runAndGetValue("""
                 var x : 10;
-                exec { $x : 99; };
-                eval($x);
+                exec { x : 99; };
+                (x);
                 """)));
     }
 
@@ -69,17 +69,17 @@ public class ExecBlockTest extends AbstractExecBlockTests {
         assertEquals(50.0, InterpreterRunner.normNum(backend.runAndGetValue("""
                 var a : exec { return 20; };
                 var b : exec { return 30; };
-                eval($a + $b);
+                (a + b);
                 """)));
     }
 
     @Test
     void nestedExecBlocks() {
         assertEquals(7.0, InterpreterRunner.normNum(backend.runAndGetValue("""
-                eval(exec {
+                (exec {
                     var outer : 3;
-                    var inner : exec { return eval($outer + 4); };
-                    return eval($inner);
+                    var inner : exec { return eval(outer + 4); };
+                    return eval(inner);
                 });
                 """)));
     }
@@ -89,9 +89,9 @@ public class ExecBlockTest extends AbstractExecBlockTests {
         assertThrows(UndefinedReferenceError.class, () -> backend.runAndGetValue("""
                 fn myFunc() {
                     var localVar : 42;
-                    return exec isolated { return eval($localVar); };
+                    return exec isolated { return (localVar); };
                 }
-                eval(myFunc());
+                (myFunc());
                 """));
     }
 
@@ -101,9 +101,9 @@ public class ExecBlockTest extends AbstractExecBlockTests {
                 var globalVar : 55;
                 fn myFunc() {
                     var localVar : 42;
-                    return exec isolated { return eval($globalVar); };
+                    return exec isolated { return (globalVar); };
                 }
-                eval(myFunc());
+                (myFunc());
                 """)));
     }
 
@@ -114,7 +114,7 @@ public class ExecBlockTest extends AbstractExecBlockTests {
                     var r : exec { return 1; };
                     return 100;
                 }
-                eval(myFunc());
+                (myFunc());
                 """)));
     }
 }

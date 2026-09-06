@@ -14,20 +14,20 @@ public abstract class AbstractLambdaExpressionTests {
 
     @Test
     void lambdaWithOneParam() {
-        assertEquals("6", runForOutput("var f : fn(n) { return eval($n * 2); }; print(f(3));"));
+        assertEquals("6", runForOutput("var f : fn(n) { return (n * 2); }; print(f(3));"));
     }
 
     @Test
     void lambdaWithTwoParams() {
-        assertEquals("7", runForOutput("var add : fn(a, b) { return eval($a + $b); }; print(add(3, 4));"));
+        assertEquals("7", runForOutput("var add : fn(a, b) { return (a + b); }; print(add(3, 4));"));
     }
 
     @Test
     void lambdaPassedAsArgument() {
         assertEquals("10", runForOutput("""
-                fn apply(f, x) { return $f($x); }
-                var double : fn(n) { return eval($n * 2); };
-                print(apply($double, 5));
+                fn apply(f, x) { return f(x); }
+                var double : fn(n) { return (n * 2); };
+                print(apply(double, 5));
                 """));
     }
 
@@ -35,7 +35,7 @@ public abstract class AbstractLambdaExpressionTests {
     void lambdaCapturesOuterVariable() {
         assertEquals("15", runForOutput("""
                 var base : 10;
-                var addBase : fn(n) { return eval($n + $base); };
+                var addBase : fn(n) { return (n + base); };
                 print(addBase(5));
                 """));
     }
@@ -43,12 +43,12 @@ public abstract class AbstractLambdaExpressionTests {
     @Test
     void lambdaCalledMultipleTimes() {
         assertEquals("6", runForOutput("""
-                var inc : fn(n) { return eval($n + 1); };
+                var inc : fn(n) { return (n + 1); };
                 var x : 3;
-                $x : eval(inc($x));
-                $x : eval(inc($x));
-                $x : eval(inc($x));
-                print($x);
+                x : (inc(x));
+                x : (inc(x));
+                x : (inc(x));
+                print(x);
                 """));
     }
 }

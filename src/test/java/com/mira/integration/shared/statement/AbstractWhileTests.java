@@ -11,8 +11,8 @@ public abstract class AbstractWhileTests {
     void whileCountsCorrectly() {
         assertEquals("5", runForOutput("""
                 var i : 0;
-                while($i < 5){ $i : eval($i + 1); }
-                print($i);
+                while(i < 5){ i : (i + 1); }
+                print(i);
                 """));
     }
 
@@ -20,8 +20,8 @@ public abstract class AbstractWhileTests {
     void whileFalseNeverExecutes() {
         assertEquals("false", runForOutput("""
                 var executed : false;
-                while(0){ $executed : true; }
-                print($executed);
+                while(0){ executed : true; }
+                print(executed);
                 """));
     }
 
@@ -30,10 +30,10 @@ public abstract class AbstractWhileTests {
         assertEquals("3", runForOutput("""
                 var x : 0;
                 while(1) {
-                    $x : eval($x + 1);
-                    if($x >= 3) { break; }
+                    x : (x + 1);
+                    if(x >= 3) { break; }
                 }
-                print($x);
+                print(x);
                 """));
     }
 
@@ -43,15 +43,15 @@ public abstract class AbstractWhileTests {
                 var outer : 0;
                 var inner : 0;
                 var total : 0;
-                while($outer < 3) {
-                    $outer : eval($outer + 1);
-                    $inner : 0;
-                    while($inner < 3) {
-                        $inner : eval($inner + 1);
-                        $total : eval($total + 1);
+                while(outer < 3) {
+                    outer : (outer + 1);
+                    inner : 0;
+                    while(inner < 3) {
+                        inner : (inner + 1);
+                        total : (total + 1);
                     }
                 }
-                print($total);
+                print(total);
                 """));
     }
 
@@ -59,8 +59,8 @@ public abstract class AbstractWhileTests {
     void doWhileExecutesAtLeastOnce() {
         assertEquals("true", runForOutput("""
                 var executed : false;
-                do { $executed : true; } while(0);
-                print($executed);
+                do { executed : true; } while(0);
+                print(executed);
                 """));
     }
 
@@ -68,8 +68,8 @@ public abstract class AbstractWhileTests {
     void doWhileCountsCorrectly() {
         assertEquals("5", runForOutput("""
                 var i : 0;
-                do { $i : eval($i + 1); } while($i < 5);
-                print($i);
+                do { i : (i + 1); } while(i < 5);
+                print(i);
                 """));
     }
 
@@ -77,8 +77,8 @@ public abstract class AbstractWhileTests {
     void whileSingleStatementNoBraces() {
         assertEquals("3", runForOutput("""
                 var i : 0;
-                while ($i < 3) $i : eval($i + 1);
-                print($i);
+                while (i < 3) i : (i + 1);
+                print(i);
                 """));
     }
 
@@ -86,8 +86,8 @@ public abstract class AbstractWhileTests {
     void whileSingleStatementFalseNeverRuns() {
         assertEquals("0", runForOutput("""
                 var i : 0;
-                while (false) $i : eval($i + 1);
-                print($i);
+                while (false) i : (i + 1);
+                print(i);
                 """));
     }
 
@@ -95,8 +95,8 @@ public abstract class AbstractWhileTests {
     void doWhileSingleStatementNoBraces() {
         assertEquals("1", runForOutput("""
                 var i : 0;
-                do $i : eval($i + 1); while (false);
-                print($i);
+                do i : (i + 1); while (false);
+                print(i);
                 """));
     }
 }

@@ -22,23 +22,23 @@ public class AccessExpressionTest extends AbstractAccessExpressionTests {
     @Test
     void expressionAsIndex() {
         assertEquals(30.0, InterpreterRunner.normNum(backend.runAndGetValue(
-                "var list : {10, 20, 30}; eval($list[eval(1+1)]);")));
+                "var list : {10, 20, 30}; (list[eval(1+1)]);")));
     }
 
     @Test
     void multiLevelNestedAccess() {
         assertEquals(69.0, InterpreterRunner.normNum(backend.runAndGetValue(
-                "var tuple : [[1,2],[3,69],69]; eval($tuple[1][1]);")));
+                "var tuple : [[1,2],[3,69],69]; (tuple[1][1]);")));
     }
 
     @Test
     void outOfBoundsThrows() {
-        assertThrows(IndexOutOfBoundsError.class, () -> backend.run("var list : {1, 2, 3}; print($list[5]);"));
+        assertThrows(IndexOutOfBoundsError.class, () -> backend.run("var list : {1, 2, 3}; print(list[5]);"));
     }
 
     @Test
     void emptyContainerThrows() {
-        assertThrows(IndexOutOfBoundsError.class, () -> backend.runAndGetValue("var tuple : []; $tuple[0];"));
+        assertThrows(IndexOutOfBoundsError.class, () -> backend.runAndGetValue("var tuple : []; tuple[0];"));
     }
 
     @Test
@@ -46,7 +46,7 @@ public class AccessExpressionTest extends AbstractAccessExpressionTests {
         assertEquals(20.0, InterpreterRunner.normNum(backend.runAndGetValue("""
                 var list : {10, 20, 30};
                 var idx : 1;
-                eval($list[eval($idx)]);
+                (list[eval(idx)]);
                 """)));
     }
 }

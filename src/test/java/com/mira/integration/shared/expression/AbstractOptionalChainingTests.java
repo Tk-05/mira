@@ -9,16 +9,16 @@ public abstract class AbstractOptionalChainingTests {
 
     @Test
     void returnsNullWhenObjectIsNull() {
-        assertEquals("null", runForOutput("var x; print($x?.field ?? \"null\");"));
+        assertEquals("null", runForOutput("var x; print(x?.field ?? \"null\");"));
     }
 
     @Test
     void accessesFieldWhenObjectIsNotNull() {
-        assertEquals("42", runForOutput("var obj : { var x : 42; }; print($obj?.x);"));
+        assertEquals("42", runForOutput("var obj : { var x : 42; }; print(obj?.x);"));
     }
 
     @Test
     void combinesWithNullCoalescing() {
-        assertEquals("default", runForOutput("var x; print($x?.field ?? \"default\");"));
+        assertEquals("default", runForOutput("var x; print(x?.field ?? \"default\");"));
     }
 }

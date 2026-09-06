@@ -25,33 +25,33 @@ public class ArrayExpressionTest extends AbstractArrayExpressionTests {
 
     @Test
     void emptyArrayAccessThrows() {
-        assertThrows(IndexOutOfBoundsError.class, () -> backend.runAndGetValue("var arr : []; $arr[0];"));
+        assertThrows(IndexOutOfBoundsError.class, () -> backend.runAndGetValue("var arr : []; arr[0];"));
     }
 
     @Test
     void arrayWithExpressions() {
         assertEquals(3.0, InterpreterRunner.normNum(backend.runAndGetValue(
-                "var arr : [1+2, 3*4, 5]; eval($arr[0]);")));
+                "var arr : [1+2, 3*4, 5]; (arr[0]);")));
     }
 
     @Test
     void arrayFirstElement() {
         assertEquals(1.0, InterpreterRunner.normNum(backend.runAndGetValue(
-                "var arr : [1,2,3]; eval($arr[0]);")));
+                "var arr : [1,2,3]; (arr[0]);")));
     }
 
     @Test
     void arrayLastElement() {
         assertEquals(3.0, InterpreterRunner.normNum(backend.runAndGetValue(
-                "var arr : [1,2,3]; eval($arr[2]);")));
+                "var arr : [1,2,3]; (arr[2]);")));
     }
 
     @Test
     void arrayMutateMiddleElement() {
         assertEquals(42.0, InterpreterRunner.normNum(backend.runAndGetValue("""
                 var arr : [10,20,30];
-                $arr[1] : 42;
-                eval($arr[1]);
+                arr[1] : 42;
+                (arr[1]);
                 """)));
     }
 
@@ -59,8 +59,8 @@ public class ArrayExpressionTest extends AbstractArrayExpressionTests {
     void arrayMutateLastElement() {
         assertEquals(7.0, InterpreterRunner.normNum(backend.runAndGetValue("""
                 var arr : [1,2,3];
-                $arr[2] : 7;
-                eval($arr[2]);
+                arr[2] : 7;
+                (arr[2]);
                 """)));
     }
 
@@ -68,8 +68,8 @@ public class ArrayExpressionTest extends AbstractArrayExpressionTests {
     void structAssignedIntoArraySurvivesFieldAccess() {
         assertEquals(42.0, InterpreterRunner.normNum(backend.runAndGetValue("""
                 var arr : [0];
-                $arr[0] : { var foo : 42; };
-                eval($arr[0].foo);
+                arr[0] : { var foo : 42; };
+                (arr[0].foo);
                 """)));
     }
 }

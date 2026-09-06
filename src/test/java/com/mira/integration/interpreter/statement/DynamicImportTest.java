@@ -29,7 +29,7 @@ public class DynamicImportTest {
 
         Files.writeString(tempDir.resolve("plugin.mira"), """
                 module Plugin;
-                pub fn add(a, b) { return $a + $b; }
+                pub fn add(a, b) { return a + b; }
                 fn secret() { return "hidden"; }
                 pub const MAGIC : 99;
                 """);
@@ -51,13 +51,13 @@ public class DynamicImportTest {
     @Test
     void wholeModuleImportReturnsCallableNamespace() {
         assertEquals(5.0, InterpreterRunner.normNum(
-                run("var mod : importDynamic(\"plugin.mira\"); $mod.add(2, 3);")));
+                run("var mod : importDynamic(\"plugin.mira\"); mod.add(2, 3);")));
     }
 
     @Test
     void selectiveImportReturnsOnlyRequestedSymbol() {
         assertEquals(5.0, InterpreterRunner.normNum(
-                run("var mod : importDynamic(\"plugin.mira\", {\"add\"}); $mod.add(2, 3);")));
+                run("var mod : importDynamic(\"plugin.mira\", {\"add\"}); mod.add(2, 3);")));
     }
 
     @Test
@@ -76,7 +76,7 @@ public class DynamicImportTest {
         assertEquals(15.0, InterpreterRunner.normNum(run("""
                 fn loadPlugin() {
                     var mod : importDynamic("plugin.mira");
-                    return $mod.add(10, 5);
+                    return mod.add(10, 5);
                 }
                 loadPlugin();
                 """)));

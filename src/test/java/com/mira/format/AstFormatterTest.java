@@ -21,24 +21,24 @@ public class AstFormatterTest {
 
     @Test
     void postfixIncrementStaysPostfix() {
-        assertEquals("$x++;\n", fmt("$x++;"));
+        assertEquals("x++;\n", fmt("x++;"));
     }
 
     @Test
     void prefixIncrementStaysPrefix() {
-        assertEquals("++$x;\n", fmt("++$x;"));
+        assertEquals("++x;\n", fmt("++x;"));
     }
 
     @Test
     void prefixDecrementStaysPrefix() {
-        assertEquals("--$x;\n", fmt("--$x;"));
+        assertEquals("--x;\n", fmt("--x;"));
     }
 
     @Test
     void functionDecl() {
         String source = """
                 fn add(a, b) {
-                    return $a + $b;
+                    return a + b;
                 }
                 """;
         assertEquals(source, fmt(source));
@@ -63,8 +63,8 @@ public class AstFormatterTest {
         String source = """
                 fn test() {
                     var i : 0;
-                    while ($i < 10) {
-                        $i++;
+                    while (i < 10) {
+                        i++;
                     }
                 }
                 """;
@@ -75,8 +75,8 @@ public class AstFormatterTest {
     void forLoop() {
         String source = """
                 fn test() {
-                    for (var i : 0; $i < 10; $i++) {
-                        var x : $i;
+                    for (var i : 0; i < 10; i++) {
+                        var x : i;
                     }
                 }
                 """;
@@ -88,7 +88,7 @@ public class AstFormatterTest {
         String source = """
                 fn test() {
                     for (var x in {1, 2, 3}) {
-                        var y : $x;
+                        var y : x;
                     }
                 }
                 """;
@@ -123,7 +123,7 @@ public class AstFormatterTest {
     void switchStmt() {
         String source = """
                 fn test(x) {
-                    switch ($x) {
+                    switch (x) {
                         case (1) {
                             return 1;
                         }
@@ -152,12 +152,12 @@ public class AstFormatterTest {
 
     @Test
     void fnLambdaPreserved() {
-        assertEquals("var f : fn (x) {\n    return $x + 1;\n};\n", fmt("var f : fn (x) { return $x + 1; };"));
+        assertEquals("var f : fn (x) {\n    return x + 1;\n};\n", fmt("var f : fn (x) { return x + 1; };"));
     }
 
     @Test
     void arrowLambdaPreserved() {
-        assertEquals("var f : (x) -> $x + 1;\n", fmt("var f : (x) -> $x + 1;"));
+        assertEquals("var f : (x) -> x + 1;\n", fmt("var f : (x) -> x + 1;"));
     }
 
     @Test
@@ -176,7 +176,7 @@ public class AstFormatterTest {
     void idempotent() {
         String source = """
                 fn add(a, b) {
-                    return $a + $b;
+                    return a + b;
                 }
 
                 fn main() {
@@ -201,8 +201,8 @@ public class AstFormatterTest {
     void inlineCommentOnOpeningBrace() {
         String source = """
                 fn divide(a, b) { // validates input
-                    if ($b != 0) {
-                        return $a / $b;
+                    if (b != 0) {
+                        return a / b;
                     }
                 }
                 """;
@@ -292,13 +292,13 @@ public class AstFormatterTest {
                         1,
                         2
                     );
-                    return $x;
+                    return x;
                 }
                 """;
         String expected = """
                 fn foo() {
                     var x : add(1, 2);
-                    return $x;
+                    return x;
                 }
                 """;
         assertEquals(expected, fmt(input));
@@ -313,14 +313,14 @@ public class AstFormatterTest {
                         2
                     );
 
-                    return $x;
+                    return x;
                 }
                 """;
         String expected = """
                 fn foo() {
                     var x : add(1, 2);
 
-                    return $x;
+                    return x;
                 }
                 """;
         assertEquals(expected, fmt(input));

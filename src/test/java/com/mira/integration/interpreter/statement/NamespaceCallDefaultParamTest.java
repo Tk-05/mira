@@ -30,7 +30,7 @@ public class NamespaceCallDefaultParamTest {
         Files.writeString(tempDir.resolve("mymod.mira"), """
                 module MyMod;
                 pub fn greet(name, greeting: "Hello") {
-                    return $greeting " " $name;
+                    return greeting + " " + name;
                 }
                 """);
 

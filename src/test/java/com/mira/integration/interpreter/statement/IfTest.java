@@ -23,7 +23,7 @@ public class IfTest extends AbstractIfTests {
 
     @Test
     void ifWithoutElse() {
-        assertNull(backend.runAndGetValue("var x : 1; if ($x > 3) { return true; }"));
+        assertNull(backend.runAndGetValue("var x : 1; if (x > 3) { return true; }"));
     }
 
     @Test
@@ -35,7 +35,7 @@ public class IfTest extends AbstractIfTests {
             backend.getInterpreter().run(parser.parseTokens(tokenizer.tokenize("""
                     import string;
                     var str : "\n";
-                    if(charAt($str, 0) == "\n") {
+                    if(charAt(str, 0) == "\n") {
                         return;
                     }
                     """, false)), false);
@@ -51,7 +51,7 @@ public class IfTest extends AbstractIfTests {
             backend.getInterpreter().run(parser.parseTokens(tokenizer.tokenize("""
                     import string as s;
                     var str : "}";
-                    if(s.charAt($str, 0) == "}") {
+                    if(s.charAt(str, 0) == "}") {
                         return;
                     }
                     """, false)), false);

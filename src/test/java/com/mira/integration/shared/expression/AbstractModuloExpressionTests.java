@@ -9,21 +9,21 @@ public abstract class AbstractModuloExpressionTests {
 
     @Test
     void basicModulo() {
-        assertEquals("1", runForOutput("print(eval(7 % 3));"));
+        assertEquals("1", runForOutput("print((7 % 3));"));
     }
 
     @Test
     void exactModuloIsZero() {
-        assertEquals("0", runForOutput("print(eval(6 % 3));"));
+        assertEquals("0", runForOutput("print((6 % 3));"));
     }
 
     @Test
     void moduloWithVariable() {
-        assertEquals("2", runForOutput("var x : 8; print(eval($x % 3));"));
+        assertEquals("2", runForOutput("var x : 8; print((x % 3));"));
     }
 
     @Test
     void moduloCompoundAssign() {
-        assertEquals("2", runForOutput("var x : 8; $x %: 3; print($x);"));
+        assertEquals("2", runForOutput("var x : 8; x %: 3; print(x);"));
     }
 }
