@@ -1003,14 +1003,23 @@ public class StaticCheckTest {
     // --- Binary operator operand type checking ---
     @Test
     void explicitlyTypedOperandMismatchInPlusIsE330() {
+        // a genuine mismatch: neither side is Number+Number, and neither
+        // side is a String (which '+' always allows, as concatenation)
         List<MiraError> errors = errorsFor(
-                "var n : Number : 5; var s : String : \"x\"; var r : n + s;");
+                "var flag : Bool : true; var n : Number : 5; var r : flag + n;");
         assertTrue(hasCode(errors, "E330"));
     }
 
     @Test
     void explicitlyTypedOperandsSameTypeInPlusIsClean() {
         assertClean("var a : Number : 5; var b : Number : 3; var r : a + b;");
+    }
+
+    @Test
+    void explicitlyTypedStringAndNumberInPlusIsCleanConcatenation() {
+        // '+' on a String and anything else is concatenation, not arithmetic -
+        // unlike every other arithmetic operator, mismatched types here are fine
+        assertClean("var n : Number : 5; var s : String : \"x\"; var r : s + n;");
     }
 
     @Test
@@ -1038,10 +1047,10 @@ public class StaticCheckTest {
     }
 
     @Test
-    void typedFunctionReturnMismatchInPlusIsE330() {
-        List<MiraError> errors = errorsFor(
-                "fn getNum() -> Number { return 1; } var s : String : \"x\"; var r : getNum() + s;");
-        assertTrue(hasCode(errors, "E330"));
+    void typedFunctionReturnStringConcatenationInPlusIsClean() {
+        // '+' with a typed function's Number return and a String is
+        // concatenation, not a mismatch - same as any other String operand
+        assertClean("fn getNum() -> Number { return 1; } var s : String : \"x\"; var r : getNum() + s;");
     }
 
     // --- Parameter default value type checking ---

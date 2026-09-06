@@ -2140,8 +2140,12 @@ public class StaticCheck {
         if (types == null) {
             return;
         }
+        // '+' is also string concatenation - valid whenever either side is a
+        // String (the other side gets stringified), not just when both sides
+        // match exactly like every other arithmetic operator requires.
         boolean mismatch = "+".equals(op)
-                ? !sameNamedType(types.left(), types.right())
+                ? !(isNumberType(types.left()) && isNumberType(types.right()))
+                && !isStringType(types.left()) && !isStringType(types.right())
                 : !isNumberType(types.left()) || !isNumberType(types.right());
         if (mismatch) {
             errors.add(new BinaryOperatorTypeMismatchError(op, MiraType.display(types.left()),
@@ -2218,6 +2222,10 @@ public class StaticCheck {
 
     private static boolean isNumberType(MiraType t) {
         return t instanceof MiraType.NamedType n && "Number".equals(n.name());
+    }
+
+    private static boolean isStringType(MiraType t) {
+        return t instanceof MiraType.NamedType n && "String".equals(n.name());
     }
 
     private static int expressionColumn(Expression expr, int fallback) {
