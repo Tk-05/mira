@@ -1211,17 +1211,90 @@ public class StaticCheck {
 
     private void resolveIf(If stmt) {
         resolveExpr(stmt.getCondition());
+        NullCheckNarrowing narrowing = detectNullCheckNarrowing(stmt.getCondition());
+
         scope.push();
         branchDepth++;
+        NarrowSave savedThen = applyNarrowing(narrowing.thenNarrowedVar());
         resolveBody(stmt.getThenBody());
+        restoreNarrowing(savedThen);
         branchDepth--;
         popScope();
         if (stmt.getElseBody() != null) {
             scope.push();
             branchDepth++;
+            NarrowSave savedElse = applyNarrowing(narrowing.elseNarrowedVar());
             resolveBody(stmt.getElseBody());
+            restoreNarrowing(savedElse);
             branchDepth--;
             popScope();
+        }
+    }
+
+    private record NullCheckNarrowing(String thenNarrowedVar, String elseNarrowedVar) {
+
+    }
+
+    private static final NullCheckNarrowing NO_NARROWING = new NullCheckNarrowing(null, null);
+
+    /**
+     * Recognizes {@code x != null} / {@code x == null} (either operand order)
+     * as narrowing a nullable-declared {@code x} to its non-null inner type for
+     * the branch where it's known not to be null - the then branch for
+     * {@code !=}, the else branch for {@code ==}. Deliberately narrow: no
+     * {@code &&}/{@code ||} composition, no narrowing that survives past the if
+     * (e.g. an early-return guard clause).
+     */
+    private NullCheckNarrowing detectNullCheckNarrowing(Expression condition) {
+        if (!(condition instanceof BinaryExpression be)) {
+            return NO_NARROWING;
+        }
+        String op = be.getOperator().getLexeme();
+        if (!"!=".equals(op) && !"==".equals(op)) {
+            return NO_NARROWING;
+        }
+        String varName = nullCheckVarName(be.getLeft(), be.getRight());
+        if (varName == null) {
+            return NO_NARROWING;
+        }
+        return "!=".equals(op) ? new NullCheckNarrowing(varName, null) : new NullCheckNarrowing(null, varName);
+    }
+
+    private static String nullCheckVarName(Expression left, Expression right) {
+        if (isNullLiteral(right)) {
+            DumbExpression ref = extractVarRef(left);
+            return ref != null ? ref.getValue() : null;
+        }
+        if (isNullLiteral(left)) {
+            DumbExpression ref = extractVarRef(right);
+            return ref != null ? ref.getValue() : null;
+        }
+        return null;
+    }
+
+    private static boolean isNullLiteral(Node n) {
+        return n instanceof DumbExpression d && "null".equals(d.getValue());
+    }
+
+    private record NarrowSave(String varName, MiraType previous) {
+
+    }
+
+    private NarrowSave applyNarrowing(String varName) {
+        if (varName == null) {
+            return null;
+        }
+        MiraType current = declaredVarTypes.get(varName);
+        if (!(current instanceof MiraType.NullableType nt)) {
+            return null;
+        }
+        declaredVarTypes.put(varName, nt.inner());
+        return new NarrowSave(varName, current);
+    }
+
+    private void restoreNarrowing(NarrowSave save) {
+        if (save != null) {
+            declaredVarTypes.put(save.varName(), save.previous());
         }
     }
 

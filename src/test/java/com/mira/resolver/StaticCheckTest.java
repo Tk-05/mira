@@ -745,6 +745,43 @@ public class StaticCheckTest {
     }
 
     @Test
+    void nullableParamWithoutGuardIsE325() {
+        List<MiraError> errors = errorsFor(
+                "fn f(n : Number) { println(n); } fn g(x : Number?) { f(x); }");
+        assertTrue(hasCode(errors, "E325"));
+    }
+
+    @Test
+    void nullableParamNarrowedInNotEqualNullThenBranchIsClean() {
+        assertClean(
+                "fn f(n : Number) { println(n); } "
+                + "fn g(x : Number?) { if (x != null) { f(x); } }");
+    }
+
+    @Test
+    void nullableParamNarrowedInEqualNullElseBranchIsClean() {
+        assertClean(
+                "fn f(n : Number) { println(n); } "
+                + "fn g(x : Number?) { if (x == null) { println(1); } else { f(x); } }");
+    }
+
+    @Test
+    void nullableParamStillFlaggedInEqualNullThenBranch() {
+        List<MiraError> errors = errorsFor(
+                "fn f(n : Number) { println(n); } "
+                + "fn g(x : Number?) { if (x == null) { f(x); } }");
+        assertTrue(hasCode(errors, "E325"));
+    }
+
+    @Test
+    void nullableParamNarrowingDoesNotSurviveAfterIf() {
+        List<MiraError> errors = errorsFor(
+                "fn f(n : Number) { println(n); } "
+                + "fn g(x : Number?) { if (x != null) { f(x); } f(x); }");
+        assertTrue(hasCode(errors, "E325"));
+    }
+
+    @Test
     void callArgumentTypeMismatchIsE325() {
         List<MiraError> errors = errorsFor(
                 "fn add(a : Number, b : Number) { return eval(a + b); } add(1, \"x\");");
