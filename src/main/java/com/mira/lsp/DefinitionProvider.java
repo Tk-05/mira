@@ -28,10 +28,10 @@ import com.mira.parser.nodes.statement.Statement;
 import com.mira.parser.nodes.statement.Statement.Block;
 import com.mira.parser.nodes.statement.Statement.ComptimeBlock;
 import com.mira.parser.nodes.statement.Statement.EnumDecl;
-import com.mira.parser.nodes.statement.Statement.Loop;
 import com.mira.parser.nodes.statement.Statement.FuncDecl;
 import com.mira.parser.nodes.statement.Statement.If;
 import com.mira.parser.nodes.statement.Statement.Lock;
+import com.mira.parser.nodes.statement.Statement.Loop;
 import com.mira.parser.nodes.statement.Statement.Switch;
 import com.mira.parser.nodes.statement.Statement.TryCatch;
 import com.mira.parser.nodes.statement.Statement.VarDecl;
@@ -46,15 +46,13 @@ public class DefinitionProvider {
         if (word == null || word.isBlank()) {
             return null;
         }
-        String stripped = word.startsWith("$") ? word.substring(1) : word;
-
         if (HoverProvider.isFieldAccess(content, pos)) {
             String objectName = objectBefore(content, pos);
             Path docPath = uriToPath(docUri);
-            return findFieldDefinition(ast, stripped, objectName, docUri, content, docPath, pos.getLine() + 1);
+            return findFieldDefinition(ast, word, objectName, docUri, content, docPath, pos.getLine() + 1);
         }
 
-        Location loc = findScoped(ast, stripped, docUri, content, pos.getLine() + 1);
+        Location loc = findScoped(ast, word, docUri, content, pos.getLine() + 1);
         if (loc != null) {
             return loc;
         }
@@ -74,14 +72,14 @@ public class DefinitionProvider {
 
             Path modPath = ModuleResolver.resolveModulePath(imp.getModule(), docPath);
 
-            if (alias != null && alias.equals(stripped)) {
+            if (alias != null && alias.equals(word)) {
                 if (Files.exists(modPath)) {
                     Range r = new Range(new Position(0, 0), new Position(0, 0));
                     return new Location(modPath.toUri().toString(), r);
                 }
                 continue;
             }
-            Location found = searchInModule(modPath, stripped, null);
+            Location found = searchInModule(modPath, word, null);
             if (found != null) {
                 return found;
             }
@@ -149,11 +147,12 @@ public class DefinitionProvider {
     }
 
     /**
-     * Resolves what {@code objectName} refers to at {@code cursorLine}, respecting
-     * shadowing: a declaration local to the innermost enclosing function wins over
-     * a same-named declaration anywhere else in the file (module scope, or another,
-     * unrelated function). Without this, two unrelated objects that happen to share
-     * a variable name would be indistinguishable to callers.
+     * Resolves what {@code objectName} refers to at {@code cursorLine},
+     * respecting shadowing: a declaration local to the innermost enclosing
+     * function wins over a same-named declaration anywhere else in the file
+     * (module scope, or another, unrelated function). Without this, two
+     * unrelated objects that happen to share a variable name would be
+     * indistinguishable to callers.
      */
     static Node resolveObjectType(List<Node> ast, String objectName, int cursorLine) {
         FuncDecl enclosing = findEnclosingFunction(ast, cursorLine);
@@ -188,7 +187,10 @@ public class DefinitionProvider {
         return null;
     }
 
-    /** Innermost function (by smallest line range) whose body contains {@code cursorLine}. */
+    /**
+     * Innermost function (by smallest line range) whose body contains
+     * {@code cursorLine}.
+     */
     private static FuncDecl findEnclosingFunction(List<Node> ast, int cursorLine) {
         FuncDecl best = null;
         Deque<Node> queue = new ArrayDeque<>(ast);
@@ -208,10 +210,11 @@ public class DefinitionProvider {
     }
 
     /**
-     * Among every {@code var objectName} reachable within {@code body} (including
-     * nested blocks/functions), picks the one declared closest to (and at or
-     * before) {@code cursorLine} - the nearest enclosing declaration, matching
-     * normal lexical shadowing instead of file-declaration-order.
+     * Among every {@code var objectName} reachable within {@code body}
+     * (including nested blocks/functions), picks the one declared closest to
+     * (and at or before) {@code cursorLine} - the nearest enclosing
+     * declaration, matching normal lexical shadowing instead of
+     * file-declaration-order.
      */
     private static VarDecl nearestVarDecl(List<Node> body, String objectName, int cursorLine) {
         VarDecl bestBefore = null;
@@ -344,17 +347,22 @@ public class DefinitionProvider {
         return null;
     }
 
-    /** A lexical scope: the container statement that introduces it (null for top-level) and its body. */
+    /**
+     * A lexical scope: the container statement that introduces it (null for
+     * top-level) and its body.
+     */
     private record Scope(Node owner, List<Node> body) {
+
     }
 
     /**
-     * Resolves a plain (non-field) identifier reference at {@code cursorLine} by
-     * walking outward through the chain of lexical scopes actually enclosing the
-     * cursor - innermost first - so an inner declaration correctly shadows an
-     * unrelated same-named declaration elsewhere in the file (e.g. in a sibling
-     * branch, or at the top level), instead of returning whichever declaration
-     * happens to appear first in AST traversal order regardless of scope.
+     * Resolves a plain (non-field) identifier reference at {@code cursorLine}
+     * by walking outward through the chain of lexical scopes actually enclosing
+     * the cursor - innermost first - so an inner declaration correctly shadows
+     * an unrelated same-named declaration elsewhere in the file (e.g. in a
+     * sibling branch, or at the top level), instead of returning whichever
+     * declaration happens to appear first in AST traversal order regardless of
+     * scope.
      */
     private static Location findScoped(List<Node> ast, String name, String uri, String content, int cursorLine) {
         for (Scope scope : buildScopeChain(ast, cursorLine)) {
@@ -385,7 +393,10 @@ public class DefinitionProvider {
         return chain;
     }
 
-    /** Descends into whichever direct child of {@code scope} actually contains {@code cursorLine}, if any. */
+    /**
+     * Descends into whichever direct child of {@code scope} actually contains
+     * {@code cursorLine}, if any.
+     */
     private static Scope enclosingChild(Scope scope, int cursorLine) {
         for (Node n : scope.body()) {
             if (!(n instanceof Statement s) || s.line <= 0 || s.endLine <= 0
@@ -448,7 +459,10 @@ public class DefinitionProvider {
         return null;
     }
 
-    /** Whether {@code cursorLine} falls within the line span actually covered by this specific body's statements. */
+    /**
+     * Whether {@code cursorLine} falls within the line span actually covered by
+     * this specific body's statements.
+     */
     private static List<Node> branchContaining(List<Node> body, int cursorLine) {
         if (body == null || body.isEmpty()) {
             return null;
@@ -492,10 +506,10 @@ public class DefinitionProvider {
     }
 
     /**
-     * Searches only the direct statements of {@code body} (not nested blocks) for a
-     * declaration of {@code name}, preferring the one closest to (and at or before)
-     * {@code cursorLine} - the nearest enclosing declaration - falling back to the
-     * nearest one after it if none precede.
+     * Searches only the direct statements of {@code body} (not nested blocks)
+     * for a declaration of {@code name}, preferring the one closest to (and at
+     * or before) {@code cursorLine} - the nearest enclosing declaration -
+     * falling back to the nearest one after it if none precede.
      */
     private static Location findDirectInBody(List<Node> body, String name, String uri, String content,
             int cursorLine) {

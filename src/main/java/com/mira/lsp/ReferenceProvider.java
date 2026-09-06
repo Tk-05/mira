@@ -37,7 +37,7 @@ public class ReferenceProvider {
         if (word == null || word.isBlank()) {
             return List.of();
         }
-        String name = word.startsWith("$") ? word.substring(1) : word;
+        String name = word;
 
         if (HoverProvider.isFieldAccess(content, pos)) {
             return textScanFieldReferences(content, uri, name);

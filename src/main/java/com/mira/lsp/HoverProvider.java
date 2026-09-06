@@ -190,18 +190,16 @@ public class HoverProvider {
             return null;
         }
 
-        String stripped = word.startsWith("$") ? word.substring(1) : word;
-
         if (isFieldAccess(content, pos)) {
             String objectName = DefinitionProvider.objectBefore(content, pos);
-            Hover fieldHover = hoverForField(ast, stripped, objectName, pos.getLine() + 1);
+            Hover fieldHover = hoverForField(ast, word, objectName, pos.getLine() + 1);
             if (fieldHover != null) {
                 return fieldHover;
             }
-            return hover("**." + stripped + "** — field access");
+            return hover("**." + word + "** — field access");
         }
 
-        Hover found = hoverScoped(ast, stripped, pos.getLine() + 1);
+        Hover found = hoverScoped(ast, word, pos.getLine() + 1);
         if (found != null) {
             return found;
         }
@@ -575,9 +573,6 @@ public class HoverProvider {
 
         int start = col;
         while (start > 0 && isWordChar(line.charAt(start - 1))) {
-            start--;
-        }
-        if (start > 0 && line.charAt(start - 1) == '$') {
             start--;
         }
 
