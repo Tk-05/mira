@@ -129,6 +129,14 @@ Escape     ::= '\n' | '\t' | '\r' | '\"' | '\\' | '\u' HexDigit HexDigit HexDigi
 - Unescaped newlines are allowed inside a normal `"…"` string — it can span
   multiple physical lines without error.
 - An unterminated string (EOF before the closing `"`) is a lex error.
+- **Adjacent string literals are spliced at parse time**, exactly like C:
+  `"a" "b"` becomes a single string token `"ab"`. This is the only place two
+  expressions can sit side by side with no operator between them — it works
+  because both sides are unambiguously `STRING_LITERAL` tokens, so there is
+  no precedence or juxtaposition-vs-binary-operator ambiguity to resolve.
+  Joining a string with anything else (a variable, a call, an arithmetic
+  expression) requires an explicit `+`; see
+  [String Concatenation](#string-concatenation).
 
 ### Text blocks
 
@@ -179,7 +187,7 @@ Logical          &&  ||
 Bitwise          &   |   ^   ~   <<  >>
 Pipe             |>
 Null/optional    ??  ?.
-Misc             $   :   !   ?   ->
+Misc             :   !   ?   ->
 ```
 
 Notes:
@@ -187,10 +195,10 @@ Notes:
 - `**` is exponentiation, `\%` is floor division; `**:`/`\%:` are their
   compound-assign forms.
 - **There is no plain `=` token anywhere in the grammar.** Assignment is
-  spelled `:` (see [Statement Grammar → Assign](#assign)), and it's always
-  paired with a leading `$` sigil.
-- `$` is the variable-reference sigil (prefix unary operator), not a binary
-  operator — see [Context-Sensitive Rules](#context-sensitive-rules).
+  spelled `:` (see [Statement Grammar → Assign](#assign)).
+- There is no variable sigil. A bareword identifier is a variable reference
+  wherever a value is expected, exactly like C — see
+  [Context-Sensitive Rules](#context-sensitive-rules).
 - `->` is used for both arrow-lambdas and switch-arm arrows.
 - `<` and `>` double as the delimiters of range-literal syntax
   (`<start..end>`) in the few contexts that accept a range — they are not
@@ -232,7 +240,6 @@ outside the binary-operator table entirely:
 
 - Field access and optional chaining, `.` / `?.` — attach directly to the
   primary expression before precedence climbing ever runs.
-- The `$` variable sigil — a prefix unary operator on a primary expression.
 - Prefix/postfix `++`, `--`, and prefix `!`, `-`, `+`, `~` — resolved in the
   primary/postfix layer.
 - `await` and `typeof` — each wraps a single primary expression (not a full
@@ -313,7 +320,7 @@ Note: this always uses `var` — a `const (...)` spelling is accepted by the
 parser but the const-ness is silently dropped (not preserved on the node).
 
 ```mira
-var (a, b) : $pair;
+var (a, b) : pair;
 ```
 
 ### Function declaration
@@ -348,7 +355,7 @@ internally.
 ### Assign
 
 ```
-Assign ::= '$' IDENT { ( '.' FIELD ) | ( '[' Expression ']' ) } AssignOp Expression ';'
+Assign ::= IDENT { ( '.' FIELD ) | ( '[' Expression ']' ) } AssignOp Expression ';'
 AssignOp ::= ':' | '+:' | '-:' | '*:' | '/:' | '%:' | '**:' | '\%:' | '&:' | '|:' | '^:'
 ```
 
@@ -356,14 +363,18 @@ AssignOp ::= ':' | '+:' | '-:' | '*:' | '/:' | '%:' | '**:' | '\%:' | '&:' | '|:
   the `{index}` spelling — see [index access](#index--access)).
 - The field chain stops before a `.` that's immediately followed by `(` —
   that's a method call, not an assignment target.
-- Compound forms desugar at parse time: `$x +: 1;` becomes
-  `$x : $x + 1;` internally.
+- Compound forms desugar at parse time: `x +: 1;` becomes
+  `x : x + 1;` internally.
+- A leading bareword only starts an `Assign` statement when it is followed
+  (after any field/index chain) by one of the assignment operators above —
+  otherwise it's parsed as an ordinary expression statement. See
+  [Context-Sensitive Rules](#context-sensitive-rules).
 
 ```mira
-$counter : 0;
-$obj.field : 5;
-$arr[0] : "x";
-$counter +: 1;
+counter : 0;
+obj.field : 5;
+arr[0] : "x";
+counter +: 1;
 ```
 
 ### If
@@ -399,15 +410,15 @@ ForInit ::= 'var' IDENT ':' Expression { ',' 'var' IDENT ':' Expression }
   handling.
 - The post-clause accepts **zero or more statements with no separator
   required between them** — in practice this is almost always exactly one
-  increment (`$i++` or `$i : $i + 1`).
+  increment (`i++` or `i : i + 1`).
 - All three clauses are independently optional: `for (;;) { ... }` is an
   infinite loop.
 
 ```mira
-for (var i : 0, var j : 10; $i < 10; $i++) { ... }
+for (var i : 0, var j : 10; i < 10; i++) { ... }
 for (<0..10,2>) { ... }
 for (var i in <0..5>) { ... }
-for (var i in $arr) { ... }
+for (var i in arr) { ... }
 ```
 
 ### While / do-while
@@ -455,7 +466,7 @@ SwitchArm ::= '->' ArrowBody | Block
 - The case value is one `Expression` — no comma-separated multi-value labels.
 
 ```mira
-switch ($status) {
+switch (status) {
     case (200) -> "OK";
     case (404) { throw NotFound("missing"); }
     default -> "unknown";
@@ -592,18 +603,19 @@ Ordered roughly from "leaf" outward to the loosest-binding forms.
 ### Literals
 
 ```
-Literal ::= NUMBER | STRING | TextBlock | 'true' | 'false' | 'null' | IDENT
+Literal ::= NUMBER | STRING | TextBlock | 'true' | 'false' | 'null'
 ```
-
-A bareword `IDENT` that isn't a keyword evaluates as a **string literal of its
-own text** — see [Context-Sensitive Rules](#context-sensitive-rules). This is
-the single most important thing to know about reading Mira source.
 
 ### Variable reference
 
 ```
-VarRef ::= '$' IDENT
+VarRef ::= IDENT
 ```
+
+A bareword `IDENT` that isn't a keyword is a variable reference, exactly
+like C — see [Context-Sensitive Rules](#context-sensitive-rules). There is no
+sigil and no "bareword is a string" fallback: every string value must come
+from an actual `STRING` literal.
 
 ### Prefix and postfix `++`/`--`, unary operators
 
@@ -642,7 +654,7 @@ Chosen when the token right after `{` is `var`, `const`, or `fn`. Fields never
 carry `pub`; methods declared here are never `async`/`pure`/`pub`.
 
 ```mira
-var counter : { var n : 0; fn increment() { $this.n +: 1; } };
+var counter : { var n : 0; fn increment() { this.n +: 1; } };
 ```
 
 ### Struct literal (template)
@@ -659,15 +671,14 @@ expressions instantiate.
 
 ```
 StructInit ::= Expression '{' '}'
-             | Expression '{' '$' FIELD ':' Expression { ',' '$' FIELD ':' Expression } '}'
+             | Expression '{' FIELD ':' Expression { ',' FIELD ':' Expression } '}'
 ```
 
-The target expression is typically a `$variable` referencing a struct
-template. Field names require the `$` sigil, and use the strict identifier
-check (no keywords).
+The target expression is typically a variable referencing a struct template.
+Field names use the strict identifier check (no keywords).
 
 ```mira
-$PointTemplate { $x : 1, $y : 2 }
+PointTemplate { x : 1, y : 2 }
 ```
 
 ### Index / access
@@ -723,12 +734,12 @@ Right-associative when chained (see [precedence](#operator-precedence)).
 ### Assignment expression
 
 ```
-AssignExpr ::= '$' IDENT ':' Expression
+AssignExpr ::= IDENT ':' Expression
 ```
 
 This is the _expression_-position form (usable as one item inside a larger
 expression, e.g. inside a parenthesized group or argument list) — it only
-ever targets a bare `$name`, never a field/index chain. The richer
+ever targets a bare `name`, never a field/index chain. The richer
 field/index-chain assignment target is [statement](#assign)-only.
 
 ### Range
@@ -794,19 +805,29 @@ ExecBlock ::= 'exec' [ 'isolated' ] Block
 ```
 
 Only recognized as an `ExecBlock` when `exec` is immediately followed by `{`
-or `isolated` — otherwise `exec` is just an ordinary bareword. An `exec{...}`
-cannot be juxtaposed with anything following it in the same expression.
+or `isolated` — otherwise `exec` is just an ordinary bareword reference.
 
-### Implicit juxtaposition (bareword concatenation)
+### String Concatenation
 
+There is no implicit juxtaposition production — two expressions never sit
+side by side with no operator between them (the one exception, splicing two
+adjacent `STRING` literal tokens, is a lexer/parser-level rule, not a general
+expression form; see [String literals](#string-literals)). Joining a string
+with anything else is an ordinary `+` [binary expression](#binary-expressions):
+
+```mira
+"Hello " + name + "!"
 ```
-ComplexExpr ::= Expression { Expression }
-```
 
-Adjacent expression "words" with no operator between them combine into one
-`ComplexExpression`, evaluated at runtime as concatenation (or as a
-comparison/logical op, if the pieces look like one) — this is what lets
-`"Hello " $name "!"` work without an explicit `+`.
+`+` adds numbers, and falls back to stringifying and concatenating its
+operands whenever either side isn't a number. This is also why arithmetic
+never needs to be wrapped in `eval()` — `n - 1`, `x * 2`, `-x` are ordinary
+expressions usable anywhere, including right next to a `+`-joined string,
+with no parsing ambiguity to work around. `eval(<code>)` is reserved for its
+one remaining job: running a runtime-constructed code *string* — see
+[Dynamic Code Execution](language-guide.md#dynamic-code-execution). For
+formatted output, see the `format(pattern, ...args)` builtin in the
+[Standard Library Reference](standard-library.md).
 
 ---
 
@@ -847,17 +868,37 @@ Mira's grammar leans on lookahead and a few genuinely context-sensitive
 rules. These recur throughout the parser rather than being one-off special
 cases, so they're documented once here instead of repeated per production.
 
-### The `$` sigil is the whole ballgame
+### A bareword is always a variable
 
-A bareword identifier evaluates to **its own text as a string**. `$name`
-dereferences a variable named `name`. This single rule is why:
+There is no sigil and no "bareword is a string" fallback. A bareword
+identifier is a variable reference wherever a value is expected — exactly
+like C. Every string value must come from an actual `STRING` literal (`"…"`
+or `"""…"""`). This is why:
 
-- Assignment targets, struct-init field names, and variable references all
-  require a leading `$` — it's the one thing that says "this token names a
-  storage location," as opposed to "this token is a string value."
-- `x : 5` (no `$`) is _not_ assignment syntax — it's two unrelated
-  juxtaposed items (the bareword string `"x"`, then a stray `:` that's a
-  syntax error in most positions).
+- `x : 5` **is** assignment syntax: `x` is recognized as an assignment
+  target whenever it's followed (after any `.field`/`[index]` chain) by an
+  assignment operator (`:`, `+:`, …) — see [Assign](#assign).
+- A name immediately followed by `(` is always a call by that name
+  (`fib(n - 1)`), whether the callee is a top-level `fn`, an inner function,
+  or a local variable holding a lambda — the callee is resolved by name at
+  the call site, local scope first, then global.
+- A name immediately followed by `.otherName(` is ambiguous on its own — see
+  the next rule.
+
+### `alias.name(...)` vs. `variable.method(...)`
+
+Since a bareword is always a variable now, `col.push(x, y)` (a call into an
+aliased library import) and `obj.increment()` (a method call on a variable
+holding an object) are spelled identically: `IDENT '.' IDENT '(' ... ')'`.
+The parser resolves this the only way it can while staying a single
+left-to-right pass: it remembers every name bound by `import ... as alias`
+seen so far in the file, and only treats `IDENT.name(...)` as a static
+namespace call ([NamespaceCall](#calls)) when `IDENT` is one of those known
+aliases. Otherwise it parses as an ordinary [method call](#field-access-and-method-calls)
+on the variable `IDENT`, which also works correctly at runtime for a
+namespace-valued variable (e.g. one bound by `importDynamic`), since a
+`Namespace` value is itself a kind of environment that method-call dispatch
+already knows how to look functions up in.
 
 ### String literals never accidentally act as punctuation
 
@@ -872,7 +913,7 @@ one-off checks.
 
 Checked in this priority order:
 
-1. `{ }` or `{ $ident : ` (a fixed 3-token lookahead) → [struct-init](#struct-init).
+1. `{ }` or `{ ident : ` (a fixed 2-token lookahead) → [struct-init](#struct-init).
 2. Otherwise, `{` (or `[`) following an _existing_ expression → [index access](#index--access).
 3. At _primary_ position (no left-hand expression yet), next token
    `var`/`const`/`fn` → [object literal](#object-literal).

@@ -24,9 +24,9 @@ public class MethodCallExpressionTest extends AbstractMethodCallExpressionTests 
         assertEquals("Mira", backend.runAndGetValue("""
                 var obj : {
                     var name : "Mira";
-                    fn getName() { return $name; }
+                    fn getName() { return name; }
                 };
-                $obj.getName();
+                obj.getName();
                 """));
     }
 
@@ -35,9 +35,9 @@ public class MethodCallExpressionTest extends AbstractMethodCallExpressionTests 
         assertEquals("hello", backend.runAndGetValue("""
                 var obj : {
                     var value : "hello";
-                    fn get() { return $this.value; }
+                    fn get() { return this.value; }
                 };
-                $obj.get();
+                obj.get();
                 """));
     }
 
@@ -46,9 +46,9 @@ public class MethodCallExpressionTest extends AbstractMethodCallExpressionTests 
         assertEquals(10.0, InterpreterRunner.normNum(backend.runAndGetValue("""
                 var obj : {
                     var x : 10;
-                    fn getX() { return $x; }
+                    fn getX() { return x; }
                 };
-                $obj.getX();
+                obj.getX();
                 """)));
     }
 
@@ -57,10 +57,10 @@ public class MethodCallExpressionTest extends AbstractMethodCallExpressionTests 
         assertEquals("Hello World", backend.runAndGetValue("""
                 var obj : {
                     fn greet(name, greeting : "Hello") {
-                        return $greeting " " $name;
+                        return greeting + " " + name;
                     }
                 };
-                $obj.greet("World");
+                obj.greet("World");
                 """));
     }
 
@@ -68,7 +68,7 @@ public class MethodCallExpressionTest extends AbstractMethodCallExpressionTests 
     void optionalChainingMethodCallOnNull() {
         assertInstanceOf(NullValue.class, backend.runAndGetValue("""
                 var obj;
-                $obj?.greet();
+                obj?.greet();
                 """));
     }
 
@@ -80,7 +80,7 @@ public class MethodCallExpressionTest extends AbstractMethodCallExpressionTests 
                         fn name() { return "inner"; }
                     };
                 };
-                $outer.inner.name();
+                outer.inner.name();
                 """));
     }
 
@@ -90,7 +90,7 @@ public class MethodCallExpressionTest extends AbstractMethodCallExpressionTests 
                 var obj : {
                     fn nothing() { return null; }
                 };
-                $obj.nothing();
+                obj.nothing();
                 """));
     }
 }

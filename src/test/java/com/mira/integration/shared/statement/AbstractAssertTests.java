@@ -22,12 +22,12 @@ public abstract class AbstractAssertTests {
 
     @Test
     void assertPassingCondition() {
-        assertDoesNotThrow(() -> runForOutput("var x : 5; assert($x == 5);"));
+        assertDoesNotThrow(() -> runForOutput("var x : 5; assert(x == 5);"));
     }
 
     @Test
     void assertFailingCondition() {
-        assertThrows(AssertionFailedError.class, () -> runForOutput("var x : 3; assert($x == 5);"));
+        assertThrows(AssertionFailedError.class, () -> runForOutput("var x : 3; assert(x == 5);"));
     }
 
     @Test

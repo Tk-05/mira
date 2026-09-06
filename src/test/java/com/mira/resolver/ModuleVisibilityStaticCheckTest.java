@@ -30,7 +30,7 @@ public class ModuleVisibilityStaticCheckTest {
     void setup() throws IOException {
         modulePath = tempDir.resolve("mymod.mira");
         Files.writeString(modulePath, """
-                pub fn greet(name) { return "hello " + $name; }
+                pub fn greet(name) { return "hello " + name; }
                 fn secret() { return "hidden"; }
                 pub const MAGIC : 42;
                 """);

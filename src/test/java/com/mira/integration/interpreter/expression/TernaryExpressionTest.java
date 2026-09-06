@@ -39,7 +39,7 @@ public class TernaryExpressionTest extends AbstractTernaryExpressionTests {
     @Test
     void nestedTernaryInThenBranch() {
         try {
-            backend.runAndGetValue("var x : 10; return $x > 5 ? ($x > 8 ? \"high\" : \"mid\") : \"low\";");
+            backend.runAndGetValue("var x : 10; return x > 5 ? (x > 8 ? \"high\" : \"mid\") : \"low\";");
         } catch (ReturnSignal r) {
             assertEquals("high", r.getValue());
         }
@@ -48,7 +48,7 @@ public class TernaryExpressionTest extends AbstractTernaryExpressionTests {
     @Test
     void nestedTernaryInElseBranch() {
         try {
-            backend.runAndGetValue("var x : 2; return $x > 5 ? \"high\" : ($x > 1 ? \"mid\" : \"low\");");
+            backend.runAndGetValue("var x : 2; return x > 5 ? \"high\" : (x > 1 ? \"mid\" : \"low\");");
         } catch (ReturnSignal r) {
             assertEquals("mid", r.getValue());
         }
@@ -57,7 +57,7 @@ public class TernaryExpressionTest extends AbstractTernaryExpressionTests {
     @Test
     void ternaryWithArithmeticInBranch() {
         try {
-            backend.runAndGetValue("var x : 4; return $x > 3 ? eval($x * 2) : eval($x + 1);");
+            backend.runAndGetValue("var x : 4; return x > 3 ? (x * 2) : (x + 1);");
         } catch (ReturnSignal r) {
             assertEquals(8.0, InterpreterRunner.normNum(r.getValue()));
         }
@@ -66,7 +66,7 @@ public class TernaryExpressionTest extends AbstractTernaryExpressionTests {
     @Test
     void ternaryWithBooleanVariable() {
         try {
-            backend.runAndGetValue("var flag : true; return $flag ? 1 : 0;");
+            backend.runAndGetValue("var flag : true; return flag ? 1 : 0;");
         } catch (ReturnSignal r) {
             assertEquals(1.0, InterpreterRunner.normNum(r.getValue()));
         }

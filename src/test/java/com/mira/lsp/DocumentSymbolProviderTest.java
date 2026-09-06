@@ -24,7 +24,7 @@ public class DocumentSymbolProviderTest {
     void functionAndVar() {
         String source = """
                 fn add(a, b) {
-                    return $a + $b;
+                    return a + b;
                 }
                 var x : 5;
                 """;
@@ -72,7 +72,7 @@ public class DocumentSymbolProviderTest {
                 var obj : {
                     var count : 0;
                     fn increment() {
-                        return $count;
+                        return count;
                     }
                 };
                 """;

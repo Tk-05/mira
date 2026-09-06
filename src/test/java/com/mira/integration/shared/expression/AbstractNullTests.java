@@ -14,12 +14,12 @@ public abstract class AbstractNullTests {
 
     @Test
     void nullEqualsNull() {
-        assertEquals("true", runForOutput("print(eval(null == null));"));
+        assertEquals("true", runForOutput("print((null == null));"));
     }
 
     @Test
     void nullNotEqualsValue() {
-        assertEquals("false", runForOutput("print(eval(null == 1));"));
+        assertEquals("false", runForOutput("print((null == 1));"));
     }
 
     @Test
@@ -29,6 +29,6 @@ public abstract class AbstractNullTests {
 
     @Test
     void nonNullIsNotNull() {
-        assertEquals("false", runForOutput("var x : 1; print(eval($x == null));"));
+        assertEquals("false", runForOutput("var x : 1; print((x == null));"));
     }
 }

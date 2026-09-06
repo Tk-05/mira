@@ -33,12 +33,12 @@ public class ProfilerTest extends InterpreterTestBase {
         // every one of the 5 loop iterations must produce a real, separate call.
         run("""
                 fn noisy(x) {
-                    println($x);
-                    return $x;
+                    println(x);
+                    return x;
                 }
 
                 for (var i in <0..5>) {
-                    noisy($i);
+                    noisy(i);
                 }
                 """);
 
@@ -93,10 +93,10 @@ public class ProfilerTest extends InterpreterTestBase {
         // non-memoized recursion tree size (177). Cache hits must still be counted.
         run("""
                 fn fib(n) {
-                    if ($n < 2) {
-                        return $n;
+                    if (n < 2) {
+                        return n;
                     }
-                    return fib($n - 1) + fib($n - 2);
+                    return fib(n - 1) + fib(n - 2);
                 }
 
                 fib(10);
@@ -111,7 +111,7 @@ public class ProfilerTest extends InterpreterTestBase {
     void disabledProfilerRecordsNothing() {
         run("""
                 fn add(a, b) {
-                    return $a + $b;
+                    return a + b;
                 }
                 add(1, 2);
                 """);

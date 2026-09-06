@@ -21,7 +21,7 @@ public class PureFuncTest extends AbstractPureFuncTests {
     @Test
     void pureFunctionIsRegisteredInPureFunctionsSet() {
         backend.runAndGetValue("""
-                pure fn square(n) { return eval($n * $n); }
+                pure fn square(n) { return (n * n); }
                 square(5);
                 """);
         assertTrue(backend.getInterpreter().getPureFunctions().contains("square"),
@@ -31,7 +31,7 @@ public class PureFuncTest extends AbstractPureFuncTests {
     @Test
     void pureFunctionResultIsCached() {
         backend.runAndGetValue("""
-                pure fn square(n) { return eval($n * $n); }
+                pure fn square(n) { return (n * n); }
                 square(10);
                 """);
         int sizeBefore = backend.getInterpreter().getCallCache().size();
@@ -43,22 +43,22 @@ public class PureFuncTest extends AbstractPureFuncTests {
     @Test
     void pureAndRegularFunctionsCoexist() {
         assertEquals(24.0, InterpreterRunner.normNum(backend.runAndGetValue("""
-                pure fn square(n) { return eval($n * $n); }
-                fn add(a, b) { return eval($a + $b); }
-                eval(add(square(3), square(4) - square(1)));
+                pure fn square(n) { return (n * n); }
+                fn add(a, b) { return (a + b); }
+                (add(square(3), square(4) - square(1)));
                 """)));
     }
 
     @Test
     void pureFunctionDifferentArgsReturnDifferentResults() {
         assertEquals(9.0, InterpreterRunner.normNum(backend.runAndGetValue("""
-                pure fn square(n) { return eval($n * $n); }
-                eval(square(3));
+                pure fn square(n) { return (n * n); }
+                (square(3));
                 """)));
         backend.reset();
         assertEquals(16.0, InterpreterRunner.normNum(backend.runAndGetValue("""
-                pure fn square(n) { return eval($n * $n); }
-                eval(square(4));
+                pure fn square(n) { return (n * n); }
+                (square(4));
                 """)));
     }
 }

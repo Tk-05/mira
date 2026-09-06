@@ -9,19 +9,19 @@ public abstract class AbstractPipeExpressionTests {
 
     @Test
     void pipeToFunctionNoArgs() {
-        assertEquals("10", runForOutput("fn double(x) { return eval($x * 2); } print(eval(5 |> double()));"));
+        assertEquals("10", runForOutput("fn double(x) { return (x * 2); } print((5 |> double()));"));
     }
 
     @Test
     void pipeToFunctionWithExtraArg() {
-        assertEquals("5", runForOutput("fn add(a, b) { return eval($a + $b); } print(eval(2 |> add(3)));"));
+        assertEquals("5", runForOutput("fn add(a, b) { return (a + b); } print((2 |> add(3)));"));
     }
 
     @Test
     void chainedPipe() {
         assertEquals("8", runForOutput("""
-                fn double(x) { return eval($x * 2); }
-                print(eval(2 |> double() |> double()));
+                fn double(x) { return (x * 2); }
+                print((2 |> double() |> double()));
                 """));
     }
 }

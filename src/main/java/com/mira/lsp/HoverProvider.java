@@ -172,7 +172,7 @@ public class HoverProvider {
         // thread
         STDLIB_DOCS.put("newMutex", "**thread.newMutex()** — Creates a new mutex for use with `lock`");
         // keywords
-        STDLIB_DOCS.put("static_assert", "**static_assert(condition)**  \n**static_assert(condition, message)**\n\nEvaluates `condition` at the point of execution and throws error **E308** if it is falsy. At the top level this runs before user code starts (after `comptime` constants are available), making it a compile-time guard. Inside functions it runs on every call.\n\n```mira\nstatic_assert($SIZE > 0, \"SIZE must be positive\");\n```");
+        STDLIB_DOCS.put("static_assert", "**static_assert(condition)**  \n**static_assert(condition, message)**\n\nEvaluates `condition` at the point of execution and throws error **E308** if it is falsy. At the top level this runs before user code starts (after `comptime` constants are available), making it a compile-time guard. Inside functions it runs on every call.\n\n```mira\nstatic_assert(SIZE > 0, \"SIZE must be positive\");\n```");
         // bytes
         STDLIB_DOCS.put("newBytes", "**bytes.newBytes(size)** — Creates a zero-filled byte array of the given size");
         STDLIB_DOCS.put("fromString", "**bytes.fromString(str)** — Encodes a string to bytes (UTF-8)");
@@ -190,18 +190,16 @@ public class HoverProvider {
             return null;
         }
 
-        String stripped = word.startsWith("$") ? word.substring(1) : word;
-
         if (isFieldAccess(content, pos)) {
             String objectName = DefinitionProvider.objectBefore(content, pos);
-            Hover fieldHover = hoverForField(ast, stripped, objectName, pos.getLine() + 1);
+            Hover fieldHover = hoverForField(ast, word, objectName, pos.getLine() + 1);
             if (fieldHover != null) {
                 return fieldHover;
             }
-            return hover("**." + stripped + "** — field access");
+            return hover("**." + word + "** — field access");
         }
 
-        Hover found = hoverScoped(ast, stripped, pos.getLine() + 1);
+        Hover found = hoverScoped(ast, word, pos.getLine() + 1);
         if (found != null) {
             return found;
         }
@@ -342,7 +340,7 @@ public class HoverProvider {
             if (loop.isForeach()) {
                 Statement.VarDecl iter = loop.getIterator();
                 if (iter.getName().equals(name)) {
-                    return hover("```mira\nvar $" + iter.getName() + "\n```");
+                    return hover("```mira\nvar " + iter.getName() + "\n```");
                 }
             } else {
                 Hover h = findDirectHoverInBody(loop.getVarDecls(), name, cursorLine);
@@ -375,12 +373,12 @@ public class HoverProvider {
                 candidate = hoverForVarDeclSelf(v);
                 declLine = v.line;
             } else if (n instanceof Statement.VarDestructure vd && vd.getNames().contains(name)) {
-                candidate = hover("```mira\nvar $" + name + "\n```\n*destructured*");
+                candidate = hover("```mira\nvar " + name + "\n```\n*destructured*");
                 declLine = vd.line;
             } else if (n instanceof ComptimeBlock comptime) {
                 for (Node bodyNode : comptime.getBody()) {
                     if (bodyNode instanceof Statement.VarDecl v && v.getName().equals(name)) {
-                        candidate = hover("```mira\ncomptime const $" + v.getName()
+                        candidate = hover("```mira\ncomptime const " + v.getName()
                                 + "\n```\n*compile-time constant*");
                         declLine = v.line;
                         break;
@@ -414,7 +412,7 @@ public class HoverProvider {
         String kind = v.isConst() ? "const" : "var";
         if (v.getInitializer() instanceof com.mira.parser.nodes.expression.Expression.ObjectExpression obj) {
             StringBuilder sb = new StringBuilder("```mira\n")
-                    .append(kind).append(" $").append(v.getName()).append(" {\n");
+                    .append(kind).append(" ").append(v.getName()).append(" {\n");
             for (Statement.VarDecl f : obj.getVarDecls()) {
                 sb.append("    ").append(f.isConst() ? "const" : "var")
                         .append(" ").append(f.getName()).append("\n");
@@ -430,7 +428,7 @@ public class HoverProvider {
         }
         if (v.getInitializer() instanceof StructExpression st) {
             StringBuilder sb = new StringBuilder("```mira\n")
-                    .append(kind).append(" $").append(v.getName()).append(" struct {\n");
+                    .append(kind).append(" ").append(v.getName()).append(" struct {\n");
             for (Statement.VarDecl f : st.getVarDecls()) {
                 sb.append("    ").append(f.isConst() ? "const" : "var")
                         .append(" ").append(f.getName()).append("\n");
@@ -444,7 +442,7 @@ public class HoverProvider {
             sb.append("}\n```");
             return hover(sb.toString());
         }
-        return hover("```mira\n" + kind + " $" + v.getName() + "\n```");
+        return hover("```mira\n" + kind + " " + v.getName() + "\n```");
     }
 
     static boolean isFieldAccess(String content, Position pos) {
@@ -575,9 +573,6 @@ public class HoverProvider {
 
         int start = col;
         while (start > 0 && isWordChar(line.charAt(start - 1))) {
-            start--;
-        }
-        if (start > 0 && line.charAt(start - 1) == '$') {
             start--;
         }
 

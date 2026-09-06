@@ -64,7 +64,6 @@ public class LexerTest {
         assertEquals(TokenType.OPERATION, tokenizer.tokenize(">=", false).getFirst().getTokenType());
         assertEquals(TokenType.OPERATION, tokenizer.tokenize("&&", false).getFirst().getTokenType());
         assertEquals(TokenType.OPERATION, tokenizer.tokenize("||", false).getFirst().getTokenType());
-        assertEquals(TokenType.OPERATION, tokenizer.tokenize("$", false).getFirst().getTokenType());
         assertEquals(TokenType.OPERATION, tokenizer.tokenize(":", false).getFirst().getTokenType());
         assertEquals(TokenType.OPERATION, tokenizer.tokenize("!", false).getFirst().getTokenType());
         assertEquals(TokenType.OPERATION, tokenizer.tokenize("+:", false).getFirst().getTokenType());
@@ -152,25 +151,23 @@ public class LexerTest {
 
     @Test
     void testComplexExpression() {
-        String complexExpression = "((($val1 + $val3) + val()) + 1)";
+        String complexExpression = "(((val1 + val3) + val()) + 1)";
         List<Token> tokens = tokenizer.tokenize(complexExpression, false);
         assertEquals(tokens.get(0).getLexeme(), "(");
         assertEquals(tokens.get(1).getLexeme(), "(");
         assertEquals(tokens.get(2).getLexeme(), "(");
-        assertEquals(tokens.get(3).getLexeme(), "$");
-        assertEquals(tokens.get(4).getLexeme(), "val1");
-        assertEquals(tokens.get(5).getLexeme(), "+");
-        assertEquals(tokens.get(6).getLexeme(), "$");
-        assertEquals(tokens.get(7).getLexeme(), "val3");
-        assertEquals(tokens.get(8).getLexeme(), ")");
-        assertEquals(tokens.get(9).getLexeme(), "+");
-        assertEquals(tokens.get(10).getLexeme(), "val");
-        assertEquals(tokens.get(11).getLexeme(), "(");
-        assertEquals(tokens.get(12).getLexeme(), ")");
-        assertEquals(tokens.get(13).getLexeme(), ")");
-        assertEquals(tokens.get(14).getLexeme(), "+");
-        assertEquals(tokens.get(15).getLexeme(), "1");
-        assertEquals(tokens.get(16).getLexeme(), ")");
+        assertEquals(tokens.get(3).getLexeme(), "val1");
+        assertEquals(tokens.get(4).getLexeme(), "+");
+        assertEquals(tokens.get(5).getLexeme(), "val3");
+        assertEquals(tokens.get(6).getLexeme(), ")");
+        assertEquals(tokens.get(7).getLexeme(), "+");
+        assertEquals(tokens.get(8).getLexeme(), "val");
+        assertEquals(tokens.get(9).getLexeme(), "(");
+        assertEquals(tokens.get(10).getLexeme(), ")");
+        assertEquals(tokens.get(11).getLexeme(), ")");
+        assertEquals(tokens.get(12).getLexeme(), "+");
+        assertEquals(tokens.get(13).getLexeme(), "1");
+        assertEquals(tokens.get(14).getLexeme(), ")");
     }
 
     @Test

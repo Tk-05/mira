@@ -28,36 +28,36 @@ public class ListExpressionTest extends AbstractListExpressionTests {
     @Test
     void listAccessLastElement() {
         assertEquals(3.0, InterpreterRunner.normNum(backend.runAndGetValue(
-                "var list : {1, 2, 3}; eval($list[2]);")));
+                "var list : {1, 2, 3}; (list[2]);")));
     }
 
     @Test
     void nestedListAccess() {
         assertEquals(3.0, InterpreterRunner.normNum(backend.runAndGetValue(
-                "var list : {{1, 2}, {3, 4}}; eval($list[1][0]);")));
+                "var list : {{1, 2}, {3, 4}}; (list[1][0]);")));
     }
 
     @Test
     void nestedListAssignment() {
         assertEquals(99.0, InterpreterRunner.normNum(backend.runAndGetValue(
-                "var list : {{1, 2}, {3, 4}}; $list[1][1] : 99; eval($list[1][1]);")));
+                "var list : {{1, 2}, {3, 4}}; list[1][1] : 99; (list[1][1]);")));
     }
 
     @Test
     void nestedListAssignmentInArray() {
         assertEquals(99.0, InterpreterRunner.normNum(backend.runAndGetValue(
-                "var list : [{1, 2}, {3, 4}]; $list[1][1] : 99; eval($list[1][1]);")));
+                "var list : [{1, 2}, {3, 4}]; list[1][1] : 99; (list[1][1]);")));
     }
 
     @Test
     void expressionAsIndex() {
         assertEquals(30.0, InterpreterRunner.normNum(backend.runAndGetValue(
-                "var list : {10, 20, 30}; eval($list[eval(1+1)]);")));
+                "var list : {10, 20, 30}; (list[eval(1+1)]);")));
     }
 
     @Test
     void indexOutOfBounds() {
-        assertThrows(IndexOutOfBoundsError.class, () -> backend.runAndGetValue("var list : {1, 2, 3}; $list[5];"));
+        assertThrows(IndexOutOfBoundsError.class, () -> backend.runAndGetValue("var list : {1, 2, 3}; list[5];"));
     }
 
     @Test
@@ -65,9 +65,9 @@ public class ListExpressionTest extends AbstractListExpressionTests {
         assertEquals(1.0, InterpreterRunner.normNum(backend.runAndGetValue("""
                 fn getList() {
                     var list : {1, 2, 3};
-                    return $list;
+                    return list;
                 }
-                eval(getList()[0]);
+                (getList()[0]);
                 """)));
     }
 }

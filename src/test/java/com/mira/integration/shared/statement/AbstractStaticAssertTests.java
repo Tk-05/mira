@@ -46,7 +46,7 @@ public abstract class AbstractStaticAssertTests {
                 comptime {
                     const SIZE : 64;
                 }
-                static_assert($SIZE > 0, "SIZE must be positive");
+                static_assert(SIZE > 0, "SIZE must be positive");
                 """));
     }
 
@@ -56,7 +56,7 @@ public abstract class AbstractStaticAssertTests {
                 comptime {
                     const SIZE : -1;
                 }
-                static_assert($SIZE > 0, "SIZE must be positive");
+                static_assert(SIZE > 0, "SIZE must be positive");
                 """));
     }
 }

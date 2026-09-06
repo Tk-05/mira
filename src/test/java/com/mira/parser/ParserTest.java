@@ -99,7 +99,7 @@ public class ParserTest {
 
     @Test
     void unaryExpression() {
-        String unaryExpression = "$val1;";
+        String unaryExpression = "val1;";
 
         List<Node> ast = parser.parseTokens(tokenizer.tokenize(unaryExpression, false));
 
@@ -115,7 +115,7 @@ public class ParserTest {
 
     @Test
     void postfixIncrementIsNotPrefix() {
-        List<Node> ast = parser.parseTokens(tokenizer.tokenize("$x++;", false));
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize("x++;", false));
         UnaryExpression expr = (UnaryExpression) ast.getFirst();
 
         assertEquals("++", expr.getOperation().getLexeme());
@@ -125,7 +125,7 @@ public class ParserTest {
 
     @Test
     void prefixIncrementIsMarkedPrefix() {
-        List<Node> ast = parser.parseTokens(tokenizer.tokenize("++$x;", false));
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize("++x;", false));
         UnaryExpression expr = (UnaryExpression) ast.getFirst();
 
         assertEquals("++", expr.getOperation().getLexeme());
@@ -135,7 +135,7 @@ public class ParserTest {
 
     @Test
     void prefixDecrementOnArrayElement() {
-        List<Node> ast = parser.parseTokens(tokenizer.tokenize("--$arr[0];", false));
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize("--arr[0];", false));
         UnaryExpression expr = (UnaryExpression) ast.getFirst();
 
         assertEquals("--", expr.getOperation().getLexeme());
@@ -157,7 +157,7 @@ public class ParserTest {
 
     @Test
     void complexExpression() {
-        String complexExpression = "((($val1 + $val3) + val()) + 1);";
+        String complexExpression = "(((val1 + val3) + val()) + 1);";
 
         List<Node> ast = parser.parseTokens(tokenizer.tokenize(complexExpression, false));
 
@@ -176,8 +176,8 @@ public class ParserTest {
     @Test
     void parseForWithOneVar() {
         String forStmt = """
-                for (var i : 0; $i < 10; $i : eval($i + 1)) {
-                    print(eval(fibonacci($i)));
+                for (var i : 0; i < 10; i : (i + 1)) {
+                    print((fibonacci(i)));
                 }
                 """;
         List<Node> ast = parser.parseTokens(tokenizer.tokenize(forStmt, false));
@@ -189,8 +189,8 @@ public class ParserTest {
     @Test
     void parseForWithMultipleVars() {
         String forStmt = """
-                for (var i : 0, var j : 0; $i < 10 && $j != 0; $i : eval($i + 1)) {
-                    print(eval(fibonacci($i)));
+                for (var i : 0, var j : 0; i < 10 && j != 0; i : (i + 1)) {
+                    print((fibonacci(i)));
                 }
                 """;
         List<Node> ast = parser.parseTokens(tokenizer.tokenize(forStmt, false));
@@ -306,7 +306,7 @@ public class ParserTest {
     @Test
     void parseForWithoutBraces() {
         List<Node> ast = parser.parseTokens(tokenizer.tokenize(
-                "for (var i : 0; $i < 10; $i : eval($i + 1)) foo();", false));
+                "for (var i : 0; i < 10; i : (i + 1)) foo();", false));
         Loop forStmt = assertInstanceOf(Loop.class, ast.getFirst());
         assertFalse(forStmt.isForeach());
         assertEquals(1, forStmt.getBody().size());
@@ -315,7 +315,7 @@ public class ParserTest {
     @Test
     void parseForeachWithoutBraces() {
         List<Node> ast = parser.parseTokens(tokenizer.tokenize(
-                "for (var x in $list) foo();", false));
+                "for (var x in list) foo();", false));
         Loop foreachStmt = assertInstanceOf(Loop.class, ast.getFirst());
         assertTrue(foreachStmt.isForeach());
         assertEquals(1, foreachStmt.getBody().size());
@@ -361,7 +361,7 @@ public class ParserTest {
     @Test
     void parseAccessExpression() {
         String accessExpression = """
-                $x[0];
+                x[0];
                 """;
         List<Node> ast = parser.parseTokens(tokenizer.tokenize(accessExpression, false));
         assertEquals(1, ast.size());
@@ -433,7 +433,7 @@ public class ParserTest {
     @Test
     void parseForInCollection() {
         String forStmt = """
-                for(var i in $arr) {}
+                for(var i in arr) {}
                 """;
         List<Node> ast = parser.parseTokens(tokenizer.tokenize(forStmt, false));
         assertEquals(1, ast.size());
@@ -455,11 +455,12 @@ public class ParserTest {
     @Test
     void parseNamespaceCallExpression() {
         String callExpression = """
+                import module "./test.mira" as Test;
                 Test.foo();
                 """;
         List<Node> ast = parser.parseTokens(tokenizer.tokenize(callExpression, false));
-        assertEquals(1, ast.size());
-        assertInstanceOf(NamespaceCallExpression.class, ast.getFirst());
+        assertEquals(2, ast.size());
+        assertInstanceOf(NamespaceCallExpression.class, ast.get(1));
     }
 
     @Test
@@ -516,7 +517,7 @@ public class ParserTest {
     @Test
     void parseSwitch() {
         List<Node> ast = parser.parseTokens(tokenizer.tokenize("""
-                switch ($x) {
+                switch (x) {
                     case (1) { return true; }
                     case (2) { return false; }
                 }
@@ -529,7 +530,7 @@ public class ParserTest {
     @Test
     void parseSwitchWithDefault() {
         List<Node> ast = parser.parseTokens(tokenizer.tokenize("""
-                switch ($x) {
+                switch (x) {
                     case (1) { return true; }
                     default { return false; }
                 }
@@ -552,7 +553,7 @@ public class ParserTest {
                 try {
                     throw error("err");
                 } catch(error) {
-                    print($error);
+                    print(error);
                 }
                 """, false));
         assertEquals(1, ast.size());
@@ -563,7 +564,7 @@ public class ParserTest {
 
     @Test
     void parseLambdaExpression() {
-        List<Node> ast = parser.parseTokens(tokenizer.tokenize("var f : fn(x) { return $x; };", false));
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize("var f : fn(x) { return x; };", false));
         assertEquals(1, ast.size());
         VarDecl decl = assertInstanceOf(VarDecl.class, ast.getFirst());
         LambdaExpression lambda = assertInstanceOf(LambdaExpression.class, decl.getInitializer());
@@ -581,7 +582,7 @@ public class ParserTest {
 
     @Test
     void parseLambdaExpressionMultipleParams() {
-        List<Node> ast = parser.parseTokens(tokenizer.tokenize("var f : fn(a, b, c) { return $a; };", false));
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize("var f : fn(a, b, c) { return a; };", false));
         assertEquals(1, ast.size());
         VarDecl decl = assertInstanceOf(VarDecl.class, ast.getFirst());
         LambdaExpression lambda = assertInstanceOf(LambdaExpression.class, decl.getInitializer());
@@ -628,9 +629,9 @@ public class ParserTest {
 
     @Test
     void parseNamespaceCallExpressionAlias() {
-        List<Node> ast = parser.parseTokens(tokenizer.tokenize("str.trim();", false));
-        assertEquals(1, ast.size());
-        NamespaceCallExpression expr = assertInstanceOf(NamespaceCallExpression.class, ast.getFirst());
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize("import string as str; str.trim();", false));
+        assertEquals(2, ast.size());
+        NamespaceCallExpression expr = assertInstanceOf(NamespaceCallExpression.class, ast.get(1));
         assertEquals("str", expr.getAlias());
         assertEquals("trim", expr.getFunctionName());
     }
@@ -644,7 +645,7 @@ public class ParserTest {
 
     @Test
     void parseArrowLambda() {
-        List<Node> ast = parser.parseTokens(tokenizer.tokenize("var f : (x) -> eval($x * 2);", false));
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize("var f : (x) -> (x * 2);", false));
         assertEquals(1, ast.size());
         VarDecl decl = assertInstanceOf(VarDecl.class, ast.getFirst());
         LambdaExpression lambda = assertInstanceOf(LambdaExpression.class, decl.getInitializer());
@@ -681,7 +682,7 @@ public class ParserTest {
                 try {
                     throw error("err");
                 } catch(error) {
-                    print($error);
+                    print(error);
                 } finally {
                     print("done");
                 }
@@ -737,7 +738,7 @@ public class ParserTest {
 
     @Test
     void parseLockStatement() {
-        List<Node> ast = parser.parseTokens(tokenizer.tokenize("lock($mutex) { }", false));
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize("lock(mutex) { }", false));
         assertEquals(1, ast.size());
         assertInstanceOf(Lock.class, ast.getFirst());
     }
@@ -751,7 +752,7 @@ public class ParserTest {
 
     @Test
     void parseTernaryExpression() {
-        List<Node> ast = parser.parseTokens(tokenizer.tokenize("$x ? 1 : 0;", false));
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize("x ? 1 : 0;", false));
         assertEquals(1, ast.size());
         TernaryExpression ternary = assertInstanceOf(TernaryExpression.class, ast.getFirst());
         assertNotNull(ternary.getCondition());
@@ -761,7 +762,7 @@ public class ParserTest {
 
     @Test
     void parseNullCoalescing() {
-        List<Node> ast = parser.parseTokens(tokenizer.tokenize("$x ?? 0;", false));
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize("x ?? 0;", false));
         assertEquals(1, ast.size());
         BinaryExpression expr = assertInstanceOf(BinaryExpression.class, ast.getFirst());
         assertEquals("??", expr.getOperator().getLexeme());
@@ -769,7 +770,7 @@ public class ParserTest {
 
     @Test
     void parseOptionalChaining() {
-        List<Node> ast = parser.parseTokens(tokenizer.tokenize("$x?.field;", false));
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize("x?.field;", false));
         assertEquals(1, ast.size());
         FieldAccessExpression access = assertInstanceOf(FieldAccessExpression.class, ast.getFirst());
         assertEquals("field", access.getField());

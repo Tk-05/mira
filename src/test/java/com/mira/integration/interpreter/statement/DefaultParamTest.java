@@ -24,7 +24,7 @@ public class DefaultParamTest extends AbstractDefaultParamTests {
         try {
             backend.runAndGetValue("""
                     fn greet(name, greeting : "Hello") {
-                        return $greeting " " $name;
+                        return greeting + " " + name;
                     }
                     greet("World");
                     """);
@@ -37,7 +37,7 @@ public class DefaultParamTest extends AbstractDefaultParamTests {
     void allRequiredArgsStillRequired() {
         assertThrows(RuntimeException.class, () -> backend.runAndGetValue("""
                 fn add(a, b : 10) {
-                    return eval($a + $b);
+                    return (a + b);
                 }
                 add();
                 """));
@@ -48,7 +48,7 @@ public class DefaultParamTest extends AbstractDefaultParamTests {
         try {
             backend.runAndGetValue("""
                     fn check(x, flag : true) {
-                        return $flag;
+                        return flag;
                     }
                     check(0);
                     """);
@@ -62,7 +62,7 @@ public class DefaultParamTest extends AbstractDefaultParamTests {
         try {
             backend.runAndGetValue("""
                     fn box(value, prefix : "[", suffix : "]") {
-                        return $prefix $value $suffix;
+                        return prefix + value + suffix;
                     }
                     box("hi");
                     """);
@@ -76,7 +76,7 @@ public class DefaultParamTest extends AbstractDefaultParamTests {
         try {
             backend.runAndGetValue("""
                     fn box(value, prefix : "[", suffix : "]") {
-                        return $prefix $value $suffix;
+                        return prefix + value + suffix;
                     }
                     box("hi", "<");
                     """);
@@ -89,7 +89,7 @@ public class DefaultParamTest extends AbstractDefaultParamTests {
     void tooManyArgsThrows() {
         assertThrows(RuntimeException.class, () -> backend.runAndGetValue("""
                 fn add(a, b : 10) {
-                    return eval($a + $b);
+                    return (a + b);
                 }
                 add(1, 2, 3);
                 """));
@@ -99,10 +99,10 @@ public class DefaultParamTest extends AbstractDefaultParamTests {
     void defaultExpressionEvaluatedAtCallTime() {
         backend.runAndGetValue("""
                 var base : 10;
-                fn withBase(x, offset : $base) {
-                    return eval($x + $offset);
+                fn withBase(x, offset : base) {
+                    return (x + offset);
                 }
-                $base : 20;
+                base : 20;
                 var result : withBase(5);
                 """);
         assertEquals(25.0, InterpreterRunner.normNum(backend.getInterpreter().getGlobalEnvironment().get("result")));

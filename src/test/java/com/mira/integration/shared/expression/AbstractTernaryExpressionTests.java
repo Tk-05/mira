@@ -9,7 +9,7 @@ public abstract class AbstractTernaryExpressionTests {
 
     @Test
     void numericBranches() {
-        assertEquals("1", runForOutput("var x : true; print(eval($x ? 1 : 0));"));
+        assertEquals("1", runForOutput("var x : true; print((x ? 1 : 0));"));
     }
 
     @Test
@@ -20,20 +20,20 @@ public abstract class AbstractTernaryExpressionTests {
     @Test
     void ternaryPassedToFunction() {
         assertEquals("yes", runForOutput("""
-                fn f(s) { return $s; }
+                fn f(s) { return s; }
                 print(f(true ? "yes" : "no"));
                 """));
     }
 
     @Test
     void conditionFromComparison() {
-        assertEquals("big", runForOutput("var x : 10; print(eval($x > 5 ? \"big\" : \"small\"));"));
+        assertEquals("big", runForOutput("var x : 10; print((x > 5 ? \"big\" : \"small\"));"));
     }
 
     @Test
     void arrowLambdaBranchesTrueCondition() {
         assertEquals("10", runForOutput("""
-                var f : true ? (x) -> eval($x * 2) : (x) -> eval($x + 1);
+                var f : true ? (x) -> (x * 2) : (x) -> (x + 1);
                 print(f(5));
                 """));
     }
@@ -41,7 +41,7 @@ public abstract class AbstractTernaryExpressionTests {
     @Test
     void arrowLambdaBranchesFalseCondition() {
         assertEquals("6", runForOutput("""
-                var f : false ? (x) -> eval($x * 2) : (x) -> eval($x + 1);
+                var f : false ? (x) -> (x * 2) : (x) -> (x + 1);
                 print(f(5));
                 """));
     }
@@ -49,7 +49,7 @@ public abstract class AbstractTernaryExpressionTests {
     @Test
     void blockBodyArrowLambdaBranches() {
         assertEquals("10", runForOutput("""
-                var f : true ? (x) -> { return eval($x * 2); } : (x) -> { return eval($x + 1); };
+                var f : true ? (x) -> { return (x * 2); } : (x) -> { return (x + 1); };
                 print(f(5));
                 """));
     }
@@ -57,7 +57,7 @@ public abstract class AbstractTernaryExpressionTests {
     @Test
     void fnLambdaBranches() {
         assertEquals("6", runForOutput("""
-                var f : false ? fn(x) { return eval($x * 2); } : fn(x) { return eval($x + 1); };
+                var f : false ? fn(x) { return (x * 2); } : fn(x) { return (x + 1); };
                 print(f(5));
                 """));
     }
@@ -66,7 +66,7 @@ public abstract class AbstractTernaryExpressionTests {
     void arrowLambdaBranchClosesOverOuterVariable() {
         assertEquals("50", runForOutput("""
                 var factor : 10;
-                var f : true ? (x) -> eval($x * $factor) : (x) -> eval($x - $factor);
+                var f : true ? (x) -> (x * factor) : (x) -> (x - factor);
                 print(f(5));
                 """));
     }

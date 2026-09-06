@@ -35,7 +35,7 @@ public class TryCatchTest extends AbstractTryCatchTests {
                     try {
                         throw error("something went wrong");
                     } catch (error) {
-                        return $error;
+                        return error;
                     }
                     """);
         } catch (ReturnSignal r) {
@@ -62,9 +62,9 @@ public class TryCatchTest extends AbstractTryCatchTests {
         backend.runAndGetValue("""
                 var x : 1;
                 try {
-                    $x : eval($x + 1);
+                    x : (x + 1);
                 } catch (e) {
-                    $x : eval($x + 100);
+                    x : (x + 100);
                 }
                 """);
         assertEquals(2.0, InterpreterRunner.normNum(backend.getInterpreter().getGlobalEnvironment().get("x")));
@@ -78,10 +78,10 @@ public class TryCatchTest extends AbstractTryCatchTests {
                     try {
                         throw error("inner");
                     } catch (error) {
-                        $x : 1;
+                        x : 1;
                     }
                 } catch (e) {
-                    $x : 2;
+                    x : 2;
                 }
                 """);
         assertEquals(1.0, InterpreterRunner.normNum(backend.getInterpreter().getGlobalEnvironment().get("x")));
@@ -95,10 +95,10 @@ public class TryCatchTest extends AbstractTryCatchTests {
                     try {
                         throw error("rethrow");
                     } catch (error) {
-                        throw error($error);
+                        throw error(error);
                     }
                 } catch (error) {
-                    $x : 99;
+                    x : 99;
                 }
                 """);
         assertEquals(99.0, InterpreterRunner.normNum(backend.getInterpreter().getGlobalEnvironment().get("x")));
@@ -110,11 +110,11 @@ public class TryCatchTest extends AbstractTryCatchTests {
                 var x : 0;
                 try {
                     while (true) {
-                        $x : eval($x + 1);
+                        x : (x + 1);
                         throw error("stop");
                     }
                 } catch (error) {
-                    $x : eval($x + 10);
+                    x : (x + 10);
                 }
                 """);
         assertEquals(11.0, InterpreterRunner.normNum(backend.getInterpreter().getGlobalEnvironment().get("x")));
@@ -137,7 +137,7 @@ public class TryCatchTest extends AbstractTryCatchTests {
                     throw "scoped";
                 } catch (e) {
                 }
-                var result : $e;
+                var result : e;
                 """));
     }
 
@@ -150,7 +150,7 @@ public class TryCatchTest extends AbstractTryCatchTests {
                         throw error("err");
                     } catch (error) {
                     } finally {
-                        $x : 42;
+                        x : 42;
                     }
                 } catch (error) {
                 }
@@ -163,11 +163,11 @@ public class TryCatchTest extends AbstractTryCatchTests {
         backend.runAndGetValue("""
                 var x : 0;
                 try {
-                    $x : 1;
+                    x : 1;
                 } catch (e) {
-                    $x : 99;
+                    x : 99;
                 } finally {
-                    $x : eval($x + 5);
+                    x : (x + 5);
                 }
                 """);
         assertEquals(6.0, InterpreterRunner.normNum(backend.getInterpreter().getGlobalEnvironment().get("x")));

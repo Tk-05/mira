@@ -53,10 +53,10 @@ public class DefinitionProviderTest {
 
                 fn helper() {
                     var obj : { var count : 1; };
-                    return $obj.count;
+                    return obj.count;
                 }
                 """;
-        Position pos = new Position(4, 17); // "count" in "return $obj.count;"
+        Position pos = new Position(4, 17); // "count" in "return obj.count;"
         Location loc = DefinitionProvider.provide(parse(source), source, "file:///test.mira", pos);
 
         assertNotNull(loc);
@@ -72,11 +72,11 @@ public class DefinitionProviderTest {
                 } else {
                     var i : 0;
                     do {
-                        $i++;
-                    } while ($i < 5);
+                        i++;
+                    } while (i < 5);
                 }
                 """;
-        Position pos = new Position(6, 9); // "i" in "$i++;" inside the do-while
+        Position pos = new Position(6, 9); // "i" in "i++;" inside the do-while
         Location loc = DefinitionProvider.provide(parse(source), source, "file:///test.mira", pos);
 
         assertNotNull(loc);
@@ -88,10 +88,10 @@ public class DefinitionProviderTest {
         String source = """
                 var (a, b) : {1, 2};
                 fn main() {
-                    return $b;
+                    return b;
                 }
                 """;
-        Position pos = new Position(2, 12); // "b" in "return $b;"
+        Position pos = new Position(2, 12); // "b" in "return b;"
         Location loc = DefinitionProvider.provide(parse(source), source, "file:///test.mira", pos);
 
         assertNotNull(loc);

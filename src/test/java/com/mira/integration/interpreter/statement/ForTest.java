@@ -25,15 +25,15 @@ public class ForTest extends AbstractForTests {
     void forWithoutInitializer() {
         assertNull(backend.runAndGetValue("""
                 var i : 0;
-                for (; $i < 3; $i : eval($i + 1)) {}
+                for (; i < 3; i : (i + 1)) {}
                 """));
     }
 
     @Test
     void forWithMultipleInitializers() {
         assertNull(backend.runAndGetValue("""
-                for (var i : 0, var j : 0; $i < 10 && $j == 0; $i : eval($i + 1)) {
-                    print($i);
+                for (var i : 0, var j : 0; i < 10 && j == 0; i : (i + 1)) {
+                    print(i);
                 }
                 """));
     }
@@ -43,7 +43,7 @@ public class ForTest extends AbstractForTests {
         assertNull(backend.runAndGetValue("""
                 var broken : false;
                 for (;;) {
-                    $broken : true;
+                    broken : true;
                     break;
                 }
                 """));

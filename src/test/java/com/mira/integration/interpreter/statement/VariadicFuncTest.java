@@ -22,12 +22,12 @@ public class VariadicFuncTest extends AbstractVariadicFuncTests {
         assertEquals(42.0, InterpreterRunner.normNum(backend.runAndGetValue("""
                 fn sum(...args) {
                     var total : 0;
-                    for (var x in $args) {
-                        $total : eval($total + $x);
+                    for (var x in args) {
+                        total : (total + x);
                     }
-                    return $total;
+                    return total;
                 }
-                eval(sum(42));
+                (sum(42));
                 """)));
     }
 
@@ -36,27 +36,27 @@ public class VariadicFuncTest extends AbstractVariadicFuncTests {
         assertEquals(0.0, InterpreterRunner.normNum(backend.runAndGetValue("""
                 fn sum(...args) {
                     var total : 0;
-                    for (var x in $args) {
-                        $total : eval($total + $x);
+                    for (var x in args) {
+                        total : (total + x);
                     }
-                    return $total;
+                    return total;
                 }
-                eval(sum());
+                (sum());
                 """)));
     }
 
     @Test
     void variadicAccessByIndex() {
         assertEquals("b", backend.runAndGetValue("""
-                fn second(...args) { return $args[1]; }
-                eval(second("a", "b", "c"));
+                fn second(...args) { return args[1]; }
+                (second("a", "b", "c"));
                 """));
     }
 
     @Test
     void fixedParamBindsCorrectly() {
         assertEquals("hello", backend.runAndGetValue("""
-                fn f(prefix, ...rest) { return $prefix; }
+                fn f(prefix, ...rest) { return prefix; }
                 f("hello", 1, 2, 3);
                 """));
     }
@@ -65,16 +65,16 @@ public class VariadicFuncTest extends AbstractVariadicFuncTests {
     void fixedPlusVariadicNoRestArgs() {
         assertEquals(0.0, InterpreterRunner.normNum(backend.runAndGetValue("""
                 import collection;
-                fn f(a, ...rest) { return eval(length($rest)); }
-                eval(f(99));
+                fn f(a, ...rest) { return (length(rest)); }
+                (f(99));
                 """)));
     }
 
     @Test
     void fixedPlusVariadicRestContainsCorrectValues() {
         assertEquals("b", backend.runAndGetValue("""
-                fn f(a, ...rest) { return $rest[0]; }
-                eval(f("a", "b", "c"));
+                fn f(a, ...rest) { return rest[0]; }
+                (f("a", "b", "c"));
                 """));
     }
 
@@ -82,8 +82,8 @@ public class VariadicFuncTest extends AbstractVariadicFuncTests {
     void lambdaVariadicEmpty() {
         assertEquals(0.0, InterpreterRunner.normNum(backend.runAndGetValue("""
                 import collection;
-                var f : fn(...args) { return eval(length($args)); };
-                eval(f());
+                var f : fn(...args) { return (length(args)); };
+                (f());
                 """)));
     }
 
@@ -91,8 +91,8 @@ public class VariadicFuncTest extends AbstractVariadicFuncTests {
     void lambdaFixedPlusVariadic() {
         assertEquals(2.0, InterpreterRunner.normNum(backend.runAndGetValue("""
                 import collection;
-                var f : fn(x, ...rest) { return eval(length($rest)); };
-                eval(f(0, 1, 2));
+                var f : fn(x, ...rest) { return (length(rest)); };
+                (f(0, 1, 2));
                 """)));
     }
 
@@ -101,12 +101,12 @@ public class VariadicFuncTest extends AbstractVariadicFuncTests {
         assertEquals(10.0, InterpreterRunner.normNum(backend.runAndGetValue("""
                 fn sum(...args) {
                     var total : 0;
-                    for (var x in $args) {
-                        $total : eval($total + $x);
+                    for (var x in args) {
+                        total : (total + x);
                     }
-                    return $total;
+                    return total;
                 }
-                eval(sum(1, 2, 3, 4));
+                (sum(1, 2, 3, 4));
                 """)));
     }
 }

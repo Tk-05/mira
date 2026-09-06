@@ -9,26 +9,26 @@ public abstract class AbstractFloorDivExpressionTests {
 
     @Test
     void basicFloorDiv() {
-        assertEquals("3", runForOutput("print(eval(7 \\% 2));"));
+        assertEquals("3", runForOutput("print((7 \\% 2));"));
     }
 
     @Test
     void exactDivision() {
-        assertEquals("4", runForOutput("print(eval(8 \\% 2));"));
+        assertEquals("4", runForOutput("print((8 \\% 2));"));
     }
 
     @Test
     void floorRoundsDown() {
-        assertEquals("2", runForOutput("print(eval(5 \\% 2));"));
+        assertEquals("2", runForOutput("print((5 \\% 2));"));
     }
 
     @Test
     void floorDivWithVariable() {
-        assertEquals("3", runForOutput("var x : 10; print(eval($x \\% 3));"));
+        assertEquals("3", runForOutput("var x : 10; print((x \\% 3));"));
     }
 
     @Test
     void floorDivAssignment() {
-        assertEquals("3", runForOutput("var x : 10; $x \\%: 3; print($x);"));
+        assertEquals("3", runForOutput("var x : 10; x \\%: 3; print(x);"));
     }
 }

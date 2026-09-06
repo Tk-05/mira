@@ -10,7 +10,7 @@ public abstract class AbstractDefaultParamTests {
     @Test
     void defaultParamInLambda() {
         assertEquals("World", runForOutput("""
-                var greet : fn(name : "World") { return $name; };
+                var greet : fn(name : "World") { return name; };
                 print(greet());
                 """));
     }
@@ -18,7 +18,7 @@ public abstract class AbstractDefaultParamTests {
     @Test
     void defaultParamInLambdaOverridden() {
         assertEquals("Alice", runForOutput("""
-                var greet : fn(name : "World") { return $name; };
+                var greet : fn(name : "World") { return name; };
                 print(greet("Alice"));
                 """));
     }
@@ -26,7 +26,7 @@ public abstract class AbstractDefaultParamTests {
     @Test
     void defaultIsNumber() {
         assertEquals("42", runForOutput("""
-                fn answer(n : 42) { return $n; }
+                fn answer(n : 42) { return n; }
                 print(answer());
                 """));
     }
@@ -34,7 +34,7 @@ public abstract class AbstractDefaultParamTests {
     @Test
     void explicitArgOverridesDefault() {
         assertEquals("7", runForOutput("""
-                fn answer(n : 42) { return $n; }
+                fn answer(n : 42) { return n; }
                 print(answer(7));
                 """));
     }

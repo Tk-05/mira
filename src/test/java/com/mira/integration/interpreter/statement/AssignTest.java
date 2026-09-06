@@ -23,23 +23,23 @@ public class AssignTest extends AbstractAssignTests {
     void assignNestedListIndex() {
         assertEquals(99.0, InterpreterRunner.normNum(backend.runAndGetValue("""
                 var list : {{1, 2}, {3, 4}};
-                $list[1][1] : 99;
-                eval($list[1][1]);
+                list[1][1] : 99;
+                (list[1][1]);
                 """)));
     }
 
     @Test
     void assignToNonListThrows() {
         assertThrows(ReferenceIsImmutableError.class,
-                () -> backend.runAndGetValue("var x : 5; $x[0] : 10;"));
+                () -> backend.runAndGetValue("var x : 5; x[0] : 10;"));
     }
 
     @Test
     void assignEvaluatedExpression() {
         assertEquals(3.0, InterpreterRunner.normNum(backend.runAndGetValue("""
                 var list : {1, 2, 3};
-                $list[0] : eval(1+2);
-                eval($list[0]);
+                list[0] : (1+2);
+                (list[0]);
                 """)));
     }
 
@@ -47,8 +47,8 @@ public class AssignTest extends AbstractAssignTests {
     void assignTupleIndexWithExpression() {
         assertEquals(99.0, InterpreterRunner.normNum(backend.runAndGetValue("""
                 var list : [{1, 2}, {3, 4}];
-                $list[1][1] : 99;
-                eval($list[1][1]);
+                list[1][1] : 99;
+                (list[1][1]);
                 """)));
     }
 }

@@ -34,7 +34,7 @@ public class ModuleVisibilityTest {
         modulePath = tempDir.resolve("mymod.mira");
         Files.writeString(modulePath, """
                 module MyMod;
-                pub fn greet(name) { return "hello " + $name; }
+                pub fn greet(name) { return "hello " + name; }
                 fn secret() { return "hidden"; }
                 pub const MAGIC : 42;
                 pub enum Color { Red, Green, Blue }
@@ -69,7 +69,7 @@ public class ModuleVisibilityTest {
     @Test
     void fullImportExportsPubConst() {
         assertEquals(42.0,
-                InterpreterRunner.normNum(run("import module \"mymod.mira\"; $MAGIC;")));
+                InterpreterRunner.normNum(run("import module \"mymod.mira\"; MAGIC;")));
     }
 
     @Test
@@ -93,13 +93,13 @@ public class ModuleVisibilityTest {
     @Test
     void selectiveImportPubConstWorks() {
         assertEquals(42.0,
-                InterpreterRunner.normNum(run("import module \"mymod.mira\" {MAGIC}; $MAGIC;")));
+                InterpreterRunner.normNum(run("import module \"mymod.mira\" {MAGIC}; MAGIC;")));
     }
 
     @Test
     void selectiveImportDoesNotLoadOtherSymbols() {
         assertThrows(RuntimeException.class,
-                () -> run("import module \"mymod.mira\" {greet}; $MAGIC;"));
+                () -> run("import module \"mymod.mira\" {greet}; MAGIC;"));
     }
 
     @Test
@@ -129,7 +129,7 @@ public class ModuleVisibilityTest {
     @Test
     void selectiveImportMultipleSymbols() {
         assertDoesNotThrow(
-                () -> run("import module \"mymod.mira\" {greet, MAGIC}; greet(\"x\"); $MAGIC;"));
+                () -> run("import module \"mymod.mira\" {greet, MAGIC}; greet(\"x\"); MAGIC;"));
     }
 
     // --- Stdlib brace syntax ---

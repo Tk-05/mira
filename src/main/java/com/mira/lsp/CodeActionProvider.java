@@ -40,7 +40,7 @@ public class CodeActionProvider {
     private static final Pattern PRIVATE_IMPORT_PATTERN
             = Pattern.compile("^Cannot import private symbol '([^']+)' from module '([^']+)'$");
     private static final Pattern UNDECLARED_VAR_PATTERN
-            = Pattern.compile("^Variable '\\$([^']+)' is used but never declared$");
+            = Pattern.compile("^Variable '([^']+)' is used but never declared$");
 
     private static String codeOf(Diagnostic d) {
         var code = d.getCode();

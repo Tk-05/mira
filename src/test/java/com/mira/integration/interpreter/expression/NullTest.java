@@ -30,12 +30,12 @@ public class NullTest extends AbstractNullTests {
 
     @Test
     void uninitializedVarIsNull() {
-        assertInstanceOf(NullValue.class, backend.runAndGetValue("var x; $x;"));
+        assertInstanceOf(NullValue.class, backend.runAndGetValue("var x; x;"));
     }
 
     @Test
     void explicitNullAssignment() {
-        assertInstanceOf(NullValue.class, backend.runAndGetValue("var x : null; $x;"));
+        assertInstanceOf(NullValue.class, backend.runAndGetValue("var x : null; x;"));
     }
 
     @Test
@@ -50,12 +50,12 @@ public class NullTest extends AbstractNullTests {
 
     @Test
     void uninitializedVarEqualsNull() {
-        assertEquals(Boolean.TRUE, backend.runAndGetValue("var x; $x == null;"));
+        assertEquals(Boolean.TRUE, backend.runAndGetValue("var x; x == null;"));
     }
 
     @Test
     void assignNullToVar() {
-        assertEquals(Boolean.TRUE, backend.runAndGetValue("var x : 10; $x : null; $x == null;"));
+        assertEquals(Boolean.TRUE, backend.runAndGetValue("var x : 10; x : null; x == null;"));
     }
 
     @Test
@@ -63,15 +63,15 @@ public class NullTest extends AbstractNullTests {
         assertEquals(0.0, InterpreterRunner.normNum(backend.runAndGetValue("""
                 var count : 0;
                 var cond : null;
-                while ($cond) {
-                    $count +: 1;
+                while (cond) {
+                    count +: 1;
                 }
-                eval($count);
+                (count);
                 """)));
     }
 
     @Test
     void reassignFromNullToValue() {
-        assertEquals(42.0, InterpreterRunner.normNum(backend.runAndGetValue("var x : null; $x : 42; eval($x);")));
+        assertEquals(42.0, InterpreterRunner.normNum(backend.runAndGetValue("var x : null; x : 42; (x);")));
     }
 }

@@ -52,7 +52,7 @@ public class DestructuringTest extends AbstractDestructuringTests {
                 var result : 0;
                 fn myFunc() {
                     var (a, b) : {3, 7};
-                    $result : eval($a + $b);
+                    result : (a + b);
                 }
                 myFunc();
                 """);

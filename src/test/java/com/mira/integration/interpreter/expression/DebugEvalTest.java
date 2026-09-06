@@ -19,12 +19,12 @@ public class DebugEvalTest extends AbstractDebugEvalTests {
 
     @Test
     void evalTopLevelValue() {
-        assertEquals(7.0, InterpreterRunner.normNum(backend.runAndGetValue("eval(3 + 4);")));
+        assertEquals(7.0, InterpreterRunner.normNum(backend.runAndGetValue("(3 + 4);")));
     }
 
     @Test
     void evalInFunctionValue() {
         assertEquals(7.0, InterpreterRunner.normNum(backend.runAndGetValue(
-                "fn add(a, b) { return eval($a + $b); } add(3, 4);")));
+                "fn add(a, b) { return (a + b); } add(3, 4);")));
     }
 }

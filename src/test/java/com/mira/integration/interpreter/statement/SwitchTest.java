@@ -23,7 +23,7 @@ public class SwitchTest extends AbstractSwitchTests {
     void noMatchNoDefaultReturnsNull() {
         assertNull(backend.runAndGetValue("""
                 var x : 99;
-                switch ($x) {
+                switch (x) {
                     case (1) { return false; }
                     case (2) { return false; }
                 }
@@ -35,9 +35,9 @@ public class SwitchTest extends AbstractSwitchTests {
         backend.runAndGetValue("""
                 var x : 1;
                 var count : 0;
-                switch ($x) {
-                    case (1) { $count : eval($count + 1); }
-                    case (1) { $count : eval($count + 1); }
+                switch (x) {
+                    case (1) { count : (count + 1); }
+                    case (1) { count : (count + 1); }
                 }
                 """);
         assertEquals(1.0, InterpreterRunner.normNum(backend.getInterpreter().getGlobalEnvironment().get("count")));
@@ -49,9 +49,9 @@ public class SwitchTest extends AbstractSwitchTests {
                 var x : 2;
                 var a : 0;
                 var b : 0;
-                switch ($x) {
-                    case (1) { $a : 1; $b : 1; }
-                    case (2) { $a : 10; $b : 20; }
+                switch (x) {
+                    case (1) { a : 1; b : 1; }
+                    case (2) { a : 10; b : 20; }
                 }
                 """);
         assertEquals(10.0, InterpreterRunner.normNum(backend.getInterpreter().getGlobalEnvironment().get("a")));
@@ -63,7 +63,7 @@ public class SwitchTest extends AbstractSwitchTests {
         try {
             backend.runAndGetValue("""
                     var x : 1;
-                    switch ($x) {
+                    switch (x) {
                         case (1) { return true; }
                         case (2) { return false; }
                     }
@@ -77,10 +77,10 @@ public class SwitchTest extends AbstractSwitchTests {
     void defaultWithNoMatchingCase() {
         backend.runAndGetValue("""
                 var result : 0;
-                switch (eval(5)) {
-                    case (1) { $result : 1; }
-                    case (2) { $result : 2; }
-                    default  { $result : 99; }
+                switch ((5)) {
+                    case (1) { result : 1; }
+                    case (2) { result : 2; }
+                    default  { result : 99; }
                 }
                 """);
         assertEquals(99.0, InterpreterRunner.normNum(backend.getInterpreter().getGlobalEnvironment().get("result")));

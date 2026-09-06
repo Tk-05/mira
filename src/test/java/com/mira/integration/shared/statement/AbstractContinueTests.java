@@ -12,12 +12,12 @@ public abstract class AbstractContinueTests {
         assertEquals("5", runForOutput("""
                 var evens : 0;
                 var i : 0;
-                while($i < 10) {
-                    $i : eval($i + 1);
-                    if(eval($i % 2) != 0) { continue; }
-                    $evens : eval($evens + 1);
+                while(i < 10) {
+                    i : (i + 1);
+                    if((i % 2) != 0) { continue; }
+                    evens : (evens + 1);
                 }
-                print($evens);
+                print(evens);
                 """));
     }
 
@@ -25,11 +25,11 @@ public abstract class AbstractContinueTests {
     void continueInsideFor() {
         assertEquals("20", runForOutput("""
                 var sum : 0;
-                for(var i : 0; $i < 10; $i : eval($i + 1)) {
-                    if(eval($i % 2) != 0) { continue; }
-                    $sum : eval($sum + $i);
+                for(var i : 0; i < 10; i : (i + 1)) {
+                    if((i % 2) != 0) { continue; }
+                    sum : (sum + i);
                 }
-                print($sum);
+                print(sum);
                 """));
     }
 
@@ -38,10 +38,10 @@ public abstract class AbstractContinueTests {
         assertEquals("20", runForOutput("""
                 var sum : 0;
                 for(var i in <0..10>) {
-                    if(eval($i % 2) != 0) { continue; }
-                    $sum : eval($sum + $i);
+                    if((i % 2) != 0) { continue; }
+                    sum : (sum + i);
                 }
-                print($sum);
+                print(sum);
                 """));
     }
 }

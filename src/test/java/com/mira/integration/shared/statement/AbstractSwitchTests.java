@@ -11,7 +11,7 @@ public abstract class AbstractSwitchTests {
     void matchesFirstCase() {
         assertEquals("one", runForOutput("""
                 var x : 1;
-                switch($x) {
+                switch(x) {
                     case(1) { print("one"); }
                     case(2) { print("two"); }
                 }
@@ -22,7 +22,7 @@ public abstract class AbstractSwitchTests {
     void matchesSecondCase() {
         assertEquals("two", runForOutput("""
                 var x : 2;
-                switch($x) {
+                switch(x) {
                     case(1) { print("one"); }
                     case(2) { print("two"); }
                 }
@@ -33,7 +33,7 @@ public abstract class AbstractSwitchTests {
     void defaultExecutedWhenNoMatch() {
         assertEquals("other", runForOutput("""
                 var x : 5;
-                switch($x) {
+                switch(x) {
                     case(1) { print("one"); }
                     default { print("other"); }
                 }
@@ -44,7 +44,7 @@ public abstract class AbstractSwitchTests {
     void matchesStringCase() {
         assertEquals("hello", runForOutput("""
                 var s : "hi";
-                switch($s) {
+                switch(s) {
                     case("hi") { print("hello"); }
                     default { print("other"); }
                 }
@@ -55,8 +55,8 @@ public abstract class AbstractSwitchTests {
     void switchInsideFunction() {
         assertEquals("positive", runForOutput("""
                 fn classify(n) {
-                    if($n > 0) { return "positive"; }
-                    if($n < 0) { return "negative"; }
+                    if(n > 0) { return "positive"; }
+                    if(n < 0) { return "negative"; }
                     return "zero";
                 }
                 print(classify(5));

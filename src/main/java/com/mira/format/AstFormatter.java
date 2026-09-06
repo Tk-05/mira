@@ -698,6 +698,9 @@ public class AstFormatter implements ExprVisitor<String>, StmtVisitor<String> {
             if (op.equals("++") || op.equals("--")) {
                 return (T) (expression.isPrefix() ? op + right : right + op);
             }
+            if (op.equals("$")) {
+                return (T) right;
+            }
             return (T) (op + right);
         }
         return (T) op;
@@ -801,7 +804,7 @@ public class AstFormatter implements ExprVisitor<String>, StmtVisitor<String> {
     @Override
     public <T> T visitStructInitExpression(StructInitExpression expression) {
         String overrides = expression.getOverrides().entrySet().stream()
-                .map(e -> "$" + e.getKey() + " : " + formatExpr(e.getValue()))
+                .map(e -> e.getKey() + " : " + formatExpr(e.getValue()))
                 .collect(Collectors.joining(", "));
         return (T) (formatExpr(expression.getTarget()) + "{" + overrides + "}");
     }

@@ -33,7 +33,7 @@ public class VarDeclTest extends AbstractVarDeclTests {
     @Test
     void uninitializedDeclarationValueIsNull() {
         try {
-            backend.runAndGetValue("var x; return $x;");
+            backend.runAndGetValue("var x; return x;");
         } catch (ReturnSignal r) {
             assertInstanceOf(NullValue.class, r.getValue());
         }
@@ -42,7 +42,7 @@ public class VarDeclTest extends AbstractVarDeclTests {
     @Test
     void booleanTrueInitializer() {
         try {
-            backend.runAndGetValue("var x : true; return $x;");
+            backend.runAndGetValue("var x : true; return x;");
         } catch (ReturnSignal r) {
             assertEquals(Boolean.TRUE, r.getValue());
         }
@@ -51,7 +51,7 @@ public class VarDeclTest extends AbstractVarDeclTests {
     @Test
     void booleanFalseInitializer() {
         try {
-            backend.runAndGetValue("var x : false; return $x;");
+            backend.runAndGetValue("var x : false; return x;");
         } catch (ReturnSignal r) {
             assertEquals(Boolean.FALSE, r.getValue());
         }
@@ -60,7 +60,7 @@ public class VarDeclTest extends AbstractVarDeclTests {
     @Test
     void constDeclarationReassignThrows() {
         assertThrows(ReferenceIsImmutableError.class,
-                () -> backend.runAndGetValue("const x : 0; $x : 1;"));
+                () -> backend.runAndGetValue("const x : 0; x : 1;"));
     }
 
     @Test
@@ -68,7 +68,7 @@ public class VarDeclTest extends AbstractVarDeclTests {
         backend.createNewGlobalContext();
         backend.getInterpreter().getGlobalEnvironment().define("x", 10);
         backend.getInterpreter().getGlobalEnvironment().define("y", 5);
-        assertEquals(15.0, normNum(backend.runContinued("eval($x + $y);")));
+        assertEquals(15.0, normNum(backend.runContinued("(x + y);")));
     }
 
     @Test
@@ -76,6 +76,6 @@ public class VarDeclTest extends AbstractVarDeclTests {
         backend.createNewGlobalContext();
         backend.getInterpreter().getGlobalEnvironment().define("val", 3);
         backend.getInterpreter().getGlobalEnvironment().define("x", 10);
-        assertEquals(23.0, normNum(backend.runContinued("eval($val + $x * 2);")));
+        assertEquals(23.0, normNum(backend.runContinued("(val + x * 2);")));
     }
 }

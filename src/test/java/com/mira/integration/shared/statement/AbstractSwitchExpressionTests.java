@@ -11,12 +11,12 @@ public abstract class AbstractSwitchExpressionTests {
     void matchesFirstCase() {
         assertEquals("one", runForOutput("""
                 var x : 1;
-                var result : switch($x) {
+                var result : switch(x) {
                     case(1) -> "one"
                     case(2) -> "two"
                     default -> "other"
                 };
-                print($result);
+                print(result);
                 """));
     }
 
@@ -24,11 +24,11 @@ public abstract class AbstractSwitchExpressionTests {
     void fallsToDefault() {
         assertEquals("other", runForOutput("""
                 var x : 99;
-                var result : switch($x) {
+                var result : switch(x) {
                     case(1) -> "one"
                     default -> "other"
                 };
-                print($result);
+                print(result);
                 """));
     }
 
@@ -36,11 +36,11 @@ public abstract class AbstractSwitchExpressionTests {
     void stringMatch() {
         assertEquals("yes", runForOutput("""
                 var s : "hi";
-                var result : switch($s) {
+                var result : switch(s) {
                     case("hi") -> "yes"
                     default -> "no"
                 };
-                print($result);
+                print(result);
                 """));
     }
 }

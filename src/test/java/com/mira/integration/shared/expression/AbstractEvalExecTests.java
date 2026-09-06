@@ -10,14 +10,7 @@ public abstract class AbstractEvalExecTests {
     @Test
     void evalRunsMultiStatementCodeAndReturnsLastValue() {
         assertEquals("20", runForOutput("""
-                print(eval("var x : 10; $x * 2;"));
-                """));
-    }
-
-    @Test
-    void execIsStillAvailableAsAnAlias() {
-        assertEquals("4", runForOutput("""
-                print(exec("var y : 3; $y + 1;"));
+                print(eval("var x : 10; x * 2;"));
                 """));
     }
 
@@ -36,7 +29,7 @@ public abstract class AbstractEvalExecTests {
     void evalRuntimeErrorIsCatchableWithExplicitTypeFilter() {
         assertEquals("caught", runForOutput("""
                 try {
-                    eval("$undefinedEvalVar + 1;");
+                    eval("undefinedEvalVar + 1;");
                 } catch (EvalError e) {
                     print("caught");
                 }
@@ -47,7 +40,7 @@ public abstract class AbstractEvalExecTests {
     void evalDeclarationIsVisibleToLaterEvalCalls() {
         assertEquals("6", runForOutput("""
                 eval("var evalShared : 5;");
-                print(eval("$evalShared + 1;"));
+                print(eval("evalShared + 1;"));
                 """));
     }
 }

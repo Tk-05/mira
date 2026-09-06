@@ -79,8 +79,8 @@ public class CodeActionProviderTest {
                 module main;
                 fn main() {
                     const x : 1;
-                    $x : 2;
-                    return $x;
+                    x : 2;
+                    return x;
                 }
                 """;
         String uri = "file:///test.mira";
@@ -137,7 +137,7 @@ public class CodeActionProviderTest {
         String source = """
                 module main;
                 fn main() {
-                    return $y;
+                    return y;
                 }
                 """;
         String uri = "file:///test.mira";
@@ -167,7 +167,7 @@ public class CodeActionProviderTest {
                 module main;
                 fn main() {
                     var a, b : 2;
-                    return $a;
+                    return a;
                 }
                 """;
         String uri = "file:///test.mira";
@@ -197,7 +197,7 @@ public class CodeActionProviderTest {
                 module main;
                 fn main() {
                     var (a, b) : {1, 2};
-                    return $a;
+                    return a;
                 }
                 """;
         String uri = "file:///test.mira";

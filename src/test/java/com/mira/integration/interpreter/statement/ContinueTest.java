@@ -29,9 +29,9 @@ public class ContinueTest extends AbstractContinueTests {
         backend.runAndGetValue("""
                 var sum : 0;
                 var list : {1, 2, 3, 4, 5};
-                for (var e in $list) {
-                    if ($e == 3) { continue; }
-                    $sum : eval($sum + $e);
+                for (var e in list) {
+                    if (e == 3) { continue; }
+                    sum : (sum + e);
                 }
                 """);
         assertEquals(12.0, InterpreterRunner.normNum(backend.getInterpreter().getGlobalEnvironment().get("sum")));
@@ -43,13 +43,13 @@ public class ContinueTest extends AbstractContinueTests {
                 var outer : 0;
                 var inner : 0;
                 var j : 0;
-                while ($outer < 3) {
-                    $outer : eval($outer + 1);
-                    $j : 0;
-                    while ($j < 4) {
-                        $j : eval($j + 1);
-                        if ($j == 2) { continue; }
-                        $inner : eval($inner + 1);
+                while (outer < 3) {
+                    outer : (outer + 1);
+                    j : 0;
+                    while (j < 4) {
+                        j : (j + 1);
+                        if (j == 2) { continue; }
+                        inner : (inner + 1);
                     }
                 }
                 """);
@@ -61,11 +61,11 @@ public class ContinueTest extends AbstractContinueTests {
     void continueDoesNotAffectPostLoopExecution() {
         backend.runAndGetValue("""
                 var x : 0;
-                while ($x < 3) {
-                    $x : eval($x + 1);
+                while (x < 3) {
+                    x : (x + 1);
                     continue;
                 }
-                $x : eval($x + 10);
+                x : (x + 10);
                 """);
         assertEquals(13.0, InterpreterRunner.normNum(backend.getInterpreter().getGlobalEnvironment().get("x")));
     }

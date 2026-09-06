@@ -14,17 +14,17 @@ public abstract class AbstractBlockTests {
 
     @Test
     void funcDeclaredInBlockReceivesArgs() {
-        assertEquals("6", runForOutput("{ fn double(n) { return eval($n * 2); } } print(double(3));"));
+        assertEquals("6", runForOutput("{ fn double(n) { return (n * 2); } } print(double(3));"));
     }
 
     @Test
     void blockCanAccessOuterVariable() {
-        assertEquals("10", runForOutput("var x : 10; { print($x); }"));
+        assertEquals("10", runForOutput("var x : 10; { print(x); }"));
     }
 
     @Test
     void blockCanModifyOuterVariable() {
-        assertEquals("20", runForOutput("var x : 10; { $x : 20; } print($x);"));
+        assertEquals("20", runForOutput("var x : 10; { x : 20; } print(x);"));
     }
 
     @Test
@@ -34,9 +34,9 @@ public abstract class AbstractBlockTests {
                 var b : 2;
                 var c : 3;
                 {
-                    $a : eval($a + $b + $c);
+                    a : (a + b + c);
                 }
-                print($a);
+                print(a);
                 """));
     }
 }

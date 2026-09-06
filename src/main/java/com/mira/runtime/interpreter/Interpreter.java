@@ -17,7 +17,6 @@ import com.mira.error.runtime.RuntimeError.ArgMismatchError;
 import com.mira.error.runtime.RuntimeError.FieldAccessError;
 import com.mira.error.runtime.RuntimeError.ImmutableCollectionError;
 import com.mira.error.runtime.RuntimeError.IndexOutOfBoundsError;
-import com.mira.error.runtime.RuntimeError.LocalCallableError;
 import com.mira.error.runtime.RuntimeError.NotANamespaceError;
 import com.mira.error.runtime.RuntimeError.NotAStructTemplateError;
 import com.mira.error.runtime.RuntimeError.NotCallableError;
@@ -770,11 +769,6 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             if (callee == null && localEnvironment != null) {
                 Object local = localEnvironment.getOrNull(calleeName);
                 if (local instanceof Callable) {
-                    if (!localEnvironment.isDeclaredFunction(calleeName)) {
-                        LocalCallableError lcErr = new LocalCallableError(calleeName);
-                        lcErr.withLocation(calleeLine, calleeCol);
-                        throw lcErr;
-                    }
                     callee = local;
                 }
             }

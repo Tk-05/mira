@@ -27,7 +27,7 @@ public class BlockTest extends AbstractBlockTests {
                         fn inner() { return 1; }
                     }
                 }
-                eval(inner());
+                (inner());
                 """)));
     }
 
@@ -38,7 +38,7 @@ public class BlockTest extends AbstractBlockTests {
                     var x : 5;
                     fn getX() { return 5; }
                 }
-                $x;
+                x;
                 """));
     }
 
@@ -47,9 +47,9 @@ public class BlockTest extends AbstractBlockTests {
         assertEquals(10.0, InterpreterRunner.normNum(backend.runAndGetValue("""
                 var base : 10;
                 {
-                    fn getBase() { return eval($base); }
+                    fn getBase() { return (base); }
                 }
-                eval(getBase());
+                (getBase());
                 """)));
     }
 
@@ -57,10 +57,10 @@ public class BlockTest extends AbstractBlockTests {
     void multipleFuncsDeclaredInBlock() {
         assertEquals(3.0, InterpreterRunner.normNum(backend.runAndGetValue("""
                 {
-                    fn inc(n) { return eval($n + 1); }
-                    fn dec(n) { return eval($n - 1); }
+                    fn inc(n) { return (n + 1); }
+                    fn dec(n) { return (n - 1); }
                 }
-                eval(inc(dec(3)));
+                (inc(dec(3)));
                 """)));
     }
 
@@ -70,7 +70,7 @@ public class BlockTest extends AbstractBlockTests {
                 {
                     var ref : 0;
                 }
-                $ref;
+                ref;
                 """));
     }
 
@@ -81,7 +81,7 @@ public class BlockTest extends AbstractBlockTests {
                 {
                     var ref : 10;
                 }
-                eval($ref);
+                (ref);
                 """)));
     }
 
@@ -93,7 +93,7 @@ public class BlockTest extends AbstractBlockTests {
                     {
                         var deepInner : 10;
                     }
-                    $deepInner;
+                    deepInner;
                 }
                 """));
     }

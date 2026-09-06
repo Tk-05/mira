@@ -29,34 +29,34 @@ public class TypeofTest extends AbstractTypeofTests {
 
     @Test
     void array() {
-        assertEquals("array", backend.runAndGetValue("var a : [1, 2, 3]; typeof $a;"));
+        assertEquals("array", backend.runAndGetValue("var a : [1, 2, 3]; typeof a;"));
     }
 
     @Test
     void fn() {
-        assertEquals("fn", backend.runAndGetValue("var f : fn(x) { return $x; }; typeof $f;"));
+        assertEquals("fn", backend.runAndGetValue("var f : fn(x) { return x; }; typeof f;"));
     }
 
     @Test
     void namedFn() {
-        assertEquals("fn", backend.runAndGetValue("fn add(a, b) { return eval($a + $b); } typeof $add;"));
+        assertEquals("fn", backend.runAndGetValue("fn add(a, b) { return (a + b); } typeof add;"));
     }
 
     @Test
     void object() {
-        assertEquals("object", backend.runAndGetValue("var o : { var x : 1; }; typeof $o;"));
+        assertEquals("object", backend.runAndGetValue("var o : { var x : 1; }; typeof o;"));
     }
 
     @Test
     void usedInSwitch() {
         assertEquals("number", backend.runAndGetValue("""
                 var x : 1;
-                var r : switch(typeof $x) {
+                var r : switch(typeof x) {
                     case("number") -> "number"
                     case("string") -> "string"
                     default -> "other"
                 };
-                $r;
+                r;
                 """));
     }
 }

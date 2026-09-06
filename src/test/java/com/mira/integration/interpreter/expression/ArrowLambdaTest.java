@@ -20,23 +20,23 @@ public class ArrowLambdaTest extends AbstractArrowLambdaTests {
     @Test
     void asArgument() {
         assertEquals(10.0, InterpreterRunner.normNum(backend.runAndGetValue(
-                "fn apply(f, x) { return $f($x); } eval(apply((x) -> eval($x * 2), 5));")));
+                "fn apply(f, x) { return f(x); } (apply((x) -> eval(x * 2), 5));")));
     }
 
     @Test
     void defaultParam() {
         assertEquals(5.0, InterpreterRunner.normNum(backend.runAndGetValue(
-                "var f : (x : 5) -> $x; f();")));
+                "var f : (x : 5) -> x; f();")));
     }
 
     @Test
     void stringResult() {
-        assertEquals("hello", backend.runAndGetValue("var f : (s) -> $s; f(\"hello\");"));
+        assertEquals("hello", backend.runAndGetValue("var f : (s) -> s; f(\"hello\");"));
     }
 
     @Test
     void closure() {
         assertEquals(8.0, InterpreterRunner.normNum(backend.runAndGetValue(
-                "var base : 3; var f : (x) -> eval($x + $base); f(5);")));
+                "var base : 3; var f : (x) -> (x + base); f(5);")));
     }
 }

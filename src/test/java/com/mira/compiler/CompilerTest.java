@@ -19,9 +19,9 @@ public class CompilerTest extends CompilerTestBase {
                 module counter;
                 var sum : 0;
                 for(var i in <0..10>) {
-                    $sum : $sum + $i;
+                    sum : sum + i;
                 }
-                print($sum);
+                print(sum);
                 """));
     }
 
@@ -29,7 +29,7 @@ public class CompilerTest extends CompilerTestBase {
     void functionCall() {
         assertEquals("49", run("""
                 module funcs;
-                fn square(x) { return $x * $x; }
+                fn square(x) { return x * x; }
                 print(square(7));
                 """));
     }

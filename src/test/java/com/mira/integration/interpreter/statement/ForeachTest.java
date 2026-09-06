@@ -24,10 +24,10 @@ public class ForeachTest extends AbstractForeachTests {
         assertEquals(3.0, InterpreterRunner.normNum(backend.runAndGetValue("""
                 var list : [1,2,3];
                 var lastResult;
-                for(var element in $list) {
-                    $lastResult : $element;
+                for(var element in list) {
+                    lastResult : element;
                 }
-                $lastResult;
+                lastResult;
                 """)));
     }
 
@@ -36,8 +36,8 @@ public class ForeachTest extends AbstractForeachTests {
         try {
             backend.runAndGetValue("""
                     var list : {1,2,3};
-                    for(var element in $list) {
-                        if($element == 1) { break; }
+                    for(var element in list) {
+                        if(element == 1) { break; }
                     }
                     """);
         } catch (BreakSignal ignored) {
@@ -49,8 +49,8 @@ public class ForeachTest extends AbstractForeachTests {
         try {
             backend.runAndGetValue("""
                     var list : {1,2,3};
-                    for(var element in $list) {
-                        if($element == 1) { return; }
+                    for(var element in list) {
+                        if(element == 1) { return; }
                     }
                     """);
         } catch (ReturnSignal ignored) {
@@ -63,9 +63,9 @@ public class ForeachTest extends AbstractForeachTests {
             backend.runAndGetValue("""
                     var list1 : {1,2,3};
                     var list2 : {4,5,6};
-                    for(var e1 in $list1) {
-                        for(var e2 in $list2) {
-                            if($e1 == 3 && $e2 == 6) { break; }
+                    for(var e1 in list1) {
+                        for(var e2 in list2) {
+                            if(e1 == 3 && e2 == 6) { break; }
                         }
                     }
                     """);
@@ -78,8 +78,8 @@ public class ForeachTest extends AbstractForeachTests {
         try {
             backend.runAndGetValue("""
                     var list1 : {{1,2,3}};
-                    for(var element in $list1[0]) {
-                        if($element == 3) { break; }
+                    for(var element in list1[0]) {
+                        if(element == 3) { break; }
                     }
                     """);
         } catch (ReturnSignal ignored) {

@@ -70,8 +70,8 @@ If two libs imported without an alias define a function with the same name, a co
 import string;            // ok
 import collection as col; // avoids conflict with 'indexOf'
 
-trim($text);
-col.indexOf($list, "x");
+trim(text);
+col.indexOf(list, "x");
 ```
 
 ### Module Visibility
@@ -81,7 +81,7 @@ Module files use `pub` to mark declarations as exportable. Declarations without 
 ```
 module MyMod;
 
-pub fn greet(name) { return "hello " $name; }   // exported
+pub fn greet(name) { return "hello " + name; }   // exported
 fn helper() { return "internal"; }              // private — not visible to importers
 pub const MAX : 100;                             // exported
 pub enum Color { Red, Green, Blue }              // exported
@@ -160,8 +160,8 @@ importDynamic(<path>, {<sym1>, <sym2>});  // only the selected pub symbols — r
 Unlike `import module`, `importDynamic` never merges symbols into the current scope. It always returns the module as a first-class `Namespace` value:
 
 ```
-var plugin : importDynamic("./plugins/" + $name + ".mira");
-$plugin.run();
+var plugin : importDynamic("./plugins/" + name + ".mira");
+plugin.run();
 ```
 
 Because it is an ordinary function call rather than a statement, it works inside functions:
@@ -169,7 +169,7 @@ Because it is an ordinary function call rather than a statement, it works inside
 ```
 fn loadPlugin(path) {
     var mod : importDynamic(path);
-    return $mod.run();
+    return mod.run();
 }
 ```
 
@@ -181,7 +181,7 @@ Path resolution follows the same rules as `import module` (relative to the impor
 try {
     importDynamic("./does-not-exist.mira");
 } catch (ImportError e) {
-    print("failed to load plugin: " $e "\n");
+    print("failed to load plugin: " + e + "\n");
 }
 ```
 
@@ -221,10 +221,10 @@ Example:
 
 ```
 var t : {10, 20, 30};
-var (a, b, c) : $t;
-print($a "\n");   // => 10
-print($b "\n");   // => 20
-print($c "\n");   // => 30
+var (a, b, c) : t;
+print(a + "\n");   // => 10
+print(b + "\n");   // => 20
+print(c + "\n");   // => 30
 ```
 
 Works with arrays too:
@@ -238,19 +238,19 @@ If there are fewer names than elements, the extra elements are ignored. If there
 
 ### Variable Access & Assignment
 
-Variables are accessed with a `$` prefix:
+Variables are accessed by bare name — no sigil, like C:
 
 ```
-$<name>
-$<obj>.<field>
-$<obj>.<nested>.<field>
+<name>
+<obj>.<field>
+<obj>.<nested>.<field>
 ```
 
 Assignment:
 
 ```
-$<name> : <expression>;
-$<obj>.<field> : <expression>;
+<name> : <expression>;
+<obj>.<field> : <expression>;
 ```
 
 Field access also works directly on any expression — including function call results and inline structs — without assigning to a variable first:
@@ -268,16 +268,16 @@ test()?.a         // Optional chaining on call result
 ### Compound Assignment
 
 ```
-$<name> +: <expression>;
-$<name> -: <expression>;
-$<name> *: <expression>;
-$<name> /: <expression>;
-$<name> %: <expression>;
-$<name> **: <expression>;
-$<name> \%: <expression>;
-$<name> &: <expression>;
-$<name> |: <expression>;
-$<name> ^: <expression>;
+<name> +: <expression>;
+<name> -: <expression>;
+<name> *: <expression>;
+<name> /: <expression>;
+<name> %: <expression>;
+<name> **: <expression>;
+<name> \%: <expression>;
+<name> &: <expression>;
+<name> |: <expression>;
+<name> ^: <expression>;
 ```
 
 ### Literals
@@ -289,11 +289,24 @@ $<name> ^: <expression>;
 | Boolean | `true`, `false` |
 | Null    | `null`          |
 
-String concatenation is done by placing values side by side:
+A string value only ever comes from an actual string literal — there is no
+"bareword is a string" fallback. Adjacent string *literals* are spliced at
+parse time, exactly like C:
 
 ```
-"hello " $name "\n"
+"hello " "world"    // => "hello world"
 ```
+
+Joining a string with a variable or any other expression uses `+`:
+
+```
+"hello " + name + "\n"
+```
+
+`+` adds numbers, and falls back to stringifying and concatenating whenever
+either side isn't a number — so it works for any value, not just strings.
+For structured/printf-style output, see `format()` in the
+[Standard Library Reference](standard-library.md).
 
 ### Text Blocks
 
@@ -329,10 +342,10 @@ Line 2
 evaluate `target`, coerce it to a number, and compute `value + 1`/`value - 1`.
 What happens to that result depends on what `target` is:
 
-- **Bare variable** (`$x++`, `++$x`) — the variable is mutated in place.
-- **Array/list/map element** (`$arr[0]++`, `++$arr[0]`, `$map["k"]++`) — the
+- **Bare variable** (`x++`, `++x`) — the variable is mutated in place.
+- **Array/list/map element** (`arr[0]++`, `++arr[0]`, `map["k"]++`) — the
   element is mutated in place.
-- **Object/struct field** (`$obj.count++`, `++$obj.count`) — the field is
+- **Object/struct field** (`obj.count++`, `++obj.count`) — the field is
   mutated in place.
 - **Anything else** (a literal, an arithmetic expression, a function call,
   …) — there is no variable/element/field to write back to, so nothing is
@@ -342,51 +355,51 @@ What happens to that result depends on what `target` is:
 Prefix and postfix are purely a matter of where you write the operator —
 Mira has no C-style "postfix returns the old value" distinction. Both forms
 return the already-incremented/decremented value and both mutate (or don't)
-the same way, so `++$x` and `$x++` are fully interchangeable:
+the same way, so `++x` and `x++` are fully interchangeable:
 
 ```
 var x : 2;
 print(1++);          // 2  — no referent, nothing mutated
 print(++1);          // 2  — same thing, prefix form
-print(($x + 1)++);    // 4  — $x is still 2 afterwards
+print((x + 1)++);    // 4  — x is still 2 afterwards
 
 var arr : [1, 2, 3];
-$arr[0]++;             // arr[0] is now 2
-++$arr[1];              // arr[1] is now 3
+arr[0]++;             // arr[0] is now 2
+++arr[1];              // arr[1] is now 3
 
 var obj : { var count : 1; };
-$obj.count++;           // obj.count is now 2
+obj.count++;           // obj.count is now 2
 ```
 
 `**` is the power/exponentiation operator. It has higher precedence than `*`, `/`, and `%`:
 
 ```
-eval(10 ** 2)      // => 100
-eval(2 ** 10)      // => 1024
-eval(9 ** 0.5)     // => 3.0  (square root)
-eval(2 * 3 ** 2)   // => 18   (3**2 first, then * 2)
+10 ** 2      // => 100
+2 ** 10      // => 1024
+9 ** 0.5     // => 3.0  (square root)
+2 * 3 ** 2   // => 18   (3**2 first, then * 2)
 ```
 
 `\%` is the floor division operator — divides and rounds down to the nearest integer:
 
 ```
-eval(7 \% 2)       // => 3
-eval(9 \% 4)       // => 2
-eval(7.5 \% 3.0)   // => 2.0
+7 \% 2       // => 3
+9 \% 4       // => 2
+7.5 \% 3.0   // => 2.0
 ```
 
-Arithmetic must be wrapped in `eval()`:
+Arithmetic is an ordinary expression, usable anywhere — no wrapping needed:
 
 ```
-eval($a + $b)
-eval($x * 2)
+a + b
+x * 2
 ```
 
-Comparisons can be used directly in conditions:
+Comparisons can also be used directly in conditions:
 
 ```
-$i < 5
-$x > 3 && $y == 0
+i < 5
+x > 3 && y == 0
 ```
 
 ### Ternary Operator
@@ -400,28 +413,28 @@ Evaluates a condition and returns one of two values:
 Example:
 
 ```
-var label : $score >= 50 ? "pass" : "fail";
-$x > 0 ? "positive" : "negative"
+var label : score >= 50 ? "pass" : "fail";
+x > 0 ? "positive" : "negative"
 ```
 
 Ternaries can be nested:
 
 ```
-$x > 10 ? "high" : ($x > 5 ? "mid" : "low")
+x > 10 ? "high" : (x > 5 ? "mid" : "low")
 ```
 
 Branches can be lambdas, picking which function to use based on a condition:
 
 ```
-var op : $useDouble ? (x) -> eval($x * 2) : (x) -> eval($x + 1);
+var op : useDouble ? (x) -> (x * 2) : (x) -> (x + 1);
 print(op(5));   // 10
 ```
 
 Both branches support string concatenation:
 
 ```
-length($d) > 0 ? " (" $d ")" : ""
-$ok ? "Result: " $value "\n" : "n/a"
+length(d) > 0 ? " (" d ")" : ""
+ok ? "Result: " + value + "\n" : "n/a"
 ```
 
 ### Pipe Operator
@@ -429,14 +442,14 @@ $ok ? "Result: " $value "\n" : "n/a"
 Passes the left-hand value as the first argument to the right-hand call:
 
 ```
-$x |> trim()             // equivalent to trim($x)
-$x |> add(1)             // equivalent to add($x, 1)
+x |> trim()             // equivalent to trim(x)
+x |> add(1)             // equivalent to add(x, 1)
 ```
 
 Pipes can be chained left-to-right:
 
 ```
-$input |> trim() |> upper()
+input |> trim() |> upper()
 ```
 
 ### Null-Coalescing Operator
@@ -444,14 +457,14 @@ $input |> trim() |> upper()
 Returns the left-hand value if it is not `null`, otherwise evaluates and returns the right-hand value:
 
 ```
-$x ?? "default"
-$config ?? newMap()
+x ?? "default"
+config ?? newMap()
 ```
 
 Chains left-to-right:
 
 ```
-$a ?? $b ?? "fallback"
+a ?? b ?? "fallback"
 ```
 
 ### Optional Chaining
@@ -459,19 +472,19 @@ $a ?? $b ?? "fallback"
 Accesses a field on an object, but returns `null` instead of throwing when the object is `null`:
 
 ```
-$obj?.field
+obj?.field
 ```
 
 Works in chains — if any step is `null`, the whole expression short-circuits to `null`:
 
 ```
-$user?.address?.city
+user?.address?.city
 ```
 
 Combine with `??` to provide a fallback:
 
 ```
-$user?.name ?? "anonymous"
+user?.name ?? "anonymous"
 ```
 
 Both `.` and `?.` work on any expression, not just variables:
@@ -486,8 +499,8 @@ getUser()?.address?.city
 Parentheses with a single expression group for precedence:
 
 ```
-(($val1 + $val2) + 1)
-eval(($a + $b) * $c)
+((val1 + val2) + 1)
+((a + b) * c)
 ```
 
 ---
@@ -500,8 +513,8 @@ Ordered, mutable, dynamic-size collection using curly braces:
 
 ```
 var x : {10, 20, 30};
-$x[0];                   // Index access
-$x[1] : 99;              // Mutate element
+x[0];                   // Index access
+x[1] : 99;              // Mutate element
 ```
 
 ### Array
@@ -510,8 +523,8 @@ Ordered, mutable, fixed-size collection using square brackets:
 
 ```
 var x : [10, 20, 30];
-$x[0];                   // Index access
-$x[1] : 99;              // Mutate element (allowed)
+x[0];                   // Index access
+x[1] : 99;              // Mutate element (allowed)
 ```
 
 Arrays cannot grow or shrink — `push` and `pop` only work on lists.
@@ -526,9 +539,9 @@ var obj : {
     var name : "hello";
 };
 
-$obj.x;
-$obj.name;
-$obj.x : 42;             // Field assignment
+obj.x;
+obj.name;
+obj.x : 42;             // Field assignment
 ```
 
 Objects can be nested:
@@ -539,7 +552,7 @@ var wrapper : {
         var a : 0;
     };
 };
-$wrapper.inner.a;
+wrapper.inner.a;
 ```
 
 Objects can also contain methods — see [Objects with Methods](#objects-with-methods).
@@ -555,8 +568,8 @@ var m : {"name": "Alice", "score": 42};
 Access and assignment use bracket notation with string keys:
 
 ```
-$m["name"];              // => "Alice"
-$m["name"] : "Bob";      // reassign
+m["name"];              // => "Alice"
+m["name"] : "Bob";      // reassign
 ```
 
 Maps are mutable. An empty map is created with `newMap()` from the `map` library.
@@ -567,7 +580,7 @@ Used in loops, exclusive end:
 
 ```
 <0..5>              // 0, 1, 2, 3, 4
-<0..length($x)>
+<0..length(x)>
 <0..10, 2>          // 0, 2, 4, 6, 8  (with step)
 ```
 
@@ -686,7 +699,7 @@ Example:
 
 ```
 var x : 2;
-switch ($x) {
+switch (x) {
     case (1) -> print("one\n")
     case (2) -> print("two\n")
     default  -> print("other\n")
@@ -713,7 +726,7 @@ Example as a return value:
 
 ```
 fn describe(n) {
-    return switch($n) {
+    return switch(n) {
         case (1) -> "one"
         case (2) -> "two"
         default  -> "other"
@@ -727,7 +740,7 @@ describe(9)   // => "other"
 Example as a variable initializer:
 
 ```
-var label : switch($code) {
+var label : switch(code) {
     case (200) -> "ok"
     case (404) -> "not found"
     default    -> "error"
@@ -737,12 +750,12 @@ var label : switch($code) {
 Usage with enums:
 
 ```
-var dir : $Direction.EAST;
-var label : switch($dir) {
-    case ($Direction.NORTH) -> "N"
-    case ($Direction.SOUTH) -> "S"
-    case ($Direction.EAST)  -> "E"
-    case ($Direction.WEST)  -> "W"
+var dir : Direction.EAST;
+var label : switch(dir) {
+    case (Direction.NORTH) -> "N"
+    case (Direction.SOUTH) -> "S"
+    case (Direction.EAST)  -> "E"
+    case (Direction.WEST)  -> "W"
 };
 ```
 
@@ -769,8 +782,8 @@ Without a `return` statement, the block yields `null`.
 
 ```
 var label : exec {
-    if ($score > 90) { return "A"; }
-    if ($score > 75) { return "B"; }
+    if (score > 90) { return "A"; }
+    if (score > 75) { return "B"; }
     return "C";
 };
 ```
@@ -780,18 +793,18 @@ var label : exec {
 ```
 var checksum : exec {
     var buf : readFile("data.bin");
-    var hash : computeHash($buf);
-    return $hash;
+    var hash : computeHash(buf);
+    return hash;
 };
-// $buf and $hash are not accessible here
+// buf and hash are not accessible here
 ```
 
 **Reading and writing outer variables:**
 
 ```
 var x : 10;
-exec { $x : 99; };
-// $x is now 99
+exec { x : 99; };
+// x is now 99
 ```
 
 **`exec isolated` inside a function:**
@@ -801,7 +814,7 @@ var config : { var token : "abc"; };
 
 fn processRequest(userId) {
     var token : exec isolated {
-        return $config.token;   // sees globals, not $userId
+        return config.token;   // sees globals, not userId
     };
 }
 ```
@@ -816,7 +829,7 @@ fn test() {
 test();   // => 100
 ```
 
-> **Note:** `exec(<code>)`/`eval(<code>)` (the built-in functions) continue to work for dynamically constructed code strings — see [Dynamic Code Execution](#dynamic-code-execution). `exec { }` is the unrelated _static_ block form — it does not accept a string.
+> **Note:** `(<code>)` (the built-in function) is the unrelated tool for running a dynamically constructed code *string* — see [Dynamic Code Execution](#dynamic-code-execution). `exec { }` is the _static_ block form documented here — it does not accept a string.
 
 ### Break / Continue
 
@@ -861,7 +874,7 @@ Example:
 try {
     throw "something went wrong";
 } catch(e) {
-    print($e "\n");
+    print(e + "\n");
 } finally {
     print("always runs\n");
 }
@@ -873,9 +886,9 @@ A `catch` clause can optionally filter by exception type: `catch (<Type> <param>
 try {
     importDynamic("./plugin.mira");
 } catch (ImportError e) {
-    print("import failed: " $e "\n");
+    print("import failed: " + e + "\n");
 } catch (e) {
-    print("something else went wrong: " $e "\n");
+    print("something else went wrong: " + e + "\n");
 }
 ```
 
@@ -924,7 +937,7 @@ Example:
 
 ```
 fn greet(name, greeting : "Hello") {
-    print($greeting " " $name "\n");
+    print(greeting + " " + name + "\n");
 }
 
 greet("World");           // => Hello World
@@ -934,7 +947,7 @@ greet("World", "Hi");     // => Hi World
 Default parameters must come after required parameters. Works in lambdas too:
 
 ```
-var add : fn(x, step : 1) { return eval($x + $step); };
+var add : fn(x, step : 1) { return (x + step); };
 add(5);     // => 6
 add(5, 10); // => 15
 ```
@@ -954,22 +967,22 @@ Example:
 ```
 fn sum(...args) {
     var total : 0;
-    for (var x in $args) {
-        $total : eval($total + $x);
+    for (var x in args) {
+        total : (total + x);
     }
-    return $total;
+    return total;
 }
 
 sum(1, 2, 3)    // => 6
-sum()           // => 0  ($args is an empty list)
+sum()           // => 0  (args is an empty list)
 ```
 
 Mixed (fixed + variadic):
 
 ```
 fn log(prefix, ...args) {
-    print($prefix ": ");
-    for (var a in $args) { print($a " "); }
+    print(prefix + ": ");
+    for (var a in args) { print(a + " "); }
 }
 ```
 
@@ -991,7 +1004,7 @@ Example:
 ```
 fn makeAdder(base) {
     fn add(x) {
-        return eval($base + $x);
+        return (base + x);
     }
     return add(10);
 }
@@ -1011,11 +1024,11 @@ Inner functions are useful as named helper routines that share the outer functio
 ```
 fn process(data, threshold) {
     fn isValid(x) {
-        return $x > $threshold;
+        return x > threshold;
     }
-    for (var item in $data) {
-        if (isValid($item)) {
-            print($item "\n");
+    for (var item in data) {
+        if (isValid(item)) {
+            print(item + "\n");
         }
     }
 }
@@ -1025,10 +1038,10 @@ For a local-only helper that should not leak into global scope, use a lambda sto
 
 ```
 fn process(data, threshold) {
-    var isValid : fn(x) { return $x > $threshold; };
-    for (var item in $data) {
-        if (isValid($item)) {
-            print($item "\n");
+    var isValid : fn(x) { return x > threshold; };
+    for (var item in data) {
+        if (isValid(item)) {
+            print(item + "\n");
         }
     }
 }
@@ -1047,32 +1060,32 @@ fn(<param1>, <param2>) {
 As a variable:
 
 ```
-var double : fn(x) { return eval($x * 2); };
-eval(double(5));    // => 10
+var double : fn(x) { return (x * 2); };
+(double(5));    // => 10
 ```
 
 As an argument:
 
 ```
 fn apply(f, x) {
-    return $f($x);
+    return f(x);
 }
 
-eval(apply(fn(n) { return eval($n * $n); }, 3));   // => 9
+(apply(fn(n) { return eval(n * n); }, 3));   // => 9
 ```
 
 Closures — lambdas capture variables from their outer scope:
 
 ```
 var factor : 3;
-var scale : fn(x) { return eval($x * $factor); };
-eval(scale(5));    // => 15
+var scale : fn(x) { return (x * factor); };
+(scale(5));    // => 15
 ```
 
 Lambdas support variadic parameters too:
 
 ```
-var join : fn(sep, ...parts) { return join($parts, $sep); };
+var join : fn(sep, ...parts) { return join(parts, sep); };
 ```
 
 ### Arrow Lambdas
@@ -1087,8 +1100,8 @@ A shorter syntax for lambdas using `->`. Parameters are always wrapped in parent
 If the body is a single expression, it is returned implicitly — no `return` needed:
 
 ```
-var double : (x) -> eval($x * 2);
-var add : (a, b) -> eval($a + $b);
+var double : (x) -> (x * 2);
+var add : (a, b) -> (a + b);
 var greet : () -> "hello";
 ```
 
@@ -1096,22 +1109,22 @@ A block body with `{}` allows multiple statements:
 
 ```
 var process : (x) -> {
-    println($x);
-    return eval($x + 1);
+    println(x);
+    return (x + 1);
 };
 ```
 
 Arrow lambdas work anywhere a regular lambda does — as arguments, in closures, with default parameters:
 
 ```
-fn apply(f, x) { return f($x); }
-eval(apply((x) -> eval($x * $x), 5));   // => 25
+fn apply(f, x) { return f(x); }
+(apply((x) -> eval(x * x), 5));   // => 25
 
 var base : 10;
-var offset : (n) -> eval($n + $base);   // captures outer variable
-eval(offset(3));   // => 13
+var offset : (n) -> (n + base);   // captures outer variable
+(offset(3));   // => 13
 
-var clamp : (x : 0) -> $x;   // default parameter
+var clamp : (x : 0) -> x;   // default parameter
 clamp();    // => 0
 ```
 
@@ -1149,21 +1162,21 @@ For variables, `typeof` evaluates the variable and inspects the stored value:
 
 ```
 var x : 99;
-typeof $x;          // "number"
+typeof x;          // "number"
 
 var l : {1, 2, 3};
-typeof $l;          // "list"
+typeof l;          // "list"
 ```
 
 `typeof` can be used in conditions and switch expressions:
 
 ```
 var x : 42;
-typeof $x == "number" ? "yes" : "no";   // "yes"
+typeof x == "number" ? "yes" : "no";   // "yes"
 ```
 
 ```
-var result : switch(typeof $x) {
+var result : switch(typeof x) {
     case("number") -> "it's a number"
     case("string") -> "it's a string"
     default        -> "something else"
@@ -1186,35 +1199,35 @@ Example:
 
 ```
 async fn fetchData(url) {
-    var response : httpGet($url);
-    return $response;
+    var response : httpGet(url);
+    return response;
 }
 
 var data : await fetchData("https://example.com/api");
-print($data "\n");
+print(data + "\n");
 ```
 
 Multiple async calls can be started before awaiting, so they run in parallel:
 
 ```
 async fn slow(n) {
-    sleep(eval($n * 100));
-    return $n;
+    sleep((n * 100));
+    return n;
 }
 
 var p1 : slow(3);
 var p2 : slow(1);
 var p3 : slow(2);
 
-print(await $p1 "\n");   // => 3
-print(await $p2 "\n");   // => 1
-print(await $p3 "\n");   // => 2
+print(await p1 + "\n");   // => 3
+print(await p2 + "\n");   // => 1
+print(await p3 + "\n");   // => 2
 ```
 
 Async lambdas work the same way:
 
 ```
-var fetch : async fn(url) { return httpGet($url); };
+var fetch : async fn(url) { return httpGet(url); };
 var result : await fetch("https://example.com");
 ```
 
@@ -1226,7 +1239,7 @@ var result : await fetch("https://example.com");
 try {
     var result : await riskyOp();
 } catch(e) {
-    print("failed: " $e "\n");
+    print("failed: " + e + "\n");
 }
 ```
 
@@ -1236,7 +1249,7 @@ try {
 
 ```
 var handle : spawn(fn() { <body> });
-var result : await($handle);
+var result : await(handle);
 ```
 
 Example — parallel heavy computations:
@@ -1244,15 +1257,15 @@ Example — parallel heavy computations:
 ```
 fn heavy(n) {
     var s : 0;
-    for (var i : 0; $i < $n; $i++) { $s +: $i; }
-    return $s;
+    for (var i : 0; i < n; i++) { s +: i; }
+    return s;
 }
 
 var h1 : spawn(fn() { return heavy(1000000); });
 var h2 : spawn(fn() { return heavy(2000000); });
 
-print(await($h1) "\n");
-print(await($h2) "\n");
+print(await(h1) "\n");
+print(await(h2) "\n");
 ```
 
 Both spawned tasks run in parallel on the common thread pool. `await` blocks only when you actually need the result.
@@ -1262,9 +1275,9 @@ Error propagation works the same as with `async fn`:
 ```
 var h : spawn(fn() { throw "oops"; });
 try {
-    await($h);
+    await(h);
 } catch(e) {
-    print("caught: " $e "\n");
+    print("caught: " + e + "\n");
 }
 ```
 
@@ -1282,8 +1295,8 @@ Example:
 
 ```
 pure fn fib(n) {
-    if ($n <= 1) { return $n; }
-    return eval(fib(eval($n - 1)) + fib(eval($n - 2)));
+    if (n <= 1) { return n; }
+    return (fib(eval(n - 1)) + fib(eval(n - 2)));
 }
 
 fib(30)   // computed once
@@ -1325,14 +1338,14 @@ The block body is a normal sequence of statements. Any variable declared inside 
 
 ```
 comptime {
-    var MAX_SIZE : eval(64 * 1024);
+    var MAX_SIZE : (64 * 1024);
     var APP_NAME : "MyApp";
     println("Build: constants initialized");
 }
 
 fn main() {
-    println($APP_NAME);          // => "MyApp"
-    println($MAX_SIZE);          // => 65536
+    println(APP_NAME);          // => "MyApp"
+    println(MAX_SIZE);          // => 65536
 }
 ```
 
@@ -1354,7 +1367,7 @@ comptime {
 }
 
 comptime {
-    var LIMIT : eval($BASE * 10);
+    var LIMIT : (BASE * 10);
 }
 ```
 
@@ -1367,7 +1380,7 @@ comptime {
     var PI : 3.14159;
 }
 
-$PI : 3.0;   // error E205: ReferenceIsImmutableError
+PI : 3.0;   // error E205: ReferenceIsImmutableError
 ```
 
 ### Execution Model
@@ -1421,16 +1434,16 @@ comptime {
     var MAX_SIZE : 64;
 }
 
-static_assert($MAX_SIZE > 0, "MAX_SIZE must be positive");
-static_assert($MAX_SIZE <= 1024, "MAX_SIZE exceeds limit");
+static_assert(MAX_SIZE > 0, "MAX_SIZE must be positive");
+static_assert(MAX_SIZE <= 1024, "MAX_SIZE exceeds limit");
 ```
 
 #### Inside a function
 
 ```
 fn clampedSqrt(x) {
-    static_assert($x >= 0, "argument must be non-negative");
-    return m.sqrt($x);
+    static_assert(x >= 0, "argument must be non-negative");
+    return m.sqrt(x);
 }
 ```
 
@@ -1442,7 +1455,7 @@ A failing assertion produces a formatted diagnostic with the source location:
 [error][E308]: static assertion failed: MAX_SIZE must be positive
   --> example.mira:8:0
    7 | }
-   8 | static_assert($MAX_SIZE > 0, "MAX_SIZE must be positive");
+   8 | static_assert(MAX_SIZE > 0, "MAX_SIZE must be positive");
      | ^^^^^^^^^^^^^
      |
 ```
@@ -1476,7 +1489,7 @@ var <name> : {
 ### Method Call
 
 ```
-$<name>.<method>(<args>)
+<name>.<method>(<args>)
 ```
 
 ### Field Access Inside Methods
@@ -1487,31 +1500,31 @@ Fields are accessible directly by name inside methods:
 var counter : {
     var count : 0;
     fn increment() {
-        $count +: 1;
+        count +: 1;
     }
     fn get() {
-        return $count;
+        return count;
     }
 };
 
-$counter.increment();
-$counter.increment();
-$counter.get();          // => 2
+counter.increment();
+counter.increment();
+counter.get();          // => 2
 ```
 
 ### `this` Reference
 
-`$this` is always available inside methods and refers to the object itself:
+`this` is always available inside methods and refers to the object itself:
 
 ```
 var obj : {
     var value : "hello";
     fn get() {
-        return $this.value;
+        return this.value;
     }
 };
 
-$obj.get();              // => "hello"
+obj.get();              // => "hello"
 ```
 
 ### Method-only Objects
@@ -1520,12 +1533,12 @@ Objects can consist of only methods without any fields:
 
 ```
 var math : {
-    fn add(a, b) { return eval($a + $b); }
-    fn square(x) { return eval($x * $x); }
+    fn add(a, b) { return (a + b); }
+    fn square(x) { return (x * x); }
 };
 
-$math.add(3, 4);         // => 7
-$math.square(5);         // => 25
+math.add(3, 4);         // => 7
+math.square(5);         // => 25
 ```
 
 ### Optional Chaining
@@ -1533,8 +1546,8 @@ $math.square(5);         // => 25
 Method calls support optional chaining — returns `null` if the object is `null`:
 
 ```
-$obj?.method()
-$obj?.method(arg)
+obj?.method()
+obj?.method(arg)
 ```
 
 ### Methods with Default Parameters
@@ -1544,12 +1557,12 @@ Methods support the same default parameter syntax as regular functions:
 ```
 var greeter : {
     fn greet(name, greeting : "Hello") {
-        return $greeting " " $name;
+        return greeting + " " + name;
     }
 };
 
-$greeter.greet("World");          // => "Hello World"
-$greeter.greet("World", "Hi");    // => "Hi World"
+greeter.greet("World");          // => "Hello World"
+greeter.greet("World", "Hi");    // => "Hi World"
 ```
 
 ---
@@ -1577,41 +1590,41 @@ var point : struct { var x; var y; };
 
 ### Instantiation
 
-Create an instance from a template with `$<name>{ ... }`. Any field can be overridden; omitted fields keep their declared default:
+Create an instance from a template with `<name>{ ... }`. Any field can be overridden; omitted fields keep their declared default:
 
 ```
 var point : struct { var x : 0; var y : 0; };
-var origin : $point{};             // x=0, y=0
-var p : $point{$x : 1};            // x=1, y=0 (partial override)
-var q : $point{$x : 1, $y : 2};    // x=1, y=2 (full override)
+var origin : point{};             // x=0, y=0
+var p : point{x : 1};            // x=1, y=0 (partial override)
+var q : point{x : 1, y : 2};    // x=1, y=2 (full override)
 ```
 
 Each instance is independent — mutating one does not affect another:
 
 ```
-var a : $point{$x : 1};
-var b : $point{$x : 2};
-$a.x; // => 1
-$b.x; // => 2
+var a : point{x : 1};
+var b : point{x : 2};
+a.x; // => 1
+b.x; // => 2
 ```
 
-### Methods and `$this`
+### Methods and `this`
 
 Methods declared on a struct survive instantiation and bind to the instance they were created from, exactly like [object methods](#this-reference):
 
 ```
 var counter : struct {
     var count : 0;
-    fn increment() { $this.count : $this.count + 1; }
-    fn get() { return $this.count; }
+    fn increment() { this.count : this.count + 1; }
+    fn get() { return this.count; }
 };
 
-var a : $counter{};
-var b : $counter{$count : 100};
-$a.increment();
-$a.increment();
-$a.get();   // => 2
-$b.get();   // => 100
+var a : counter{};
+var b : counter{count : 100};
+a.increment();
+a.increment();
+a.get();   // => 2
+b.get();   // => 100
 ```
 
 ### Nested Structs
@@ -1621,14 +1634,14 @@ A struct field can itself be a struct instance:
 ```
 var point : struct { var x : 0; var y : 0; };
 var rect : struct {
-    var topLeft : $point{$x : 1, $y : 2};
+    var topLeft : point{x : 1, y : 2};
     var width : 10;
 };
 
-var r : $rect{};
-$r.topLeft.x;   // => 1
-$r.topLeft.y;   // => 2
-$r.width;       // => 10
+var r : rect{};
+r.topLeft.x;   // => 1
+r.topLeft.y;   // => 2
+r.width;       // => 10
 ```
 
 ### Errors
@@ -1637,14 +1650,14 @@ Overriding a field that isn't declared on the template throws `UnknownStructFiel
 
 ```
 var point : struct { var x; var y; };
-var bad : $point{$z : 1};   // UnknownStructFieldError
+var bad : point{z : 1};   // UnknownStructFieldError
 ```
 
 Instantiating something that isn't a struct template (e.g. a plain object) throws `NotAStructTemplateError`:
 
 ```
 var notATemplate : { var a : 1; };
-var bad : $notATemplate{$a : 2};   // NotAStructTemplateError
+var bad : notATemplate{a : 2};   // NotAStructTemplateError
 ```
 
 ---
@@ -1696,16 +1709,16 @@ Mixed enums (some explicit, some auto-indexed) are allowed. Auto-indexed variant
 ### Access & Usage
 
 ```
-$Direction.NORTH   // => 0
-$Status.OK         // => 200
-$Color.RED         // => "red"
+Direction.NORTH   // => 0
+Status.OK         // => 200
+Color.RED         // => "red"
 ```
 
 Enum values can be stored and compared like any other value:
 
 ```
-var dir : $Direction.SOUTH;
-if ($dir == $Direction.SOUTH) {
+var dir : Direction.SOUTH;
+if (dir == Direction.SOUTH) {
     print("heading south\n");
 }
 ```
@@ -1713,8 +1726,8 @@ if ($dir == $Direction.SOUTH) {
 Usage with `switch`:
 
 ```
-var code : $Status.NOT_FOUND;
-switch ($code) {
+var code : Status.NOT_FOUND;
+switch (code) {
     case (200) -> print("ok\n")
     case (404) -> print("not found\n")
     default    -> print("error\n")
@@ -1724,7 +1737,7 @@ switch ($code) {
 Or as a switch expression:
 
 ```
-var message : switch($code) {
+var message : switch(code) {
     case (200) -> "ok"
     case (404) -> "not found"
     default    -> "error"
@@ -1741,8 +1754,8 @@ Always available without any import.
 | --------------------------------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `print(<value>)`                  | Any value               | Prints the value to stdout without a newline                                                                                                      |
 | `scan()`                          | —                       | Reads a line from stdin and returns it as a string                                                                                                |
-| `eval(<code>)`                    | String or expression    | Parses and runs `<code>` (any Mira statements, not just arithmetic) and returns its value (see [Dynamic Code Execution](#dynamic-code-execution)) |
-| `exec(<code>)`                    | String or expression    | Alias for `eval(<code>)` — kept for backward compatibility, identical behavior                                                                    |
+| `(<code>)`                    | String                  | Parses and runs a runtime code *string* `<code>` (any Mira statements) and returns its value (see [Dynamic Code Execution](#dynamic-code-execution)) |
+| `format(<pattern>, ...<args>)`    | String, any values       | printf-style formatting — `%d %f %s %b %%`, e.g. `format("%s: %d\n", name, count)`                                                                |
 | `exec { <body> }`                 | Block                   | Executes a block and returns its `return` value (see [exec Block](#exec-block))                                                                   |
 | `exec isolated { <body> }`        | Block                   | Same as `exec { }` but restricted to global scope only                                                                                            |
 | `importDynamic(<path>)`           | String                  | Loads a `.mira` module at runtime and returns it as a `Namespace` (see [Dynamic Import](#dynamic-import))                                         |
@@ -1754,11 +1767,21 @@ Always available without any import.
 
 ### Dynamic Code Execution
 
-`eval`/`exec` tokenize, parse, and run `<code>` against the _live_ current scope — the same engine that backs the REPL. Any Mira code is valid: expressions, `var` declarations, control flow, function calls. Declarations made this way are visible to later `eval`/`exec` calls (and, at the top level, to the rest of the program):
+`eval` has exactly one job: run a runtime-constructed code *string*, for
+cases where the code to execute isn't known until the program is running
+(loaded from a file, typed by a user, generated on the fly). Ordinary
+arithmetic and other expressions are never wrapped in `()` — they're
+just expressions, usable directly anywhere a value is expected.
+
+`eval` tokenizes, parses, and runs `<code>` against the _live_ current
+scope — the same engine that backs the REPL. Any Mira code is valid:
+expressions, `var` declarations, control flow, function calls. Declarations
+made this way are visible to later `eval` calls (and, at the top level, to
+the rest of the program):
 
 ```
 eval("var greeting : \"hi\";");
-print(eval("$greeting;"));   // hi
+print(eval("greeting;"));   // hi
 ```
 
 Failures — a syntax error in the code string, or a runtime error while running it (e.g. an undefined variable) — do not crash the program. They are thrown as a catchable `EvalError`:
@@ -1767,11 +1790,11 @@ Failures — a syntax error in the code string, or a runtime error while running
 try {
     eval("this is not valid mira");
 } catch (EvalError e) {
-    print("bad code: " $e "\n");
+    print("bad code: " + e + "\n");
 }
 ```
 
-A `throw` executed _by_ the evaluated code propagates normally and is not wrapped — `eval`/`exec` only wrap their own parse/execution failures.
+A `throw` executed _by_ the evaluated code propagates normally and is not wrapped — `eval` only wraps its own parse/execution failures.
 
 ---
 
@@ -1788,17 +1811,17 @@ import thread as thread;
 
 fn compute(n) {
     var sum : 0;
-    for (var i : 0; $i < $n; $i : eval($i + 1)) {
-        $sum : eval($sum + $i);
+    for (var i : 0; i < n; i : (i + 1)) {
+        sum : (sum + i);
     }
-    return $sum;
+    return sum;
 }
 
 var t1 : spawn(fn() { return compute(100000); });
 var t2 : spawn(fn() { return compute(200000); });
 
-println(await($t1));
-println(await($t2));
+println(await(t1));
+println(await(t2));
 ```
 
 ### Mutexes and the `lock` Statement
@@ -1812,21 +1835,21 @@ var mu      : thread.newMutex();
 var counter : 0;
 
 fn increment() {
-    lock($mu) {
-        $counter : eval($counter + 1);
+    lock(mu) {
+        counter : (counter + 1);
     }
 }
 
 var tasks : {};
-for (var i : 0; $i < 10; $i : eval($i + 1)) {
-    col.push($tasks, spawn(fn() { increment(); }));
+for (var i : 0; i < 10; i : (i + 1)) {
+    col.push(tasks, spawn(fn() { increment(); }));
 }
 
-for (var t in $tasks) {
-    await($t);
+for (var t in tasks) {
+    await(t);
 }
 
-println($counter);   // => 10
+println(counter);   // => 10
 ```
 
 **Syntax:**
@@ -1950,10 +1973,10 @@ Uncovered lines:
 module main;
 
 fn fibonacci(n) {
-    if ($n <= 1) {
-        return $n;
+    if (n <= 1) {
+        return n;
     } else {
-        return fibonacci(eval($n - 2)) + fibonacci(eval($n - 1));
+        return fibonacci((n - 2)) + fibonacci((n - 1));
     }
     return 0;
 }
@@ -1961,10 +1984,10 @@ fn fibonacci(n) {
 fn main() {
     var result : 0;
 
-    for (var i : 0; $i < 10; $i : eval($i + 1)) {
-        $result : eval($result + fibonacci($i));
+    for (var i : 0; i < 10; i : (i + 1)) {
+        result : (result + fibonacci(i));
     }
 
-    print("Sum: " $result "\n");
+    print("Sum: " + result + "\n");
 }
 ```

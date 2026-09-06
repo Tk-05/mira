@@ -78,12 +78,12 @@ public class CompilerProfilerTest {
                 module ProfilerCheck;
 
                 fn noisy(x) {
-                    print($x);
-                    return $x;
+                    print(x);
+                    return x;
                 }
 
-                for (var i : 0; $i < 5; $i++) {
-                    noisy($i);
+                for (var i : 0; i < 5; i++) {
+                    noisy(i);
                 }
                 """);
 
@@ -97,7 +97,7 @@ public class CompilerProfilerTest {
                 module ProfilerCheck;
 
                 fn work(x) {
-                    return $x + 1;
+                    return x + 1;
                 }
 
                 work(1);
@@ -115,7 +115,7 @@ public class CompilerProfilerTest {
         List<Node> ast = parser.parseTokens(tokenizer.tokenize("""
                 module ProfilerCheck;
                 fn add(a, b) {
-                    return $a + $b;
+                    return a + b;
                 }
                 add(1, 2);
                 """, false));

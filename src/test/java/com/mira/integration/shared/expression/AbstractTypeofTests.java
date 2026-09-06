@@ -34,6 +34,6 @@ public abstract class AbstractTypeofTests {
 
     @Test
     void usedInCondition() {
-        assertEquals("yes", runForOutput("var x : 42; print(eval(typeof($x) == \"number\" ? \"yes\" : \"no\"));"));
+        assertEquals("yes", runForOutput("var x : 42; print((typeof(x) == \"number\" ? \"yes\" : \"no\"));"));
     }
 }

@@ -22,7 +22,6 @@ import com.mira.parser.nodes.expression.Expression.AssignExpression;
 import com.mira.parser.nodes.expression.Expression.AwaitExpression;
 import com.mira.parser.nodes.expression.Expression.BinaryExpression;
 import com.mira.parser.nodes.expression.Expression.CallExpression;
-import com.mira.parser.nodes.expression.Expression.ComplexExpression;
 import com.mira.parser.nodes.expression.Expression.DumbExpression;
 import com.mira.parser.nodes.expression.Expression.ExecBlock;
 import com.mira.parser.nodes.expression.Expression.FieldAccessExpression;
@@ -74,6 +73,14 @@ public class Parser {
     private int lastClosingBraceLine = 0;
     private final List<MiraError> errors = new ArrayList<>();
     private Token lastConsumed = null;
+
+    /**
+     * Bareword names bound by "import ... as alias" seen so far in this parse.
+     * Needed to tell "alias.function(...)" (a static namespace call) apart
+     * from "variable.method(...)" (a normal method call) now that both are
+     * spelled identically without a "$" sigil to mark plain variables.
+     */
+    private final java.util.Set<String> knownAliases = new java.util.HashSet<>();
 
     public List<Node> parseTokens(List<Token> tokens) {
         reset();
@@ -215,6 +222,29 @@ public class Parser {
                 && token.getLexeme().equals("null");
     }
 
+    /**
+     * True for a bareword token that names a variable (C-style: no sigil) —
+     * an EXPRESSION token that isn't a numeric literal. NUMBER and IDENT share
+     * the same token type, so the distinction is "does it start with a digit."
+     */
+    private boolean isVariableNameToken(Token token) {
+        if (token.getTokenType() != TokenType.EXPRESSION) {
+            return false;
+        }
+        String lex = token.getLexeme();
+        return !lex.isEmpty() && !Character.isDigit(lex.charAt(0));
+    }
+
+    /**
+     * Wraps a bareword identifier token as a variable reference, reusing the
+     * existing internal "$" unary node shape so every downstream visitor
+     * (interpreter, compiler, resolver, tooling) needs no change.
+     */
+    private Expression wrapAsVariableRef(Token nameToken) {
+        Token dollar = new Token(TokenType.OPERATION, "$", nameToken.getLine(), nameToken.getColumn());
+        return new UnaryExpression(dollar, new DumbExpression(nameToken));
+    }
+
     private boolean isStructuralDelimiter(Token token) {
         if (token.getTokenType() == TokenType.STRING_LITERAL) {
             return false;
@@ -236,16 +266,11 @@ public class Parser {
     }
 
     private boolean isAssignment() {
-        if (!peek().getLexeme().equals("$")) {
+        if (!isVariableNameToken(peek())) {
             return false;
         }
 
         int offset = 1;
-
-        if (!isExpressionToken(peekOffset(offset))) {
-            return false;
-        }
-        offset++;
 
         while (peekOffset(offset).getLexeme().equals(".")) {
             offset++;
@@ -282,6 +307,7 @@ public class Parser {
         index = 0;
         errors.clear();
         lastConsumed = null;
+        knownAliases.clear();
     }
 
     private void increaseDepth() {
@@ -316,29 +342,11 @@ public class Parser {
     }
 
     private Expression parseExpression() {
-        List<Expression> items = new ArrayList<>();
-
-        while (peek().getTokenType() != TokenType.EOF && !isStructuralDelimiter(peek())) {
-            Token t = peek();
-            if (isWhitespaceToken(t)) {
-                consume();
-                continue;
-            }
-            if (isBareColon(t)) {
-                break;
-            }
-            Expression item = parseAssignmentExpression();
-            items.add(item);
-            if (item instanceof ExecBlock) {
-                break;
-            }
-        }
-
-        if (items.isEmpty()) {
+        skipWhitespaceTokens();
+        if (peek().getTokenType() == TokenType.EOF || isStructuralDelimiter(peek()) || isBareColon(peek())) {
             throw new UnexpectedToken(peek(), "Expected an expression, but the statement is empty");
         }
-
-        return items.size() == 1 ? items.get(0) : new ComplexExpression(items);
+        return parseAssignmentExpression();
     }
 
     private Expression parsePratt(int minBP) {
@@ -376,22 +384,11 @@ public class Parser {
     }
 
     private Expression parseTernaryBranch() {
-        List<Expression> items = new ArrayList<>();
-        while (peek().getTokenType() != TokenType.EOF && !isStructuralDelimiter(peek())) {
-            Token t = peek();
-            if (isWhitespaceToken(t)) {
-                consume();
-                continue;
-            }
-            if (isBareColon(t)) {
-                break;
-            }
-            items.add(parsePratt(0));
-        }
-        if (items.isEmpty()) {
+        skipWhitespaceTokens();
+        if (peek().getTokenType() == TokenType.EOF || isStructuralDelimiter(peek()) || isBareColon(peek())) {
             throw new UnexpectedToken(peek(), "Expected expression in ternary branch");
         }
-        return items.size() == 1 ? items.get(0) : new ComplexExpression(items);
+        return parsePratt(0);
     }
 
     private int binaryOperatorBP(String op) {
@@ -403,11 +400,7 @@ public class Parser {
         Token current = peek();
         Expression expr;
 
-        if (current.getLexeme().equals("$")) {
-            Expression unary = parseUnaryExpression();
-            expr = maybeParseFieldAccess(unary);
-
-        } else if (current.getLexeme().equals("<")
+        if (current.getLexeme().equals("<")
                 && current.getTokenType() != TokenType.STRING_LITERAL) {
             expr = parseRangeExpression();
 
@@ -503,6 +496,7 @@ public class Parser {
             expr = parseCallExpression();
 
         } else if (isExpressionToken(current)
+                && knownAliases.contains(current.getLexeme())
                 && peekNextSafe().getLexeme().equals(".")
                 && peekNextSafe().getTokenType() != TokenType.STRING_LITERAL
                 && peekOffset(3).getLexeme().equals("(")) {
@@ -526,22 +520,37 @@ public class Parser {
 
     private Expression parseDumbExpression() {
         Token token = peek();
-        if (isExpressionToken(token)) {
-            consume();
-            return new DumbExpression(token);
+        if (!isExpressionToken(token)) {
+            throw new TypeMismatchError(token, "Expected EXPRESSION or STRING_LITERAL");
         }
-        throw new TypeMismatchError(token, "Expected EXPRESSION or STRING_LITERAL");
+        consume();
+
+        if (token.getTokenType() == TokenType.STRING_LITERAL) {
+            return new DumbExpression(spliceAdjacentStringLiterals(token));
+        }
+
+        if (isVariableNameToken(token)) {
+            return wrapAsVariableRef(token);
+        }
+
+        return new DumbExpression(token);
     }
 
-    private Expression parseUnaryExpression() {
-        Token operation = matchType(TokenType.OPERATION);
-        Expression rhs;
-        if (peek().getTokenType() != TokenType.OPERATION) {
-            rhs = parseDumbExpression();
-        } else {
-            rhs = parseExpression();
+    /**
+     * C-style adjacent string literal concatenation: "a" "b" -> "ab", spliced
+     * at parse time. Safe to do unconditionally since both sides are
+     * unambiguously STRING_LITERAL tokens — no operator, no precedence, no
+     * juxtaposition-vs-binary-op ambiguity involved.
+     */
+    private Token spliceAdjacentStringLiterals(Token first) {
+        if (peek().getTokenType() != TokenType.STRING_LITERAL) {
+            return first;
         }
-        return new UnaryExpression(operation, rhs);
+        StringBuilder combined = new StringBuilder(first.getLexeme());
+        while (peek().getTokenType() == TokenType.STRING_LITERAL) {
+            combined.append(consume().getLexeme());
+        }
+        return new Token(TokenType.STRING_LITERAL, combined.toString(), first.getLine(), first.getColumn());
     }
 
     private Expression parsePostfix(Expression expr) {
@@ -589,7 +598,7 @@ public class Parser {
     private Expression maybeParseAccess(Expression base) {
         if (peek().getLexeme().equals("{") && peek().getTokenType() != TokenType.STRING_LITERAL
                 && (peekOffset(1).getLexeme().equals("}")
-                || (peekOffset(1).getLexeme().equals("$") && peekOffset(3).getLexeme().equals(":")))) {
+                || (isVariableNameToken(peekOffset(1)) && peekOffset(2).getLexeme().equals(":")))) {
             return parseStructInit(base);
         }
         if (peek().getLexeme().equals("[") && peek().getTokenType() != TokenType.STRING_LITERAL
@@ -708,7 +717,6 @@ public class Parser {
         matchLexeme("{");
         LinkedHashMap<String, Expression> overrides = new LinkedHashMap<>();
         while (!peek().getLexeme().equals("}")) {
-            matchLexeme("$");
             String fieldName = matchIdentifier().getLexeme();
             matchLexeme(":");
             Expression value = parseExpression();
@@ -883,6 +891,7 @@ public class Parser {
                 throw new LexemeMismatchError(peek(),
                         "'import native' requires an alias: import native \"path.jar\" as name;");
             }
+            knownAliases.add(alias);
             return new ImportExpression(new DumbExpression(new Token(TokenType.STRING_LITERAL, path, 0, 0)), alias, ImportKind.NATIVE);
         }
 
@@ -904,6 +913,7 @@ public class Parser {
             if (peek().getLexeme().equals("as")) {
                 consume();
                 alias = matchExpression().getLexeme();
+                knownAliases.add(alias);
             }
             return new ImportExpression(new DumbExpression(new Token(TokenType.STRING_LITERAL, path, 0, 0)), alias, ImportKind.MODULE, selected);
         }
@@ -927,6 +937,7 @@ public class Parser {
         if (peek().getLexeme().equals("as")) {
             consume();
             libAlias = matchExpression().getLexeme();
+            knownAliases.add(libAlias);
         }
         return new ImportExpression(libExpr, libAlias, ImportKind.STDLIB, selected);
     }
@@ -1051,12 +1062,6 @@ public class Parser {
                     matchLexeme(";");
                 }
             }
-            case "$" -> {
-                node = isAssignment() ? parseAssign() : parseExpression();
-                if (expectSemicolon) {
-                    matchLexeme(";");
-                }
-            }
             case "{" -> {
                 node = parseBlock();
             }
@@ -1101,7 +1106,7 @@ public class Parser {
                 }
             }
             default -> {
-                node = parsePratt(0);
+                node = isAssignment() ? parseAssign() : parseExpression();
                 if (expectSemicolon) {
                     matchLexeme(";");
                 }
@@ -1272,7 +1277,7 @@ public class Parser {
     }
 
     private Node parseAssign() {
-        Expression reference = parseUnaryExpression();
+        Expression reference = wrapAsVariableRef(matchExpression());
 
         while (peek().getLexeme().equals(".")
                 && peek().getTokenType() != TokenType.STRING_LITERAL
@@ -1588,7 +1593,7 @@ public class Parser {
     private Node parseSwitchArrowBody() {
         skipWhitespaceTokens();
         String lex = peek().getLexeme();
-        if (lex.equals("$") && isAssignment()) {
+        if (isAssignment()) {
             Node assign = parseAssign();
             matchLexeme(";");
             return assign;

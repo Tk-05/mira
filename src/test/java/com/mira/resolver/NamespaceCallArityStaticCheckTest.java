@@ -27,7 +27,7 @@ public class NamespaceCallArityStaticCheckTest {
     @BeforeEach
     void setup() throws IOException {
         Files.writeString(tempDir.resolve("mymod.mira"), """
-                pub fn greet(name, greeting: "Hello") { return $greeting " " $name; }
+                pub fn greet(name, greeting: "Hello") { return greeting + " " + name; }
                 """);
     }
 

@@ -26,22 +26,22 @@ public class CallExpressionTest extends AbstractCallExpressionTests {
 
     @Test
     void callBuiltinEval() {
-        assertEquals(3.0, InterpreterRunner.normNum(backend.runAndGetValue("eval(1+2);")));
+        assertEquals(3.0, InterpreterRunner.normNum(backend.runAndGetValue("(1+2);")));
     }
 
     @Test
-    void callBuiltinExecWithReturn() {
+    void callBuiltinEvalWithReturn() {
         try {
-            backend.runAndGetValue("var x : \"return eval(0);\"; exec($x);");
+            backend.runAndGetValue("var x : \"return (0);\"; eval(x);");
         } catch (ReturnSignal r) {
             assertEquals(0.0, InterpreterRunner.normNum(r.getValue()));
         }
     }
 
     @Test
-    void callBuiltinExecWithVariableAccess() {
+    void callBuiltinEvalWithVariableAccess() {
         try {
-            backend.runAndGetValue("var x : 7; var y : \"return eval($x * 3);\"; exec($y);");
+            backend.runAndGetValue("var x : 7; var y : \"return (x * 3);\"; eval(y);");
         } catch (ReturnSignal r) {
             assertEquals(21.0, InterpreterRunner.normNum(r.getValue()));
         }
@@ -52,9 +52,9 @@ public class CallExpressionTest extends AbstractCallExpressionTests {
         assertEquals(1.0, InterpreterRunner.normNum(backend.runAndGetValue("""
                 fn getList() {
                     var list : {1, 2, 3};
-                    return $list;
+                    return list;
                 }
-                eval(getList()[0]);
+                (getList()[0]);
                 """)));
     }
 }

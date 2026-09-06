@@ -68,9 +68,9 @@ These functions accept a callback `fn` as their second argument.
 ```mira
 import collection as col;
 
-var doubled : col.map({1, 2, 3}, fn(x) { return eval($x * 2); });       // [2, 4, 6]
-var evens   : col.filter({1,2,3,4}, fn(x) { return eval($x % 2 == 0); }); // [2, 4]
-var total   : col.reduce({1,2,3}, fn(acc, x) { return eval($acc + $x); }, 0); // 6
+var doubled : col.map({1, 2, 3}, fn(x) { return x * 2; });       // [2, 4, 6]
+var evens   : col.filter({1,2,3,4}, fn(x) { return x % 2 == 0; }); // [2, 4]
+var total   : col.reduce({1,2,3}, fn(acc, x) { return acc + x; }, 0); // 6
 ```
 
 | `map(col, fn)` | Applies `fn` to each element, returns a new list |
@@ -482,7 +482,7 @@ import time as time;
 
 var start : time.now();
 doWork();
-println("took: " time.format(time.elapsed($start)));
+println("took: " + time.format(time.elapsed(start)));
 ```
 
 ---

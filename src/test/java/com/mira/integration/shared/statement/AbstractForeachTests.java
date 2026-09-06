@@ -12,9 +12,9 @@ public abstract class AbstractForeachTests {
         assertEquals("6", runForOutput("""
                 var sum : 0;
                 for(var i in {1, 2, 3}) {
-                    $sum : eval($sum + $i);
+                    sum : (sum + i);
                 }
-                print($sum);
+                print(sum);
                 """));
     }
 
@@ -23,9 +23,9 @@ public abstract class AbstractForeachTests {
         assertEquals("3", runForOutput("""
                 var count : 0;
                 for(var c in "abc") {
-                    $count : eval($count + 1);
+                    count : (count + 1);
                 }
-                print($count);
+                print(count);
                 """));
     }
 
@@ -34,9 +34,9 @@ public abstract class AbstractForeachTests {
         assertEquals("10", runForOutput("""
                 var total : 0;
                 for(var i in <0..5>) {
-                    $total : eval($total + $i);
+                    total : (total + i);
                 }
-                print($total);
+                print(total);
                 """));
     }
 
@@ -45,9 +45,9 @@ public abstract class AbstractForeachTests {
         assertEquals("4", runForOutput("""
                 var last : 0;
                 for(var n in {10, 20, 30, 40}) {
-                    $last : eval($last + 1);
+                    last : (last + 1);
                 }
-                print($last);
+                print(last);
                 """));
     }
 
@@ -55,8 +55,8 @@ public abstract class AbstractForeachTests {
     void foreachSingleStatementNoBraces() {
         assertEquals("6", runForOutput("""
                 var sum : 0;
-                for(var i in {1, 2, 3}) $sum : eval($sum + $i);
-                print($sum);
+                for(var i in {1, 2, 3}) sum : (sum + i);
+                print(sum);
                 """));
     }
 
@@ -64,8 +64,8 @@ public abstract class AbstractForeachTests {
     void foreachRangeSingleStatementNoBraces() {
         assertEquals("4", runForOutput("""
                 var last : 0;
-                for(var i in <0..5>) $last : $i;
-                print($last);
+                for(var i in <0..5>) last : i;
+                print(last);
                 """));
     }
 }

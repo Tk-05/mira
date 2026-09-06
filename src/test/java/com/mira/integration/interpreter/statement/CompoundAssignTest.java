@@ -19,25 +19,25 @@ public class CompoundAssignTest extends AbstractCompoundAssignTests {
 
     @Test
     void addAssignWithVariable() {
-        assertEquals(25.0, InterpreterRunner.normNum(backend.runAndGetValue("var x : 10; var y : 15; $x +: $y; eval($x);")));
+        assertEquals(25.0, InterpreterRunner.normNum(backend.runAndGetValue("var x : 10; var y : 15; x +: y; (x);")));
     }
 
     @Test
     void chainedCompoundAssigns() {
-        assertEquals(24.0, InterpreterRunner.normNum(backend.runAndGetValue("var x : 10; $x +: 5; $x -: 3; $x *: 2; eval($x);")));
+        assertEquals(24.0, InterpreterRunner.normNum(backend.runAndGetValue("var x : 10; x +: 5; x -: 3; x *: 2; (x);")));
     }
 
     @Test
     void divideAssignResultIsDecimal() {
-        assertEquals(3.5, InterpreterRunner.normNum(backend.runAndGetValue("var x : 7; $x /: 2; eval($x);")));
+        assertEquals(3.5, InterpreterRunner.normNum(backend.runAndGetValue("var x : 7; x /: 2; (x);")));
     }
 
     @Test
     void addAssignOnFieldAccess() {
         assertEquals(15.0, InterpreterRunner.normNum(backend.runAndGetValue("""
                 var obj : { var n : 10; };
-                $obj.n +: 5;
-                eval($obj.n);
+                obj.n +: 5;
+                (obj.n);
                 """)));
     }
 
@@ -45,8 +45,8 @@ public class CompoundAssignTest extends AbstractCompoundAssignTests {
     void multiplyAssignOnFieldAccess() {
         assertEquals(6.0, InterpreterRunner.normNum(backend.runAndGetValue("""
                 var obj : { var n : 2; };
-                $obj.n *: 3;
-                eval($obj.n);
+                obj.n *: 3;
+                (obj.n);
                 """)));
     }
 }
