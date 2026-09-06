@@ -1000,6 +1000,9 @@ public class StaticCheck {
                             if (tracked instanceof LambdaExpression lambda) {
                                 checkArgumentTypes(name, lambda.getParameters(), expr.getArguments(),
                                         callee.getLine(), callee.getColumn());
+                            } else if (declaredVarTypes.get(name) instanceof MiraType.FunctionType fnType) {
+                                checkArgumentTypesAgainstFunctionType(name, fnType, expr.getArguments(),
+                                        callee.getLine(), callee.getColumn());
                             }
                         }
                     }
@@ -1776,11 +1779,32 @@ public class StaticCheck {
         if (ann == null) {
             return null;
         }
-        MiraType base = resolveNamedType(ann.name(), ann.line(), ann.column());
+        MiraType base = ann.isFunctionType() ? resolveFunctionTypeAnnotation(ann)
+                : resolveNamedType(ann.name(), ann.line(), ann.column());
         if (base == null) {
             return null;
         }
         return ann.nullable() ? new MiraType.NullableType(base) : base;
+    }
+
+    private MiraType.FunctionType functionTypeOf(List<Parameter> params, TypeAnnotation returnTypeAnn) {
+        List<MiraType> paramTypes = new ArrayList<>();
+        for (Parameter p : params) {
+            MiraType pt = p.type() != null ? resolveTypeAnnotation(p.type()) : null;
+            paramTypes.add(pt != null ? pt : MiraType.ANY);
+        }
+        MiraType returnType = returnTypeAnn != null ? resolveTypeAnnotation(returnTypeAnn) : null;
+        return new MiraType.FunctionType(paramTypes, returnType != null ? returnType : MiraType.ANY);
+    }
+
+    private MiraType resolveFunctionTypeAnnotation(TypeAnnotation ann) {
+        List<MiraType> params = new ArrayList<>();
+        for (TypeAnnotation p : ann.paramTypes()) {
+            MiraType resolved = resolveTypeAnnotation(p);
+            params.add(resolved != null ? resolved : MiraType.ANY);
+        }
+        MiraType returnType = ann.returnType() != null ? resolveTypeAnnotation(ann.returnType()) : MiraType.ANY;
+        return new MiraType.FunctionType(params, returnType != null ? returnType : MiraType.ANY);
     }
 
     private MiraType resolveNamedType(String name, int line, int column) {
@@ -1825,7 +1849,16 @@ public class StaticCheck {
             if (inferredLiteral != null) {
                 return literalNodeToType(inferredLiteral);
             }
-            return varInferredTypes.get(d.getValue());
+            MiraType inferred = varInferredTypes.get(d.getValue());
+            if (inferred != null) {
+                return inferred;
+            }
+            // a bareword read of a top-level function's own name (passing it
+            // as a value, e.g. to a Fn(...)-typed parameter) - its own
+            // declared signature is its type
+            FuncDecl referencedFn = userFuncDecls.get(d.getValue());
+            return referencedFn != null ? functionTypeOf(referencedFn.getParameters(), referencedFn.getReturnType())
+                    : null;
         }
         if (expr instanceof StructInitExpression si) {
             Node templateLiteral = resolveLiteralBase(si.getTarget());
@@ -1891,6 +1924,8 @@ public class StaticCheck {
                 literalTokenType(d);
             case UnaryExpression u when isInvertedLiteral(u) ->
                 "!".equals(u.getOperation().getLexeme()) ? MiraType.BOOL : MiraType.NUMBER;
+            case LambdaExpression lambda ->
+                functionTypeOf(lambda.getParameters(), null);
             default ->
                 null;
         };
@@ -1988,6 +2023,25 @@ public class StaticCheck {
             int span = expressionSpan(argNode, callableName.length());
             checkAssignable(argNode, expected, (exp, actual) -> errors.add(
                     new ArgumentTypeMismatchError(callableName, param.name(), exp, actual, line, column, span)));
+        }
+    }
+
+    private void checkArgumentTypesAgainstFunctionType(String callableName, MiraType.FunctionType fnType,
+            List<Expression> args, int fallbackLine, int fallbackColumn) {
+        int expected = fnType.params().size();
+        if (args.size() != expected) {
+            errors.add(new ArityMismatchError(callableName, expected, args.size(), fallbackLine, fallbackColumn));
+            return;
+        }
+        for (int i = 0; i < expected; i++) {
+            MiraType expectedType = fnType.params().get(i);
+            Expression argNode = args.get(i);
+            int line = argNode.line > 0 ? argNode.line : fallbackLine;
+            int column = expressionColumn(argNode, fallbackColumn);
+            int span = expressionSpan(argNode, callableName.length());
+            String argLabel = "#" + (i + 1);
+            checkAssignable(argNode, expectedType, (exp, act) -> errors.add(
+                    new ArgumentTypeMismatchError(callableName, argLabel, exp, act, line, column, span)));
         }
     }
 
@@ -2183,7 +2237,7 @@ public class StaticCheck {
         if (type == null || type instanceof MiraType.AnyType || type instanceof MiraType.NullableType) {
             return;
         }
-        if (type instanceof MiraType.NamedType n && "Fn".equals(n.name())) {
+        if (type instanceof MiraType.FunctionType || type instanceof MiraType.NamedType n && "Fn".equals(n.name())) {
             return;
         }
         errors.add(new VariableNotCallableError(nameExpr.getValue(), MiraType.display(type),

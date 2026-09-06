@@ -1284,6 +1284,48 @@ public class StaticCheckTest {
     }
 
     @Test
+    void callingTypedFnParamWithMismatchedArgumentIsE325() {
+        List<MiraError> errors = errorsFor(
+                "fn apply(cb : Fn(Number, Number) -> Number) { cb(\"oops\", 2); }");
+        assertTrue(hasCode(errors, "E325"));
+    }
+
+    @Test
+    void callingTypedFnParamWithMatchingArgumentsIsClean() {
+        assertClean("fn apply(cb : Fn(Number, Number) -> Number) { cb(1, 2); }");
+    }
+
+    @Test
+    void passingMismatchedLambdaToTypedFnParamIsE325() {
+        List<MiraError> errors = errorsFor(
+                "fn apply(cb : Fn(Number) -> Number) { cb(1); } "
+                + "apply(fn(a : String) { return a; });");
+        assertTrue(hasCode(errors, "E325"));
+    }
+
+    @Test
+    void passingMatchingLambdaToTypedFnParamIsClean() {
+        assertClean(
+                "fn apply(cb : Fn(Number) -> Number) { cb(1); } "
+                + "apply(fn(a : Number) { return a; });");
+    }
+
+    @Test
+    void passingMismatchedNamedFunctionToTypedFnParamIsE325() {
+        List<MiraError> errors = errorsFor(
+                "fn apply(cb : Fn(Number, Number) -> Number) { cb(1, 2); } "
+                + "fn wrong(a : String, b : String) { return a; } apply(wrong);");
+        assertTrue(hasCode(errors, "E325"));
+    }
+
+    @Test
+    void passingMatchingNamedFunctionToTypedFnParamIsClean() {
+        assertClean(
+                "fn apply(cb : Fn(Number, Number) -> Number) { cb(1, 2); } "
+                + "fn add(a : Number, b : Number) { return a + b; } apply(add);");
+    }
+
+    @Test
     void callingUntypedParameterIsUnaffected() {
         assertClean("fn apply(cb) { cb(); }");
     }

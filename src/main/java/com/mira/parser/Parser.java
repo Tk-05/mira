@@ -78,9 +78,9 @@ public class Parser {
 
     /**
      * Bareword names bound by "import ... as alias" seen so far in this parse.
-     * Needed to tell "alias.function(...)" (a static namespace call) apart
-     * from "variable.method(...)" (a normal method call) now that both are
-     * spelled identically without a "$" sigil to mark plain variables.
+     * Needed to tell "alias.function(...)" (a static namespace call) apart from
+     * "variable.method(...)" (a normal method call) now that both are spelled
+     * identically without a "$" sigil to mark plain variables.
      */
     private final java.util.Set<String> knownAliases = new java.util.HashSet<>();
 
@@ -88,12 +88,12 @@ public class Parser {
             "Number", "String", "Bool", "List", "Array", "Map", "Object", "Fn", "Null", "Any", "Void");
 
     /**
-     * Type/enum/struct-template names declared so far in this parse. Needed
-     * to resolve the single-colon parameter ambiguity ("offset : base" - a
-     * type with no default, or an untyped default value expression?) the
-     * same way knownAliases resolves the call-vs-namespace one: both shapes
-     * are spelled identically now that a bareword can be a plain value read,
-     * so only "is this name actually a declared type" can tell them apart.
+     * Type/enum/struct-template names declared so far in this parse. Needed to
+     * resolve the single-colon parameter ambiguity ("offset : base" - a type
+     * with no default, or an untyped default value expression?) the same way
+     * knownAliases resolves the call-vs-namespace one: both shapes are spelled
+     * identically now that a bareword can be a plain value read, so only "is
+     * this name actually a declared type" can tell them apart.
      */
     private final java.util.Set<String> declaredTypeNames = new java.util.HashSet<>(BUILTIN_TYPE_NAMES);
 
@@ -238,9 +238,9 @@ public class Parser {
     }
 
     /**
-     * True for a bareword token that names a variable (C-style: no sigil) —
-     * an EXPRESSION token that isn't a numeric literal. NUMBER and IDENT share
-     * the same token type, so the distinction is "does it start with a digit."
+     * True for a bareword token that names a variable (C-style: no sigil) — an
+     * EXPRESSION token that isn't a numeric literal. NUMBER and IDENT share the
+     * same token type, so the distinction is "does it start with a digit."
      */
     private boolean isVariableNameToken(Token token) {
         if (token.getTokenType() != TokenType.EXPRESSION) {
@@ -1194,12 +1194,30 @@ public class Parser {
      */
     private TypeAnnotation parseTypeExpression() {
         Token nameToken = matchExpression();
+        String name = nameToken.getLexeme();
+        List<TypeAnnotation> paramTypes = null;
+        TypeAnnotation returnType = null;
+        if ("Fn".equals(name) && peek().getLexeme().equals("(")) {
+            consume();
+            paramTypes = new ArrayList<>();
+            while (!peek().getLexeme().equals(")")) {
+                paramTypes.add(parseTypeExpression());
+                if (!peek().getLexeme().equals(")")) {
+                    matchLexeme(",");
+                }
+            }
+            matchLexeme(")");
+            if (peek().getLexeme().equals("->")) {
+                consume();
+                returnType = parseTypeExpression();
+            }
+        }
         boolean nullable = false;
         if (peek().getLexeme().equals("?")) {
             consume();
             nullable = true;
         }
-        return new TypeAnnotation(nameToken.getLexeme(), nullable, nameToken.getLine(), nameToken.getColumn());
+        return new TypeAnnotation(name, nullable, nameToken.getLine(), nameToken.getColumn(), paramTypes, returnType);
     }
 
     /**
@@ -1211,15 +1229,48 @@ public class Parser {
      * ordinary single-':' initializer/default parsing untouched.
      */
     private boolean isTypedDeclarationAhead() {
-        Token typeToken = peekOffset(1);
-        if (!looksLikeTypeName(typeToken)) {
+        int next = spanAheadOfType(this::looksLikeTypeName);
+        if (next < 0) {
             return false;
         }
-        int next = 2;
-        if (peekOffset(2).getLexeme().equals("?")) {
-            next = 3;
-        }
         return peekOffset(next).getLexeme().equals(":");
+    }
+
+    /**
+     * Offset of the first token past the type expression starting at
+     * peekOffset(1) - a plain "TypeName[?]" (checked with {@code isType}), or a
+     * function type "Fn(...)[-> ReturnType][?]" (matched structurally via paren
+     * depth, so nested parens/Fn types inside the param list are fine; a
+     * function-typed return type of a function type is not, but that's a rare
+     * enough shape to accept as a known gap). -1 if peekOffset(1) isn't
+     * type-shaped at all.
+     */
+    private int spanAheadOfType(java.util.function.Predicate<Token> isType) {
+        if ("Fn".equals(peekOffset(1).getLexeme()) && "(".equals(peekOffset(2).getLexeme())) {
+            int i = 3;
+            int depth = 1;
+            while (depth > 0 && peekOffset(i).getTokenType() != TokenType.EOF) {
+                String lex = peekOffset(i).getLexeme();
+                if ("(".equals(lex)) {
+                    depth++;
+                } else if (")".equals(lex)) {
+                    depth--;
+                }
+                i++;
+            }
+            if ("->".equals(peekOffset(i).getLexeme())) {
+                i += 2;
+            }
+            if (peekOffset(i).getLexeme().equals("?")) {
+                i++;
+            }
+            return i;
+        }
+        Token typeToken = peekOffset(1);
+        if (!isType.test(typeToken)) {
+            return -1;
+        }
+        return peekOffset(2).getLexeme().equals("?") ? 3 : 2;
     }
 
     /**
@@ -1229,19 +1280,15 @@ public class Parser {
      * this second heuristic because "typed, no default" is the common case
      * there, and there's no second ':' available to disambiguate it with -
      * unlike isTypedDeclarationAhead, a bareword here is genuinely ambiguous
-     * with an untyped default value expression (e.g. "offset : base"), so
-     * this requires typeToken to be a name actually declared as a type
-     * (enum, struct template, type alias, or builtin), not just identifier-
-     * shaped, to avoid misreading "default value base" as "type base".
+     * with an untyped default value expression (e.g. "offset : base"), so this
+     * requires typeToken to be a name actually declared as a type (enum, struct
+     * template, type alias, or builtin), not just identifier- shaped, to avoid
+     * misreading "default value base" as "type base".
      */
     private boolean isTypeOnlyParameterAhead() {
-        Token typeToken = peekOffset(1);
-        if (!isKnownTypeName(typeToken)) {
+        int next = spanAheadOfType(this::isKnownTypeName);
+        if (next < 0) {
             return false;
-        }
-        int next = 2;
-        if (peekOffset(2).getLexeme().equals("?")) {
-            next = 3;
         }
         String after = peekOffset(next).getLexeme();
         return after.equals(",") || after.equals(")");

@@ -1,12 +1,16 @@
 package com.mira.resolver;
 
+import java.util.List;
+import java.util.stream.Collectors;
+
 /**
  * The static-checker's own type model - deliberately small (no generics, no
  * unions beyond nullable). Resolved from a parsed {@code TypeAnnotation} by
  * {@link StaticCheck}, and only ever compared against types the checker itself
  * infers - it has no runtime representation, unlike Mira's actual values.
  */
-public sealed interface MiraType permits MiraType.NamedType, MiraType.NullableType, MiraType.AnyType {
+public sealed interface MiraType permits MiraType.NamedType, MiraType.NullableType, MiraType.AnyType,
+        MiraType.FunctionType {
 
     record NamedType(String name) implements MiraType {
 
@@ -17,6 +21,10 @@ public sealed interface MiraType permits MiraType.NamedType, MiraType.NullableTy
     }
 
     record AnyType() implements MiraType {
+    }
+
+    record FunctionType(List<MiraType> params, MiraType returnType) implements MiraType {
+
     }
 
     MiraType ANY = new AnyType();
@@ -43,6 +51,9 @@ public sealed interface MiraType permits MiraType.NamedType, MiraType.NullableTy
                 display(n.inner()) + "?";
             case AnyType ignored ->
                 "Any";
+            case FunctionType f ->
+                "Fn(" + f.params().stream().map(MiraType::display).collect(Collectors.joining(", ")) + ") -> "
+                + display(f.returnType());
         };
     }
 
@@ -63,9 +74,35 @@ public sealed interface MiraType permits MiraType.NamedType, MiraType.NullableTy
             // a possibly-null value can't flow into a non-nullable target
             return false;
         }
+        // a value of some specific function shape always fits the plain "Fn"
+        // type, and a plain "Fn" value fits any specific shape too - it's an
+        // unknown-shaped function, not a wrong-shaped one, so don't guess wrong
+        if (from instanceof FunctionType && to instanceof NamedType namedTo && "Fn".equals(namedTo.name())) {
+            return true;
+        }
+        if (to instanceof FunctionType && from instanceof NamedType namedFrom && "Fn".equals(namedFrom.name())) {
+            return true;
+        }
+        if (from instanceof FunctionType fnFrom && to instanceof FunctionType fnTo) {
+            return isFunctionAssignable(fnFrom, fnTo);
+        }
         if (from instanceof NamedType namedFrom && to instanceof NamedType namedTo) {
             return namedFrom.name().equals(namedTo.name());
         }
         return false;
+    }
+
+    private static boolean isFunctionAssignable(FunctionType from, FunctionType to) {
+        if (from.params().size() != to.params().size()) {
+            return false;
+        }
+        for (int i = 0; i < from.params().size(); i++) {
+            MiraType a = from.params().get(i);
+            MiraType b = to.params().get(i);
+            if (!isAssignable(a, b) && !isAssignable(b, a)) {
+                return false;
+            }
+        }
+        return isAssignable(from.returnType(), to.returnType()) || isAssignable(to.returnType(), from.returnType());
     }
 }

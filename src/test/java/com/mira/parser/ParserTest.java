@@ -110,6 +110,22 @@ public class ParserTest {
     }
 
     @Test
+    void funcDeclParsesFunctionTypeParam() {
+        List<Node> ast = parser.parseTokens(
+                tokenizer.tokenize("fn apply(cb : Fn(Number, Number) -> Number) { return 1; }", false));
+        Statement.FuncDecl decl = (Statement.FuncDecl) ast.getFirst();
+
+        var type = decl.getParameters().get(0).type();
+        assertEquals("Fn", type.name());
+        assertTrue(type.isFunctionType());
+        assertEquals(2, type.paramTypes().size());
+        assertEquals("Number", type.paramTypes().get(0).name());
+        assertEquals("Number", type.paramTypes().get(1).name());
+        assertEquals("Number", type.returnType().name());
+        assertNull(decl.getParameters().get(0).defaultValue());
+    }
+
+    @Test
     void funcDeclUntypedHasNullReturnTypeAndParamTypes() {
         List<Node> ast = parser.parseTokens(tokenizer.tokenize("fn add(a, b) { return 1; }", false));
         Statement.FuncDecl decl = (Statement.FuncDecl) ast.getFirst();
