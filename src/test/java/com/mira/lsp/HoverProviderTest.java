@@ -1,4 +1,4 @@
-﻿package com.mira.lsp;
+package com.mira.lsp;
 
 import java.util.List;
 

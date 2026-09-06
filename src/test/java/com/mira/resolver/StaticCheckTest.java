@@ -1,4 +1,4 @@
-﻿package com.mira.resolver;
+package com.mira.resolver;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
