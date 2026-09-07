@@ -1607,17 +1607,50 @@ public class StaticCheck {
 
     private void resolveBody(List<Node> body) {
         boolean terminated = false;
-        for (Node node : body) {
-            if (terminated) {
-                WarningCollector.emit(WarningLevel.WARNING, "Unreachable code",
-                        lineOf(node), columnOf(node), spanOf(node));
-            } else {
-                resolveNode(node);
-                if (node instanceof Return || node instanceof Throw) {
-                    terminated = true;
+        List<NarrowSave> guardNarrowings = new ArrayList<>();
+        try {
+            for (Node node : body) {
+                if (terminated) {
+                    WarningCollector.emit(WarningLevel.WARNING, "Unreachable code",
+                            lineOf(node), columnOf(node), spanOf(node));
+                } else {
+                    resolveNode(node);
+                    if (node instanceof Return || node instanceof Throw) {
+                        terminated = true;
+                    } else if (node instanceof If ifStmt) {
+                        String guardedVar = detectGuardClauseNarrowing(ifStmt);
+                        NarrowSave save = guardedVar != null ? applyNarrowing(guardedVar) : null;
+                        if (save != null) {
+                            guardNarrowings.add(save);
+                        }
+                    }
                 }
             }
+        } finally {
+            for (NarrowSave save : guardNarrowings) {
+                restoreNarrowing(save);
+            }
         }
+    }
+
+    /**
+     * Guard-clause narrowing: "if (x == null) { return; } ...rest..." (or its
+     * "!= null" + exiting-else mirror) means every later statement in this same
+     * body can only run once x is known non-null - unlike resolveIf's then/else
+     * narrowing (scoped to just inside the if), this is applied and restored
+     * around resolveBody's whole loop, so it covers everything after the guard
+     * until the enclosing body ends.
+     */
+    private String detectGuardClauseNarrowing(If ifStmt) {
+        NullCheckNarrowing narrowing = detectNullCheckNarrowing(ifStmt.getCondition());
+        if (narrowing.elseNarrowedVar() != null && alwaysReturns(ifStmt.getThenBody())) {
+            return narrowing.elseNarrowedVar();
+        }
+        if (narrowing.thenNarrowedVar() != null && ifStmt.getElseBody() != null
+                && alwaysReturns(ifStmt.getElseBody())) {
+            return narrowing.thenNarrowedVar();
+        }
+        return null;
     }
 
     private void checkUnused(Map<String, VarInfo> closedScope) {

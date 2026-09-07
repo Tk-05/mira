@@ -808,6 +808,35 @@ public class StaticCheckTest {
     }
 
     @Test
+    void nullGuardClauseWithReturnNarrowsRestOfBody() {
+        assertClean(
+                "fn f(n : Number) { println(n); } "
+                + "fn g(x : Number?) { if (x == null) { return; } f(x); }");
+    }
+
+    @Test
+    void nullGuardClauseWithThrowNarrowsRestOfBody() {
+        assertClean(
+                "fn f(n : Number) { println(n); } "
+                + "fn g(x : Number?) { if (x == null) { throw err(\"bad\"); } f(x); }");
+    }
+
+    @Test
+    void nullGuardClauseViaExitingElseNarrowsRestOfBody() {
+        assertClean(
+                "fn f(n : Number) { println(n); } "
+                + "fn g(x : Number?) { if (x != null) { println(1); } else { return; } f(x); }");
+    }
+
+    @Test
+    void nonExitingNullCheckDoesNotNarrowRestOfBody() {
+        List<MiraError> errors = errorsFor(
+                "fn f(n : Number) { println(n); } "
+                + "fn g(x : Number?) { if (x == null) { println(\"was null\"); } f(x); }");
+        assertTrue(hasCode(errors, "E325"));
+    }
+
+    @Test
     void callArgumentTypeMismatchIsE325() {
         List<MiraError> errors = errorsFor(
                 "fn add(a : Number, b : Number) { return eval(a + b); } add(1, \"x\");");
