@@ -591,7 +591,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             case "+" -> {
                 try {
                     yield numericAdd(left, right);
-                } catch (NumberFormatException e) {
+                } catch (NumberFormatException | TypeConversionError e) {
                     yield String.valueOf(left) + String.valueOf(right);
                 }
             }

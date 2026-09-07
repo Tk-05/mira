@@ -64,4 +64,14 @@ public abstract class AbstractComplexExpressionTests {
     void variableStringConcatenation() {
         assertEquals("Hello World", runForOutput("var x : \"Hello\"; print(x + \" World\");"));
     }
+
+    @Test
+    void booleanStringConcatenation() {
+        assertEquals("truex", runForOutput("print(true + \"x\");"));
+    }
+
+    @Test
+    void stringBooleanConcatenation() {
+        assertEquals("xfalse", runForOutput("print(\"x\" + false);"));
+    }
 }

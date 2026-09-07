@@ -10,6 +10,8 @@ import java.util.Set;
 
 import com.mira.cli.Flags;
 import com.mira.error.DiagnosticFormatter;
+import com.mira.error.lexer.MultipleLexerErrors;
+import com.mira.error.parser.MultipleParserErrors;
 import com.mira.error.resolver.MultipleStaticCheckErrors;
 import com.mira.lexer.Tokenizer;
 import com.mira.lexer.token.Token;
@@ -60,19 +62,21 @@ public final class ModuleChecker {
      */
     public static Map<Path, ParsedModule> collectAllModules(List<Node> rootAst, Path rootPath) {
         Map<Path, ParsedModule> allModules = new LinkedHashMap<>();
-        collectAllModules(rootAst, rootPath, allModules, new LinkedHashSet<>());
+        collectAllModules(rootAst, rootPath, allModules, new LinkedHashSet<>(), new ArrayList<>());
         return allModules;
     }
 
     public static ModuleCheckResult check(List<Node> rootAst, Set<Path> visited) {
         Map<Path, ParsedModule> allModules = new LinkedHashMap<>();
-        collectAllModules(rootAst, Flags.inputPath.get(), allModules, new LinkedHashSet<>(visited));
+        List<String> syntaxErrors = new ArrayList<>();
+        collectAllModules(rootAst, Flags.inputPath.get(), allModules, new LinkedHashSet<>(visited), syntaxErrors);
+        syntaxErrors.forEach(System.err::println);
 
         Path rootPath = Flags.inputPath.get();
         String savedFileName = Flags.fileName;
         String[] savedSourceLines = Flags.sourceLines;
 
-        boolean hadErrors = false;
+        boolean hadErrors = !syntaxErrors.isEmpty();
         int warningCount = 0;
         List<String> pendingErrors = new ArrayList<>();
         Map<Path, Long> timingsMs = new LinkedHashMap<>();
@@ -140,7 +144,7 @@ public final class ModuleChecker {
     }
 
     private static void collectAllModules(List<Node> ast, Path parentPath,
-            Map<Path, ParsedModule> out, Set<Path> visited) {
+            Map<Path, ParsedModule> out, Set<Path> visited, List<String> syntaxErrors) {
         for (Node node : ast) {
             if (!(node instanceof ImportExpression imp) || imp.getKind() != ImportKind.MODULE) {
                 continue;
@@ -149,8 +153,17 @@ public final class ModuleChecker {
             if (!visited.add(modulePath)) {
                 continue;
             }
+            String source;
             try {
-                String source = FileLoader.readFileFromPath(modulePath.toString());
+                source = FileLoader.readFileFromPath(modulePath.toString());
+            } catch (Exception ignored) {
+                continue;
+            }
+            String savedFileName = Flags.fileName;
+            String[] savedSourceLines = Flags.sourceLines;
+            Flags.fileName = modulePath.getFileName().toString();
+            Flags.sourceLines = source.split("\n", -1);
+            try {
                 long tokenizeStart = System.nanoTime();
                 List<Token> moduleTokens = new Tokenizer().tokenize(source, false);
                 long tokenizeNanos = System.nanoTime() - tokenizeStart;
@@ -159,8 +172,15 @@ public final class ModuleChecker {
                 long parseNanos = System.nanoTime() - parseStart;
                 out.put(modulePath, new ParsedModule(modulePath, moduleAst, source,
                         moduleTokens.size(), tokenizeNanos, parseNanos));
-                collectAllModules(moduleAst, modulePath, out, visited);
+                collectAllModules(moduleAst, modulePath, out, visited, syntaxErrors);
+            } catch (MultipleLexerErrors mle) {
+                mle.getErrors().stream().map(DiagnosticFormatter::format).forEach(syntaxErrors::add);
+            } catch (MultipleParserErrors mpe) {
+                mpe.getErrors().stream().map(DiagnosticFormatter::format).forEach(syntaxErrors::add);
             } catch (Exception ignored) {
+            } finally {
+                Flags.fileName = savedFileName;
+                Flags.sourceLines = savedSourceLines;
             }
         }
     }

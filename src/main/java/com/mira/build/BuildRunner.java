@@ -14,6 +14,8 @@ import java.util.stream.Stream;
 
 import com.mira.cli.Flags;
 import com.mira.error.DiagnosticFormatter;
+import com.mira.error.lexer.MultipleLexerErrors;
+import com.mira.error.parser.MultipleParserErrors;
 import com.mira.lexer.Tokenizer;
 import com.mira.lexer.token.Token;
 import com.mira.parser.Parser;
@@ -127,6 +129,12 @@ public class BuildRunner {
                                 entry.getKey().getFileName().toString(), entry.getValue().ast()));
                     }
                 }
+            } catch (MultipleLexerErrors mle) {
+                mle.getErrors().forEach(err -> System.err.println(DiagnosticFormatter.format(err)));
+                anyFailed = true;
+            } catch (MultipleParserErrors mpe) {
+                mpe.getErrors().forEach(err -> System.err.println(DiagnosticFormatter.format(err)));
+                anyFailed = true;
             } catch (Exception e) {
                 System.err.println(DiagnosticFormatter.format(e));
                 anyFailed = true;
