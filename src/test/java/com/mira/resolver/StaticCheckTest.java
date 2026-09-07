@@ -859,6 +859,30 @@ public class StaticCheckTest {
     }
 
     @Test
+    void ternaryNarrowsThenBranchOnNotEqualNull() {
+        assertClean("fn g(x : Number?) { var r : Number : x != null ? x : 0; println(r); }");
+    }
+
+    @Test
+    void ternaryNarrowsElseBranchOnEqualNull() {
+        assertClean("fn g(x : Number?) { var r : Number : x == null ? 0 : x; println(r); }");
+    }
+
+    @Test
+    void ternaryNarrowingAppliesInsideCallArgument() {
+        assertClean(
+                "fn f(n : Number) { println(n); } "
+                + "fn g(x : Number?) { f(x != null ? x : 0); }");
+    }
+
+    @Test
+    void ternaryWrongSideOfNarrowingIsStillE324() {
+        List<MiraError> errors = errorsFor(
+                "fn g(x : Number?) { var r : Number : x != null ? 0 : x; }");
+        assertTrue(hasCode(errors, "E324"));
+    }
+
+    @Test
     void callArgumentTypeMismatchIsE325() {
         List<MiraError> errors = errorsFor(
                 "fn add(a : Number, b : Number) { return eval(a + b); } add(1, \"x\");");

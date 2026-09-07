@@ -892,8 +892,13 @@ public class StaticCheck {
             }
             case TernaryExpression e -> {
                 resolveExpr(e.getCondition());
+                NullCheckNarrowing narrowing = detectNullCheckNarrowing(e.getCondition());
+                List<NarrowSave> savedThen = applyNarrowing(narrowing.thenNarrowedVars());
                 resolveExpr(e.getThenExpr());
+                restoreNarrowing(savedThen);
+                List<NarrowSave> savedElse = applyNarrowing(narrowing.elseNarrowedVars());
                 resolveExpr(e.getElseExpr());
+                restoreNarrowing(savedElse);
             }
             case ComplexExpression e ->
                 e.getExpressions().forEach(this::resolveExpr);
@@ -2182,8 +2187,13 @@ public class StaticCheck {
         // combined type for the whole expression (inferMiraType has no case for
         // either shape, so without this every branch was silently unchecked)
         if (valueExpr instanceof TernaryExpression te) {
+            NullCheckNarrowing narrowing = detectNullCheckNarrowing(te.getCondition());
+            List<NarrowSave> savedThen = applyNarrowing(narrowing.thenNarrowedVars());
             checkAssignable(te.getThenExpr(), expected, onMismatch);
+            restoreNarrowing(savedThen);
+            List<NarrowSave> savedElse = applyNarrowing(narrowing.elseNarrowedVars());
             checkAssignable(te.getElseExpr(), expected, onMismatch);
+            restoreNarrowing(savedElse);
             return;
         }
         if (valueExpr instanceof SwitchExpression se) {
