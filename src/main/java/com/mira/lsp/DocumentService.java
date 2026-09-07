@@ -19,8 +19,12 @@ import org.eclipse.lsp4j.DidCloseTextDocumentParams;
 import org.eclipse.lsp4j.DidOpenTextDocumentParams;
 import org.eclipse.lsp4j.DidSaveTextDocumentParams;
 import org.eclipse.lsp4j.DocumentFormattingParams;
+import org.eclipse.lsp4j.DocumentHighlight;
+import org.eclipse.lsp4j.DocumentHighlightParams;
 import org.eclipse.lsp4j.DocumentSymbol;
 import org.eclipse.lsp4j.DocumentSymbolParams;
+import org.eclipse.lsp4j.FoldingRange;
+import org.eclipse.lsp4j.FoldingRangeRequestParams;
 import org.eclipse.lsp4j.Hover;
 import org.eclipse.lsp4j.HoverParams;
 import org.eclipse.lsp4j.Location;
@@ -200,6 +204,22 @@ public class DocumentService implements TextDocumentService {
         List<Location> result = ReferenceProvider.provide(ast, content, params.getPosition(), uri,
                 docPath, workspaceIndex, workspaceRoot, documents, includeDeclaration);
         return CompletableFuture.completedFuture(result);
+    }
+
+    @Override
+    public CompletableFuture<List<? extends DocumentHighlight>> documentHighlight(DocumentHighlightParams params) {
+        String uri = params.getTextDocument().getUri();
+        List<Node> ast = astCache.getOrDefault(uri, List.of());
+        String content = documents.getOrDefault(uri, "");
+        List<DocumentHighlight> result = DocumentHighlightProvider.provide(ast, content, params.getPosition(), uri);
+        return CompletableFuture.completedFuture(result);
+    }
+
+    @Override
+    public CompletableFuture<List<FoldingRange>> foldingRange(FoldingRangeRequestParams params) {
+        String uri = params.getTextDocument().getUri();
+        List<Node> ast = astCache.getOrDefault(uri, List.of());
+        return CompletableFuture.completedFuture(FoldingRangeProvider.provide(ast));
     }
 
     @Override

@@ -711,6 +711,7 @@ public class Parser {
         while (!peek().getLexeme().equals("}")) {
             if (peek().getLexeme().equals("fn")) {
                 FuncDecl method = (FuncDecl) parseFuncDecl(false);
+                method.endLine = lastClosingBraceLine;
                 methods.add(method);
             } else {
                 Token startToken = peek();

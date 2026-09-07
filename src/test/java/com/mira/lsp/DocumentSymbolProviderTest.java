@@ -1,12 +1,11 @@
 package com.mira.lsp;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.util.List;
 
 import org.eclipse.lsp4j.DocumentSymbol;
 import org.eclipse.lsp4j.SymbolKind;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 
 import com.mira.lexer.Tokenizer;
@@ -84,6 +83,21 @@ public class DocumentSymbolProviderTest {
         assertEquals(2, obj.getChildren().size());
         assertEquals("count", obj.getChildren().get(0).getName());
         assertEquals("increment", obj.getChildren().get(1).getName());
+    }
+
+    @Test
+    void objectMethodRangeSpansItsOwnBodyNotJustItsDeclarationLine() {
+        String source = """
+                var obj : {
+                    fn increment() {
+                        return 1;
+                    }
+                };
+                """;
+        List<DocumentSymbol> symbols = symbolsOf(source);
+        DocumentSymbol method = symbols.get(0).getChildren().get(0);
+        assertEquals("increment", method.getName());
+        assertTrue(method.getRange().getEnd().getLine() > method.getRange().getStart().getLine());
     }
 
     @Test
