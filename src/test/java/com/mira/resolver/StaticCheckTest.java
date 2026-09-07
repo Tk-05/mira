@@ -837,6 +837,28 @@ public class StaticCheckTest {
     }
 
     @Test
+    void andComposedNullCheckNarrowsBothVarsInThenBranch() {
+        assertClean(
+                "fn f(n : Number) { println(n); } "
+                + "fn g(x : Number?, y : Number?) { if (x != null && y != null) { f(x); f(y); } }");
+    }
+
+    @Test
+    void orComposedNullCheckNarrowsBothVarsInGuardClause() {
+        assertClean(
+                "fn f(n : Number) { println(n); } "
+                + "fn g(x : Number?, y : Number?) { if (x == null || y == null) { return; } f(x); f(y); }");
+    }
+
+    @Test
+    void andComposedNullCheckDoesNotNarrowUnrelatedVar() {
+        List<MiraError> errors = errorsFor(
+                "fn f(n : Number) { println(n); } "
+                + "fn g(x : Number?, y : Number?) { if (x != null && true) { f(x); f(y); } }");
+        assertTrue(hasCode(errors, "E325"));
+    }
+
+    @Test
     void callArgumentTypeMismatchIsE325() {
         List<MiraError> errors = errorsFor(
                 "fn add(a : Number, b : Number) { return eval(a + b); } add(1, \"x\");");

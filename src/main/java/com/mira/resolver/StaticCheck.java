@@ -1246,7 +1246,7 @@ public class StaticCheck {
 
         scope.push();
         branchDepth++;
-        NarrowSave savedThen = applyNarrowing(narrowing.thenNarrowedVar());
+        List<NarrowSave> savedThen = applyNarrowing(narrowing.thenNarrowedVars());
         resolveBody(stmt.getThenBody());
         restoreNarrowing(savedThen);
         branchDepth--;
@@ -1254,7 +1254,7 @@ public class StaticCheck {
         if (stmt.getElseBody() != null) {
             scope.push();
             branchDepth++;
-            NarrowSave savedElse = applyNarrowing(narrowing.elseNarrowedVar());
+            List<NarrowSave> savedElse = applyNarrowing(narrowing.elseNarrowedVars());
             resolveBody(stmt.getElseBody());
             restoreNarrowing(savedElse);
             branchDepth--;
@@ -1262,25 +1262,38 @@ public class StaticCheck {
         }
     }
 
-    private record NullCheckNarrowing(String thenNarrowedVar, String elseNarrowedVar) {
+    private record NullCheckNarrowing(List<String> thenNarrowedVars, List<String> elseNarrowedVars) {
 
     }
 
-    private static final NullCheckNarrowing NO_NARROWING = new NullCheckNarrowing(null, null);
+    private static final NullCheckNarrowing NO_NARROWING = new NullCheckNarrowing(List.of(), List.of());
 
     /**
      * Recognizes {@code x != null} / {@code x == null} (either operand order)
      * as narrowing a nullable-declared {@code x} to its non-null inner type for
      * the branch where it's known not to be null - the then branch for
-     * {@code !=}, the else branch for {@code ==}. Deliberately narrow: no
-     * {@code &&}/{@code ||} composition, no narrowing that survives past the if
-     * (e.g. an early-return guard clause).
+     * {@code !=}, the else branch for {@code ==}. Composes through {@code &&}
+     * (both sides' then-narrowings apply - both must hold for then to run) and
+     * {@code ||} (both sides' else-narrowings apply - De Morgan: neither held
+     * for else to run); the other side of each is dropped since which operand
+     * actually failed isn't knowable. No narrowing survives past the if itself
+     * here - see detectGuardClauseNarrowing for the early-return-guard case.
      */
     private NullCheckNarrowing detectNullCheckNarrowing(Expression condition) {
         if (!(condition instanceof BinaryExpression be)) {
             return NO_NARROWING;
         }
         String op = be.getOperator().getLexeme();
+        if ("&&".equals(op)) {
+            NullCheckNarrowing left = detectNullCheckNarrowing(be.getLeft());
+            NullCheckNarrowing right = detectNullCheckNarrowing(be.getRight());
+            return new NullCheckNarrowing(union(left.thenNarrowedVars(), right.thenNarrowedVars()), List.of());
+        }
+        if ("||".equals(op)) {
+            NullCheckNarrowing left = detectNullCheckNarrowing(be.getLeft());
+            NullCheckNarrowing right = detectNullCheckNarrowing(be.getRight());
+            return new NullCheckNarrowing(List.of(), union(left.elseNarrowedVars(), right.elseNarrowedVars()));
+        }
         if (!"!=".equals(op) && !"==".equals(op)) {
             return NO_NARROWING;
         }
@@ -1288,7 +1301,20 @@ public class StaticCheck {
         if (varName == null) {
             return NO_NARROWING;
         }
-        return "!=".equals(op) ? new NullCheckNarrowing(varName, null) : new NullCheckNarrowing(null, varName);
+        return "!=".equals(op) ? new NullCheckNarrowing(List.of(varName), List.of())
+                : new NullCheckNarrowing(List.of(), List.of(varName));
+    }
+
+    private static List<String> union(List<String> a, List<String> b) {
+        if (a.isEmpty()) {
+            return b;
+        }
+        if (b.isEmpty()) {
+            return a;
+        }
+        List<String> combined = new ArrayList<>(a);
+        combined.addAll(b);
+        return combined;
     }
 
     private static String nullCheckVarName(Expression left, Expression right) {
@@ -1311,20 +1337,20 @@ public class StaticCheck {
 
     }
 
-    private NarrowSave applyNarrowing(String varName) {
-        if (varName == null) {
-            return null;
+    private List<NarrowSave> applyNarrowing(List<String> varNames) {
+        List<NarrowSave> saves = new ArrayList<>();
+        for (String varName : varNames) {
+            MiraType current = declaredVarTypes.get(varName);
+            if (current instanceof MiraType.NullableType nt) {
+                declaredVarTypes.put(varName, nt.inner());
+                saves.add(new NarrowSave(varName, current));
+            }
         }
-        MiraType current = declaredVarTypes.get(varName);
-        if (!(current instanceof MiraType.NullableType nt)) {
-            return null;
-        }
-        declaredVarTypes.put(varName, nt.inner());
-        return new NarrowSave(varName, current);
+        return saves;
     }
 
-    private void restoreNarrowing(NarrowSave save) {
-        if (save != null) {
+    private void restoreNarrowing(List<NarrowSave> saves) {
+        for (NarrowSave save : saves) {
             declaredVarTypes.put(save.varName(), save.previous());
         }
     }
@@ -1618,18 +1644,12 @@ public class StaticCheck {
                     if (node instanceof Return || node instanceof Throw) {
                         terminated = true;
                     } else if (node instanceof If ifStmt) {
-                        String guardedVar = detectGuardClauseNarrowing(ifStmt);
-                        NarrowSave save = guardedVar != null ? applyNarrowing(guardedVar) : null;
-                        if (save != null) {
-                            guardNarrowings.add(save);
-                        }
+                        guardNarrowings.addAll(applyNarrowing(detectGuardClauseNarrowing(ifStmt)));
                     }
                 }
             }
         } finally {
-            for (NarrowSave save : guardNarrowings) {
-                restoreNarrowing(save);
-            }
+            restoreNarrowing(guardNarrowings);
         }
     }
 
@@ -1641,16 +1661,16 @@ public class StaticCheck {
      * around resolveBody's whole loop, so it covers everything after the guard
      * until the enclosing body ends.
      */
-    private String detectGuardClauseNarrowing(If ifStmt) {
+    private List<String> detectGuardClauseNarrowing(If ifStmt) {
         NullCheckNarrowing narrowing = detectNullCheckNarrowing(ifStmt.getCondition());
-        if (narrowing.elseNarrowedVar() != null && alwaysReturns(ifStmt.getThenBody())) {
-            return narrowing.elseNarrowedVar();
+        if (!narrowing.elseNarrowedVars().isEmpty() && alwaysReturns(ifStmt.getThenBody())) {
+            return narrowing.elseNarrowedVars();
         }
-        if (narrowing.thenNarrowedVar() != null && ifStmt.getElseBody() != null
+        if (!narrowing.thenNarrowedVars().isEmpty() && ifStmt.getElseBody() != null
                 && alwaysReturns(ifStmt.getElseBody())) {
-            return narrowing.thenNarrowedVar();
+            return narrowing.thenNarrowedVars();
         }
-        return null;
+        return List.of();
     }
 
     private void checkUnused(Map<String, VarInfo> closedScope) {
