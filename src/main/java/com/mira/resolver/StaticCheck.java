@@ -2004,6 +2004,11 @@ public class StaticCheck {
                 if (enumDecl != null && enumDecl.getValues().containsKey(fae.getField())) {
                     return new MiraType.NamedType(enumDecl.getIdentifier());
                 }
+                Map<String, Signature> nativeSigs = nativeNamespaceSignatures.get(obj.getValue());
+                Signature sig = nativeSigs != null ? nativeSigs.get(fae.getField()) : null;
+                if (sig != null && sig.paramTypes().isEmpty()) {
+                    return resolveNamedType(sig.returnType(), fae.line, 0);
+                }
             }
             return null;
         }
