@@ -465,6 +465,32 @@ public class StaticCheckTest {
     }
 
     @Test
+    void compoundPlusAssignStringIntoNumberVarIsE324() {
+        List<MiraError> errors = errorsFor(
+                "var x : Number : 5; var s : String : \"oops\"; x +: s;");
+        assertTrue(hasCode(errors, "E324"));
+    }
+
+    @Test
+    void compoundPlusAssignNumberIntoNumberVarIsClean() {
+        assertClean("var x : Number : 5; var y : Number : 3; x +: y;");
+    }
+
+    @Test
+    void compoundPlusAssignStringIntoStringVarIsClean() {
+        assertClean("var s : String : \"hi\"; var t : String : \"!\"; s +: t;");
+    }
+
+    @Test
+    void compoundMinusAssignMismatchedOperandsStillE330() {
+        // the operand-level check runs via the desugared BinaryExpression -
+        // regression guard, distinct from the result-vs-declared-type check above
+        List<MiraError> errors = errorsFor(
+                "var flag : Bool : true; var n : Number : 5; flag -: n;");
+        assertTrue(hasCode(errors, "E330"));
+    }
+
+    @Test
     void incrementStringVarProducesE322() {
         List<MiraError> errors = errorsFor("var s : \"hello\"; s++;");
         assertTrue(hasCode(errors, "E322"));

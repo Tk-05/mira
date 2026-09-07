@@ -1200,6 +1200,7 @@ public class StaticCheck {
                 if (declared != null) {
                     checkAssignable(stmt.getExpression(), declared, (expected, actual) -> errors.add(
                             new TypeMismatchError(name, expected, actual, d.getLine(), d.getColumn())));
+                    checkCompoundAssignResultType(stmt, declared, name, d.getLine(), d.getColumn());
                 }
             }
         } else {
@@ -1207,6 +1208,36 @@ public class StaticCheck {
             resolveExpr(stmt.getReference());
         }
         resolveExpr(stmt.getExpression());
+    }
+
+    /**
+     * A compound assignment ("x +: y") is desugared by the parser into
+     * Assign(x, BinaryExpression(x, "+", y)) - the operand-level check
+     * (mismatched types on the two sides) already runs generically when that
+     * BinaryExpression is resolved below, same as any other "+". What's not
+     * covered there: whether the *result* still fits x's own declared type.
+     * That only diverges from a plain operand check for "+", since it alone
+     * tolerates a String on either side (concatenation) - "x +: \"oops\"" with
+     * x : Number silently produces a String, with nothing to catch it.
+     */
+    private void checkCompoundAssignResultType(Assign stmt, MiraType declared, String name, int line, int column) {
+        if (!(stmt.getExpression() instanceof BinaryExpression be) || be.getLeft() != stmt.getReference()) {
+            return;
+        }
+        if (!ARITHMETIC_TYPE_CHECKED_OPERATORS.contains(be.getOperator().getLexeme())) {
+            return;
+        }
+        MiraType rightType = inferMiraType(be.getRight());
+        if (rightType == null || rightType instanceof MiraType.AnyType) {
+            return;
+        }
+        boolean isPlus = "+".equals(be.getOperator().getLexeme());
+        MiraType resultType = isPlus && (isStringType(declared) || isStringType(rightType))
+                ? MiraType.STRING : MiraType.NUMBER;
+        if (!MiraType.isAssignable(resultType, declared)) {
+            errors.add(new TypeMismatchError(name, MiraType.display(declared), MiraType.display(resultType),
+                    line, column));
+        }
     }
 
     private void resolveIf(If stmt) {
