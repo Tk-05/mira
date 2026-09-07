@@ -91,6 +91,19 @@ public class ProjectConfigTest {
         assertEquals(0, cfg.build().args().length);
         assertNull(cfg.test());
         assertTrue(cfg.dependencies().isEmpty());
+        assertFalse(cfg.build().strictTypes());
+    }
+
+    @Test
+    void strictTypesParsedFromBuildSection() {
+        Map<String, Object> map = Map.of(
+                "project", section("entry", "src/main.mira"),
+                "build", section("strict-types", Boolean.TRUE)
+        );
+
+        ProjectConfig cfg = ProjectConfig.fromMap(map, root);
+
+        assertTrue(cfg.build().strictTypes());
     }
 
     @Test

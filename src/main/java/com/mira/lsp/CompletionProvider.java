@@ -21,6 +21,9 @@ import org.eclipse.lsp4j.CompletionItemKind;
 import com.mira.lexer.Tokenizer;
 import com.mira.lib.Lib;
 import com.mira.lib.LibIndex;
+import com.mira.lib.NativeInterfaceManifest;
+import com.mira.lib.NativeInterfaceManifest.Signature;
+import com.mira.lib.NativeLibLocator;
 import com.mira.parser.Parser;
 import com.mira.parser.nodes.Node;
 import com.mira.parser.nodes.Parameter;
@@ -32,12 +35,14 @@ import com.mira.parser.nodes.expression.Expression.StructInitExpression;
 import com.mira.parser.nodes.expression.Expression.UnaryExpression;
 import com.mira.parser.nodes.statement.Statement.Block;
 import com.mira.parser.nodes.statement.Statement.ComptimeBlock;
+import com.mira.parser.nodes.statement.Statement.EnumDecl;
 import com.mira.parser.nodes.statement.Statement.FuncDecl;
 import com.mira.parser.nodes.statement.Statement.If;
 import com.mira.parser.nodes.statement.Statement.Lock;
 import com.mira.parser.nodes.statement.Statement.Loop;
 import com.mira.parser.nodes.statement.Statement.Switch;
 import com.mira.parser.nodes.statement.Statement.TryCatch;
+import com.mira.parser.nodes.statement.Statement.TypeAliasDecl;
 import com.mira.parser.nodes.statement.Statement.VarDecl;
 import com.mira.parser.nodes.statement.Statement.VarDestructure;
 import com.mira.parser.nodes.statement.Statement.While;
@@ -57,6 +62,9 @@ public class CompletionProvider {
     );
 
     private static final List<String> GLOBALS = List.copyOf(LibIndex.GLOBAL_NAMES);
+
+    private static final List<String> BUILTIN_TYPE_NAMES = List.of(
+            "Number", "String", "Bool", "List", "Array", "Map", "Object", "Fn", "Null", "Any", "Void");
 
     private static final Map<String, List<String>> STDLIB;
     private static final Map<String, String> STDLIB_PARAMS;
@@ -95,6 +103,12 @@ public class CompletionProvider {
             items.add(item);
         }
 
+        for (String type : BUILTIN_TYPE_NAMES) {
+            CompletionItem item = new CompletionItem(type);
+            item.setKind(CompletionItemKind.Class);
+            items.add(item);
+        }
+
         collectFromNodes(ast, ast, items);
         collectFromImports(ast, documentUri, items);
         return items;
@@ -123,6 +137,11 @@ public class CompletionProvider {
                             items.add(mi);
                         }
                     } else if (v.getInitializer() instanceof StructExpression st) {
+                        CompletionItem typeItem = new CompletionItem(v.getName());
+                        typeItem.setKind(CompletionItemKind.Class);
+                        typeItem.setDetail("struct " + v.getName()
+                                + " — usable as a type, e.g. \"-> " + v.getName() + "\"");
+                        items.add(typeItem);
                         addStructMemberItems(v.getName(), st, items);
                     } else if (v.getInitializer() instanceof StructInitExpression si) {
                         String templateName = extractName(si.getTarget());
@@ -148,6 +167,18 @@ public class CompletionProvider {
                         item.setKind(CompletionItemKind.Variable);
                         items.add(item);
                     }
+                }
+                case EnumDecl e -> {
+                    CompletionItem item = new CompletionItem(e.getIdentifier());
+                    item.setKind(CompletionItemKind.Class);
+                    item.setDetail("enum " + e.getIdentifier());
+                    items.add(item);
+                }
+                case TypeAliasDecl t -> {
+                    CompletionItem item = new CompletionItem(t.getName());
+                    item.setKind(CompletionItemKind.Class);
+                    item.setDetail("type " + t.getName() + " : " + t.getAliasedType());
+                    items.add(item);
                 }
                 case ComptimeBlock comptime -> {
                     for (Node bodyNode : comptime.getBody()) {
@@ -291,8 +322,10 @@ public class CompletionProvider {
                 case NATIVE -> {
                     if (docPath != null) {
                         String rawPath = imp.getModule().replace("\"", "");
-                        Path jarPath = docPath.getParent().resolve(rawPath).normalize();
-                        addNativeCompletions(jarPath, alias, items);
+                        Path jarPath = NativeLibLocator.locate(rawPath, docPath);
+                        if (jarPath != null) {
+                            addNativeCompletions(jarPath, alias, items);
+                        }
                     }
                 }
             }
@@ -354,8 +387,35 @@ public class CompletionProvider {
         }
     }
 
+    /**
+     * Fast path: builds completions straight from the jar's classloading-free
+     * manifest (see {@link NativeInterfaceManifest}), with real declared types
+     * in the detail text - never loads the native jar's actual Java classes.
+     */
+    private static void addNativeCompletionsFromManifest(Map<String, Signature> manifest, String alias,
+            List<CompletionItem> items) {
+        for (Map.Entry<String, Signature> entry : manifest.entrySet()) {
+            String name = entry.getKey();
+            Signature sig = entry.getValue();
+            CompletionItem item = new CompletionItem(alias + "." + name);
+            if (sig.paramTypes().isEmpty()) {
+                item.setKind(CompletionItemKind.Constant);
+                item.setDetail(name + " : " + sig.returnType());
+            } else {
+                item.setKind(CompletionItemKind.Function);
+                item.setDetail("fn " + name + "(" + String.join(", ", sig.paramTypes()) + ") -> " + sig.returnType());
+            }
+            items.add(item);
+        }
+    }
+
     private static void addNativeCompletions(Path jarPath, String alias, List<CompletionItem> items) {
         if (!Files.exists(jarPath)) {
+            return;
+        }
+        Map<String, Signature> manifest = NativeInterfaceManifest.readFromJar(jarPath);
+        if (!manifest.isEmpty()) {
+            addNativeCompletionsFromManifest(manifest, alias, items);
             return;
         }
         try {

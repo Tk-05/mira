@@ -69,10 +69,10 @@ import com.mira.parser.nodes.statement.Statement.Block;
 import com.mira.parser.nodes.statement.Statement.Break;
 import com.mira.parser.nodes.statement.Statement.Continue;
 import com.mira.parser.nodes.statement.Statement.EnumDecl;
-import com.mira.parser.nodes.statement.Statement.Loop;
 import com.mira.parser.nodes.statement.Statement.FuncDecl;
 import com.mira.parser.nodes.statement.Statement.If;
 import com.mira.parser.nodes.statement.Statement.Lock;
+import com.mira.parser.nodes.statement.Statement.Loop;
 import com.mira.parser.nodes.statement.Statement.Return;
 import com.mira.parser.nodes.statement.Statement.Switch;
 import com.mira.parser.nodes.statement.Statement.Throw;
@@ -83,7 +83,6 @@ import com.mira.parser.nodes.statement.Statement.While;
 import com.mira.runtime.visitors.ExprVisitor;
 import com.mira.runtime.visitors.StmtVisitor;
 
-@SuppressWarnings("null")
 public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
 
     private final CompilerContext ctx;
@@ -1833,7 +1832,6 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
                 "(Ljava/lang/String;" + OBJ_D + ")V", false);
         return null;
     }
-
 
     @Override
     public Void visitVarDestructure(VarDestructure stmt) {

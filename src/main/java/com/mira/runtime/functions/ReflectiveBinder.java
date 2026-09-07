@@ -41,27 +41,32 @@ public final class ReflectiveBinder {
     }
 
     public static void bindConstants(Class<?> source, Environment env) {
-        for (Field f : source.getFields()) {
-            if (!Modifier.isStatic(f.getModifiers())) {
-                continue;
-            }
-            if (!Modifier.isFinal(f.getModifiers())) {
-                continue;
-            }
-            if (f.getDeclaringClass() != source) {
-                continue;
-            }
-            if (env.exists(f.getName())) {
+        for (Map.Entry<String, Field> entry : selectConstants(source).entrySet()) {
+            if (env.exists(entry.getKey())) {
                 continue;
             }
             try {
-                env.define(f.getName(), coerceReturn(f.get(null), f.getType()));
+                env.define(entry.getKey(), coerceReturn(entry.getValue().get(null), entry.getValue().getType()));
             } catch (IllegalAccessException ignored) {
             }
         }
     }
 
-    private static Map<String, Method> selectMethods(Class<?> source) {
+    static Map<String, Field> selectConstants(Class<?> source) {
+        Map<String, Field> result = new LinkedHashMap<>();
+        for (Field f : source.getFields()) {
+            if (!Modifier.isStatic(f.getModifiers()) || !Modifier.isFinal(f.getModifiers())) {
+                continue;
+            }
+            if (f.getDeclaringClass() != source) {
+                continue;
+            }
+            result.put(f.getName(), f);
+        }
+        return result;
+    }
+
+    static Map<String, Method> selectMethods(Class<?> source) {
         Map<String, List<Method>> grouped = new LinkedHashMap<>();
         for (Method m : source.getMethods()) {
             if (!Modifier.isStatic(m.getModifiers())) {
@@ -135,7 +140,7 @@ public final class ReflectiveBinder {
         }));
     }
 
-    private static Object coerceArg(Object val, Class<?> target) {
+    static Object coerceArg(Object val, Class<?> target) {
         if (target == int.class || target == Integer.class) {
             return ((Number) val).intValue();
         }

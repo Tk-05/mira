@@ -245,4 +245,103 @@ public class StaticCheckError extends MiraError {
                     "Check the object literal for available fields");
         }
     }
+
+    public static class TypeMismatchError extends StaticCheckError {
+
+        public TypeMismatchError(String name, String expected, String actual, int line, int column) {
+            super("E324",
+                    "'" + name + "' expects type '" + expected + "' but got '" + actual + "'",
+                    line, column, name.length(),
+                    "Use a value of type '" + expected + "', or change the declared type");
+        }
+    }
+
+    public static class ArgumentTypeMismatchError extends StaticCheckError {
+
+        public ArgumentTypeMismatchError(String function, String param, String expected, String actual,
+                int line, int column, int span) {
+            super("E325",
+                    "Argument '" + param + "' of '" + function + "' expects type '" + expected
+                    + "' but got '" + actual + "'",
+                    line, column, span,
+                    "Pass a value of type '" + expected + "'");
+        }
+    }
+
+    public static class ReturnTypeMismatchError extends StaticCheckError {
+
+        public ReturnTypeMismatchError(String function, String expected, String actual, int line, int column) {
+            super("E326",
+                    "'" + function + "' declares return type '" + expected + "' but returns '" + actual + "'",
+                    line, column, "return".length(),
+                    "Return a value of type '" + expected + "', or change the declared return type");
+        }
+    }
+
+    public static class UnknownTypeNameError extends StaticCheckError {
+
+        public UnknownTypeNameError(String name, int line, int column) {
+            super("E327",
+                    "Unknown type '" + name + "'",
+                    line, column, name.length(),
+                    "Use a built-in type (Number, String, Bool, List, Array, Map, Object, Fn, Null, Any, Void), "
+                    + "or check that '" + name + "' is declared before this point");
+        }
+    }
+
+    public static class MissingTypeAnnotationError extends StaticCheckError {
+
+        public MissingTypeAnnotationError(String function, String what, int line, int column) {
+            super("E328",
+                    "'" + function + "' is missing a type annotation for " + what + " (--strict-types is on)",
+                    line, column, function.length(),
+                    "Add an explicit type, e.g. 'fn " + function + "(x : Number) -> Number { ... }'");
+        }
+    }
+
+    public static class StructFieldTypeMismatchError extends StaticCheckError {
+
+        public StructFieldTypeMismatchError(String field, String structName, String expected, String actual,
+                int line, int column, int span) {
+            super("E329",
+                    "Field '" + field + "' of '" + structName + "' expects type '" + expected
+                    + "' but got '" + actual + "'",
+                    line, column, span,
+                    "Use a value of type '" + expected + "', or change the field's declared type");
+        }
+    }
+
+    public static class BinaryOperatorTypeMismatchError extends StaticCheckError {
+
+        public BinaryOperatorTypeMismatchError(String operator, String leftType, String rightType,
+                int line, int column) {
+            super("E330",
+                    "Operator '" + operator + "' used with mismatched operand types '" + leftType
+                    + "' and '" + rightType + "'",
+                    line, column, operator.length(),
+                    "Use matching operand types, or convert one side explicitly before applying '"
+                    + operator + "'");
+        }
+    }
+
+    public static class UnaryOperatorTypeMismatchError extends StaticCheckError {
+
+        public UnaryOperatorTypeMismatchError(String operator, String actualType, int line, int column) {
+            super("E331",
+                    "Operator '" + operator + "' requires a Number operand but got '" + actualType + "'",
+                    line, column, operator.length(),
+                    "Use a numeric value, or convert '" + actualType + "' explicitly before applying '"
+                    + operator + "'");
+        }
+    }
+
+    public static class VariableNotCallableError extends StaticCheckError {
+
+        public VariableNotCallableError(String name, String actualType, int line, int column) {
+            super("E332",
+                    "Variable '$" + name + "' holds a '" + actualType + "' and cannot be called as a function",
+                    line, column, name.length() + 1,
+                    "Only functions and lambdas can be called with '()', or declare '" + name + "' as type 'Fn'");
+        }
+    }
 }

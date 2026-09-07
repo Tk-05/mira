@@ -115,4 +115,50 @@ public class HoverProviderTest {
         Hover hover = HoverProvider.provide(parse(source), source, pos);
         assertNull(hover);
     }
+
+    @Test
+    void hoversTypedVariableShowsDeclaredType() {
+        String source = """
+                fn main() {
+                    var x : Number : 5;
+                    return x;
+                }
+                """;
+        // cursor on "x" in "return x;"
+        Position pos = new Position(2, 12);
+        Hover hover = HoverProvider.provide(parse(source), source, pos);
+        assertNotNull(hover);
+        assertTrue(text(hover).contains("var x : Number"));
+    }
+
+    @Test
+    void hoversTypedFunctionShowsParamAndReturnTypes() {
+        String source = """
+                fn add(a : Number, b : Number) -> Number {
+                    return eval(a + b);
+                }
+                add(1, 2);
+                """;
+        Position pos = new Position(3, 1); // "add" in "add(1, 2);"
+        Hover hover = HoverProvider.provide(parse(source), source, pos);
+        assertNotNull(hover);
+        assertTrue(text(hover).contains("a : Number"));
+        assertTrue(text(hover).contains("-> Number"));
+    }
+
+    @Test
+    void hoversStructFieldShowsDeclaredType() {
+        String source = """
+                var Point : struct { var x : Number : 0; };
+
+                fn helper() {
+                    var p : Point{};
+                    return p.x;
+                }
+                """;
+        Position pos = new Position(4, 14); // "x" in "return p.x;"
+        Hover hover = HoverProvider.provide(parse(source), source, pos);
+        assertNotNull(hover);
+        assertTrue(text(hover).contains("var x : Number"));
+    }
 }

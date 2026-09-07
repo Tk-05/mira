@@ -14,6 +14,9 @@ import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.SignatureHelp;
 import org.eclipse.lsp4j.SignatureInformation;
 
+import com.mira.lib.NativeInterfaceManifest;
+import com.mira.lib.NativeInterfaceManifest.Signature;
+import com.mira.lib.NativeLibLocator;
 import com.mira.parser.nodes.Node;
 import com.mira.parser.nodes.Parameter;
 import com.mira.parser.nodes.expression.Expression.ImportExpression;
@@ -66,7 +69,7 @@ public class SignatureHelpProvider {
     private static List<String> paramNamesOf(FuncDecl f) {
         List<String> names = new ArrayList<>();
         for (Parameter p : f.getParameters()) {
-            names.add(p.name());
+            names.add(p.name() + (p.type() != null ? " : " + p.type() : ""));
         }
         return names;
     }
@@ -93,9 +96,10 @@ public class SignatureHelpProvider {
             return null;
         }
         for (Node n : ast) {
-            if (n instanceof ImportExpression imp
-                    && imp.getKind() == ImportExpression.ImportKind.MODULE
-                    && receiver.equals(imp.getNamespace())) {
+            if (!(n instanceof ImportExpression imp) || !receiver.equals(imp.getNamespace())) {
+                continue;
+            }
+            if (imp.getKind() == ImportExpression.ImportKind.MODULE) {
                 Path modPath = ModuleResolver.resolveModulePath(imp.getModule(), docPath);
                 List<Node> modAst = workspaceIndex != null
                         ? workspaceIndex.getAst(modPath, openDocumentsByUri)
@@ -104,9 +108,36 @@ public class SignatureHelpProvider {
                 if (f != null) {
                     return paramNamesOf(f);
                 }
+            } else if (imp.isNativeJar()) {
+                List<String> params = resolveNativeParams(imp, member, docPath);
+                if (params != null) {
+                    return params;
+                }
             }
         }
         return null;
+    }
+
+    /**
+     * Reads the declared signature for a native lib call straight out of its
+     * jar's classloading-free manifest (see {@link NativeInterfaceManifest}) -
+     * never loads the jar's actual Java classes just to show a signature hint.
+     */
+    private static List<String> resolveNativeParams(ImportExpression imp, String member, Path docPath) {
+        String rawPath = imp.getModule().replace("\"", "");
+        Path jarPath = NativeLibLocator.locate(rawPath, docPath);
+        if (jarPath == null) {
+            return null;
+        }
+        Signature sig = NativeInterfaceManifest.readFromJar(jarPath).get(member);
+        if (sig == null) {
+            return null;
+        }
+        List<String> params = new ArrayList<>();
+        for (int i = 0; i < sig.paramTypes().size(); i++) {
+            params.add("#" + (i + 1) + " : " + sig.paramTypes().get(i));
+        }
+        return params;
     }
 
     /**

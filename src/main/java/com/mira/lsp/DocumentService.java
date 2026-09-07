@@ -165,7 +165,7 @@ public class DocumentService implements TextDocumentService {
         String uri = params.getTextDocument().getUri();
         List<Node> ast = astCache.getOrDefault(uri, List.of());
         String content = documents.getOrDefault(uri, "");
-        Hover hover = HoverProvider.provide(ast, content, params.getPosition());
+        Hover hover = HoverProvider.provide(ast, content, params.getPosition(), uriToPath(uri));
         return CompletableFuture.completedFuture(hover);
     }
 

@@ -7,7 +7,6 @@ import java.net.URLClassLoader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.FileTime;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -222,16 +221,6 @@ public class ImportResolver {
             }
         }
         return modulePath;
-    }
-
-    private static Path findInNativeRoots(String basename) {
-        for (Path root : Flags.nativeRoots) {
-            Path candidate = root.resolve(basename);
-            if (Files.exists(candidate)) {
-                return candidate;
-            }
-        }
-        return null;
     }
 
     private static void resolveModuleImport(Interpreter interpreter, Interpreter registrationInterpreter,
@@ -609,33 +598,9 @@ public class ImportResolver {
             throw new NativeLibLoadError(rawPath, e).withSourceFile(importingFile);
         }
 
-        Path jarPath;
-        try (InputStream bundled = ImportResolver.class.getClassLoader()
-                .getResourceAsStream("mira-native/" + basename)) {
-            if (bundled != null) {
-                Path tempJar = Files.createTempFile("mira-native-", "-" + basename);
-                tempJar.toFile().deleteOnExit();
-                Files.copy(bundled, tempJar, StandardCopyOption.REPLACE_EXISTING);
-                jarPath = tempJar;
-            } else {
-                Path fromNativeRoots = findInNativeRoots(basename);
-                if (fromNativeRoots != null) {
-                    jarPath = fromNativeRoots;
-                } else {
-                    Path currentFile = ipRef != null ? ipRef.toAbsolutePath() : Path.of("").toAbsolutePath();
-                    Path candidate = Paths.get(rawPath);
-                    jarPath = candidate.isAbsolute()
-                            ? candidate.normalize()
-                            : currentFile.getParent().resolve(candidate).normalize();
-                    if (!Files.exists(jarPath)) {
-                        throw new NativeLibNotFoundError(jarPath.toString()).withSourceFile(importingFile);
-                    }
-                }
-            }
-        } catch (NativeLibNotFoundError e) {
-            throw e;
-        } catch (IOException e) {
-            throw new NativeLibLoadError(rawPath, e).withSourceFile(importingFile);
+        Path jarPath = com.mira.lib.NativeLibLocator.locate(rawPath, ipRef);
+        if (jarPath == null) {
+            throw new NativeLibNotFoundError(rawPath).withSourceFile(importingFile);
         }
 
         String libKey = jarPath.toAbsolutePath().toString();

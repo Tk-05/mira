@@ -45,6 +45,7 @@ public class Flags {
     public static boolean profile = false;
     public static boolean stats = false;
     public static boolean coverage = false;
+    public static boolean strictTypes = false;
 
     public static void parse(String[] args) {
         if (args[0].equals("-h") || args[0].equals("--help")) {
@@ -114,6 +115,8 @@ public class Flags {
                     Flags.stats = true;
                 case "--coverage" ->
                     Flags.coverage = true;
+                case "--strict-types" ->
+                    Flags.strictTypes = true;
                 case "--" -> {
                     Flags.args = Arrays.copyOfRange(args, i + 1, args.length);
                     i = args.length;

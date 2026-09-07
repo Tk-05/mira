@@ -66,6 +66,49 @@ public class NodeToStringTest {
     }
 
     @Test
+    void varDeclTyped() {
+        assertEquals("var x : Int : 5;", first("var x : Int : 5;").toString());
+    }
+
+    @Test
+    void varDeclTypedNullable() {
+        assertEquals("var x : Int? : null;", first("var x : Int? : null;").toString());
+    }
+
+    @Test
+    void varDeclUntypedStillUnchanged() {
+        assertEquals("var x : 5;", first("var x : 5;").toString());
+    }
+
+    @Test
+    void funcDeclTypedParamsAndReturnType() {
+        assertEquals("fn add(a : Int, b : Int : 0) -> Int {...}",
+                first("fn add(a : Int, b : Int : 0) -> Int { return 1; }").toString());
+    }
+
+    @Test
+    void funcDeclTypedParamWithoutDefault() {
+        assertEquals("fn f(x : Int) {...}", first("fn f(x : Int) { return 1; }").toString());
+    }
+
+    @Test
+    void funcDeclUntypedStillUnchanged() {
+        assertEquals("fn add(a, b) {...}", first("fn add(a, b) { return 1; }").toString());
+    }
+
+    @Test
+    void typeAliasDecl() {
+        assertEquals("type UserId : Int;", first("type UserId : Int;").toString());
+    }
+
+    @Test
+    void ternaryInitializerStillParsesAsBeforeTypeAnnotationsExist() {
+        // regression check: "true" isn't identifier-shaped, so this must never
+        // be reinterpreted as a type annotation - it's a plain ternary initializer.
+        assertEquals("var a : true ? 1 : 2;", first("var a : true ? 1 : 2;").toString());
+    }
+
+    @Test
     void returnStatement() {
         FuncDecl fn = (FuncDecl) first("fn f() { return 5; }");
         assertEquals(Return.class, fn.getBody().getFirst().getClass());

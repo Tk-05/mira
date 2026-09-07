@@ -43,6 +43,7 @@ public class StaticCheckTest {
     @AfterEach
     void resetVerbose() {
         Flags.verbose = false;
+        Flags.strictTypes = false;
     }
 
     @Test
@@ -464,6 +465,32 @@ public class StaticCheckTest {
     }
 
     @Test
+    void compoundPlusAssignStringIntoNumberVarIsE324() {
+        List<MiraError> errors = errorsFor(
+                "var x : Number : 5; var s : String : \"oops\"; x +: s;");
+        assertTrue(hasCode(errors, "E324"));
+    }
+
+    @Test
+    void compoundPlusAssignNumberIntoNumberVarIsClean() {
+        assertClean("var x : Number : 5; var y : Number : 3; x +: y;");
+    }
+
+    @Test
+    void compoundPlusAssignStringIntoStringVarIsClean() {
+        assertClean("var s : String : \"hi\"; var t : String : \"!\"; s +: t;");
+    }
+
+    @Test
+    void compoundMinusAssignMismatchedOperandsStillE330() {
+        // the operand-level check runs via the desugared BinaryExpression -
+        // regression guard, distinct from the result-vs-declared-type check above
+        List<MiraError> errors = errorsFor(
+                "var flag : Bool : true; var n : Number : 5; flag -: n;");
+        assertTrue(hasCode(errors, "E330"));
+    }
+
+    @Test
     void incrementStringVarProducesE322() {
         List<MiraError> errors = errorsFor("var s : \"hello\"; s++;");
         assertTrue(hasCode(errors, "E322"));
@@ -560,6 +587,19 @@ public class StaticCheckTest {
     }
 
     @Test
+    void callNonexistentMethodOnStructInstanceIsE323() {
+        List<MiraError> errors = errorsFor(
+                "var counter : struct { var count : 0; fn get() { return this.count; } }; "
+                + "var c : counter{}; c.missing();");
+        assertTrue(hasCode(errors, "E323"));
+    }
+
+    @Test
+    void callLambdaHeldInStructFieldIsClean() {
+        assertClean("var box : struct { var run; }; var b : box{ run : fn() { return 1; } }; b.run();");
+    }
+
+    @Test
     void assignStructInstancePropagatesTypeForFieldCheck() {
         List<MiraError> errors = errorsFor("var point : struct { var x; var y; }; var q; q : point{}; print(q.z);");
         assertTrue(hasCode(errors, "E323"));
@@ -593,6 +633,21 @@ public class StaticCheckTest {
                 "var point : struct { var x; var y; }; var origin : point{}; "
                 + "fn hello(name) { println(name.z); } hello(origin);");
         assertTrue(hasCode(errors, "E323"));
+    }
+
+    @Test
+    void callNonexistentMethodOnFunctionParamViaCallSiteIsE323() {
+        List<MiraError> errors = errorsFor(
+                "var point : struct { var x; fn get() { return this.x; } }; var origin : point{}; "
+                + "fn hello(name) { name.missing(); } hello(origin);");
+        assertTrue(hasCode(errors, "E323"));
+    }
+
+    @Test
+    void callExistingMethodOnFunctionParamViaCallSiteIsClean() {
+        assertClean(
+                "var point : struct { var x; fn get() { return this.x; } }; var origin : point{}; "
+                + "fn hello(name) { name.get(); } hello(origin);");
     }
 
     @Test
@@ -676,5 +731,905 @@ public class StaticCheckTest {
         }
 
         assertFalse(out.toString().contains("static check:"));
+    }
+
+    @Test
+    void typedVarDeclWithMismatchedInitializerIsE324() {
+        List<MiraError> errors = errorsFor("var x : Number : \"hi\";");
+        assertTrue(hasCode(errors, "E324"));
+    }
+
+    @Test
+    void typedVarDeclWithMatchingInitializerIsClean() {
+        assertClean("var x : Number : 5;");
+    }
+
+    @Test
+    void untypedVarDeclWithAnyValueIsUnaffected() {
+        assertClean("var x : \"hi\"; var y : 5; var z : true;");
+    }
+
+    @Test
+    void typedVarReassignmentMismatchIsE324() {
+        List<MiraError> errors = errorsFor("var x : Number : 5; x : \"hi\";");
+        assertTrue(hasCode(errors, "E324"));
+    }
+
+    @Test
+    void typedVarReassignmentMatchingIsClean() {
+        assertClean("var x : Number : 5; x : 6;");
+    }
+
+    @Test
+    void untypedVarReassignmentToDifferentShapeIsUnaffected() {
+        assertClean("var x : 5; x : \"hi\";");
+    }
+
+    @Test
+    void nullableTypedVarAcceptsNull() {
+        assertClean("var x : Number? : null; x : 5;");
+    }
+
+    @Test
+    void nullableParamWithoutGuardIsE325() {
+        List<MiraError> errors = errorsFor(
+                "fn f(n : Number) { println(n); } fn g(x : Number?) { f(x); }");
+        assertTrue(hasCode(errors, "E325"));
+    }
+
+    @Test
+    void nullableParamNarrowedInNotEqualNullThenBranchIsClean() {
+        assertClean(
+                "fn f(n : Number) { println(n); } "
+                + "fn g(x : Number?) { if (x != null) { f(x); } }");
+    }
+
+    @Test
+    void nullableParamNarrowedInEqualNullElseBranchIsClean() {
+        assertClean(
+                "fn f(n : Number) { println(n); } "
+                + "fn g(x : Number?) { if (x == null) { println(1); } else { f(x); } }");
+    }
+
+    @Test
+    void nullableParamStillFlaggedInEqualNullThenBranch() {
+        List<MiraError> errors = errorsFor(
+                "fn f(n : Number) { println(n); } "
+                + "fn g(x : Number?) { if (x == null) { f(x); } }");
+        assertTrue(hasCode(errors, "E325"));
+    }
+
+    @Test
+    void nullableParamNarrowingDoesNotSurviveAfterIf() {
+        List<MiraError> errors = errorsFor(
+                "fn f(n : Number) { println(n); } "
+                + "fn g(x : Number?) { if (x != null) { f(x); } f(x); }");
+        assertTrue(hasCode(errors, "E325"));
+    }
+
+    @Test
+    void nullGuardClauseWithReturnNarrowsRestOfBody() {
+        assertClean(
+                "fn f(n : Number) { println(n); } "
+                + "fn g(x : Number?) { if (x == null) { return; } f(x); }");
+    }
+
+    @Test
+    void nullGuardClauseWithThrowNarrowsRestOfBody() {
+        assertClean(
+                "fn f(n : Number) { println(n); } "
+                + "fn g(x : Number?) { if (x == null) { throw err(\"bad\"); } f(x); }");
+    }
+
+    @Test
+    void nullGuardClauseViaExitingElseNarrowsRestOfBody() {
+        assertClean(
+                "fn f(n : Number) { println(n); } "
+                + "fn g(x : Number?) { if (x != null) { println(1); } else { return; } f(x); }");
+    }
+
+    @Test
+    void nonExitingNullCheckDoesNotNarrowRestOfBody() {
+        List<MiraError> errors = errorsFor(
+                "fn f(n : Number) { println(n); } "
+                + "fn g(x : Number?) { if (x == null) { println(\"was null\"); } f(x); }");
+        assertTrue(hasCode(errors, "E325"));
+    }
+
+    @Test
+    void andComposedNullCheckNarrowsBothVarsInThenBranch() {
+        assertClean(
+                "fn f(n : Number) { println(n); } "
+                + "fn g(x : Number?, y : Number?) { if (x != null && y != null) { f(x); f(y); } }");
+    }
+
+    @Test
+    void orComposedNullCheckNarrowsBothVarsInGuardClause() {
+        assertClean(
+                "fn f(n : Number) { println(n); } "
+                + "fn g(x : Number?, y : Number?) { if (x == null || y == null) { return; } f(x); f(y); }");
+    }
+
+    @Test
+    void andComposedNullCheckDoesNotNarrowUnrelatedVar() {
+        List<MiraError> errors = errorsFor(
+                "fn f(n : Number) { println(n); } "
+                + "fn g(x : Number?, y : Number?) { if (x != null && true) { f(x); f(y); } }");
+        assertTrue(hasCode(errors, "E325"));
+    }
+
+    @Test
+    void ternaryNarrowsThenBranchOnNotEqualNull() {
+        assertClean("fn g(x : Number?) { var r : Number : x != null ? x : 0; println(r); }");
+    }
+
+    @Test
+    void ternaryNarrowsElseBranchOnEqualNull() {
+        assertClean("fn g(x : Number?) { var r : Number : x == null ? 0 : x; println(r); }");
+    }
+
+    @Test
+    void ternaryNarrowingAppliesInsideCallArgument() {
+        assertClean(
+                "fn f(n : Number) { println(n); } "
+                + "fn g(x : Number?) { f(x != null ? x : 0); }");
+    }
+
+    @Test
+    void ternaryWrongSideOfNarrowingIsStillE324() {
+        List<MiraError> errors = errorsFor(
+                "fn g(x : Number?) { var r : Number : x != null ? 0 : x; }");
+        assertTrue(hasCode(errors, "E324"));
+    }
+
+    @Test
+    void callArgumentTypeMismatchIsE325() {
+        List<MiraError> errors = errorsFor(
+                "fn add(a : Number, b : Number) { return eval(a + b); } add(1, \"x\");");
+        assertTrue(hasCode(errors, "E325"));
+    }
+
+    @Test
+    void callArgumentTypeMatchingIsClean() {
+        assertClean("fn add(a : Number, b : Number) { return eval(a + b); } add(1, 2);");
+    }
+
+    @Test
+    void callToUntypedFunctionIsUnaffected() {
+        assertClean("fn add(a, b) { return eval(a + b); } add(1, \"x\");");
+    }
+
+    @Test
+    void returnTypeMismatchIsE326() {
+        List<MiraError> errors = errorsFor(
+                "fn greet() -> String { return 5; }");
+        assertTrue(hasCode(errors, "E326"));
+    }
+
+    @Test
+    void returnTypeMatchingIsClean() {
+        assertClean("fn greet() -> String { return \"hi\"; }");
+    }
+
+    @Test
+    void untypedFunctionReturnIsUnaffected() {
+        assertClean("fn greet() { return 5; }");
+    }
+
+    @Test
+    void voidFunctionWithNoReturnStatementIsClean() {
+        assertClean("fn log(msg) -> Void { println(msg); }");
+    }
+
+    @Test
+    void voidFunctionWithBareReturnIsClean() {
+        assertClean("fn log(msg) -> Void { println(msg); return; }");
+    }
+
+    @Test
+    void voidFunctionReturningValueIsE326() {
+        List<MiraError> errors = errorsFor("fn log(msg) -> Void { return 5; }");
+        assertTrue(hasCode(errors, "E326"));
+    }
+
+    @Test
+    void voidFunctionReturningNullLiteralIsStillE326() {
+        // returning an explicit value - even `null` itself - is still wrong for
+        // Void, unlike a `-> Null` declared function which would accept this
+        List<MiraError> errors = errorsFor("fn log(msg) -> Void { return null; }");
+        assertTrue(hasCode(errors, "E326"));
+    }
+
+    @Test
+    void nullReturnTypeStillAcceptsExplicitNull() {
+        assertClean("fn log(msg) -> Null { return null; }");
+    }
+
+    @Test
+    void bareReturnAgainstDeclaredNullTypeIsClean() {
+        // regression: a bare `return;` is parsed as a synthetic 0.0-literal
+        // sentinel value internally (Parser.parseReturn), not a true null -
+        // must not be misread as an explicit Number return
+        assertClean("fn f() -> Null { return; }");
+    }
+
+    @Test
+    void bareReturnAgainstDeclaredNumberTypeIsE326() {
+        List<MiraError> errors = errorsFor("fn f() -> Number { return; }");
+        assertTrue(hasCode(errors, "E326"));
+    }
+
+    @Test
+    void explicitZeroPointZeroReturnAgainstNumberTypeIsClean() {
+        // regression: must not be confused with the bare-return sentinel,
+        // which also happens to be a "0.0" literal internally
+        assertClean("fn f() -> Number { return 0.0; }");
+    }
+
+    @Test
+    void unknownTypeNameInVarDeclIsE327() {
+        List<MiraError> errors = errorsFor("var x : Frobnicate : 5;");
+        assertTrue(hasCode(errors, "E327"));
+    }
+
+    @Test
+    void typeAliasResolvesToAliasedType() {
+        assertClean("type UserId : Number; var x : UserId : 5;");
+    }
+
+    @Test
+    void typeAliasMismatchIsE324() {
+        List<MiraError> errors = errorsFor("type UserId : Number; var x : UserId : \"hi\";");
+        assertTrue(hasCode(errors, "E324"));
+    }
+
+    @Test
+    void strictModeOffAllowsUnannotatedTopLevelFunction() {
+        assertClean("fn add(a, b) { return eval(a + b); }");
+    }
+
+    @Test
+    void strictModeFlagsMissingParamType() {
+        Flags.strictTypes = true;
+        List<MiraError> errors = errorsFor("fn add(a, b : Number : 0) -> Number { return b; }");
+        assertTrue(hasCode(errors, "E328"));
+    }
+
+    @Test
+    void strictModeFlagsMissingReturnType() {
+        Flags.strictTypes = true;
+        List<MiraError> errors = errorsFor("fn add(a : Number, b : Number) { return eval(a + b); }");
+        assertTrue(hasCode(errors, "E328"));
+    }
+
+    @Test
+    void strictModeFlagsCompletelyUnannotatedFunction() {
+        Flags.strictTypes = true;
+        List<MiraError> errors = errorsFor("fn add(a, b) { return eval(a + b); }");
+        assertTrue(hasCode(errors, "E328"));
+    }
+
+    @Test
+    void strictModeAllowsFullyAnnotatedFunction() {
+        Flags.strictTypes = true;
+        assertClean("fn add(a : Number, b : Number) -> Number { return eval(a + b); }");
+    }
+
+    @Test
+    void structFieldOverrideTypeMismatchIsE329() {
+        List<MiraError> errors = errorsFor(
+                "var point : struct { var x : Number : 0; }; var p : point{x : \"oops\"};");
+        assertTrue(hasCode(errors, "E329"));
+    }
+
+    @Test
+    void structFieldOverrideMatchingTypeIsClean() {
+        assertClean("var point : struct { var x : Number : 0; }; var p : point{x : 5};");
+    }
+
+    @Test
+    void structFieldWithoutTypeIsUnaffectedByOverrideShape() {
+        assertClean("var point : struct { var x : 0; }; var p : point{x : \"anything\"};");
+    }
+
+    @Test
+    void structFieldOverrideOnUnknownFieldStaysE323NotE329() {
+        List<MiraError> errors = errorsFor(
+                "var point : struct { var x : Number : 0; }; var p : point{z : 5};");
+        assertTrue(hasCode(errors, "E323"));
+        assertFalse(hasCode(errors, "E329"));
+    }
+
+    // --- Struct nominal typing (return types) ---
+    @Test
+    void functionReturningMatchingStructTemplateIsClean() {
+        assertClean(
+                "var point : struct { var x; var y; }; "
+                + "fn make() -> point { return point{x : 1, y : 2}; } make();");
+    }
+
+    @Test
+    void functionReturningStructInstanceThroughVariableIsClean() {
+        assertClean(
+                "var point : struct { var x; var y; }; var origin : point{x : 0, y : 0}; "
+                + "fn get() -> point { return origin; } get();");
+    }
+
+    @Test
+    void functionReturningDifferentStructTemplateIsE326() {
+        List<MiraError> errors = errorsFor(
+                "var point : struct { var x; var y; }; var color : struct { var r; }; "
+                + "fn make() -> point { return color{r : 1}; } make();");
+        assertTrue(hasCode(errors, "E326"));
+    }
+
+    @Test
+    void structInitReturnedWithoutDeclaredReturnTypeIsUnaffected() {
+        assertClean(
+                "var point : struct { var x; var y; }; "
+                + "fn make() { return point{x : 1, y : 2}; } make();");
+    }
+
+    @Test
+    void realDollarReferenceIsUnaffectedByBarewordInference() {
+        assertClean("fn f(a : Number) { println(a); } var n : Number : 5; f(n);");
+    }
+
+    // --- Field reassignment type checking (after struct-init, not just at instantiation) ---
+    @Test
+    void structFieldReassignmentTypeMismatchIsE329() {
+        List<MiraError> errors = errorsFor(
+                "var Point : struct { var x : Number : 0; }; var p : Point{}; p.x : \"oops\";");
+        assertTrue(hasCode(errors, "E329"));
+    }
+
+    @Test
+    void structFieldReassignmentMatchingTypeIsClean() {
+        assertClean("var Point : struct { var x : Number : 0; }; var p : Point{}; p.x : 5;");
+    }
+
+    @Test
+    void objectFieldReassignmentTypeMismatchIsE329() {
+        List<MiraError> errors = errorsFor("var o : { var x : Number : 0; }; o.x : \"oops\";");
+        assertTrue(hasCode(errors, "E329"));
+    }
+
+    @Test
+    void untypedFieldReassignmentIsUnaffected() {
+        assertClean("var Point : struct { var x : 0; }; var p : Point{}; p.x : \"anything\";");
+    }
+
+    @Test
+    void constCollectionFieldReassignmentStillReportsE321() {
+        // regression: the const-mutation check that already lived in this code path
+        // must survive being refactored to share logic with the new type check
+        List<MiraError> errors = errorsFor("const p : { var x : 0; }; p.x : 5;");
+        assertTrue(hasCode(errors, "E321"));
+    }
+
+    // --- Method-call and call-via-variable argument type checking ---
+    @Test
+    void structMethodCallArgumentMismatchIsE325() {
+        List<MiraError> errors = errorsFor(
+                "var Point : struct { var x : Number : 0; fn set(v : Number) { this.x : v; } }; "
+                + "var p : Point{}; p.set(\"oops\");");
+        assertTrue(hasCode(errors, "E325"));
+    }
+
+    @Test
+    void structMethodCallMatchingArgumentIsClean() {
+        assertClean(
+                "var Point : struct { var x : Number : 0; fn set(v : Number) { this.x : v; } }; "
+                + "var p : Point{}; p.set(5);");
+    }
+
+    @Test
+    void objectMethodCallArgumentMismatchIsE325() {
+        List<MiraError> errors = errorsFor(
+                "var o : { var x : Number : 0; fn set(v : Number) { this.x : v; } }; o.set(\"oops\");");
+        assertTrue(hasCode(errors, "E325"));
+    }
+
+    @Test
+    void lambdaValueCallArgumentMismatchIsE325() {
+        List<MiraError> errors = errorsFor("var f : fn(a : Number) { return a; }; f(\"oops\");");
+        assertTrue(hasCode(errors, "E325"));
+    }
+
+    @Test
+    void lambdaValueCallMatchingArgumentIsClean() {
+        assertClean("var f : fn(a : Number) { return a; }; f(5);");
+    }
+
+    @Test
+    void untypedLambdaValueCallIsUnaffected() {
+        assertClean("var f : fn(a) { return a; }; f(\"anything\");");
+    }
+
+    // --- Diagnostic position regressions ---
+    @Test
+    void argumentTypeMismatchPointsAtTheArgumentNotColumnZero() {
+        // regression: this used to hardcode column 0, so the editor
+        // underlined whatever happened to sit at the start of that line
+        // instead of the actual offending argument
+        List<MiraError> errors = errorsFor(
+                "fn f(a : Number) { println(a); } var s : String : \"hi\"; f(s);");
+        MiraError err = errors.stream().filter(e -> "E325".equals(e.getErrorCode())).findFirst().orElseThrow();
+        assertTrue(err.getColumn() > 0);
+    }
+
+    @Test
+    void structFieldTypeMismatchPointsAtTheOverrideValueNotColumnZero() {
+        List<MiraError> errors = errorsFor(
+                "var Point : struct { var x : Number : 0; }; var p : Point{x : \"oops\"};");
+        MiraError err = errors.stream().filter(e -> "E329".equals(e.getErrorCode())).findFirst().orElseThrow();
+        assertTrue(err.getColumn() > 0);
+    }
+
+    // --- Binary operator operand type checking ---
+    @Test
+    void explicitlyTypedOperandMismatchInPlusIsE330() {
+        // a genuine mismatch: neither side is Number+Number, and neither
+        // side is a String (which '+' always allows, as concatenation)
+        List<MiraError> errors = errorsFor(
+                "var flag : Bool : true; var n : Number : 5; var r : flag + n;");
+        assertTrue(hasCode(errors, "E330"));
+    }
+
+    @Test
+    void explicitlyTypedOperandsSameTypeInPlusIsClean() {
+        assertClean("var a : Number : 5; var b : Number : 3; var r : a + b;");
+    }
+
+    @Test
+    void explicitlyTypedStringAndNumberInPlusIsCleanConcatenation() {
+        // '+' on a String and anything else is concatenation, not arithmetic -
+        // unlike every other arithmetic operator, mismatched types here are fine
+        assertClean("var n : Number : 5; var s : String : \"x\"; var r : s + n;");
+    }
+
+    @Test
+    void explicitlyTypedNonNumberOperandInMinusIsE330() {
+        List<MiraError> errors = errorsFor("var s : String : \"x\"; var r : s - 1;");
+        assertTrue(hasCode(errors, "E330"));
+    }
+
+    @Test
+    void explicitlyTypedNumberOperandsInMinusIsClean() {
+        assertClean("var a : Number : 5; var r : a - 1;");
+    }
+
+    @Test
+    void bareLiteralMismatchInMinusStaysSoftWarningNotE330() {
+        // regression guard: with no explicit annotation on either side, this must
+        // stay covered only by the pre-existing soft-warning system (see
+        // arithmeticOnStringLiteralProducesWarning above), never escalate to E330
+        assertClean("var r : \"foo\" - 1;");
+    }
+
+    @Test
+    void untypedVariablesInPlusAreUnaffected() {
+        assertClean("var a : 5; var b : 3; var r : a + b;");
+    }
+
+    @Test
+    void typedFunctionReturnStringConcatenationInPlusIsClean() {
+        // '+' with a typed function's Number return and a String is
+        // concatenation, not a mismatch - same as any other String operand
+        assertClean("fn getNum() -> Number { return 1; } var s : String : \"x\"; var r : getNum() + s;");
+    }
+
+    @Test
+    void structMethodReturnTypeMismatchIsE324() {
+        List<MiraError> errors = errorsFor(
+                "var Point : struct { var x : Number : 0; fn getX() -> Number { return this.x; } }; "
+                + "var p : Point : Point{}; var s : String : p.getX();");
+        assertTrue(hasCode(errors, "E324"));
+    }
+
+    @Test
+    void structMethodReturnTypeMatchingIsClean() {
+        assertClean(
+                "var Point : struct { var x : Number : 0; fn getX() -> Number { return this.x; } }; "
+                + "var p : Point : Point{}; var n : Number : p.getX();");
+    }
+
+    @Test
+    void methodCallWithoutDeclaredReturnTypeIsUnaffected() {
+        assertClean(
+                "var Point : struct { fn getX() { return 1; } }; "
+                + "var p : Point : Point{}; var s : String : p.getX();");
+    }
+
+    // --- Parameter default value type checking ---
+    @Test
+    void paramDefaultMismatchIsE324() {
+        List<MiraError> errors = errorsFor("fn f(a : Number : \"wrong\") { println(a); }");
+        assertTrue(hasCode(errors, "E324"));
+    }
+
+    @Test
+    void paramDefaultMatchingTypeIsClean() {
+        assertClean("fn f(a : Number : 5) { println(a); }");
+    }
+
+    @Test
+    void untypedParamDefaultIsUnaffected() {
+        assertClean("fn f(a : \"anything\") { println(a); }");
+    }
+
+    @Test
+    void structMethodParamDefaultMismatchIsE324() {
+        List<MiraError> errors = errorsFor(
+                "var Point : struct { fn set(v : Number : \"wrong\") { println(v); } };");
+        assertTrue(hasCode(errors, "E324"));
+    }
+
+    @Test
+    void objectMethodParamDefaultMismatchIsE324() {
+        List<MiraError> errors = errorsFor(
+                "var o : { fn set(v : Number : \"wrong\") { println(v); } };");
+        assertTrue(hasCode(errors, "E324"));
+    }
+
+    @Test
+    void lambdaParamDefaultMismatchIsE324() {
+        List<MiraError> errors = errorsFor("var f : fn(a : Number : \"wrong\") { return a; };");
+        assertTrue(hasCode(errors, "E324"));
+    }
+
+    // --- Enum member type inference ---
+    @Test
+    void enumMemberTypeMismatchIsE324() {
+        List<MiraError> errors = errorsFor(
+                "enum Color { RED, GREEN } enum Size { SMALL, LARGE } var c : Color : Size.SMALL;");
+        assertTrue(hasCode(errors, "E324"));
+    }
+
+    @Test
+    void enumMemberMatchingTypeIsClean() {
+        assertClean("enum Color { RED, GREEN } var c : Color : Color.RED;");
+    }
+
+    @Test
+    void enumMemberUnannotatedUsageIsUnaffected() {
+        assertClean("enum Color { RED, GREEN } var c : Color.RED; println(c);");
+    }
+
+    @Test
+    void enumMemberArgumentTypeMismatchIsE325() {
+        List<MiraError> errors = errorsFor(
+                "enum Color { RED, GREEN } enum Size { SMALL, LARGE } "
+                + "fn f(c : Color) { println(c); } f(Size.SMALL);");
+        assertTrue(hasCode(errors, "E325"));
+    }
+
+    // --- Struct/object field's own default value type checking ---
+    @Test
+    void structFieldOwnDefaultMismatchIsE324() {
+        List<MiraError> errors = errorsFor("var Point : struct { var x : Number : \"wrong\"; };");
+        assertTrue(hasCode(errors, "E324"));
+    }
+
+    @Test
+    void structFieldOwnDefaultMatchingTypeIsClean() {
+        assertClean("var Point : struct { var x : Number : 0; };");
+    }
+
+    @Test
+    void objectFieldOwnDefaultMismatchIsE324() {
+        List<MiraError> errors = errorsFor("var o : { var x : Number : \"wrong\"; };");
+        assertTrue(hasCode(errors, "E324"));
+    }
+
+    @Test
+    void untypedStructFieldOwnDefaultIsUnaffected() {
+        assertClean("var Point : struct { var x : \"anything\"; };");
+    }
+
+    // --- Ternary/switch branches checked against the declaring type ---
+    @Test
+    void ternaryBranchMismatchAgainstDeclaredTypeIsE324() {
+        List<MiraError> errors = errorsFor("var c : Number : true ? 1 : \"two\";");
+        assertTrue(hasCode(errors, "E324"));
+    }
+
+    @Test
+    void ternaryBranchesMatchingDeclaredTypeIsClean() {
+        assertClean("var c : Number : true ? 1 : 2;");
+    }
+
+    @Test
+    void switchCaseResultMismatchAgainstDeclaredTypeIsE324() {
+        List<MiraError> errors = errorsFor(
+                "var n : Number : 1; "
+                + "var c : Number : switch(n) { case(1) -> \"one\" default -> 2 };");
+        assertTrue(hasCode(errors, "E324"));
+    }
+
+    @Test
+    void switchCaseResultsMatchingDeclaredTypeIsClean() {
+        assertClean(
+                "var n : Number : 1; "
+                + "var c : Number : switch(n) { case(1) -> 1 default -> 2 };");
+    }
+
+    @Test
+    void nonExhaustiveSwitchStatementOverEnumWarns() {
+        WarningCollector.clear();
+        assertClean(
+                "enum Color { RED, GREEN, BLUE } var c : Color : Color.RED; "
+                + "switch (c) { case (Color.RED) { println(1); } case (Color.GREEN) { println(2); } }");
+        assertTrue(WarningCollector.getWarnings().stream()
+                .anyMatch(w -> w.message().contains("not exhaustive") && w.message().contains("BLUE")));
+        WarningCollector.clear();
+    }
+
+    @Test
+    void exhaustiveSwitchStatementOverEnumIsClean() {
+        WarningCollector.clear();
+        assertClean(
+                "enum Color { RED, GREEN } var c : Color : Color.RED; "
+                + "switch (c) { case (Color.RED) { println(1); } case (Color.GREEN) { println(2); } }");
+        assertTrue(WarningCollector.getWarnings().stream().noneMatch(w -> w.message().contains("not exhaustive")));
+        WarningCollector.clear();
+    }
+
+    @Test
+    void nonExhaustiveSwitchStatementWithDefaultIsUnaffected() {
+        WarningCollector.clear();
+        assertClean(
+                "enum Color { RED, GREEN, BLUE } var c : Color : Color.RED; "
+                + "switch (c) { case (Color.RED) { println(1); } default { println(2); } }");
+        assertTrue(WarningCollector.getWarnings().stream().noneMatch(w -> w.message().contains("not exhaustive")));
+        WarningCollector.clear();
+    }
+
+    @Test
+    void nonExhaustiveSwitchOverNonEnumIsUnaffected() {
+        WarningCollector.clear();
+        assertClean("var n : Number : 1; switch (n) { case (1) { println(1); } }");
+        assertTrue(WarningCollector.getWarnings().stream().noneMatch(w -> w.message().contains("not exhaustive")));
+        WarningCollector.clear();
+    }
+
+    @Test
+    void nonExhaustiveSwitchExpressionOverEnumWarns() {
+        WarningCollector.clear();
+        assertClean(
+                "enum Color { RED, GREEN, BLUE } var c : Color : Color.RED; "
+                + "var label : String : switch (c) { case (Color.RED) -> \"r\" case (Color.GREEN) -> \"g\" };");
+        assertTrue(WarningCollector.getWarnings().stream()
+                .anyMatch(w -> w.message().contains("not exhaustive") && w.message().contains("BLUE")));
+        WarningCollector.clear();
+    }
+
+    @Test
+    void untypedTernaryIsUnaffected() {
+        assertClean("var c : true ? 1 : \"two\";");
+    }
+
+    // --- Comparison operator operand type checking ---
+    @Test
+    void explicitlyTypedOperandMismatchInLessThanIsE330() {
+        List<MiraError> errors = errorsFor("var n : Number : 5; var t : String : \"x\"; var r : n < t;");
+        assertTrue(hasCode(errors, "E330"));
+    }
+
+    @Test
+    void explicitlyTypedOperandsSameTypeInLessThanIsClean() {
+        assertClean("var a : Number : 5; var b : Number : 3; var r : a < b;");
+    }
+
+    @Test
+    void bareLiteralMismatchInLessThanIsUnaffected() {
+        assertClean("var r : \"foo\" < 1;");
+    }
+
+    @Test
+    void untypedVariablesInLessThanAreUnaffected() {
+        assertClean("var a : 5; var b : 3; var r : a < b;");
+    }
+
+    @Test
+    void explicitlyTypedOperandMismatchInGreaterEqualIsE330() {
+        List<MiraError> errors = errorsFor("var n : Number : 5; var t : String : \"x\"; var r : n >= t;");
+        assertTrue(hasCode(errors, "E330"));
+    }
+
+    // --- Unary minus/tilde operand type checking ---
+    @Test
+    void unaryMinusOnExplicitlyTypedStringIsE331() {
+        List<MiraError> errors = errorsFor("var s : String : \"hi\"; var r : -s;");
+        assertTrue(hasCode(errors, "E331"));
+    }
+
+    @Test
+    void unaryMinusOnExplicitlyTypedNumberIsClean() {
+        assertClean("var n : Number : 5; var r : -n;");
+    }
+
+    @Test
+    void unaryMinusOnBarewordStaysUnaffected() {
+        // regression guard: bare literals/barewords have no explicit type to gate
+        // on, so this must stay covered only by the pre-existing warnIfStringOperand
+        // warning (see unaryMinusOnStringLiteralProducesWarning), never escalate
+        assertClean("var r : -\"foo\";");
+    }
+
+    @Test
+    void unaryTildeOnExplicitlyTypedStringIsE331() {
+        List<MiraError> errors = errorsFor("var s : String : \"hi\"; var r : ~s;");
+        assertTrue(hasCode(errors, "E331"));
+    }
+
+    // --- Calling a variable known to hold a non-callable value ---
+    @Test
+    void callingLiteralNumberVariableIsE332() {
+        List<MiraError> errors = errorsFor("var x : 5; x();");
+        assertTrue(hasCode(errors, "E332"));
+    }
+
+    @Test
+    void callingExplicitlyTypedNonFnVariableIsE332() {
+        List<MiraError> errors = errorsFor("var s : String : \"hi\"; s();");
+        assertTrue(hasCode(errors, "E332"));
+    }
+
+    @Test
+    void callingStructInstanceVariableIsE332() {
+        List<MiraError> errors = errorsFor(
+                "var Point : struct { var x : 0; }; var p : Point{}; p();");
+        assertTrue(hasCode(errors, "E332"));
+    }
+
+    @Test
+    void callingLambdaVariableIsClean() {
+        assertClean("var f : fn() { return 1; }; f();");
+    }
+
+    @Test
+    void callingFnTypedParameterIsClean() {
+        assertClean("fn apply(cb : Fn) { cb(); }");
+    }
+
+    @Test
+    void callingTypedFnParamWithMismatchedArgumentIsE325() {
+        List<MiraError> errors = errorsFor(
+                "fn apply(cb : Fn(Number, Number) -> Number) { cb(\"oops\", 2); }");
+        assertTrue(hasCode(errors, "E325"));
+    }
+
+    @Test
+    void callingTypedFnParamWithMatchingArgumentsIsClean() {
+        assertClean("fn apply(cb : Fn(Number, Number) -> Number) { cb(1, 2); }");
+    }
+
+    @Test
+    void passingMismatchedLambdaToTypedFnParamIsE325() {
+        List<MiraError> errors = errorsFor(
+                "fn apply(cb : Fn(Number) -> Number) { cb(1); } "
+                + "apply(fn(a : String) { return a; });");
+        assertTrue(hasCode(errors, "E325"));
+    }
+
+    @Test
+    void passingMatchingLambdaToTypedFnParamIsClean() {
+        assertClean(
+                "fn apply(cb : Fn(Number) -> Number) { cb(1); } "
+                + "apply(fn(a : Number) { return a; });");
+    }
+
+    @Test
+    void passingMismatchedNamedFunctionToTypedFnParamIsE325() {
+        List<MiraError> errors = errorsFor(
+                "fn apply(cb : Fn(Number, Number) -> Number) { cb(1, 2); } "
+                + "fn wrong(a : String, b : String) { return a; } apply(wrong);");
+        assertTrue(hasCode(errors, "E325"));
+    }
+
+    @Test
+    void passingMatchingNamedFunctionToTypedFnParamIsClean() {
+        assertClean(
+                "fn apply(cb : Fn(Number, Number) -> Number) { cb(1, 2); } "
+                + "fn add(a : Number, b : Number) { return a + b; } apply(add);");
+    }
+
+    @Test
+    void callingUntypedParameterIsUnaffected() {
+        assertClean("fn apply(cb) { cb(); }");
+    }
+
+    @Test
+    void callingUntypedUntrackedVariableIsUnaffected() {
+        // gradual typing: no declared type and no known literal shape means the
+        // check has nothing to go on, so it must stay silent rather than guess
+        assertClean("fn wrap(v) { var f : v; f(); }");
+    }
+
+    // --- Negative-number-literal tracking (a UnaryExpression, not a DumbExpression) ---
+    @Test
+    void callingNegativeLiteralVariableIsE332() {
+        List<MiraError> errors = errorsFor("var x : -1; x();");
+        assertTrue(hasCode(errors, "E332"));
+    }
+
+    @Test
+    void negativeLiteralArithmeticStaysClean() {
+        // regression guard: recognizing `-1` as a known Number literal must not
+        // disturb ordinary arithmetic on it
+        assertClean("var n : -5; var r : n - 1; println(r);");
+    }
+
+    // --- Reassignment through a ternary/switch whose branches agree on type ---
+    @Test
+    void callingVariableReassignedViaTernaryWithAgreeingBranchesIsE332() {
+        List<MiraError> errors = errorsFor("var a : () -> 0; a : true ? 69 : -1; a();");
+        assertTrue(hasCode(errors, "E332"));
+    }
+
+    @Test
+    void callingVariableReassignedViaTernaryWithDisagreeingBranchesIsUnaffected() {
+        // branches disagree on type (Number vs String) - the reassignment can't
+        // be classified, so tracking is dropped (falls back to "unknown") rather
+        // than guessed; this must not produce a false positive
+        assertClean("var a : () -> 0; a : true ? 1 : \"two\"; a();");
+    }
+
+    @Test
+    void callingVariableReassignedViaSwitchWithAgreeingBranchesIsE332() {
+        List<MiraError> errors = errorsFor(
+                "var a : () -> 0; var n : Number : 1; "
+                + "a : switch(n) { case(1) -> 1 default -> 2 }; a();");
+        assertTrue(hasCode(errors, "E332"));
+    }
+
+    @Test
+    void ternaryReassignmentToAFunctionStaysCallable() {
+        assertClean("var a : () -> 0; a : true ? (() -> 1) : (() -> 2); println(a());");
+    }
+
+    // --- Boolean negation / bitwise NOT literal tracking ---
+    @Test
+    void callingBooleanNegationLiteralVariableIsE332() {
+        List<MiraError> errors = errorsFor("var y : !true; y();");
+        assertTrue(hasCode(errors, "E332"));
+    }
+
+    @Test
+    void callingBitwiseNotLiteralVariableIsE332() {
+        List<MiraError> errors = errorsFor("var z : ~5; z();");
+        assertTrue(hasCode(errors, "E332"));
+    }
+
+    @Test
+    void booleanNegationStaysUsableAsABool() {
+        assertClean("var y : !true; var b : Bool : y;");
+    }
+
+    // --- Tracking a variable's type through a typed-function-call result ---
+    @Test
+    void callingVariableDeclaredFromTypedFunctionCallIsE332() {
+        List<MiraError> errors = errorsFor(
+                "fn getNum() -> Number { return 1; } var a : getNum(); a();");
+        assertTrue(hasCode(errors, "E332"));
+    }
+
+    @Test
+    void callingVariableReassignedFromTypedFunctionCallIsE332() {
+        List<MiraError> errors = errorsFor(
+                "fn getNum() -> Number { return 1; } var a : () -> 0; a : getNum(); a();");
+        assertTrue(hasCode(errors, "E332"));
+    }
+
+    @Test
+    void reassigningFromFnTypedFunctionCallStaysCallable() {
+        assertClean(
+                "fn getFn() -> Fn { return () -> 42; } var a : () -> 0; a : getFn(); println(a());");
+    }
+
+    @Test
+    void reassigningFromUntypedFunctionCallIsUnaffected() {
+        assertClean("fn getNum() { return 1; } var a : () -> 0; a : getNum(); a();");
     }
 }

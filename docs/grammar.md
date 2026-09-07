@@ -99,10 +99,10 @@ HexDigitOrSep ::= HexDigit | ( '_' HexDigit )
   all — `1e` lexes as `NUMBER "1"` followed by `IDENT "e"`.
 - `5.` (dot with no following digit) **does** parse as a float — equivalent
   to `5.0`. The tokenizer consumes a `.` after a digit run unless the next
-  character is *also* a `.` (which means it's actually the start of the `..`
+  character is _also_ a `.` (which means it's actually the start of the `..`
   range separator or `...` variadic marker, not a decimal point — this is
   what keeps `<0..5>` from being corrupted into `NUMBER "0."` + `DELIMITER "."`
-  + `NUMBER "5"`).
+  - `NUMBER "5"`).
 - `.5` is not a valid literal at all (a leading `.` never starts a number).
 - No binary/octal literals, no numeric type suffixes (`1L`, `1.0f`).
 - Sign is never part of the literal: `-5` is the unary `-` operator applied to
@@ -290,9 +290,21 @@ explicit `{ }`.
 ### Variable declaration
 
 ```
-VarDecl   ::= [ 'pub' ] 'var'   IDENT [ ':' Expression ] { ',' IDENT [ ':' Expression ] } ';'
+VarDecl   ::= [ 'pub' ] 'var'   IDENT [ TypeAnnotation ] [ ':' Expression ] { ',' IDENT [ TypeAnnotation ] [ ':' Expression ] } ';'
 ConstDecl ::= [ 'pub' ] 'const' IDENT ':' Expression     { ',' IDENT ':' Expression }     ';'
+
+TypeAnnotation ::= ':' TypeExpr ':'
+TypeExpr       ::= 'Fn' '(' [ TypeExpr { ',' TypeExpr } ] ')' [ '->' TypeExpr ] [ '?' ]
+                  | NameToken [ '?' ]
 ```
+
+- The `Fn(...)` form is a checked function type: each parameter's own type
+  and, if given, the `-> TypeExpr` return type are matched against whatever
+  value is bound to it. A bare `Fn` (no parens) is any callable, unchecked.
+  The trailing `[ '?' ]` binds to whichever `TypeExpr` it immediately
+  follows: with no return type, `Fn(Number)?` makes the function reference
+  itself nullable; with a return type, `Fn(Number) -> Number?` instead makes
+  the _return type_ nullable, not the function reference.
 
 - `const` requires an initializer on every name; `var`'s initializer is
   optional, but only directly before `;`, `)`, `,`, or `in` — anything else
@@ -304,10 +316,17 @@ ConstDecl ::= [ 'pub' ] 'const' IDENT ':' Expression     { ',' IDENT ':' Express
 - Fields declared inside an [object](#object-literal) or
   [struct](#struct-literal-template) literal use this same production but can never
   carry `pub`.
+- `TypeAnnotation` is optional and requires an initializer to follow — there
+  is no "typed but uninitialized" `var` form. See
+  [Type annotation disambiguation](#type-annotation-disambiguation) for how
+  the parser tells `var x : Expr;` apart from `var x : Type : Expr;` without
+  backtracking.
 
 ```mira
 var x : 5, y : "a", z;
 pub const PI : 3;
+var age : Number : 30;
+var maybe : Number? : null;
 ```
 
 ### Destructuring declaration
@@ -326,7 +345,7 @@ var (a, b) : pair;
 ### Function declaration
 
 ```
-FuncDecl ::= [ 'pub' ] [ 'async' | 'pure' ] 'fn' NameToken '(' ParamList ')' Block
+FuncDecl ::= [ 'pub' ] [ 'async' | 'pure' ] 'fn' NameToken '(' ParamList ')' [ '->' TypeExpr ] Block
 ```
 
 - `pub` must come before `async`/`pure` if both are present.
@@ -336,12 +355,34 @@ FuncDecl ::= [ 'pub' ] [ 'async' | 'pure' ] 'fn' NameToken '(' ParamList ')' Blo
   [Context-Sensitive Rules](#context-sensitive-rules)).
 - The body braces are mandatory — there's no brace-less shorthand for a named
   function.
+- The `-> TypeExpr` return-type annotation only applies to named `fn`
+  declarations — lambdas and arrow lambdas don't accept one, since `->`
+  there already introduces the lambda body (see
+  [Type annotation disambiguation](#type-annotation-disambiguation)).
 
 ```mira
 pub async fn fetch(url, timeout : 30) { return await http.get(url); }
+fn add(a : Number, b : Number) -> Number { return a + b; }
 ```
 
 See [Function/Lambda Details](#functionlambda-details) for `ParamList`.
+
+### Type alias declaration
+
+```
+TypeAliasDecl ::= 'type' IDENT ':' TypeExpr ';'
+```
+
+```mira
+type UserId : Number;
+```
+
+Syntactically legal anywhere a statement is legal, like `VarDecl` — but only
+a `type` declaration at the true top level of a file is actually registered
+and usable as a type name; one written inside a function or block currently
+parses but has no effect (the static checker only scans top-level statements
+for `TypeAliasDecl` nodes). `TypeExpr` is the same production used by
+`TypeAnnotation` (see [Variable declaration](#variable-declaration)).
 
 ### Return
 
@@ -824,7 +865,7 @@ operands whenever either side isn't a number. This is also why arithmetic
 never needs to be wrapped in `eval()` — `n - 1`, `x * 2`, `-x` are ordinary
 expressions usable anywhere, including right next to a `+`-joined string,
 with no parsing ambiguity to work around. `eval(<code>)` is reserved for its
-one remaining job: running a runtime-constructed code *string* — see
+one remaining job: running a runtime-constructed code _string_ — see
 [Dynamic Code Execution](language-guide.md#dynamic-code-execution). For
 formatted output, see the `format(pattern, ...args)` builtin in the
 [Standard Library Reference](standard-library.md).
@@ -835,13 +876,19 @@ formatted output, see the `format(pattern, ...args)` builtin in the
 
 ```
 ParamList ::= [ Param { ',' Param } [ ',' '...' IDENT ] | '...' IDENT ]
-Param     ::= NameToken [ ':' Expression ]
+Param     ::= NameToken ( [ ':' TypeExpr ] ':' Expression | ':' TypeExpr | ε )
 ```
 
 - A parameter's default value is a full `Expression` (it can itself be a
   juxtaposed/complex expression).
+- A parameter can be typed with or without a default: `a : Number` (typed,
+  no default) or `a : Number : 0` (typed, with default). A lone `: Expr`
+  with no second colon is still a plain untyped default, exactly as before —
+  see [Type annotation disambiguation](#type-annotation-disambiguation) for
+  the one narrow case this changes (a parameter defaulted to a bare,
+  unquoted identifier-shaped string).
 - The variadic marker, if present, must be the **last** item, and there can
-  be at most one.
+  be at most one. It never carries a type annotation.
 - Arity for call-checking purposes: minimum arity = count of parameters
   without a default (or unbounded if variadic); maximum arity = total
   parameter count (or unbounded if variadic).
@@ -930,7 +977,7 @@ otherwise it's a parenthesized grouped expression.
 
 `<` is an ordinary (binary-only) comparison operator when it appears after an
 existing expression, reached via the precedence-climbing parser. But a `<`
-encountered at *primary* position (starting a new expression — no left-hand
+encountered at _primary_ position (starting a new expression — no left-hand
 side yet) is unambiguous, since `<` is never a valid prefix/unary operator:
 the parser always treats it as the start of a [range literal](#range). This
 is what makes ranges work as a general expression, not just inside
@@ -955,3 +1002,43 @@ Inside a classic `for(...)` header, a bare `,` in the init clause means
 "expect another `var` next." A standalone `var i:0, j:10;` statement, by
 contrast, refuses to continue past a comma that's followed by `var` — that
 handoff is exactly what lets the `for`-loop claim the comma instead.
+
+### Type annotation disambiguation
+
+`:` already means "here's the initializer" (`VarDecl`), "here's the default"
+(`Param`), and "here's the field's value" (struct/object field decls, which
+reuse `VarDecl`) — reusing it for type annotations without breaking any of
+that requires pure lookahead, never a speculative parse-and-reinterpret
+(parsing the first clause as a general `Expression` and only later deciding
+it was actually a type would make `var a : Int?` ambiguous with the
+[ternary operator](#ternary), since `Int` would greedily start parsing
+`Int ? … : …` and consume the very colon that was supposed to separate the
+type from the initializer).
+
+- **`VarDecl`/field decls**: when the token after the name is `:`, the
+  parser looks ahead for the pattern `: TypeName [ ? ] :` — an
+  `EXPRESSION`-typed token (so not `true`/`false`/`null`, which are
+  `KEYWORD`-typed and can't start a `TypeExpr`), an optional `?`, and a
+  **second** `:` — before committing to reinterpreting the first clause as a
+  type rather than an initializer. A single `:` with no second one, or a
+  first clause that doesn't look like a bare type name, is unconditionally
+  the pre-existing untyped form. This is why `var a : true ? 1 : 2;` still
+  parses as an untyped `var` with a ternary initializer: `true` is
+  `KEYWORD`-typed, so it never matches the type-name lookahead in the first
+  place.
+- **`Param`**: since "typed, no default" (a single `: Type` with nothing
+  after it) is the common case for parameters, and there's no second colon
+  available to disambiguate the way `VarDecl` does, the parser instead looks
+  ahead for `: TypeName [ ? ]` immediately followed by `,` or `)`. This is a
+  real, narrow behavior change: a parameter previously defaulted to a bare,
+  unquoted, identifier-shaped string (e.g. `fn f(mode : enabled)`) is now
+  read as `mode` typed as `enabled` instead. Every other default value shape
+  (numbers, strings, booleans, `null`, any non-trivial expression) is
+  unaffected, since none of them match "single bare identifier with nothing
+  after it in parameter position."
+- **`FuncDecl`'s `-> TypeExpr`**: unambiguous by construction — `->` between
+  a named function's `)` and its `{` was unused grammar space before this
+  feature existed. It is deliberately **not** extended to lambdas: an arrow
+  lambda's own `->` already means "body follows," so `(x) -> Int` staying
+  "the body is the bare expression `Int`" (not "declares return type `Int`,
+  body is next") avoids reopening that ambiguity.

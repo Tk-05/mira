@@ -234,22 +234,22 @@ Constants: `pi`, `e`, `inf`, `nan`
 
 ### `process`
 
-| Function                 | Description                                                        |
-| ------------------------ | ------------------------------------------------------------------ |
-| `processStart(cmd)`      | Starts a background process, returns an ID                         |
-| `processAlive(id)`       | True if the process is still running                               |
-| `processDone(id)`        | True if the process has finished (returns true for unknown IDs)    |
-| `processWait(id)`        | Waits for the process to finish, returns exit code                 |
-| `processKill(id)`        | Terminates the process                                             |
-| `processOutput(id)`      | Returns buffered stdout of the process                             |
-| `processReadPartial(id)` | Reads available stdout non-blocking, returns `""` if nothing ready |
-| `processExitCode(id)`    | Returns the exit code of a finished process                        |
-| `pid()`                  | Returns the PID of the current process                             |
-| `listProcesses()`        | Returns a list of all running PIDs                                 |
-| `processInfo(pid)`       | Returns the command of a process by PID                            |
-| `sleep(ms)`              | Pauses execution for the given number of milliseconds              |
+| Function                 | Description                                                                                                                                                           |
+| ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `processStart(cmd)`      | Starts a background process, returns an ID                                                                                                                            |
+| `processAlive(id)`       | True if the process is still running                                                                                                                                  |
+| `processDone(id)`        | True if the process has finished (returns true for unknown IDs)                                                                                                       |
+| `processWait(id)`        | Waits for the process to finish, returns exit code                                                                                                                    |
+| `processKill(id)`        | Terminates the process                                                                                                                                                |
+| `processOutput(id)`      | Returns buffered stdout of the process                                                                                                                                |
+| `processReadPartial(id)` | Reads available stdout non-blocking, returns `""` if nothing ready                                                                                                    |
+| `processExitCode(id)`    | Returns the exit code of a finished process                                                                                                                           |
+| `pid()`                  | Returns the PID of the current process                                                                                                                                |
+| `listProcesses()`        | Returns a list of all running PIDs                                                                                                                                    |
+| `processInfo(pid)`       | Returns the command of a process by PID                                                                                                                               |
+| `sleep(ms)`              | Pauses execution for the given number of milliseconds                                                                                                                 |
 | `installCrashLog(path)`  | Tees this process's stderr (incl. the crash dump) to an append-mode file, in addition to the console; returns `false` instead of throwing if the file can't be opened |
-| `uninstallCrashLog()`    | Restores stderr to what it was before `installCrashLog`; returns `false` if no crash log is currently installed |
+| `uninstallCrashLog()`    | Restores stderr to what it was before `installCrashLog`; returns `false` if no crash log is currently installed                                                       |
 
 ### `bytes`
 
@@ -485,5 +485,23 @@ doWork();
 println("took: " + time.format(time.elapsed(start)));
 ```
 
----
+### `thread`
 
+Mutex creation for use with the [`lock` statement](language-guide.md#mutexes-and-the-lock-statement) — see there for `spawn`/`await` and full locking examples.
+
+| Function     | Description                |
+| ------------ | -------------------------- |
+| `newMutex()` | Creates a new mutex object |
+
+```mira
+import thread as thread;
+
+var mu : thread.newMutex();
+var counter : 0;
+
+lock(mu) {
+    counter : (counter + 1);
+}
+```
+
+---

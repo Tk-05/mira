@@ -1,5 +1,6 @@
 package com.mira.lsp;
 
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -12,8 +13,11 @@ import org.eclipse.lsp4j.MarkupKind;
 import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.Range;
 
+import com.mira.lib.NativeInterfaceManifest;
+import com.mira.lib.NativeInterfaceManifest.Signature;
+import com.mira.lib.NativeLibLocator;
 import com.mira.parser.nodes.Node;
-import com.mira.parser.nodes.Parameter;
+import com.mira.parser.nodes.expression.Expression.ImportExpression;
 import com.mira.parser.nodes.expression.Expression.ObjectExpression;
 import com.mira.parser.nodes.expression.Expression.StructExpression;
 import com.mira.parser.nodes.statement.Statement;
@@ -185,6 +189,10 @@ public class HoverProvider {
     }
 
     public static Hover provide(List<Node> ast, String content, Position pos) {
+        return provide(ast, content, pos, null);
+    }
+
+    public static Hover provide(List<Node> ast, String content, Position pos, Path docPath) {
         String word = wordAt(content, pos);
         if (word == null || word.isBlank()) {
             return null;
@@ -192,6 +200,10 @@ public class HoverProvider {
 
         if (isFieldAccess(content, pos)) {
             String objectName = DefinitionProvider.objectBefore(content, pos);
+            Hover nativeHover = hoverForNativeMember(ast, objectName, word, docPath);
+            if (nativeHover != null) {
+                return nativeHover;
+            }
             Hover fieldHover = hoverForField(ast, word, objectName, pos.getLine() + 1);
             if (fieldHover != null) {
                 return fieldHover;
@@ -401,10 +413,11 @@ public class HoverProvider {
 
     private static Hover hoverForFuncDeclSelf(Statement.FuncDecl f) {
         String params = f.getParameters().stream()
-                .map(Parameter::name)
+                .map(p -> p.name() + (p.type() != null ? " : " + p.type() : ""))
                 .collect(Collectors.joining(", "));
         String prefix = (f.isAsync() ? "async " : "") + (f.isPure() ? "pure " : "");
-        String sig = prefix + "fn " + f.getName() + "(" + params + ")";
+        String returnPart = f.getReturnType() != null ? " -> " + f.getReturnType() : "";
+        String sig = prefix + "fn " + f.getName() + "(" + params + ")" + returnPart;
         return hover("```mira\n" + sig + "\n```");
     }
 
@@ -415,11 +428,13 @@ public class HoverProvider {
                     .append(kind).append(" ").append(v.getName()).append(" {\n");
             for (Statement.VarDecl f : obj.getVarDecls()) {
                 sb.append("    ").append(f.isConst() ? "const" : "var")
-                        .append(" ").append(f.getName()).append("\n");
+                        .append(" ").append(f.getName())
+                        .append(f.getType() != null ? " : " + f.getType() : "").append("\n");
             }
             for (Statement.FuncDecl m : obj.getMethods()) {
                 String params = m.getParameters().stream()
-                        .map(Parameter::name).collect(Collectors.joining(", "));
+                        .map(p -> p.name() + (p.type() != null ? " : " + p.type() : ""))
+                        .collect(Collectors.joining(", "));
                 sb.append("    fn ").append(m.getName())
                         .append("(").append(params).append(")\n");
             }
@@ -431,18 +446,21 @@ public class HoverProvider {
                     .append(kind).append(" ").append(v.getName()).append(" struct {\n");
             for (Statement.VarDecl f : st.getVarDecls()) {
                 sb.append("    ").append(f.isConst() ? "const" : "var")
-                        .append(" ").append(f.getName()).append("\n");
+                        .append(" ").append(f.getName())
+                        .append(f.getType() != null ? " : " + f.getType() : "").append("\n");
             }
             for (Statement.FuncDecl m : st.getMethods()) {
                 String params = m.getParameters().stream()
-                        .map(Parameter::name).collect(Collectors.joining(", "));
+                        .map(p -> p.name() + (p.type() != null ? " : " + p.type() : ""))
+                        .collect(Collectors.joining(", "));
                 sb.append("    fn ").append(m.getName())
                         .append("(").append(params).append(")\n");
             }
             sb.append("}\n```");
             return hover(sb.toString());
         }
-        return hover("```mira\n" + kind + " " + v.getName() + "\n```");
+        String typePart = v.getType() != null ? " : " + v.getType() : "";
+        return hover("```mira\n" + kind + " " + v.getName() + typePart + "\n```");
     }
 
     static boolean isFieldAccess(String content, Position pos) {
@@ -467,6 +485,37 @@ public class HoverProvider {
             return false;
         }
         return start < 2 || line.charAt(start - 2) != '.';
+    }
+
+    /**
+     * Hover for {@code alias.Member} where {@code alias} is a native import -
+     * reads the declared signature straight out of the jar's classloading-free
+     * manifest (see {@link NativeInterfaceManifest}), never loading the jar's
+     * actual Java classes just to show a hover.
+     */
+    private static Hover hoverForNativeMember(List<Node> ast, String objectName, String member, Path docPath) {
+        if (objectName == null || docPath == null) {
+            return null;
+        }
+        for (Node n : ast) {
+            if (!(n instanceof ImportExpression imp) || !imp.isNativeJar() || !objectName.equals(imp.getNamespace())) {
+                continue;
+            }
+            String rawPath = imp.getModule().replace("\"", "");
+            Path jarPath = NativeLibLocator.locate(rawPath, docPath);
+            if (jarPath == null) {
+                return null;
+            }
+            Signature sig = NativeInterfaceManifest.readFromJar(jarPath).get(member);
+            if (sig == null) {
+                return null;
+            }
+            String signature = sig.paramTypes().isEmpty()
+                    ? member + " : " + sig.returnType()
+                    : member + "(" + String.join(", ", sig.paramTypes()) + ") -> " + sig.returnType();
+            return hover("```mira\n" + signature + "\n```\n*native: " + objectName + "*");
+        }
+        return null;
     }
 
     private static Hover hoverForField(List<Node> ast, String fieldName, String objectName, int cursorLine) {
@@ -494,15 +543,18 @@ public class HoverProvider {
             for (Statement.VarDecl f : obj.getVarDecls()) {
                 if (f.getName().equals(fieldName)) {
                     String kind = f.isConst() ? "const" : "var";
-                    return hover("```mira\n" + kind + " " + f.getName() + "\n```\n*object field*");
+                    String typePart = f.getType() != null ? " : " + f.getType() : "";
+                    return hover("```mira\n" + kind + " " + f.getName() + typePart + "\n```\n*object field*");
                 }
             }
             for (Statement.FuncDecl m : obj.getMethods()) {
                 if (m.getName().equals(fieldName)) {
                     String params = m.getParameters().stream()
-                            .map(Parameter::name)
+                            .map(p -> p.name() + (p.type() != null ? " : " + p.type() : ""))
                             .collect(Collectors.joining(", "));
-                    return hover("```mira\nfn " + m.getName() + "(" + params + ")\n```\n*object method*");
+                    String returnPart = m.getReturnType() != null ? " -> " + m.getReturnType() : "";
+                    return hover("```mira\nfn " + m.getName() + "(" + params + ")" + returnPart
+                            + "\n```\n*object method*");
                 }
             }
         }
@@ -510,15 +562,18 @@ public class HoverProvider {
             for (Statement.VarDecl f : st.getVarDecls()) {
                 if (f.getName().equals(fieldName)) {
                     String kind = f.isConst() ? "const" : "var";
-                    return hover("```mira\n" + kind + " " + f.getName() + "\n```\n*struct field*");
+                    String typePart = f.getType() != null ? " : " + f.getType() : "";
+                    return hover("```mira\n" + kind + " " + f.getName() + typePart + "\n```\n*struct field*");
                 }
             }
             for (Statement.FuncDecl m : st.getMethods()) {
                 if (m.getName().equals(fieldName)) {
                     String params = m.getParameters().stream()
-                            .map(Parameter::name)
+                            .map(p -> p.name() + (p.type() != null ? " : " + p.type() : ""))
                             .collect(Collectors.joining(", "));
-                    return hover("```mira\nfn " + m.getName() + "(" + params + ")\n```\n*struct method*");
+                    String returnPart = m.getReturnType() != null ? " -> " + m.getReturnType() : "";
+                    return hover("```mira\nfn " + m.getName() + "(" + params + ")" + returnPart
+                            + "\n```\n*struct method*");
                 }
             }
         }
