@@ -1990,6 +1990,23 @@ public class StaticCheck {
             }
             return null;
         }
+        if (expr instanceof NamespaceCallExpression nce) {
+            Map<String, Signature> nativeSigs = nativeNamespaceSignatures.get(nce.getAlias());
+            Signature sig = nativeSigs != null ? nativeSigs.get(nce.getFunctionName()) : null;
+            return sig != null ? resolveNamedType(sig.returnType(), nce.getLine(), 0) : null;
+        }
+        if (expr instanceof MethodCallExpression mce) {
+            Node literalBase = resolveLiteralBase(mce.getObject());
+            List<FuncDecl> methods = literalBase instanceof StructExpression st ? st.getMethods()
+                    : literalBase instanceof ObjectExpression obj ? obj.getMethods() : null;
+            if (methods == null) {
+                return null;
+            }
+            FuncDecl method = methods.stream().filter(m -> mce.getMethod().equals(m.getName())).findFirst()
+                    .orElse(null);
+            return method != null && method.getReturnType() != null
+                    ? resolveTypeAnnotation(method.getReturnType()) : null;
+        }
         if (expr instanceof FieldAccessExpression fae) {
             Node fieldObject = fae.getObject();
             // a bareword type/enum name (e.g. Color in Color.RED) is wrapped in the

@@ -39,7 +39,7 @@ public class NativeConstantTypeStaticCheckTest {
         Path jarPath = sourceDir.resolve("fixture.jar");
         try (JarOutputStream jos = new JarOutputStream(new FileOutputStream(jarPath.toFile()))) {
             jos.putNextEntry(new JarEntry("META-INF/mira/interface.properties"));
-            jos.write("KEY_LEFT=->Number\n".getBytes(StandardCharsets.UTF_8));
+            jos.write("KEY_LEFT=->Number\nGetWidth=->Number\n".getBytes(StandardCharsets.UTF_8));
             jos.closeEntry();
         }
     }
@@ -79,6 +79,20 @@ public class NativeConstantTypeStaticCheckTest {
     void nativeConstantMatchingTypeIsClean() throws Exception {
         List<MiraError> errors = check(
                 "module M; import native \"fixture.jar\" as ext; var x : Number : ext.KEY_LEFT; println(x);");
+        assertTrue(errors.isEmpty());
+    }
+
+    @Test
+    void nativeCallReturnTypeMismatchIsE324() throws Exception {
+        List<MiraError> errors = check(
+                "module M; import native \"fixture.jar\" as ext; var w : String : ext.GetWidth();");
+        assertTrue(errors.stream().anyMatch(e -> "E324".equals(e.getErrorCode())));
+    }
+
+    @Test
+    void nativeCallReturnTypeMatchingIsClean() throws Exception {
+        List<MiraError> errors = check(
+                "module M; import native \"fixture.jar\" as ext; var w : Number : ext.GetWidth(); println(w);");
         assertTrue(errors.isEmpty());
     }
 }

@@ -1118,6 +1118,28 @@ public class StaticCheckTest {
         assertClean("fn getNum() -> Number { return 1; } var s : String : \"x\"; var r : getNum() + s;");
     }
 
+    @Test
+    void structMethodReturnTypeMismatchIsE324() {
+        List<MiraError> errors = errorsFor(
+                "var Point : struct { var x : Number : 0; fn getX() -> Number { return this.x; } }; "
+                + "var p : Point : Point{}; var s : String : p.getX();");
+        assertTrue(hasCode(errors, "E324"));
+    }
+
+    @Test
+    void structMethodReturnTypeMatchingIsClean() {
+        assertClean(
+                "var Point : struct { var x : Number : 0; fn getX() -> Number { return this.x; } }; "
+                + "var p : Point : Point{}; var n : Number : p.getX();");
+    }
+
+    @Test
+    void methodCallWithoutDeclaredReturnTypeIsUnaffected() {
+        assertClean(
+                "var Point : struct { fn getX() { return 1; } }; "
+                + "var p : Point : Point{}; var s : String : p.getX();");
+    }
+
     // --- Parameter default value type checking ---
     @Test
     void paramDefaultMismatchIsE324() {
