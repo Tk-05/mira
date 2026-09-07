@@ -900,63 +900,98 @@ public class Parser {
             consume();
             String path = matchExpression().getLexeme();
             String alias = null;
+            int aliasColumn = 0;
             if (peek().getLexeme().equals("as")) {
                 consume();
-                alias = matchExpression().getLexeme();
+                Token aliasToken = matchExpression();
+                alias = aliasToken.getLexeme();
+                aliasColumn = aliasToken.getColumn();
             }
             if (alias == null || alias.isBlank()) {
                 throw new LexemeMismatchError(peek(),
                         "'import native' requires an alias: import native \"path.jar\" as name;");
             }
             knownAliases.add(alias);
-            return new ImportExpression(new DumbExpression(new Token(TokenType.STRING_LITERAL, path, 0, 0)), alias, ImportKind.NATIVE);
+            ImportExpression imp = new ImportExpression(
+                    new DumbExpression(new Token(TokenType.STRING_LITERAL, path, 0, 0)), alias, ImportKind.NATIVE);
+            imp.namespaceColumn = aliasColumn;
+            return imp;
         }
 
         if (peek().getLexeme().equals("module")) {
             consume();
             String path = matchExpression().getLexeme();
             List<String> selected = null;
+            List<Integer> selectedColumns = null;
             if (peek().getLexeme().equals("{")) {
                 consume();
                 selected = new ArrayList<>();
-                selected.add(matchExpression().getLexeme());
+                selectedColumns = new ArrayList<>();
+                Token first = matchExpression();
+                selected.add(first.getLexeme());
+                selectedColumns.add(first.getColumn());
                 while (peek().getLexeme().equals(",")) {
                     consume();
-                    selected.add(matchExpression().getLexeme());
+                    Token next = matchExpression();
+                    selected.add(next.getLexeme());
+                    selectedColumns.add(next.getColumn());
                 }
                 matchLexeme("}");
             }
             String alias = null;
+            int aliasColumn = 0;
             if (peek().getLexeme().equals("as")) {
                 consume();
-                alias = matchExpression().getLexeme();
+                Token aliasToken = matchExpression();
+                alias = aliasToken.getLexeme();
+                aliasColumn = aliasToken.getColumn();
                 knownAliases.add(alias);
             }
-            return new ImportExpression(new DumbExpression(new Token(TokenType.STRING_LITERAL, path, 0, 0)), alias, ImportKind.MODULE, selected);
+            ImportExpression imp = new ImportExpression(
+                    new DumbExpression(new Token(TokenType.STRING_LITERAL, path, 0, 0)), alias, ImportKind.MODULE, selected);
+            imp.namespaceColumn = aliasColumn;
+            if (selectedColumns != null) {
+                imp.selectedFunctionColumns = selectedColumns;
+            }
+            return imp;
         }
 
         Expression libExpr = new DumbExpression(matchExpression());
         List<String> selected = null;
+        List<Integer> selectedColumns = null;
         if (peek().getLexeme().equals(":") || peek().getLexeme().equals("{")) {
             boolean hasBrace = peek().getLexeme().equals("{");
             consume();
             selected = new ArrayList<>();
-            selected.add(matchExpression().getLexeme());
+            selectedColumns = new ArrayList<>();
+            Token first = matchExpression();
+            selected.add(first.getLexeme());
+            selectedColumns.add(first.getColumn());
             while (peek().getLexeme().equals(",")) {
                 consume();
-                selected.add(matchExpression().getLexeme());
+                Token next = matchExpression();
+                selected.add(next.getLexeme());
+                selectedColumns.add(next.getColumn());
             }
             if (hasBrace) {
                 matchLexeme("}");
             }
         }
         String libAlias = null;
+        int libAliasColumn = 0;
         if (peek().getLexeme().equals("as")) {
             consume();
-            libAlias = matchExpression().getLexeme();
+            Token aliasToken = matchExpression();
+            libAlias = aliasToken.getLexeme();
+            libAliasColumn = aliasToken.getColumn();
             knownAliases.add(libAlias);
         }
-        return new ImportExpression(libExpr, libAlias, ImportKind.STDLIB, selected);
+        ImportExpression imp = new ImportExpression(libExpr, libAlias, ImportKind.STDLIB, selected);
+        imp.namespaceColumn = libAliasColumn;
+        if (selectedColumns != null) {
+            imp.selectedFunctionColumns = selectedColumns;
+        }
+        return imp;
     }
 
     private List<Node> parseStatement(boolean expectSemicolon) {

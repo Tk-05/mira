@@ -333,6 +333,8 @@ public abstract class Expression implements Node {
         }
 
         public int line = 0;
+        public int namespaceColumn = 0;
+        public List<Integer> selectedFunctionColumns = List.of();
 
         private final Expression module;
         private final String namespace;

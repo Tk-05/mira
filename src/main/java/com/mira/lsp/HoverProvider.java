@@ -193,10 +193,16 @@ public class HoverProvider {
     }
 
     public static Hover provide(List<Node> ast, String content, Position pos, Path docPath) {
+        return provide(ast, content, pos, docPath, null, Map.of());
+    }
+
+    public static Hover provide(List<Node> ast, String content, Position pos, Path docPath,
+            WorkspaceIndex workspaceIndex, Map<String, String> openDocumentsByUri) {
         String word = wordAt(content, pos);
         if (word == null || word.isBlank()) {
             return null;
         }
+        int cursorLine = pos.getLine() + 1;
 
         if (isFieldAccess(content, pos)) {
             String objectName = DefinitionProvider.objectBefore(content, pos);
@@ -204,16 +210,26 @@ public class HoverProvider {
             if (nativeHover != null) {
                 return nativeHover;
             }
-            Hover fieldHover = hoverForField(ast, word, objectName, pos.getLine() + 1);
-            if (fieldHover != null) {
-                return fieldHover;
+            Hover moduleHover = hoverForModuleMember(ast, objectName, word, docPath, workspaceIndex, openDocumentsByUri);
+            if (moduleHover != null) {
+                return moduleHover;
             }
-            return hover("**." + word + "** — field access");
+            return hoverForField(ast, word, objectName, cursorLine);
         }
 
-        Hover found = hoverScoped(ast, word, pos.getLine() + 1);
+        Hover found = hoverScoped(ast, word, cursorLine);
         if (found != null) {
             return found;
+        }
+
+        Hover bareModuleHover = hoverForBareModuleImport(ast, word, docPath, workspaceIndex, openDocumentsByUri);
+        if (bareModuleHover != null) {
+            return bareModuleHover;
+        }
+
+        Hover importAliasHover = hoverForImportAlias(ast, word, docPath);
+        if (importAliasHover != null) {
+            return importAliasHover;
         }
 
         String stdlibDoc = STDLIB_DOCS.get(word);
@@ -348,6 +364,14 @@ public class HoverProvider {
     }
 
     private static Hover hoverInScopeLevel(Scope scope, String name, int cursorLine) {
+        if (scope.owner() instanceof Statement.FuncDecl f) {
+            for (com.mira.parser.nodes.Parameter p : f.getParameters()) {
+                if (p.name().equals(name)) {
+                    return hover("```mira\n" + p.name() + (p.type() != null ? " : " + p.type() : "")
+                            + "\n```\n*parameter*");
+                }
+            }
+        }
         if (scope.owner() instanceof Statement.Loop loop) {
             if (loop.isForeach()) {
                 Statement.VarDecl iter = loop.getIterator();
@@ -396,6 +420,13 @@ public class HoverProvider {
                         break;
                     }
                 }
+            } else if (n instanceof Statement.EnumDecl ed && ed.getIdentifier().equals(name)) {
+                candidate = hover("```mira\nenum " + ed.getIdentifier() + " { "
+                        + String.join(", ", ed.getValues().keySet()) + " }\n```");
+                declLine = ed.line;
+            } else if (n instanceof Statement.TypeAliasDecl t && t.getName().equals(name)) {
+                candidate = hover("```mira\ntype " + t.getName() + " : " + t.getAliasedType() + "\n```");
+                declLine = t.line;
             }
             if (candidate == null || declLine <= 0) {
                 continue;
@@ -478,12 +509,13 @@ public class HoverProvider {
             return false;
         }
         char before = line.charAt(start - 1);
-        if (before == '?') {
-            return true;
-        }
         if (before != '.') {
             return false;
         }
+        // A '.' immediately preceded by another '.' is a range operator
+        // (`<0..10>`), not field access. A '.' preceded by '?' is null-safe
+        // field access (`p?.field`) and IS field access - objectBefore
+        // knows how to look past that '?' for the real receiver name.
         return start < 2 || line.charAt(start - 2) != '.';
     }
 
@@ -516,6 +548,138 @@ public class HoverProvider {
             return hover("```mira\n" + signature + "\n```\n*native: " + objectName + "*");
         }
         return null;
+    }
+
+    /**
+     * Hover for {@code alias.member} where {@code alias} is a namespaced module
+     * import - mirrors {@code SignatureHelpProvider.resolveMethodParams}'s
+     * MODULE branch: resolve the import, fetch its AST (via the workspace index
+     * when available, otherwise a direct parse), look for a matching top-level
+     * function or var.
+     */
+    private static Hover hoverForModuleMember(List<Node> ast, String objectName, String member, Path docPath,
+            WorkspaceIndex workspaceIndex, Map<String, String> openDocumentsByUri) {
+        if (objectName == null || docPath == null) {
+            return null;
+        }
+        for (Node n : ast) {
+            if (!(n instanceof ImportExpression imp) || imp.getKind() != ImportExpression.ImportKind.MODULE
+                    || !objectName.equals(imp.getNamespace())) {
+                continue;
+            }
+            Path modPath = com.mira.utils.ModuleResolver.resolveModulePath(imp.getModule(), docPath);
+            List<Node> modAst = workspaceIndex != null
+                    ? workspaceIndex.getAst(modPath, openDocumentsByUri)
+                    : parseFile(modPath);
+            Hover found = hoverForTopLevelName(modAst, member);
+            if (found != null) {
+                return found;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Hover for a name brought into scope bare by a selective, non-aliased
+     * module import (e.g. {@code import module "lib.mira" {greet};}) - mirrors
+     * {@code SignatureHelpProvider.resolveDirectBoundFuncParams}.
+     */
+    private static Hover hoverForBareModuleImport(List<Node> ast, String name, Path docPath,
+            WorkspaceIndex workspaceIndex, Map<String, String> openDocumentsByUri) {
+        if (docPath == null) {
+            return null;
+        }
+        for (Node n : ast) {
+            if (!(n instanceof ImportExpression imp) || imp.getKind() != ImportExpression.ImportKind.MODULE) {
+                continue;
+            }
+            if (imp.getNamespace() != null) {
+                continue;
+            }
+            if (imp.isSelective() && !imp.getSelectedFunctions().contains(name)) {
+                continue;
+            }
+            Path modPath = com.mira.utils.ModuleResolver.resolveModulePath(imp.getModule(), docPath);
+            List<Node> modAst = workspaceIndex != null
+                    ? workspaceIndex.getAst(modPath, openDocumentsByUri)
+                    : parseFile(modPath);
+            Hover found = hoverForTopLevelName(modAst, name);
+            if (found != null) {
+                return found;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Hover for the alias/namespace identifier at its own import declaration
+     * (e.g. {@code ray} in {@code import native "raylib.jar" as ray;}) - shows
+     * what the import actually resolves to, since none of the scope-based
+     * lookups above ever see an {@code ImportExpression}.
+     */
+    private static Hover hoverForImportAlias(List<Node> ast, String name, Path docPath) {
+        for (Node n : ast) {
+            if (!(n instanceof ImportExpression imp) || !name.equals(imp.getNamespace())) {
+                continue;
+            }
+            String rawPath = imp.getModule().replace("\"", "");
+            return switch (imp.getKind()) {
+                case NATIVE ->
+                    hoverForNativeImportAlias(name, rawPath, docPath);
+                case MODULE ->
+                    hoverForModuleImportAlias(name, rawPath, docPath);
+                case STDLIB ->
+                    hover("```mira\nimport " + rawPath + " as " + name + "\n```\n*stdlib module*");
+            };
+        }
+        return null;
+    }
+
+    private static Hover hoverForNativeImportAlias(String name, String rawPath, Path docPath) {
+        String sig = "```mira\nimport native \"" + rawPath + "\" as " + name + "\n```\n";
+        if (docPath == null) {
+            return hover(sig + "*native library*");
+        }
+        Path jarPath = NativeLibLocator.locate(rawPath, docPath);
+        if (jarPath == null || !java.nio.file.Files.exists(jarPath)) {
+            return hover(sig + "*native library* — jar not found");
+        }
+        Map<String, Signature> manifest = NativeInterfaceManifest.readFromJar(jarPath);
+        String detail = manifest.isEmpty()
+                ? "*native library* — `" + jarPath + "`"
+                : "*native library* — " + manifest.size() + " member(s) — `" + jarPath + "`";
+        return hover(sig + detail);
+    }
+
+    private static Hover hoverForModuleImportAlias(String name, String rawPath, Path docPath) {
+        String sig = "```mira\nimport module \"" + rawPath + "\" as " + name + "\n```\n";
+        if (docPath == null) {
+            return hover(sig + "*module*");
+        }
+        Path modPath = com.mira.utils.ModuleResolver.resolveModulePath(rawPath, docPath);
+        String suffix = java.nio.file.Files.exists(modPath) ? "" : " — file not found";
+        return hover(sig + "*module* — `" + modPath + "`" + suffix);
+    }
+
+    private static Hover hoverForTopLevelName(List<Node> ast, String name) {
+        for (Node n : ast) {
+            if (n instanceof Statement.FuncDecl f && f.getName().equals(name)) {
+                return hoverForFuncDeclSelf(f);
+            }
+            if (n instanceof Statement.VarDecl v && v.getName().equals(name)) {
+                return hoverForVarDeclSelf(v);
+            }
+        }
+        return null;
+    }
+
+    private static List<Node> parseFile(Path path) {
+        try {
+            String src = java.nio.file.Files.readString(path);
+            return new com.mira.parser.Parser().parseTokens(new com.mira.lexer.Tokenizer().tokenize(src, false));
+        } catch (Exception e) {
+            return List.of();
+        }
     }
 
     private static Hover hoverForField(List<Node> ast, String fieldName, String objectName, int cursorLine) {
@@ -576,6 +740,9 @@ public class HoverProvider {
                             + "\n```\n*struct method*");
                 }
             }
+        }
+        if (n instanceof Statement.EnumDecl ed && ed.getValues().containsKey(fieldName)) {
+            return hover("```mira\n" + ed.getIdentifier() + "." + fieldName + "\n```\n*enum value*");
         }
         if (n instanceof Statement.VarDecl vd && vd.getInitializer() != null) {
             return searchNodeForField(vd.getInitializer(), fieldName);

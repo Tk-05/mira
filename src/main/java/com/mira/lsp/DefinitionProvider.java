@@ -99,6 +99,11 @@ public class DefinitionProvider {
             return null;
         }
         int end = dotIdx;
+        // Null-safe field access (`p?.field`) - the receiver name sits before
+        // the '?', not directly before the '.'.
+        if (end > 0 && line.charAt(end - 1) == '?') {
+            end--;
+        }
         int start = end - 1;
         while (start >= 0 && (Character.isLetterOrDigit(line.charAt(start)) || line.charAt(start) == '_')) {
             start--;

@@ -1322,16 +1322,19 @@ public class StaticCheck {
                 checkSelectiveModuleImport(expr);
             }
             if (expr.getNamespace() != null) {
-                scope.declareImport(expr.getNamespace(), expr.line);
+                scope.declareImport(expr.getNamespace(), expr.line, expr.namespaceColumn);
                 knownNamespaces.add(expr.getNamespace());
             } else {
-                for (String fn : expr.getSelectedFunctions()) {
-                    scope.declareImport(fn, expr.line);
+                List<String> selectedFns = expr.getSelectedFunctions();
+                for (int i = 0; i < selectedFns.size(); i++) {
+                    String fn = selectedFns.get(i);
+                    int column = i < expr.selectedFunctionColumns.size() ? expr.selectedFunctionColumns.get(i) : 0;
+                    scope.declareImport(fn, expr.line, column);
                     knownFunctions.add(fn);
                 }
             }
         } else if (expr.getNamespace() != null) {
-            scope.declareImport(expr.getNamespace(), expr.line);
+            scope.declareImport(expr.getNamespace(), expr.line, expr.namespaceColumn);
             knownNamespaces.add(expr.getNamespace());
             if (expr.isExternalModule()) {
                 loadModuleSymbolsForAlias(expr);
@@ -1481,7 +1484,7 @@ public class StaticCheck {
             if (!info.used() && !name.startsWith("_")) {
                 if (info.isImport()) {
                     WarningCollector.emit(WarningLevel.WARNING, "'" + name + "' is imported but never used",
-                            info.line(), info.column(), name.length());
+                            info.line(), 1, Math.max(sourceLineLength(info.line()), name.length()));
                 } else if (info.isFunction() && !isModule) {
                     WarningCollector.emit(WarningLevel.HINT, "'" + name + "' is defined but never called",
                             info.line(), info.column(), name.length());
@@ -1491,6 +1494,14 @@ public class StaticCheck {
                 }
             }
         }
+    }
+
+    private static int sourceLineLength(int line) {
+        String[] lines = Flags.sourceLines;
+        if (lines == null || line <= 0 || line > lines.length) {
+            return 0;
+        }
+        return lines[line - 1].length();
     }
 
     private void warn(String message, int line, int column, int span) {

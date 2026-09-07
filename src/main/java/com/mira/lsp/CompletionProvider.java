@@ -17,6 +17,7 @@ import java.util.stream.Collectors;
 
 import org.eclipse.lsp4j.CompletionItem;
 import org.eclipse.lsp4j.CompletionItemKind;
+import org.eclipse.lsp4j.Position;
 
 import com.mira.lexer.Tokenizer;
 import com.mira.lib.Lib;
@@ -86,6 +87,115 @@ public class CompletionProvider {
         }
         STDLIB = Collections.unmodifiableMap(stdlib);
         STDLIB_PARAMS = Collections.unmodifiableMap(params);
+    }
+
+    /**
+     * Position-aware entry point: when the cursor sits right after
+     * {@code receiver.}, resolves {@code receiver} the same way
+     * Hover/Definition/SignatureHelp already do (native-jar alias, module
+     * alias, or a struct/object/enum in scope) and returns ONLY that receiver's
+     * members, as bare names ready to insert - not the whole flat document
+     * list. Falls back to {@link #provide(List, String)} whenever there's no
+     * dot-context or the receiver doesn't resolve to anything completable.
+     */
+    public static List<CompletionItem> provide(List<Node> ast, String documentUri, String content, Position pos,
+            Path docPath) {
+        if (content != null && pos != null && HoverProvider.isFieldAccess(content, pos)) {
+            String receiver = DefinitionProvider.objectBefore(content, pos);
+            List<CompletionItem> dotItems = provideForReceiver(ast, receiver, docPath, pos.getLine() + 1);
+            if (dotItems != null) {
+                return dotItems;
+            }
+        }
+        return provide(ast, documentUri);
+    }
+
+    private static List<CompletionItem> provideForReceiver(List<Node> ast, String receiver, Path docPath,
+            int cursorLine) {
+        if (receiver == null) {
+            return null;
+        }
+        if (docPath != null) {
+            for (Node n : ast) {
+                if (!(n instanceof Expression.ImportExpression imp) || !receiver.equals(imp.getNamespace())) {
+                    continue;
+                }
+                if (imp.isNativeJar()) {
+                    String rawPath = imp.getModule().replace("\"", "");
+                    Path jarPath = NativeLibLocator.locate(rawPath, docPath);
+                    if (jarPath != null && Files.exists(jarPath)) {
+                        List<CompletionItem> items = new ArrayList<>();
+                        addNativeCompletions(jarPath, receiver, items);
+                        return stripPrefix(items, receiver);
+                    }
+                } else if (imp.getKind() == Expression.ImportExpression.ImportKind.MODULE) {
+                    Path modPath = ModuleResolver.resolveModulePath(imp.getModule(), docPath);
+                    List<CompletionItem> items = new ArrayList<>();
+                    addModuleFunctions(modPath, receiver, imp.isSelective() ? imp.getSelectedFunctions() : null,
+                            items);
+                    return stripPrefix(items, receiver);
+                }
+            }
+        }
+
+        Node type = DefinitionProvider.resolveObjectType(ast, receiver, cursorLine);
+        if (type instanceof StructExpression st) {
+            List<CompletionItem> items = new ArrayList<>();
+            addBareMemberItems(st.getVarDecls(), st.getMethods(), "struct", items);
+            return items;
+        }
+        if (type instanceof ObjectExpression obj) {
+            List<CompletionItem> items = new ArrayList<>();
+            addBareMemberItems(obj.getVarDecls(), obj.getMethods(), "object", items);
+            return items;
+        }
+        if (type instanceof EnumDecl ed) {
+            List<CompletionItem> items = new ArrayList<>();
+            for (String member : ed.getValues().keySet()) {
+                CompletionItem item = new CompletionItem(member);
+                item.setKind(CompletionItemKind.EnumMember);
+                item.setDetail(ed.getIdentifier() + "." + member);
+                items.add(item);
+            }
+            return items;
+        }
+        return null;
+    }
+
+    private static void addBareMemberItems(List<VarDecl> fields, List<FuncDecl> methods, String kindLabel,
+            List<CompletionItem> items) {
+        for (VarDecl f : fields) {
+            CompletionItem item = new CompletionItem(f.getName());
+            item.setKind(CompletionItemKind.Field);
+            item.setDetail((f.isConst() ? "const" : "var") + " " + f.getName() + " (" + kindLabel + ")");
+            items.add(item);
+        }
+        for (FuncDecl m : methods) {
+            String params = m.getParameters().stream().map(Parameter::name).collect(Collectors.joining(", "));
+            CompletionItem item = new CompletionItem(m.getName());
+            item.setKind(CompletionItemKind.Method);
+            item.setDetail("fn " + m.getName() + "(" + params + ") (" + kindLabel + ")");
+            items.add(item);
+        }
+    }
+
+    /**
+     * The non-dot-context helpers below
+     * (addNativeCompletions/addModuleFunctions) are shared with the flat
+     * whole-document list and always label items {@code receiver.member} for
+     * that context; a dot-triggered completion needs just the bare member name,
+     * since {@code receiver.} is already typed.
+     */
+    private static List<CompletionItem> stripPrefix(List<CompletionItem> items, String receiver) {
+        String prefix = receiver + ".";
+        List<CompletionItem> result = new ArrayList<>();
+        for (CompletionItem item : items) {
+            if (item.getLabel().startsWith(prefix)) {
+                item.setLabel(item.getLabel().substring(prefix.length()));
+            }
+            result.add(item);
+        }
+        return result;
     }
 
     public static List<CompletionItem> provide(List<Node> ast, String documentUri) {

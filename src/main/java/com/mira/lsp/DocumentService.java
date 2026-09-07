@@ -157,7 +157,10 @@ public class DocumentService implements TextDocumentService {
     public CompletableFuture<Either<List<CompletionItem>, CompletionList>> completion(CompletionParams params) {
         String uri = params.getTextDocument().getUri();
         List<Node> ast = astCache.getOrDefault(uri, List.of());
-        return CompletableFuture.completedFuture(Either.forLeft(CompletionProvider.provide(ast, uri)));
+        String content = documents.getOrDefault(uri, "");
+        List<CompletionItem> items = CompletionProvider.provide(ast, uri, content, params.getPosition(),
+                uriToPath(uri));
+        return CompletableFuture.completedFuture(Either.forLeft(items));
     }
 
     @Override
@@ -165,7 +168,8 @@ public class DocumentService implements TextDocumentService {
         String uri = params.getTextDocument().getUri();
         List<Node> ast = astCache.getOrDefault(uri, List.of());
         String content = documents.getOrDefault(uri, "");
-        Hover hover = HoverProvider.provide(ast, content, params.getPosition(), uriToPath(uri));
+        Hover hover = HoverProvider.provide(ast, content, params.getPosition(), uriToPath(uri),
+                workspaceIndex, documents);
         return CompletableFuture.completedFuture(hover);
     }
 

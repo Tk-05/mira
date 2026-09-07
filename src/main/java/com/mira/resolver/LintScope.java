@@ -42,9 +42,9 @@ public class LintScope {
         }
     }
 
-    public void declareImport(String name, int line) {
+    public void declareImport(String name, int line, int column) {
         if (!scopes.isEmpty()) {
-            scopes.peek().put(name, new VarInfo(line, 0, false, false, true));
+            scopes.peek().put(name, new VarInfo(line, column, false, false, true));
         }
     }
 
