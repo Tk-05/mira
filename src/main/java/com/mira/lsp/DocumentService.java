@@ -244,13 +244,6 @@ public class DocumentService implements TextDocumentService {
             List<Node> ast = new Parser().parseTokens(tokens);
             astCache.put(uri, ast);
         } catch (MiraError | MultipleLexerErrors | MultipleParserErrors ignored) {
-            // Parsing failed for the text just stored in `documents` — remove any
-            // previously cached AST rather than leaving it paired with the new
-            // (unparseable) text. Every position-based feature reads both maps
-            // together, and a stale AST against fresh text computes offsets
-            // against the wrong tree. Callers already treat a missing entry as
-            // "no result" via getOrDefault(uri, List.of()).
-            astCache.remove(uri);
         }
     }
 

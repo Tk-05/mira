@@ -19,9 +19,9 @@ import org.eclipse.lsp4j.Registration;
 import org.eclipse.lsp4j.RegistrationParams;
 import org.eclipse.lsp4j.RenameOptions;
 import org.eclipse.lsp4j.SemanticTokensLegend;
-import org.eclipse.lsp4j.SignatureHelpOptions;
 import org.eclipse.lsp4j.SemanticTokensWithRegistrationOptions;
 import org.eclipse.lsp4j.ServerCapabilities;
+import org.eclipse.lsp4j.SignatureHelpOptions;
 import org.eclipse.lsp4j.TextDocumentSyncKind;
 import org.eclipse.lsp4j.WorkspaceFolder;
 import org.eclipse.lsp4j.jsonrpc.messages.Either;
@@ -44,7 +44,9 @@ public class LspServer implements LanguageServer, LanguageClientAware {
 
         ServerCapabilities caps = new ServerCapabilities();
         caps.setTextDocumentSync(TextDocumentSyncKind.Full);
-        caps.setCompletionProvider(new CompletionOptions());
+        CompletionOptions completionOpts = new CompletionOptions();
+        completionOpts.setTriggerCharacters(List.of("."));
+        caps.setCompletionProvider(completionOpts);
         caps.setDocumentFormattingProvider(true);
         caps.setHoverProvider(true);
         caps.setDefinitionProvider(true);
@@ -71,8 +73,8 @@ public class LspServer implements LanguageServer, LanguageClientAware {
     /**
      * Without this, WorkspaceIndex's cached file list (allMiraFiles) is never
      * invalidated when a .mira file is created or deleted on disk outside an
-     * open editor buffer, since didChangeWatchedFiles notifications only
-     * arrive once the server has asked the client to send them.
+     * open editor buffer, since didChangeWatchedFiles notifications only arrive
+     * once the server has asked the client to send them.
      */
     private void registerFileWatcherIfSupported(InitializeParams params) {
         var workspaceCaps = params.getCapabilities() != null ? params.getCapabilities().getWorkspace() : null;

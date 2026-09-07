@@ -6,6 +6,7 @@ import java.util.concurrent.CompletableFuture;
 
 import org.eclipse.lsp4j.CompletionItem;
 import org.eclipse.lsp4j.CompletionParams;
+import org.eclipse.lsp4j.DidChangeTextDocumentParams;
 import org.eclipse.lsp4j.DidOpenTextDocumentParams;
 import org.eclipse.lsp4j.Hover;
 import org.eclipse.lsp4j.HoverParams;
@@ -15,8 +16,10 @@ import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.PublishDiagnosticsParams;
 import org.eclipse.lsp4j.RegistrationParams;
 import org.eclipse.lsp4j.ShowMessageRequestParams;
+import org.eclipse.lsp4j.TextDocumentContentChangeEvent;
 import org.eclipse.lsp4j.TextDocumentIdentifier;
 import org.eclipse.lsp4j.TextDocumentItem;
+import org.eclipse.lsp4j.VersionedTextDocumentIdentifier;
 import org.eclipse.lsp4j.jsonrpc.messages.Either;
 import org.eclipse.lsp4j.services.LanguageClient;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -125,5 +128,47 @@ public class HoverCompletionSmokeTest {
         String text = hover.getContents().getRight().getValue();
         assertTrue(text.contains("import native"), text);
         assertTrue(text.contains("native library"), text);
+    }
+
+    @Test
+    void listsNativeMembersImmediatelyAfterBareDot() {
+        LspServer server = new LspServer();
+        server.connect(new NoopClient());
+
+        Path realDocPath = java.nio.file.Paths.get(
+                "src/main/resources/demo/Debug.mira").toAbsolutePath();
+        String validSource = """
+                import native "../../../../extern/raylib/target/raylib.jar" as ray;
+                fn main() {
+                    println(ray);
+                }
+                """;
+        TextDocumentItem doc = new TextDocumentItem(realDocPath.toUri().toString(), "mira", 1, validSource);
+        server.getTextDocumentService().didOpen(new DidOpenTextDocumentParams(doc));
+
+        String midEditSource = """
+                import native "../../../../extern/raylib/target/raylib.jar" as ray;
+                fn main() {
+                    ray.
+                }
+                """;
+        DidChangeTextDocumentParams change = new DidChangeTextDocumentParams();
+        change.setTextDocument(new VersionedTextDocumentIdentifier(realDocPath.toUri().toString(), 2));
+        change.setContentChanges(List.of(new TextDocumentContentChangeEvent(midEditSource)));
+        server.getTextDocumentService().didChange(change);
+
+        CompletionParams cp = new CompletionParams();
+        cp.setTextDocument(new TextDocumentIdentifier(realDocPath.toUri().toString()));
+        cp.setPosition(new Position(2, 8)); // right after "ray." - nothing typed yet
+        Either<List<CompletionItem>, ?> completion = server.getTextDocumentService().completion(cp).join();
+        List<CompletionItem> items = completion.getLeft();
+
+        assertTrue(items.size() > 1000, "expected the full raylib manifest (1923 members), got " + items.size());
+        // a function-shaped entry
+        assertTrue(items.stream().anyMatch(i -> i.getLabel().equals("Color")));
+        // a constant-shaped entry
+        assertTrue(items.stream().anyMatch(i -> i.getLabel().equals("MOUSE_LEFT")));
+        // bare member names, not "ray."-prefixed
+        assertTrue(items.stream().noneMatch(i -> i.getLabel().startsWith("ray.")));
     }
 }
