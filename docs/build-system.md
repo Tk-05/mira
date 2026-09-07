@@ -7,7 +7,7 @@ Projects, `mira.toml`, dependency management (local/git/registry/native), tasks,
 ## Table of Contents
 
 1. [Build System](#build-system) — Creating a Project, `mira.toml`, Commands, Release Pipeline, Build Modes, Running Tests
-2. [Dependencies](#local-dependencies) — Local, Git, Locally Installed, Native, `mira deps`
+2. [Dependencies](#dependencies) — Local, Git, Locally Installed, Native, `mira deps`
 3. [Tasks](#tasks)
 4. [Compilation](#compilation) — `.class` files, standalone JARs, in-memory compile-and-run, flags
 
@@ -228,6 +228,10 @@ mira test --coverage
 
 Coverage is computed independently of `--profile` (which tracks timing, not test coverage, and is not test-aware in the same way); it only tracks the lines actually reached while running `test()` bodies.
 
+## Dependencies
+
+Mira resolves four kinds of dependency: local path, git, locally-installed, and native JAR.
+
 ### Local Dependencies
 
 A dependency declared under `[dependencies]` must point to a directory that itself contains a `mira.toml`. The dependency's source files are added as import roots, so module imports that are not found relative to the current file are also searched in each dependency's root directory.
@@ -329,7 +333,7 @@ app (0.1.0)
 
 Like the resolver's `[native]` transitivity, the tree shown by `mira deps` recurses through every available dependency's own `mira.toml` to arbitrary depth (a dependency that isn't available yet can't be expanded further, since its manifest isn't known locally) and detects cycles. The difference is what each walk _surfaces_: the resolver only ever adds a project's own directly-declared dependencies to the build's source roots (nested dependencies are walked only to find `[native]` tables, never added as source roots themselves), while `mira deps` displays every node in the graph — source and native — purely for inspection, without fetching anything.
 
-### Tasks
+## Tasks
 
 Tasks are named automation steps defined in `mira.toml` under `[tasks]`. Each task runs either a shell command (`cmd`) or a Mira script (`script`) — not both.
 
@@ -367,7 +371,7 @@ demo  = "scripts/demo.mira" # script — Mira file
 - `script` is resolved relative to `mira.toml` and executed as a Mira file
 - A non-zero exit code from `cmd` results in a `[fail]` error
 
-#### Hooks
+### Hooks
 
 Tasks can be wired as automatic pre/post hooks for the built-in commands via fields in `[build]` and `[test]`. Every hook value is the name of a task defined in `[tasks]`.
 
@@ -472,6 +476,7 @@ Flags available for both single-file and build-system usage:
 | `--test`          | Run `test()` calls and print a pass/fail summary; exits 1 on fail                                                                                                                                                                                                                                                                                                                                                                    |
 | `--coverage`      | With `--test`: print a line-coverage report for the test file(s) and every module they import, transitively                                                                                                                                                                                                                                                                                                                          |
 | `--debug`         | Launch the interactive debugger                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `--profile`       | Print a function- and line-level timing report after execution (with `--compile`, requires `--run` — profiling a `.class` file written to disk has no effect)                                                                                                                                                                                                                                                                        |
 | `--watch`         | Re-run the program whenever the source file or its imports change                                                                                                                                                                                                                                                                                                                                                                    |
 | `-v`, `--verbose` | Report progress as it happens (module cache hits/parses, dependency resolution, static-check summary, compile phase timing); combine with `--imports` for extra detail there                                                                                                                                                                                                                                                         |
 | `-t`, `--tokens`  | Dump the token stream to stdout                                                                                                                                                                                                                                                                                                                                                                                                      |

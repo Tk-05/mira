@@ -10,21 +10,21 @@ Mira ships with a built-in Language Server that implements the [Language Server 
 
 ### Features
 
-| Feature                    | Description                                                                                              |
-| -------------------------- | --------------------------------------------------------------------------------------------------------- |
-| **Syntax highlighting**    | Keywords, strings, numbers, variables (`x`), comments, function names — via the static TextMate grammar   |
-| **Semantic highlighting**  | Additional binding-aware coloring for variables, parameters, functions/methods, and object/struct fields   |
-| **Diagnostics**            | Parse errors, linter warnings, [type errors](language-guide.md#type-annotations), and hints shown inline as you type |
-| **Code completion**        | Keywords, built-in functions, stdlib functions, local variables and functions, imported module functions, built-in and declared type names |
-| **Hover**                  | Signatures and doc comments for local functions/variables, stdlib functions, and object/struct fields — including any declared [type annotation](language-guide.md#type-annotations) |
-| **Go to Definition**       | Jumps to the declaration of a local symbol or one imported from another module                             |
-| **Find All References**   | Lists every usage of a symbol in the current file, plus cross-file usages of top-level symbols             |
-| **Rename Symbol**          | Renames a symbol and all its known references in one edit (`F2` in VS Code)                                |
-| **Workspace Symbol Search**| Jumps to any function, variable, or enum by name across the whole project (`Ctrl+T` in VS Code)             |
-| **Document Symbols**       | Outline view of functions, variables, enums, and struct/object fields for the current file                 |
-| **Code Actions**           | Quick fixes offered inline for certain diagnostics                                                         |
-| **Signature Help**         | Parameter hints shown while typing a function call's arguments                                             |
-| **Document formatting**    | Re-prints the file from its parsed AST with `Shift+Alt+F` — see [Formatter](#formatter) below              |
+| Feature                     | Description                                                                                                                                                                          |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Syntax highlighting**     | Keywords, strings, numbers, variables (`x`), comments, function names — via the static TextMate grammar                                                                              |
+| **Semantic highlighting**   | Additional binding-aware coloring for variables, parameters, functions/methods, and object/struct fields                                                                             |
+| **Diagnostics**             | Parse errors, linter warnings, [type errors](language-guide.md#type-annotations), and hints shown inline as you type                                                                 |
+| **Code completion**         | Keywords, built-in functions, stdlib functions, local variables and functions, imported module functions, built-in and declared type names                                           |
+| **Hover**                   | Signatures and doc comments for local functions/variables, stdlib functions, and object/struct fields — including any declared [type annotation](language-guide.md#type-annotations) |
+| **Go to Definition**        | Jumps to the declaration of a local symbol or one imported from another module                                                                                                       |
+| **Find All References**     | Lists every usage of a symbol in the current file, plus cross-file usages of top-level symbols                                                                                       |
+| **Rename Symbol**           | Renames a symbol and all its known references in one edit (`F2` in VS Code)                                                                                                          |
+| **Workspace Symbol Search** | Jumps to any function, variable, or enum by name across the whole project (`Ctrl+T` in VS Code)                                                                                      |
+| **Document Symbols**        | Outline view of functions, variables, enums, and struct/object fields for the current file                                                                                           |
+| **Code Actions**            | Quick fixes offered inline for certain diagnostics                                                                                                                                   |
+| **Signature Help**          | Parameter hints shown while typing a function call's arguments                                                                                                                       |
+| **Document formatting**     | Re-prints the file from its parsed AST with `Shift+Alt+F` — see [Formatter](#formatter) below                                                                                        |
 
 ### VS Code Extension
 
@@ -95,7 +95,7 @@ Additionally, for each open file the server provides:
 
 - **Local variables** declared with `var` or `const` — shown as `name`
 - **Local functions** declared with `fn` — shown with their parameter list (including any declared parameter/return types)
-- **Declared `type` aliases, `enum` names, and struct template variable names** — usable as type names (e.g. `var Point : struct { ... };` suggests bare `Point`, in addition to the usual `$Point`/`$Point.field` forms)
+- **Declared `type` aliases, `enum` names, and struct template variable names** — usable as type names (e.g. `var Point : struct { ... };` suggests bare `Point`, and `Point.` suggests `Point`'s fields)
 - **Imported stdlib symbols** — shown as `alias.name(params)` when imported with an alias; only the selected symbols when using brace or colon syntax
 - **Imported module symbols** — parsed from the imported `.mira` file; only `pub`-marked symbols are shown. Shown as `alias.name` when imported with `as alias`, or as the bare `name` when imported without one (e.g. `import module "lib.mira" {greet};` suggests bare `greet`, not `greet` under a namespace); if the import selects specific names, only those are suggested
 
@@ -107,6 +107,16 @@ m.pow(base, exp)
 m.sin(x)
 ...
 ```
+
+### Native Library Support
+
+Hover, Completions, and Signature Help all understand `import native "..." as alias;` (see [Native JAR Extensions](language-guide.md#native-jar-extensions)) the same way they understand a Mira module import:
+
+- Typing `alias.` after a native import suggests every function and constant the JAR declares, the same as a stdlib or module import would.
+- Hovering `alias.member` shows its declared parameter and return types.
+- Typing inside `alias.member(...)` shows the same parameter hints as any other typed function call.
+
+None of this loads the JAR's actual Java classes or runs a classloader — the server reads the type information straight out of the JAR's own `META-INF/mira/interface.properties` manifest, the same classloading-free source the static checker uses (see [Native JAR Extensions](language-guide.md#native-jar-extensions)). A native library with no manifest, or a member the manifest doesn't describe, simply falls back to no hover/signature information rather than an error.
 
 ### Formatter
 

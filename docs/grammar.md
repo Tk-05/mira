@@ -99,10 +99,10 @@ HexDigitOrSep ::= HexDigit | ( '_' HexDigit )
   all — `1e` lexes as `NUMBER "1"` followed by `IDENT "e"`.
 - `5.` (dot with no following digit) **does** parse as a float — equivalent
   to `5.0`. The tokenizer consumes a `.` after a digit run unless the next
-  character is *also* a `.` (which means it's actually the start of the `..`
+  character is _also_ a `.` (which means it's actually the start of the `..`
   range separator or `...` variadic marker, not a decimal point — this is
   what keeps `<0..5>` from being corrupted into `NUMBER "0."` + `DELIMITER "."`
-  + `NUMBER "5"`).
+  - `NUMBER "5"`).
 - `.5` is not a valid literal at all (a leading `.` never starts a number).
 - No binary/octal literals, no numeric type suffixes (`1L`, `1.0f`).
 - Sign is never part of the literal: `-5` is the unary `-` operator applied to
@@ -294,8 +294,17 @@ VarDecl   ::= [ 'pub' ] 'var'   IDENT [ TypeAnnotation ] [ ':' Expression ] { ',
 ConstDecl ::= [ 'pub' ] 'const' IDENT ':' Expression     { ',' IDENT ':' Expression }     ';'
 
 TypeAnnotation ::= ':' TypeExpr ':'
-TypeExpr       ::= NameToken [ '?' ]
+TypeExpr       ::= 'Fn' '(' [ TypeExpr { ',' TypeExpr } ] ')' [ '->' TypeExpr ] [ '?' ]
+                  | NameToken [ '?' ]
 ```
+
+- The `Fn(...)` form is a checked function type: each parameter's own type
+  and, if given, the `-> TypeExpr` return type are matched against whatever
+  value is bound to it. A bare `Fn` (no parens) is any callable, unchecked.
+  The trailing `[ '?' ]` binds to whichever `TypeExpr` it immediately
+  follows: with no return type, `Fn(Number)?` makes the function reference
+  itself nullable; with a return type, `Fn(Number) -> Number?` instead makes
+  the _return type_ nullable, not the function reference.
 
 - `const` requires an initializer on every name; `var`'s initializer is
   optional, but only directly before `;`, `)`, `,`, or `in` — anything else
@@ -353,7 +362,7 @@ FuncDecl ::= [ 'pub' ] [ 'async' | 'pure' ] 'fn' NameToken '(' ParamList ')' [ '
 
 ```mira
 pub async fn fetch(url, timeout : 30) { return await http.get(url); }
-fn add(a : Number, b : Number) -> Number { return eval($a + $b); }
+fn add(a : Number, b : Number) -> Number { return a + b; }
 ```
 
 See [Function/Lambda Details](#functionlambda-details) for `ParamList`.
@@ -856,7 +865,7 @@ operands whenever either side isn't a number. This is also why arithmetic
 never needs to be wrapped in `eval()` — `n - 1`, `x * 2`, `-x` are ordinary
 expressions usable anywhere, including right next to a `+`-joined string,
 with no parsing ambiguity to work around. `eval(<code>)` is reserved for its
-one remaining job: running a runtime-constructed code *string* — see
+one remaining job: running a runtime-constructed code _string_ — see
 [Dynamic Code Execution](language-guide.md#dynamic-code-execution). For
 formatted output, see the `format(pattern, ...args)` builtin in the
 [Standard Library Reference](standard-library.md).
@@ -968,7 +977,7 @@ otherwise it's a parenthesized grouped expression.
 
 `<` is an ordinary (binary-only) comparison operator when it appears after an
 existing expression, reached via the precedence-climbing parser. But a `<`
-encountered at *primary* position (starting a new expression — no left-hand
+encountered at _primary_ position (starting a new expression — no left-hand
 side yet) is unambiguous, since `<` is never a valid prefix/unary operator:
 the parser always treats it as the start of a [range literal](#range). This
 is what makes ranges work as a general expression, not just inside
@@ -1030,6 +1039,6 @@ type from the initializer).
 - **`FuncDecl`'s `-> TypeExpr`**: unambiguous by construction — `->` between
   a named function's `)` and its `{` was unused grammar space before this
   feature existed. It is deliberately **not** extended to lambdas: an arrow
-  lambda's own `->` already means "body follows," so `($x) -> Int` staying
+  lambda's own `->` already means "body follows," so `(x) -> Int` staying
   "the body is the bare expression `Int`" (not "declares return type `Int`,
   body is next") avoids reopening that ambiguity.

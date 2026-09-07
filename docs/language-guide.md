@@ -8,16 +8,16 @@ Core language reference: syntax, types, control flow, functions, and the built-i
 
 1. [Program Structure](#program-structure) — Module Declaration, Comments, Imports, Module Visibility, Native JAR Extensions, Dynamic Import
 2. [Values](#values) — Variables, Destructuring, Literals
-3. [Expressions](#expressions) — Operators, `??`, `?.`, Ternary, Pipe
+3. [Expressions](#expressions) — Operators, `typeof`, `??`, `?.`, Ternary, Pipe
 4. [Data Structures](#data-structures) — List, Array, Object, Map, Range
 5. [Control Flow](#control-flow) — If, While, For, Foreach, Switch, `exec { }`
 6. [Functions](#functions) — Default Parameters, Variadic, Inner Functions, Lambdas, Async/Await, spawn, Pure Functions
-7. [Type Annotations](#type-annotations) — Optional typing, type aliases, enforcement, strict mode
-8. [Comptime](#comptime) — Compile-Time Code Execution
-9. [static_assert](#static_assert) — Compile-Time Assertions
-10. [Objects with Methods](#objects-with-methods)
-11. [Structs](#structs)
-12. [Enums](#enums)
+7. [Comptime](#comptime) — Compile-Time Code Execution
+8. [static_assert](#static_assert) — Compile-Time Assertions
+9. [Objects with Methods](#objects-with-methods)
+10. [Structs](#structs)
+11. [Enums](#enums)
+12. [Type Annotations](#type-annotations) — Optional typing, function types, null narrowing, type aliases, enforcement, strict mode
 13. [Built-in Functions](#built-in-functions)
 14. [Multithreading](#multithreading)
 15. [Testing](#testing)
@@ -291,7 +291,7 @@ test()?.a         // Optional chaining on call result
 | Null    | `null`          |
 
 A string value only ever comes from an actual string literal — there is no
-"bareword is a string" fallback. Adjacent string *literals* are spliced at
+"bareword is a string" fallback. Adjacent string _literals_ are spliced at
 parse time, exactly like C:
 
 ```
@@ -336,6 +336,8 @@ Line 2
 | Ternary           | `? :`                               |
 | Null-Coalescing   | `??`                                |
 | Optional Chaining | `?.`                                |
+
+There's also `typeof <expr>`, which returns the runtime type of a value as a string — documented under [Functions → typeof](#typeof) alongside the other function-related keywords (`async`/`await`, `spawn`).
 
 ### `++` / `--`
 
@@ -709,6 +711,21 @@ switch (x) {
 
 Both forms can be mixed freely in the same switch.
 
+If the switch's subject is a declared `enum`-typed value and there's no `default`, missing members produce a compile-time **warning** (not an error — the switch still runs) naming which ones weren't covered:
+
+```mira
+enum Color { RED, GREEN, BLUE }
+var c : Color : Color.RED;
+
+switch (c) {
+    case (Color.RED)   -> print("r\n")
+    case (Color.GREEN) -> print("g\n")
+    // warning: Switch over enum 'Color' is not exhaustive - missing: BLUE
+}
+```
+
+Add a `default`, or a `case` for every member, to silence it.
+
 ### Switch Expression
 
 `switch` can also be used as an expression that returns a value. The arrow (`->`) form is required. Each arm is a single expression — no braces, no semicolons.
@@ -759,6 +776,8 @@ var label : switch(dir) {
     case (Direction.WEST)  -> "W"
 };
 ```
+
+Covering every member with no `default`, like above, is exactly what the [exhaustiveness warning](#switch) checks for — this one is clean.
 
 ### exec Block
 
@@ -830,7 +849,7 @@ fn test() {
 test();   // => 100
 ```
 
-> **Note:** `(<code>)` (the built-in function) is the unrelated tool for running a dynamically constructed code *string* — see [Dynamic Code Execution](#dynamic-code-execution). `exec { }` is the _static_ block form documented here — it does not accept a string.
+> **Note:** `(<code>)` (the built-in function) is the unrelated tool for running a dynamically constructed code _string_ — see [Dynamic Code Execution](#dynamic-code-execution). `exec { }` is the _static_ block form documented here — it does not accept a string.
 
 ### Break / Continue
 
@@ -863,23 +882,25 @@ try {
 }
 ```
 
-`throw` raises a value as an exception:
+`throw` raises a value as an exception. Unlike most expressions, it always needs an error-type name and a parenthesized payload — a bare string or expression on its own isn't a valid `throw`:
 
 ```
-throw <expression>;
+throw <TypeName>(<expression>);
 ```
 
 Example:
 
 ```
 try {
-    throw "something went wrong";
+    throw oops("something went wrong");
 } catch(e) {
     print(e + "\n");
 } finally {
     print("always runs\n");
 }
 ```
+
+`<TypeName>` doesn't need to be declared anywhere first — it's the exception's own tag, and it's what a type-filtered `catch` (below) matches against.
 
 A `catch` clause can optionally filter by exception type: `catch (<Type> <param>) { ... }` only runs if the thrown value's type matches `<Type>`; `catch(<param>)` (no type) catches everything. Built-in dynamic-execution errors use this to let callers distinguish failure kinds:
 
@@ -1274,7 +1295,7 @@ Both spawned tasks run in parallel on the common thread pool. `await` blocks onl
 Error propagation works the same as with `async fn`:
 
 ```
-var h : spawn(fn() { throw "oops"; });
+var h : spawn(fn() { throw oops("failed"); });
 try {
     await(h);
 } catch(e) {
@@ -1320,152 +1341,6 @@ fib(30)   // returned from cache instantly
 > **Note:** The interpreter also has an automatic purity analyzer (`PurityAnalyzer`) that detects functions without side effects and caches them silently. The `pure` keyword extends this: it forces caching even when automatic analysis would not classify the function as pure (e.g. because it calls another function whose purity cannot be statically proven).
 
 ---
-
-## Type Annotations
-
-Mira is **gradually typed**: type annotations are entirely optional. Add them where they help; leave them off everywhere else and nothing changes — an unannotated program behaves exactly as it always has.
-
-An annotation is written with a **second colon**, right before the value/initializer position it normally occupies. The type comes first, the value second:
-
-```
-var <name> : <Type> : <expression>;    // typed, initialized
-var <name> : <expression>;             // unchanged — untyped
-```
-
-Example:
-
-```
-var age : Number : 30;
-var name : String : "Ada";
-var maybe : Number? : null;    // nullable — suffix `?`
-```
-
-A single `:` still means "here's the initializer," exactly as before. Mira only reinterprets it as a type when a **second** `:` follows — so every existing untyped program keeps parsing exactly as it did. Typed `var` declarations always need an initializer; there's no "typed but empty" form (use `<Type>?` with a `null` initializer instead).
-
-### Built-in Types
-
-`Number`, `String`, `Bool`, `List`, `Array`, `Map`, `Object`, `Fn`, `Null`, `Any`, `Void`. `Any` is an explicit escape hatch — it's always assignable in both directions. There's no separate `Int`/`Float`: Mira's numbers stay `Long`/`Double` under the hood exactly as before, and division still always widens to `Double`.
-
-`Void` is only meaningful as a function's return type — see [Void Return Type](#void-return-type) below.
-
-A declared struct variable name, `enum` name, or `type` alias name can also be used as a type (see [Type Aliases](#type-aliases) below). A struct instance is checked against the specific template it was created from, not just the generic `Object` shape:
-
-```mira
-var point : struct { var x; var y; };
-var color : struct { var r; var g; var b; };
-
-fn makePoint() -> point {
-    return $point{$x : 1, $y : 2};   // OK - matches the declared template
-}
-
-fn makeColor() -> point {
-    return $color{$r : 1, $g : 2, $b : 3};   // ReturnTypeMismatchError - wrong template
-}
-```
-
-This also works through a variable, not just a literal instantiation directly in the `return`:
-
-```mira
-var origin : $point{$x : 0, $y : 0};
-
-fn getOrigin() -> point {
-    return $origin;   // OK - $origin was created from the `point` template
-}
-```
-
-### Function Parameters and Return Types
-
-Parameters use the same double-colon rule. A parameter with a type but no default only needs a single colon — a bare type name immediately followed by `,` or `)` is unambiguous:
-
-```
-fn <name>(<param> : <Type>, <param2> : <Type2> : <default>) -> <ReturnType> {
-    <body>
-}
-```
-
-Example:
-
-```
-fn add(a : Number, b : Number) -> Number {
-    return eval($a + $b);
-}
-```
-
-`->` for the return type only applies to named `fn` declarations. Lambdas and arrow lambdas (`($x) -> expr`) don't support a return-type annotation — `->` there still introduces the lambda body.
-
-### Void Return Type
-
-`Void` declares that a function doesn't return a value:
-
-```mira
-fn log(msg) -> Void {
-    println($msg);
-}
-```
-
-- A bare `return;`, or simply reaching the end of the function body without a `return` at all, is fine.
-- `return <anything>;` — including `return null;` — is a compile-time error (`ReturnTypeMismatchError`, `E326`), even though `null` would normally be a valid value almost everywhere else. `Void` means "provides no value," which is a stricter statement than "provides `Null`."
-
-`Void` is therefore not the same as `Null`: a function declared `-> Null` must actually `return null;` (or another expression that evaluates to `null`) on every path, while `-> Void` forbids providing a value in the first place.
-
-### Struct Fields
-
-Struct field declarations reuse the same `var` syntax as top-level variables, so they can be typed the same way:
-
-```
-var Point : struct {
-    var x : Number : 0;
-    var y : Number : 0;
-};
-```
-
-Overriding a field at instantiation time (`$Point{$x : "oops"}`) with a value of the wrong type is a compile-time error — see [Enforcement](#enforcement) below.
-
-### Type Aliases
-
-```
-type <Name> : <Type>;
-```
-
-```
-type UserId : Number;
-var id : UserId : 42;
-```
-
-> **Note:** only a `type` declared at the true top level of a file is
-> currently recognized. One written inside a function or block parses
-> without error but has no effect — using the name it was meant to define
-> reports `UnknownTypeNameError` (`E327`).
-
-### Enforcement
-
-Type checking runs as part of the same static-check pass that already catches things like undeclared variables — violations are compile-time errors that stop the program from running, in both interpreted mode and `--compile`. Every check below only fires when an explicit annotation is present somewhere in the comparison, so untyped code is never newly rejected:
-
-| Check                                                                                                                         | Error                                      |
-| ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
-| Initializer or reassignment doesn't match the declared type                                                                   | `TypeMismatchError` (`E324`)               |
-| Call argument doesn't match a parameter's declared type (function, method, or a lambda value held in a variable)              | `ArgumentTypeMismatchError` (`E325`)       |
-| Returned value doesn't match the declared return type                                                                         | `ReturnTypeMismatchError` (`E326`)         |
-| Unknown type name                                                                                                             | `UnknownTypeNameError` (`E327`)            |
-| Struct/object field value doesn't match the field's declared type, at instantiation _or_ on a later reassignment              | `StructFieldTypeMismatchError` (`E329`)    |
-| A parameter's own default value doesn't match its declared type                                                               | `TypeMismatchError` (`E324`)               |
-| A struct/object field's own default value (in its declaration, not an override) doesn't match its declared type               | `TypeMismatchError` (`E324`)               |
-| Binary arithmetic operator (`+ - * / % \% **`) used with mismatched operand types, when at least one side is explicitly typed | `BinaryOperatorTypeMismatchError` (`E330`) |
-| Comparison operator (`< > <= >=`) used with mismatched operand types, when at least one side is explicitly typed              | `BinaryOperatorTypeMismatchError` (`E330`) |
-| Unary `-`/`~` applied to an explicitly-typed non-`Number` operand                                                             | `UnaryOperatorTypeMismatchError` (`E331`)  |
-| Calling `$var(...)` where `var`'s declared or last-known-literal type isn't `Fn`/`Any`/nullable                               | `VariableNotCallableError` (`E332`)        |
-
-An enum member access like `Color.RED` is also inferred as the enum's own nominal type (`Color`), so it participates in every check above — assigning it to a variable typed as a _different_ enum, passing it as an argument of the wrong enum type, and so on.
-
-`E332` catches, at compile time, the exact failure the interpreter otherwise raises at runtime (`NotCallableError`, `E212`) when a variable holding a non-function value is called. It's silent whenever the variable's type can't be determined at all (e.g. an untyped function parameter) — declare the parameter as type `Fn` to opt into the check for callback-style code. This tracking understands: plain literals, negative numbers (`-1`) and inverted booleans/bits (`!true`, `~5`), a ternary/switch reassignment whose branches all agree on one type, and reassigning from a call to a function with an explicit return type (e.g. `$a : getNum();` where `getNum` returns `Number`) — each of these updates what's known about the variable instead of silently forgetting it.
-
-A ternary (`cond ? a : b`) or `switch` expression has no type of its own — instead, every branch/case result is checked individually against whatever type the expression is being assigned/passed/returned into, so a mismatched branch is caught even when the other branches are fine.
-
-For binary/comparison/unary operators specifically, only operands with an explicit type — a `$`-referenced, explicitly annotated variable or a call to a function with an explicit return type — gate the check; a bare literal or bareword operand (e.g. `"foo" - 1`) is unaffected here and stays covered only by the pre-existing, softer runtime-safety warnings that already flag risky literal/bareword operands. `==`/`!=` are deliberately not type-checked — comparing an explicitly-typed value against `null` (a common nullable-check pattern) would otherwise be falsely flagged.
-
-### Strict Mode
-
-`--strict-types` (or `mira.toml`'s `[build] strict-types = true` — see [Build System → General flags](build-system.md#general-flags)) requires every **top-level** function's parameters and return type to be explicitly annotated. It's off by default and doesn't change anything else — a project can adopt it incrementally without annotating every variable. A missing annotation under strict mode is `MissingTypeAnnotationError` (`E328`).
 
 ---
 
@@ -1809,6 +1684,22 @@ var notATemplate : { var a : 1; };
 var bad : notATemplate{a : 2};   // NotAStructTemplateError
 ```
 
+These are caught at compile time too, as `UndefinedObjectFieldStaticError` (`E323`), whenever the checker can trace the value back to its template — including through a plain variable, or a function parameter whose declared type names the struct and is called somewhere with a traceable argument:
+
+```
+var point : struct { var x; fn get() { return this.x; } };
+
+fn move(p : point) {
+    p.q();   // E323 - point has no method 'q'
+}
+
+move(point{x : 1});
+```
+
+The parameter case only checks a call it can actually see: `move` above is checked because it's called with a literal `point{...}` argument. A function that declares a struct-typed parameter but is never called (or only ever called with a value the checker can't trace back to a template) has its body left unchecked for this rule.
+
+A field access that resolves to a `var` holding a callable (e.g. a lambda stored in a field) is still valid to call — the check only rejects names that don't exist on the template at all.
+
 ---
 
 ## Enums
@@ -1895,28 +1786,250 @@ var message : switch(code) {
 
 ---
 
+## Type Annotations
+
+Mira is **gradually typed**: type annotations are entirely optional. Add them where they help; leave them off everywhere else and nothing changes — an unannotated program behaves exactly as it always has.
+
+An annotation is written with a **second colon**, right before the value/initializer position it normally occupies. The type comes first, the value second:
+
+```
+var <name> : <Type> : <expression>;    // typed, initialized
+var <name> : <expression>;             // unchanged — untyped
+```
+
+Example:
+
+```
+var age : Number : 30;
+var name : String : "Ada";
+```
+
+A single `:` still means "here's the initializer," exactly as before. Mira only reinterprets it as a type when a **second** `:` follows — so every existing untyped program keeps parsing exactly as it did. Typed `var` declarations always need an initializer; there's no "typed but empty" form (use `<Type>?` with a `null` initializer instead — see [Nullable Types](#nullable-types) below).
+
+### Built-in Types
+
+`Number`, `String`, `Bool`, `List`, `Array`, `Map`, `Object`, `Fn`, `Null`, `Any`, `Void`. `Any` is an explicit escape hatch — it's always assignable in both directions. There's no separate `Int`/`Float`: Mira's numbers stay `Long`/`Double` under the hood exactly as before, and division still always widens to `Double`.
+
+`Void` is only meaningful as a function's return type — see [Void Return Type](#void-return-type) below.
+
+A declared struct variable name, `enum` name, or `type` alias name can also be used as a type (see [Type Aliases](#type-aliases) below). A struct instance is checked against the specific template it was created from, not just the generic `Object` shape:
+
+```mira
+var point : struct { var x; var y; };
+var color : struct { var r; var g; var b; };
+
+fn makePoint() -> point {
+    return point{x : 1, y : 2};   // OK - matches the declared template
+}
+
+fn makeColor() -> point {
+    return color{r : 1, g : 2, b : 3};   // ReturnTypeMismatchError - wrong template
+}
+```
+
+This also works through a variable, not just a literal instantiation directly in the `return`:
+
+```mira
+var origin : point{x : 0, y : 0};
+
+fn getOrigin() -> point {
+    return origin;   // OK - origin was created from the `point` template
+}
+```
+
+A struct-typed value's _methods_ are checked too, not just its fields: calling a method that doesn't exist on the struct/object — directly, or through a variable, or through a function parameter typed as that struct — is a compile-time `UndefinedObjectFieldStaticError` (`E323`), the same error field access already reports. See [Structs → Errors](#errors).
+
+### Function Types
+
+`Fn` alone means "any callable, unchecked." To check a callback's own shape, give it a parameter/return-type list:
+
+```
+Fn(<ParamType>, <ParamType>, ...) -> <ReturnType>
+```
+
+```mira
+fn apply(cb : Fn(Number, Number) -> Number) {
+    println(cb(1, 2));
+}
+
+fn add(a : Number, b : Number) -> Number {
+    return a + b;
+}
+
+apply(add);   // OK - add's own signature matches Fn(Number, Number) -> Number
+```
+
+This is checked in both directions: a call to `cb` _inside_ `apply`'s own body is checked against the declared parameter types, and whatever gets passed _as_ `cb` at a call site — a named function, a lambda, another `Fn`-typed variable — is checked against the same declared shape. A lambda's own parameters can be typed too (`fn(a : Number) { ... }`); an untyped lambda parameter is treated as `Any` for this check, never rejected.
+
+A trailing `?` always attaches to whichever type it immediately follows. With no return type, `Fn(Number)?` makes the function reference itself nullable. With a return type, the `?` instead attaches to _that_ — `Fn(Number) -> Number?` is a (non-nullable) function that returns a nullable `Number`, not a nullable function.
+
+### Nullable Types
+
+Suffix a type with `?` to allow `null`:
+
+```mira
+var maybe : Number? : null;
+```
+
+A nullable value can't be used where a non-nullable one is expected without narrowing it first (see [Null Narrowing](#null-narrowing) below) — passing a `Number?` where a plain `Number` is expected is a compile-time `TypeMismatchError`/`ArgumentTypeMismatchError`, even though the value might happen to be non-null at runtime.
+
+### Null Narrowing
+
+Once you've checked a nullable value against `null`, the checker treats it as non-null for the rest of the branch where that's guaranteed:
+
+```mira
+fn describe(x : Number?) {
+    if (x != null) {
+        println(x);   // x is Number here, not Number? - no error
+    }
+}
+```
+
+The same works the other way (`x == null` narrows in the `else` branch), as a **guard clause** when the narrowing branch always exits:
+
+```mira
+fn describe(x : Number?) {
+    if (x == null) {
+        return;
+    }
+    println(x);   // x is narrowed for the rest of this block, past the if entirely
+}
+```
+
+A guard clause narrows for everything _after_ it in the same block, until the block ends — not just inside the `if`. It recognizes `return` and `throw` as "always exits."
+
+`&&` and `||` compose: `if (x != null && y != null)` narrows both `x` and `y` in the `then` branch; `if (x == null || y == null) { return; }` narrows both for the rest of the block (De Morgan's law — reaching past the guard means neither was null). Only the operands that are themselves plain `!= null`/`== null` checks narrow; an unrelated condition ANDed in doesn't stop the check, but doesn't narrow anything itself either.
+
+Ternary expressions narrow the same way, in each branch:
+
+```mira
+var r : Number : x != null ? x : 0;
+```
+
+Narrowing only recognizes a direct `<var> != null` / `<var> == null` comparison (either operand order) — it doesn't follow through an intermediate variable, a function call, or a truthiness check.
+
+### Function Parameters and Return Types
+
+Parameters use the same double-colon rule. A parameter with a type but no default only needs a single colon — a bare type name immediately followed by `,` or `)` is unambiguous:
+
+```
+fn <name>(<param> : <Type>, <param2> : <Type2> : <default>) -> <ReturnType> {
+    <body>
+}
+```
+
+Example:
+
+```
+fn add(a : Number, b : Number) -> Number {
+    return a + b;
+}
+```
+
+`->` for the return type only applies to named `fn` declarations. Lambdas and arrow lambdas (`(x) -> expr`) don't support a return-type annotation — `->` there still introduces the lambda body.
+
+### Void Return Type
+
+`Void` declares that a function doesn't return a value:
+
+```mira
+fn log(msg) -> Void {
+    println(msg);
+}
+```
+
+- A bare `return;`, or simply reaching the end of the function body without a `return` at all, is fine.
+- `return <anything>;` — including `return null;` — is a compile-time error (`ReturnTypeMismatchError`, `E326`), even though `null` would normally be a valid value almost everywhere else. `Void` means "provides no value," which is a stricter statement than "provides `Null`."
+
+`Void` is therefore not the same as `Null`: a function declared `-> Null` must actually `return null;` (or another expression that evaluates to `null`) on every path, while `-> Void` forbids providing a value in the first place.
+
+### Struct Fields
+
+Struct field declarations reuse the same `var` syntax as top-level variables, so they can be typed the same way:
+
+```
+var Point : struct {
+    var x : Number : 0;
+    var y : Number : 0;
+};
+```
+
+Overriding a field at instantiation time (`Point{x : "oops"}`) with a value of the wrong type is a compile-time error — see [Enforcement](#enforcement) below.
+
+### Type Aliases
+
+```
+type <Name> : <Type>;
+```
+
+```
+type UserId : Number;
+var id : UserId : 42;
+```
+
+> **Note:** only a `type` declared at the true top level of a file is
+> currently recognized. One written inside a function or block parses
+> without error but has no effect — using the name it was meant to define
+> reports `UnknownTypeNameError` (`E327`).
+
+### Enforcement
+
+Type checking runs as part of the same static-check pass that already catches things like undeclared variables — violations are compile-time errors that stop the program from running, in both interpreted mode and `--compile`. Every check below only fires when an explicit annotation is present somewhere in the comparison, so untyped code is never newly rejected:
+
+| Check                                                                                                                                        | Error                                      |
+| -------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| Initializer or reassignment doesn't match the declared type                                                                                  | `TypeMismatchError` (`E324`)               |
+| Call argument doesn't match a parameter's declared type (function, method, a lambda value held in a variable, or a `Fn(...)`-typed callback) | `ArgumentTypeMismatchError` (`E325`)       |
+| Returned value doesn't match the declared return type                                                                                        | `ReturnTypeMismatchError` (`E326`)         |
+| Unknown type name                                                                                                                            | `UnknownTypeNameError` (`E327`)            |
+| Struct/object field value doesn't match the field's declared type, at instantiation _or_ on a later reassignment                             | `StructFieldTypeMismatchError` (`E329`)    |
+| A parameter's own default value doesn't match its declared type                                                                              | `TypeMismatchError` (`E324`)               |
+| A struct/object field's own default value (in its declaration, not an override) doesn't match its declared type                              | `TypeMismatchError` (`E324`)               |
+| Binary arithmetic operator (`+ - * / % \% **`) used with mismatched operand types, when at least one side is explicitly typed                | `BinaryOperatorTypeMismatchError` (`E330`) |
+| Comparison operator (`< > <= >=`) used with mismatched operand types, when at least one side is explicitly typed                             | `BinaryOperatorTypeMismatchError` (`E330`) |
+| Unary `-`/`~` applied to an explicitly-typed non-`Number` operand                                                                            | `UnaryOperatorTypeMismatchError` (`E331`)  |
+| Calling `<var>(...)` where `var`'s declared or last-known-literal type isn't `Fn`/`Any`/nullable                                             | `VariableNotCallableError` (`E332`)        |
+
+`+` is the one arithmetic operator that also means string concatenation, so it's checked a little differently: it's fine whenever _either_ side is a `String` (the other side gets stringified), and only flagged when neither side is a `String` and they're not both `Number`. A compound assignment (`x +: y`) additionally checks the _result_ against `x`'s own declared type — `x +: "oops"` on a `Number`-typed `x` is a `TypeMismatchError`, even though `+` alone would have allowed the concatenation.
+
+An enum member access like `Color.RED` is also inferred as the enum's own nominal type (`Color`), so it participates in every check above — assigning it to a variable typed as a _different_ enum, passing it as an argument of the wrong enum type, and so on.
+
+`E332` catches, at compile time, the exact failure the interpreter otherwise raises at runtime (`NotCallableError`, `E212`) when a variable holding a non-function value is called. It's silent whenever the variable's type can't be determined at all (e.g. an untyped function parameter) — declare the parameter as type `Fn` to opt into the check for callback-style code. This tracking understands: plain literals, negative numbers (`-1`) and inverted booleans/bits (`!true`, `~5`), a ternary/switch reassignment whose branches all agree on one type, and reassigning from a call to a function with an explicit return type (e.g. `a : getNum();` where `getNum` returns `Number`) — each of these updates what's known about the variable instead of silently forgetting it.
+
+A ternary (`cond ? a : b`) or `switch` expression has no type of its own — instead, every branch/case result is checked individually against whatever type the expression is being assigned/passed/returned into, so a mismatched branch is caught even when the other branches are fine.
+
+For binary/comparison/unary operators specifically, only operands with an explicit type — an explicitly annotated variable or a call to a function with an explicit return type — gate the check; a bare literal operand (e.g. `"foo" - 1`) is unaffected here and stays covered only by the pre-existing, softer runtime-safety warnings that already flag risky literal operands. `==`/`!=` are deliberately not type-checked — comparing an explicitly-typed value against `null` (a common nullable-check pattern) would otherwise be falsely flagged.
+
+A native library's declared functions and constants (see [Native JAR Extensions](#native-jar-extensions)) participate in all of this too, wherever the library ships type information for them — an argument, return value, or constant with a mismatched type is caught the same way as any other typed symbol.
+
+### Strict Mode
+
+`--strict-types` (or `mira.toml`'s `[build] strict-types = true` — see [Build System → General flags](build-system.md#general-flags)) requires every **top-level** function's parameters and return type to be explicitly annotated. It's off by default and doesn't change anything else — a project can adopt it incrementally without annotating every variable. A missing annotation under strict mode is `MissingTypeAnnotationError` (`E328`).
+
+---
+
 ## Built-in Functions
 
 Always available without any import.
 
-| Function                          | Parameters              | Description                                                                                                                                       |
-| --------------------------------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `print(<value>)`                  | Any value               | Prints the value to stdout without a newline                                                                                                      |
-| `scan()`                          | —                       | Reads a line from stdin and returns it as a string                                                                                                |
-| `(<code>)`                    | String                  | Parses and runs a runtime code *string* `<code>` (any Mira statements) and returns its value (see [Dynamic Code Execution](#dynamic-code-execution)) |
-| `format(<pattern>, ...<args>)`    | String, any values       | printf-style formatting — `%d %f %s %b %%`, e.g. `format("%s: %d\n", name, count)`                                                                |
-| `exec { <body> }`                 | Block                   | Executes a block and returns its `return` value (see [exec Block](#exec-block))                                                                   |
-| `exec isolated { <body> }`        | Block                   | Same as `exec { }` but restricted to global scope only                                                                                            |
-| `importDynamic(<path>)`           | String                  | Loads a `.mira` module at runtime and returns it as a `Namespace` (see [Dynamic Import](#dynamic-import))                                         |
-| `importDynamic(<path>, {<syms>})` | String, List of strings | Same, but only the listed `pub` symbols                                                                                                           |
-| `length(<value>)`                 | String, List, or Array  | Returns the number of characters / elements                                                                                                       |
-| `exit(<code>)`                    | Number                  | Exits the program with the given exit code                                                                                                        |
-| `assert(<cond>)`                  | Boolean expression      | Throws a runtime error if the condition is false                                                                                                  |
-| `assert(<cond>, <message>)`       | Boolean, String         | Throws with a custom message if condition is false                                                                                                |
+| Function                          | Parameters              | Description                                                                                                                                          |
+| --------------------------------- | ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `print(<value>)`                  | Any value               | Prints the value to stdout without a newline                                                                                                         |
+| `scan()`                          | —                       | Reads a line from stdin and returns it as a string                                                                                                   |
+| `(<code>)`                        | String                  | Parses and runs a runtime code _string_ `<code>` (any Mira statements) and returns its value (see [Dynamic Code Execution](#dynamic-code-execution)) |
+| `format(<pattern>, ...<args>)`    | String, any values      | printf-style formatting — `%d %f %s %b %%`, e.g. `format("%s: %d\n", name, count)`                                                                   |
+| `exec { <body> }`                 | Block                   | Executes a block and returns its `return` value (see [exec Block](#exec-block))                                                                      |
+| `exec isolated { <body> }`        | Block                   | Same as `exec { }` but restricted to global scope only                                                                                               |
+| `importDynamic(<path>)`           | String                  | Loads a `.mira` module at runtime and returns it as a `Namespace` (see [Dynamic Import](#dynamic-import))                                            |
+| `importDynamic(<path>, {<syms>})` | String, List of strings | Same, but only the listed `pub` symbols                                                                                                              |
+| `length(<value>)`                 | String, List, or Array  | Returns the number of characters / elements                                                                                                          |
+| `exit(<code>)`                    | Number                  | Exits the program with the given exit code                                                                                                           |
+| `assert(<cond>)`                  | Boolean expression      | Throws a runtime error if the condition is false                                                                                                     |
+| `assert(<cond>, <message>)`       | Boolean, String         | Throws with a custom message if condition is false                                                                                                   |
 
 ### Dynamic Code Execution
 
-`eval` has exactly one job: run a runtime-constructed code *string*, for
+`eval` has exactly one job: run a runtime-constructed code _string_, for
 cases where the code to execute isn't known until the program is running
 (loaded from a file, typed by a user, generated on the fly). Ordinary
 arithmetic and other expressions are never wrapped in `()` — they're
