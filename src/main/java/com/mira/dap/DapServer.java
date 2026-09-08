@@ -96,6 +96,7 @@ import com.mira.cli.Flags;
 import com.mira.lexer.Tokenizer;
 import com.mira.parser.Parser;
 import com.mira.parser.nodes.Node;
+import com.mira.parser.nodes.statement.Statement.FuncDecl;
 import com.mira.runtime.interpreter.Environment;
 import com.mira.runtime.interpreter.Interpreter;
 import com.mira.utils.FileLoader;
@@ -244,7 +245,7 @@ public class DapServer implements IDebugProtocolServer {
                 }
             });
 
-            Flags.mainFunction = true;
+            Flags.mainFunction = asts.stream().anyMatch(n -> n instanceof FuncDecl fd && "main".equals(fd.getName()));
             try {
                 interpreter.run(asts, Flags.args, true);
                 sendOutput("console", "Execution finished.\n");
