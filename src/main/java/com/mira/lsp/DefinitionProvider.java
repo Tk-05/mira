@@ -254,6 +254,28 @@ public class DefinitionProvider {
         return null;
     }
 
+    /**
+     * Whether {@code type} (a struct/object literal or enum) already declares a
+     * member named {@code name} - field, method, or enum value. Used by
+     * {@link RenameProvider} to refuse a field rename that would collide with
+     * an existing sibling member.
+     */
+    static boolean typeHasMember(Node type, String name) {
+        if (findMethodInType(type, name) != null) {
+            return true;
+        }
+        if (type instanceof ObjectExpression obj) {
+            return obj.getVarDecls().stream().anyMatch(f -> f.getName().equals(name));
+        }
+        if (type instanceof StructExpression st) {
+            return st.getVarDecls().stream().anyMatch(f -> f.getName().equals(name));
+        }
+        if (type instanceof EnumDecl ed) {
+            return ed.getValues().containsKey(name);
+        }
+        return false;
+    }
+
     static FuncDecl findMethodInType(Node type, String methodName) {
         if (type instanceof ObjectExpression obj) {
             for (FuncDecl m : obj.getMethods()) {
@@ -369,7 +391,7 @@ public class DefinitionProvider {
      * declaration happens to appear first in AST traversal order regardless of
      * scope.
      */
-    private static Location findScoped(List<Node> ast, String name, String uri, String content, int cursorLine) {
+    static Location findScoped(List<Node> ast, String name, String uri, String content, int cursorLine) {
         for (Scope scope : buildScopeChain(ast, cursorLine)) {
             Location found = findInScopeLevel(scope, name, uri, content, cursorLine);
             if (found != null) {

@@ -12,6 +12,7 @@ import org.eclipse.lsp4j.TextEdit;
 import org.eclipse.lsp4j.WorkspaceEdit;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -156,5 +157,96 @@ public class RenameProviderTest {
         assertEquals(2, edit.getChanges().size());
         assertTrue(edit.getChanges().containsKey(libUri));
         assertTrue(edit.getChanges().containsKey(mainPath.toUri().toString()));
+    }
+
+    private static String source() {
+        return """
+                fn add(a, b) {
+                    var sum : a + b;
+                    return sum;
+                }
+                """;
+    }
+
+    @Test
+    void rejectsNameStartingWithDigit() {
+        RenameProvider.RenameRejectedException ex = assertThrows(RenameProvider.RenameRejectedException.class,
+                () -> RenameProvider.rename(parse(source()), source(), new Position(1, 9),
+                        "file:///test.mira", null, new WorkspaceIndex(), null, Map.of(), "123total"));
+        assertTrue(ex.getMessage().contains("must start with a letter"));
+    }
+
+    @Test
+    void rejectsNameWithInvalidCharacters() {
+        RenameProvider.RenameRejectedException ex = assertThrows(RenameProvider.RenameRejectedException.class,
+                () -> RenameProvider.rename(parse(source()), source(), new Position(1, 9),
+                        "file:///test.mira", null, new WorkspaceIndex(), null, Map.of(), "my var"));
+        assertTrue(ex.getMessage().contains("only letters, digits, and '_'"));
+    }
+
+    @Test
+    void rejectsBlankName() {
+        RenameProvider.RenameRejectedException ex = assertThrows(RenameProvider.RenameRejectedException.class,
+                () -> RenameProvider.rename(parse(source()), source(), new Position(1, 9),
+                        "file:///test.mira", null, new WorkspaceIndex(), null, Map.of(), ""));
+        assertTrue(ex.getMessage().contains("must not be empty"));
+    }
+
+    @Test
+    void rejectsReservedKeyword() {
+        RenameProvider.RenameRejectedException ex = assertThrows(RenameProvider.RenameRejectedException.class,
+                () -> RenameProvider.rename(parse(source()), source(), new Position(1, 9),
+                        "file:///test.mira", null, new WorkspaceIndex(), null, Map.of(), "fn"));
+        assertTrue(ex.getMessage().contains("reserved keyword"));
+    }
+
+    @Test
+    void acceptsUnderscorePrefixedName() {
+        WorkspaceEdit edit = RenameProvider.rename(parse(source()), source(), new Position(1, 9),
+                "file:///test.mira", null, new WorkspaceIndex(), null, Map.of(), "_total");
+        assertNotNull(edit);
+    }
+
+    @Test
+    void rejectsRenameThatCollidesWithParameterAlreadyInScope() {
+        // "sum" -> "a" would collide with the existing parameter "a".
+        RenameProvider.RenameRejectedException ex = assertThrows(RenameProvider.RenameRejectedException.class,
+                () -> RenameProvider.rename(parse(source()), source(), new Position(1, 9),
+                        "file:///test.mira", null, new WorkspaceIndex(), null, Map.of(), "a"));
+        assertTrue(ex.getMessage().contains("already declared in this scope"));
+    }
+
+    @Test
+    void allowsRenameToItsOwnCurrentName() {
+        WorkspaceEdit edit = RenameProvider.rename(parse(source()), source(), new Position(1, 9),
+                "file:///test.mira", null, new WorkspaceIndex(), null, Map.of(), "sum");
+        assertNotNull(edit);
+    }
+
+    @Test
+    void rejectsFieldRenameThatCollidesWithExistingSiblingField() {
+        String source = """
+                var obj : {
+                    var count : 0;
+                    var total : 0;
+                };
+                fn use() {
+                    return obj.count;
+                }
+                """;
+        List<Node> ast = parse(source);
+        Position pos = new Position(5, 18); // "count" in "obj.count"
+        RenameProvider.RenameRejectedException ex = assertThrows(RenameProvider.RenameRejectedException.class,
+                () -> RenameProvider.rename(ast, source, pos, "file:///test.mira",
+                        null, new WorkspaceIndex(), null, Map.of(), "total"));
+        assertTrue(ex.getMessage().contains("already exists on this type"));
+    }
+
+    @Test
+    void rejectsRenameWhereNoWordSitsUnderTheCursor() {
+        RenameProvider.RenameRejectedException ex = assertThrows(RenameProvider.RenameRejectedException.class,
+                () -> RenameProvider.rename(parse(source()), source(), new Position(0, 0),
+                        "file:///test.mira", null, new WorkspaceIndex(), null, Map.of(), "renamed"));
+        assertTrue(ex.getMessage().contains("Cannot find any references"));
     }
 }

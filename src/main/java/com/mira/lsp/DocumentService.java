@@ -43,8 +43,11 @@ import org.eclipse.lsp4j.SignatureHelpParams;
 import org.eclipse.lsp4j.SymbolInformation;
 import org.eclipse.lsp4j.TextEdit;
 import org.eclipse.lsp4j.WorkspaceEdit;
+import org.eclipse.lsp4j.jsonrpc.ResponseErrorException;
 import org.eclipse.lsp4j.jsonrpc.messages.Either;
 import org.eclipse.lsp4j.jsonrpc.messages.Either3;
+import org.eclipse.lsp4j.jsonrpc.messages.ResponseError;
+import org.eclipse.lsp4j.jsonrpc.messages.ResponseErrorCode;
 import org.eclipse.lsp4j.services.TextDocumentService;
 
 import com.mira.error.MiraError;
@@ -242,9 +245,16 @@ public class DocumentService implements TextDocumentService {
         List<Node> ast = astCache.getOrDefault(uri, List.of());
         String content = documents.getOrDefault(uri, "");
         Path docPath = uriToPath(uri);
-        WorkspaceEdit edit = RenameProvider.rename(ast, content, params.getPosition(), uri,
-                docPath, workspaceIndex, workspaceRoot, documents, params.getNewName());
-        return CompletableFuture.completedFuture(edit);
+        try {
+            WorkspaceEdit edit = RenameProvider.rename(ast, content, params.getPosition(), uri,
+                    docPath, workspaceIndex, workspaceRoot, documents, params.getNewName());
+            return CompletableFuture.completedFuture(edit);
+        } catch (RenameProvider.RenameRejectedException e) {
+            CompletableFuture<WorkspaceEdit> failed = new CompletableFuture<>();
+            failed.completeExceptionally(new ResponseErrorException(
+                    new ResponseError(ResponseErrorCode.RequestFailed, e.getMessage(), null)));
+            return failed;
+        }
     }
 
     @Override
