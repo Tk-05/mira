@@ -18,13 +18,13 @@ import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.Range;
 import org.eclipse.lsp4j.TextEdit;
 import org.eclipse.lsp4j.WorkspaceEdit;
-
-import com.mira.format.AstWalker;
 import org.eclipse.lsp4j.jsonrpc.messages.Either;
 
+import com.mira.format.AstWalker;
 import com.mira.parser.nodes.Node;
 import com.mira.parser.nodes.expression.Expression.ImportExpression;
 import com.mira.parser.nodes.statement.Statement.FuncDecl;
+import com.mira.parser.nodes.statement.Statement.ModuleDecl;
 import com.mira.parser.nodes.statement.Statement.VarDecl;
 import com.mira.parser.nodes.statement.Statement.VarDestructure;
 
@@ -41,6 +41,8 @@ public class CodeActionProvider {
             = Pattern.compile("^Cannot import private symbol '([^']+)' from module '([^']+)'$");
     private static final Pattern UNDECLARED_VAR_PATTERN
             = Pattern.compile("^Variable '([^']+)' is used but never declared$");
+    private static final Pattern UNDEFINED_FUNCTION_PATTERN
+            = Pattern.compile("^Function '([^']+)' is called but never defined$");
 
     private static String codeOf(Diagnostic d) {
         var code = d.getCode();
@@ -76,8 +78,86 @@ public class CodeActionProvider {
             if (action != null) {
                 actions.add(Either.forRight(action));
             }
+            for (CodeAction importFix : buildAddMissingImportFix(d, uri, ast, docPath, workspaceIndex,
+                    workspaceRoot, openDocumentsByUri)) {
+                actions.add(Either.forRight(importFix));
+            }
         }
         return actions;
+    }
+
+    private static List<CodeAction> buildAddMissingImportFix(Diagnostic d, String uri, List<Node> ast,
+            Path docPath, WorkspaceIndex workspaceIndex, Path workspaceRoot, Map<String, String> openDocumentsByUri) {
+        if (!"E302".equals(codeOf(d)) || docPath == null || workspaceIndex == null || workspaceRoot == null) {
+            return List.of();
+        }
+        Matcher m = UNDEFINED_FUNCTION_PATTERN.matcher(firstLine(d));
+        if (!m.matches() || alreadyImportsName(ast, m.group(1))) {
+            return List.of();
+        }
+        String name = m.group(1);
+        int insertLine = importInsertionLine(ast);
+
+        List<CodeAction> actions = new ArrayList<>();
+        for (Path candidate : workspaceIndex.allMiraFiles(workspaceRoot)) {
+            if (candidate.equals(docPath) || !hasPublicFunction(workspaceIndex.getAst(candidate, openDocumentsByUri),
+                    name)) {
+                continue;
+            }
+            String importPath = relativeImportPath(docPath, candidate);
+            TextEdit edit = new TextEdit(new Range(new Position(insertLine, 0), new Position(insertLine, 0)),
+                    "import module \"" + importPath + "\" {" + name + "};\n");
+            WorkspaceEdit workspaceEdit = new WorkspaceEdit(Map.of(uri, List.of(edit)));
+
+            String fileLabel = candidate.getFileName() != null ? candidate.getFileName().toString()
+                    : candidate.toString();
+            CodeAction action = new CodeAction("Import '" + name + "' from '" + fileLabel + "'");
+            action.setKind(CodeActionKind.QuickFix);
+            action.setDiagnostics(List.of(d));
+            action.setEdit(workspaceEdit);
+            actions.add(action);
+        }
+        return actions;
+    }
+
+    private static boolean alreadyImportsName(List<Node> ast, String name) {
+        for (Node n : ast) {
+            if (n instanceof ImportExpression imp && imp.isSelective() && imp.getSelectedFunctions() != null
+                    && imp.getSelectedFunctions().contains(name)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean hasPublicFunction(List<Node> ast, String name) {
+        for (Node n : ast) {
+            if (n instanceof FuncDecl f && f.isPublic() && f.getName().equals(name)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static int importInsertionLine(List<Node> ast) {
+        int lastImportLine = 0;
+        int moduleDeclLine = 0;
+        for (Node n : ast) {
+            if (n instanceof ImportExpression imp) {
+                lastImportLine = Math.max(lastImportLine, imp.line);
+            } else if (n instanceof ModuleDecl md) {
+                moduleDeclLine = md.line;
+            }
+        }
+        return lastImportLine > 0 ? lastImportLine : moduleDeclLine;
+    }
+
+    private static String relativeImportPath(Path docPath, Path target) {
+        Path fromDir = docPath.getParent();
+        if (fromDir == null) {
+            return target.getFileName() != null ? target.getFileName().toString() : target.toString();
+        }
+        return fromDir.relativize(target).toString().replace('\\', '/');
     }
 
     private static CodeAction buildUnusedSymbolFix(Diagnostic d, List<Node> ast, String uri, String content) {

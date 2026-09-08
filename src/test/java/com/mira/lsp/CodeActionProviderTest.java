@@ -1,8 +1,5 @@
 package com.mira.lsp;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -19,6 +16,8 @@ import org.eclipse.lsp4j.Range;
 import org.eclipse.lsp4j.TextDocumentIdentifier;
 import org.eclipse.lsp4j.TextEdit;
 import org.eclipse.lsp4j.jsonrpc.messages.Either;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -247,7 +246,7 @@ public class CodeActionProviderTest {
                 .filter(d -> d.getMessage().contains("'unused' is imported but never used"))
                 .findFirst()
                 .orElseThrow(() -> new AssertionError("expected unused 'unused' import diagnostic, got: "
-                        + diagnostics));
+                + diagnostics));
 
         String uri = mainPath.toUri().toString();
         CodeActionParams params = new CodeActionParams(
@@ -305,5 +304,147 @@ public class CodeActionProviderTest {
         assertEquals(1, edits.size());
         assertEquals("pub ", edits.get(0).getNewText());
         assertEquals(new Range(new Position(1, 0), new Position(1, 0)), edits.get(0).getRange());
+    }
+
+    @Test
+    void offersQuickFixToImportUndefinedFunctionFromAnotherFile(@TempDir Path tempDir) throws IOException {
+        Path libPath = tempDir.resolve("lib.mira");
+        Files.writeString(libPath, """
+                pub fn helper() {
+                    return 1;
+                }
+                """);
+        Path mainPath = tempDir.resolve("main.mira");
+        String source = """
+                module main;
+                fn main() {
+                    return helper();
+                }
+                """;
+        Files.writeString(mainPath, source);
+
+        List<Diagnostic> diagnostics = DiagnosticCollector.collect(source, mainPath, Map.of());
+        Diagnostic undefined = diagnostics.stream()
+                .filter(d -> d.getMessage().contains("is called but never defined"))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("expected undefined-function diagnostic, got: " + diagnostics));
+
+        String uri = mainPath.toUri().toString();
+        CodeActionParams params = new CodeActionParams(
+                new TextDocumentIdentifier(uri),
+                undefined.getRange(),
+                new CodeActionContext(List.of(undefined)));
+        List<Either<Command, CodeAction>> actions = CodeActionProvider.provide(params, parse(source), uri, source,
+                mainPath, new WorkspaceIndex(), tempDir, Map.of());
+
+        assertEquals(1, actions.size());
+        CodeAction action = actions.get(0).getRight();
+        assertEquals("Import 'helper' from 'lib.mira'", action.getTitle());
+        List<TextEdit> edits = action.getEdit().getChanges().get(uri);
+        assertEquals(1, edits.size());
+        assertEquals("import module \"lib.mira\" {helper};\n", edits.get(0).getNewText());
+        // right after the module declaration (line 0), since there are no
+        // existing imports to group with
+        assertEquals(new Range(new Position(1, 0), new Position(1, 0)), edits.get(0).getRange());
+    }
+
+    @Test
+    void importFixInsertsAfterExistingImports(@TempDir Path tempDir) throws IOException {
+        Path libPath = tempDir.resolve("lib.mira");
+        Files.writeString(libPath, """
+                pub fn helper() {
+                    return 1;
+                }
+                """);
+        Path mainPath = tempDir.resolve("main.mira");
+        String source = """
+                module main;
+                import string;
+                fn main() {
+                    return helper();
+                }
+                """;
+        Files.writeString(mainPath, source);
+
+        List<Diagnostic> diagnostics = DiagnosticCollector.collect(source, mainPath, Map.of());
+        Diagnostic undefined = diagnostics.stream()
+                .filter(d -> d.getMessage().contains("is called but never defined"))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("expected undefined-function diagnostic, got: " + diagnostics));
+
+        String uri = mainPath.toUri().toString();
+        CodeActionParams params = new CodeActionParams(
+                new TextDocumentIdentifier(uri),
+                undefined.getRange(),
+                new CodeActionContext(List.of(undefined)));
+        List<Either<Command, CodeAction>> actions = CodeActionProvider.provide(params, parse(source), uri, source,
+                mainPath, new WorkspaceIndex(), tempDir, Map.of());
+
+        assertEquals(1, actions.size());
+        TextEdit edit = actions.get(0).getRight().getEdit().getChanges().get(uri).get(0);
+        // right after the existing "import string;" on line 1 (0-indexed)
+        assertEquals(new Range(new Position(2, 0), new Position(2, 0)), edit.getRange());
+    }
+
+    @Test
+    void noImportFixWhenNoFileExportsTheName(@TempDir Path tempDir) throws IOException {
+        Path mainPath = tempDir.resolve("main.mira");
+        String source = """
+                module main;
+                fn main() {
+                    return helper();
+                }
+                """;
+        Files.writeString(mainPath, source);
+
+        List<Diagnostic> diagnostics = DiagnosticCollector.collect(source, mainPath, Map.of());
+        Diagnostic undefined = diagnostics.stream()
+                .filter(d -> d.getMessage().contains("is called but never defined"))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("expected undefined-function diagnostic, got: " + diagnostics));
+
+        String uri = mainPath.toUri().toString();
+        CodeActionParams params = new CodeActionParams(
+                new TextDocumentIdentifier(uri),
+                undefined.getRange(),
+                new CodeActionContext(List.of(undefined)));
+        List<Either<Command, CodeAction>> actions = CodeActionProvider.provide(params, parse(source), uri, source,
+                mainPath, new WorkspaceIndex(), tempDir, Map.of());
+
+        assertEquals(0, actions.size());
+    }
+
+    @Test
+    void noImportFixForNonPublicMatchInAnotherFile(@TempDir Path tempDir) throws IOException {
+        Path libPath = tempDir.resolve("lib.mira");
+        Files.writeString(libPath, """
+                fn helper() {
+                    return 1;
+                }
+                """);
+        Path mainPath = tempDir.resolve("main.mira");
+        String source = """
+                module main;
+                fn main() {
+                    return helper();
+                }
+                """;
+        Files.writeString(mainPath, source);
+
+        List<Diagnostic> diagnostics = DiagnosticCollector.collect(source, mainPath, Map.of());
+        Diagnostic undefined = diagnostics.stream()
+                .filter(d -> d.getMessage().contains("is called but never defined"))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("expected undefined-function diagnostic, got: " + diagnostics));
+
+        String uri = mainPath.toUri().toString();
+        CodeActionParams params = new CodeActionParams(
+                new TextDocumentIdentifier(uri),
+                undefined.getRange(),
+                new CodeActionContext(List.of(undefined)));
+        List<Either<Command, CodeAction>> actions = CodeActionProvider.provide(params, parse(source), uri, source,
+                mainPath, new WorkspaceIndex(), tempDir, Map.of());
+
+        assertEquals(0, actions.size());
     }
 }
