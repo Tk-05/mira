@@ -53,7 +53,6 @@ import com.mira.parser.nodes.statement.Statement.If;
 import com.mira.parser.nodes.statement.Statement.Lock;
 import com.mira.parser.nodes.statement.Statement.Loop;
 import com.mira.parser.nodes.statement.Statement.ModuleDecl;
-import com.mira.parser.nodes.statement.Statement.TypeAliasDecl;
 import com.mira.parser.nodes.statement.Statement.Return;
 import com.mira.parser.nodes.statement.Statement.StaticAssert;
 import com.mira.parser.nodes.statement.Statement.Switch;
@@ -61,6 +60,7 @@ import com.mira.parser.nodes.statement.Statement.SwitchCase;
 import com.mira.parser.nodes.statement.Statement.TestCall;
 import com.mira.parser.nodes.statement.Statement.Throw;
 import com.mira.parser.nodes.statement.Statement.TryCatch;
+import com.mira.parser.nodes.statement.Statement.TypeAliasDecl;
 import com.mira.parser.nodes.statement.Statement.VarDecl;
 import com.mira.parser.nodes.statement.Statement.VarDestructure;
 import com.mira.parser.nodes.statement.Statement.While;
@@ -214,24 +214,28 @@ public class AstFormatter implements ExprVisitor<String>, StmtVisitor<String> {
             if (i < nodes.size() - 1) {
                 Node next = nodes.get(i + 1);
                 int nextLine = nodeStartLine(next);
-                boolean currIsImport = isImport(node);
-                boolean nextIsImport = isImport(next);
-
-                if (!currIsImport || !nextIsImport) {
-                    sb.append("\n");
-                }
-
                 if (currLine > 0 && nextLine > 0) {
-                    appendComments(sb, nodeEnd + 1, nextLine - 1, "");
+                    int rangeStart = nodeEnd + 1;
+                    int firstCommentLine = Integer.MAX_VALUE;
+                    for (int cl = rangeStart; cl < nextLine; cl++) {
+                        if (!standaloneComments.getOrDefault(cl, List.of()).isEmpty()) {
+                            firstCommentLine = cl;
+                            break;
+                        }
+                    }
+                    if (firstCommentLine < Integer.MAX_VALUE) {
+                        if (firstCommentLine - nodeEnd >= 2) {
+                            sb.append("\n");
+                        }
+                        appendComments(sb, rangeStart, nextLine - 1, "");
+                    } else if (nextLine - nodeEnd >= 2) {
+                        sb.append("\n");
+                    }
                 }
             }
 
         }
         return sb.toString().stripTrailing() + "\n";
-    }
-
-    private boolean isImport(Node node) {
-        return node instanceof ImportExpression;
     }
 
     private String formatNode(Node node) {
@@ -357,6 +361,22 @@ public class AstFormatter implements ExprVisitor<String>, StmtVisitor<String> {
                 }
                 sb.append(indent()).append(formatted).append("\n");
                 prevEndLine = currEndLine;
+            }
+        }
+
+        if (prevEndLine >= 0 && bodyCloseLine > prevEndLine) {
+            int firstCommentLine = Integer.MAX_VALUE;
+            for (int cl = prevEndLine + 1; cl < bodyCloseLine; cl++) {
+                if (!standaloneComments.getOrDefault(cl, List.of()).isEmpty()) {
+                    firstCommentLine = cl;
+                    break;
+                }
+            }
+            if (firstCommentLine < Integer.MAX_VALUE) {
+                if (firstCommentLine - prevEndLine >= 2) {
+                    sb.append("\n");
+                }
+                appendComments(sb, prevEndLine + 1, bodyCloseLine - 1, indent());
             }
         }
         indentLevel--;
@@ -654,7 +674,7 @@ public class AstFormatter implements ExprVisitor<String>, StmtVisitor<String> {
     }
 
     private static String formatStringLiteral(String content) {
-        if (content.contains("\n")) {
+        if (content.contains("\n") && !content.contains("\"\"\"") && !content.endsWith("\"")) {
             long nonBlankLines = java.util.Arrays.stream(content.split("\n", -1))
                     .filter(l -> !l.isBlank())
                     .count();
@@ -784,32 +804,18 @@ public class AstFormatter implements ExprVisitor<String>, StmtVisitor<String> {
 
     @Override
     public <T> T visitObjectExpression(ObjectExpression expression) {
-        StringBuilder sb = new StringBuilder("{\n");
-        indentLevel++;
-        for (VarDecl vd : expression.getVarDecls()) {
-            sb.append(indent()).append(visitVarDecl(vd)).append("\n");
-        }
-        for (FuncDecl fd : expression.getMethods()) {
-            sb.append(indent()).append(visitFuncDecl(fd)).append("\n");
-        }
-        indentLevel--;
-        sb.append(indent()).append("}");
-        return (T) sb.toString();
+        return (T) formatBody(literalMembers(expression.getVarDecls(), expression.getMethods()));
     }
 
     @Override
     public <T> T visitStructExpression(StructExpression expression) {
-        StringBuilder sb = new StringBuilder("struct {\n");
-        indentLevel++;
-        for (VarDecl vd : expression.getVarDecls()) {
-            sb.append(indent()).append(visitVarDecl(vd)).append("\n");
-        }
-        for (FuncDecl fd : expression.getMethods()) {
-            sb.append(indent()).append(visitFuncDecl(fd)).append("\n");
-        }
-        indentLevel--;
-        sb.append(indent()).append("}");
-        return (T) sb.toString();
+        return (T) ("struct " + formatBody(literalMembers(expression.getVarDecls(), expression.getMethods())));
+    }
+
+    private List<Node> literalMembers(List<VarDecl> fields, List<FuncDecl> methods) {
+        List<Node> members = new ArrayList<>(fields);
+        members.addAll(methods);
+        return members;
     }
 
     @Override

@@ -716,10 +716,14 @@ public class Parser {
             } else {
                 Token startToken = peek();
                 boolean isConst = startToken.getLexeme().equals("const");
+                int braceLineBefore = lastClosingBraceLine;
                 for (Node n : parseVarDecl(isConst)) {
                     if (n instanceof VarDecl vd) {
                         vd.line = startToken.getLine();
                         vd.column = startToken.getColumn();
+                        if (lastClosingBraceLine != braceLineBefore) {
+                            vd.endLine = lastClosingBraceLine;
+                        }
                     }
                     fields.add((VarDecl) n);
                 }
@@ -727,7 +731,7 @@ public class Parser {
             }
         }
 
-        matchLexeme("}");
+        lastClosingBraceLine = matchLexeme("}").getLine();
         return new FieldsAndMethods(fields, methods);
     }
 
