@@ -7,6 +7,12 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.eclipse.lsp4j.CallHierarchyIncomingCall;
+import org.eclipse.lsp4j.CallHierarchyIncomingCallsParams;
+import org.eclipse.lsp4j.CallHierarchyItem;
+import org.eclipse.lsp4j.CallHierarchyOutgoingCall;
+import org.eclipse.lsp4j.CallHierarchyOutgoingCallsParams;
+import org.eclipse.lsp4j.CallHierarchyPrepareParams;
 import org.eclipse.lsp4j.CodeAction;
 import org.eclipse.lsp4j.CodeActionParams;
 import org.eclipse.lsp4j.Command;
@@ -195,6 +201,32 @@ public class DocumentService implements TextDocumentService {
         String uri = params.getTextDocument().getUri();
         List<Node> ast = astCache.getOrDefault(uri, List.of());
         return CompletableFuture.completedFuture(SemanticTokenProvider.provide(ast, params.getRange()));
+    }
+
+    @Override
+    public CompletableFuture<List<CallHierarchyItem>> prepareCallHierarchy(CallHierarchyPrepareParams params) {
+        String uri = params.getTextDocument().getUri();
+        List<Node> ast = astCache.getOrDefault(uri, List.of());
+        String content = documents.getOrDefault(uri, "");
+        List<CallHierarchyItem> items = CallHierarchyProvider.prepare(ast, content, params.getPosition(), uri,
+                workspaceIndex, documents);
+        return CompletableFuture.completedFuture(items);
+    }
+
+    @Override
+    public CompletableFuture<List<CallHierarchyIncomingCall>> callHierarchyIncomingCalls(
+            CallHierarchyIncomingCallsParams params) {
+        List<CallHierarchyIncomingCall> calls = CallHierarchyProvider.incomingCalls(params.getItem(),
+                workspaceIndex, workspaceRoot, documents);
+        return CompletableFuture.completedFuture(calls);
+    }
+
+    @Override
+    public CompletableFuture<List<CallHierarchyOutgoingCall>> callHierarchyOutgoingCalls(
+            CallHierarchyOutgoingCallsParams params) {
+        List<CallHierarchyOutgoingCall> calls = CallHierarchyProvider.outgoingCalls(params.getItem(),
+                workspaceIndex, documents);
+        return CompletableFuture.completedFuture(calls);
     }
 
     @Override

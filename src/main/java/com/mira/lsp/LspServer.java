@@ -55,6 +55,7 @@ public class LspServer implements LanguageServer, LanguageClientAware {
         caps.setDocumentHighlightProvider(true);
         caps.setFoldingRangeProvider(true);
         caps.setInlayHintProvider(true);
+        caps.setCallHierarchyProvider(true);
         RenameOptions renameOpts = new RenameOptions();
         renameOpts.setPrepareProvider(true);
         caps.setRenameProvider(renameOpts);
