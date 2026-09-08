@@ -40,6 +40,7 @@ import org.eclipse.lsp4j.ReferenceParams;
 import org.eclipse.lsp4j.RenameParams;
 import org.eclipse.lsp4j.SemanticTokens;
 import org.eclipse.lsp4j.SemanticTokensParams;
+import org.eclipse.lsp4j.SemanticTokensRangeParams;
 import org.eclipse.lsp4j.SignatureHelp;
 import org.eclipse.lsp4j.SignatureHelpParams;
 import org.eclipse.lsp4j.SymbolInformation;
@@ -187,6 +188,13 @@ public class DocumentService implements TextDocumentService {
         String uri = params.getTextDocument().getUri();
         List<Node> ast = astCache.getOrDefault(uri, List.of());
         return CompletableFuture.completedFuture(SemanticTokenProvider.provide(ast));
+    }
+
+    @Override
+    public CompletableFuture<SemanticTokens> semanticTokensRange(SemanticTokensRangeParams params) {
+        String uri = params.getTextDocument().getUri();
+        List<Node> ast = astCache.getOrDefault(uri, List.of());
+        return CompletableFuture.completedFuture(SemanticTokenProvider.provide(ast, params.getRange()));
     }
 
     @Override

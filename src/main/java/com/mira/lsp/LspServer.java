@@ -68,6 +68,7 @@ public class LspServer implements LanguageServer, LanguageClientAware {
                 SemanticTokenProvider.TOKEN_TYPES,
                 SemanticTokenProvider.TOKEN_MODIFIERS));
         semTokenOpts.setFull(true);
+        semTokenOpts.setRange(true);
         caps.setSemanticTokensProvider(semTokenOpts);
         registerFileWatcherIfSupported(params);
         return CompletableFuture.<InitializeResult>completedFuture(new InitializeResult(caps));

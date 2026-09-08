@@ -4,10 +4,12 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
+import org.eclipse.lsp4j.Range;
 import org.eclipse.lsp4j.SemanticTokens;
 
 import com.mira.parser.nodes.Node;
 import com.mira.parser.nodes.Parameter;
+import com.mira.parser.nodes.TypeAnnotation;
 import com.mira.parser.nodes.expression.Expression;
 import com.mira.parser.nodes.expression.Expression.AccessExpression;
 import com.mira.parser.nodes.expression.Expression.ArrayExpression;
@@ -18,14 +20,15 @@ import com.mira.parser.nodes.expression.Expression.ComplexExpression;
 import com.mira.parser.nodes.expression.Expression.DumbExpression;
 import com.mira.parser.nodes.expression.Expression.ExecBlock;
 import com.mira.parser.nodes.expression.Expression.FieldAccessExpression;
+import com.mira.parser.nodes.expression.Expression.ImportExpression;
 import com.mira.parser.nodes.expression.Expression.LambdaExpression;
 import com.mira.parser.nodes.expression.Expression.ListExpression;
 import com.mira.parser.nodes.expression.Expression.MapExpression;
 import com.mira.parser.nodes.expression.Expression.MethodCallExpression;
 import com.mira.parser.nodes.expression.Expression.NamespaceCallExpression;
 import com.mira.parser.nodes.expression.Expression.ObjectExpression;
-import com.mira.parser.nodes.expression.Expression.StructExpression;
 import com.mira.parser.nodes.expression.Expression.RangeExpression;
+import com.mira.parser.nodes.expression.Expression.StructExpression;
 import com.mira.parser.nodes.expression.Expression.SwitchExpression;
 import com.mira.parser.nodes.expression.Expression.TernaryExpression;
 import com.mira.parser.nodes.expression.Expression.ThrownException;
@@ -35,10 +38,10 @@ import com.mira.parser.nodes.statement.Statement;
 import com.mira.parser.nodes.statement.Statement.Assign;
 import com.mira.parser.nodes.statement.Statement.Block;
 import com.mira.parser.nodes.statement.Statement.ComptimeBlock;
-import com.mira.parser.nodes.statement.Statement.Loop;
 import com.mira.parser.nodes.statement.Statement.FuncDecl;
 import com.mira.parser.nodes.statement.Statement.If;
 import com.mira.parser.nodes.statement.Statement.Lock;
+import com.mira.parser.nodes.statement.Statement.Loop;
 import com.mira.parser.nodes.statement.Statement.Return;
 import com.mira.parser.nodes.statement.Statement.StaticAssert;
 import com.mira.parser.nodes.statement.Statement.Switch;
@@ -46,19 +49,23 @@ import com.mira.parser.nodes.statement.Statement.SwitchCase;
 import com.mira.parser.nodes.statement.Statement.TestCall;
 import com.mira.parser.nodes.statement.Statement.Throw;
 import com.mira.parser.nodes.statement.Statement.TryCatch;
+import com.mira.parser.nodes.statement.Statement.TypeAliasDecl;
 import com.mira.parser.nodes.statement.Statement.VarDecl;
 import com.mira.parser.nodes.statement.Statement.VarDestructure;
 import com.mira.parser.nodes.statement.Statement.While;
 
 public class SemanticTokenProvider {
 
-    public static final List<String> TOKEN_TYPES = List.of("variable", "parameter", "function", "property");
+    public static final List<String> TOKEN_TYPES = List.of(
+            "variable", "parameter", "function", "property", "type", "namespace");
     public static final List<String> TOKEN_MODIFIERS = List.of("declaration", "readonly");
 
     private static final int TYPE_VARIABLE = 0;
     private static final int TYPE_PARAMETER = 1;
     private static final int TYPE_FUNCTION = 2;
     private static final int TYPE_PROPERTY = 3;
+    private static final int TYPE_TYPE = 4;
+    private static final int TYPE_NAMESPACE = 5;
     private static final int MOD_DECLARATION = 1;
     private static final int MOD_READONLY = 2;
 
@@ -67,11 +74,20 @@ public class SemanticTokenProvider {
     }
 
     public static SemanticTokens provide(List<Node> ast) {
+        return provide(ast, null);
+    }
+
+    public static SemanticTokens provide(List<Node> ast, Range range) {
         List<SemToken> tokens = new ArrayList<>();
         for (Node n : ast) {
             walkNode(n, tokens);
         }
         tokens.sort(Comparator.comparingInt(SemToken::line).thenComparingInt(SemToken::col));
+        if (range != null) {
+            int startLine = range.getStart().getLine();
+            int endLine = range.getEnd().getLine();
+            tokens = tokens.stream().filter(t -> t.line() >= startLine && t.line() <= endLine).toList();
+        }
         return encode(tokens);
     }
 
@@ -84,7 +100,9 @@ public class SemanticTokenProvider {
                 if (p.column() > 0) {
                     out.add(new SemToken(f.line - 1, p.column() - 1, p.name().length(), TYPE_PARAMETER, MOD_DECLARATION));
                 }
+                emitTypeToken(p.type(), out);
             }
+            emitTypeToken(f.getReturnType(), out);
             for (Node n : f.getBody()) {
                 walkNode(n, out);
             }
@@ -93,9 +111,12 @@ public class SemanticTokenProvider {
                 int mods = MOD_DECLARATION | (v.isConst() ? MOD_READONLY : 0);
                 out.add(new SemToken(v.line - 1, v.nameColumn - 1, v.getName().length(), TYPE_VARIABLE, mods));
             }
+            emitTypeToken(v.type, out);
             if (v.getInitializer() != null) {
                 walkExpr(v.getInitializer(), out);
             }
+        } else if (node instanceof TypeAliasDecl td) {
+            emitTypeToken(td.getAliasedType(), out);
         } else if (node instanceof VarDestructure vd) {
             List<String> names = vd.getNames();
             List<Integer> cols = vd.getNameColumns();
@@ -275,6 +296,7 @@ public class SemanticTokenProvider {
                     if (p.column() > 0) {
                         out.add(new SemToken(lam.line - 1, p.column() - 1, p.name().length(), TYPE_PARAMETER, MOD_DECLARATION));
                     }
+                    emitTypeToken(p.type(), out);
                 }
             }
             for (Node n : lam.getBody()) {
@@ -320,10 +342,37 @@ public class SemanticTokenProvider {
         } else if (expr instanceof ThrownException th) {
             walkExpr(th.getValue(), out);
         } else if (expr instanceof NamespaceCallExpression ns) {
+            // ns's own line/column point at the function name (see
+            // Parser.parseNamespaceCallExpression) - the alias itself isn't
+            // separately tracked, so only the function name gets a token here.
+            if (ns.getLine() > 0 && ns.getColumn() > 0) {
+                out.add(new SemToken(ns.getLine() - 1, ns.getColumn() - 1, ns.getFunctionName().length(),
+                        TYPE_FUNCTION, 0));
+            }
             for (Expression a : ns.getArguments()) {
                 walkExpr(a, out);
             }
+        } else if (expr instanceof ImportExpression imp) {
+            if (imp.getNamespace() != null && imp.namespaceColumn > 0) {
+                out.add(new SemToken(imp.line - 1, imp.namespaceColumn - 1, imp.getNamespace().length(),
+                        TYPE_NAMESPACE, MOD_DECLARATION));
+            }
         }
+    }
+
+    private static void emitTypeToken(TypeAnnotation type, List<SemToken> out) {
+        if (type == null) {
+            return;
+        }
+        if (type.line() > 0 && type.column() > 0 && !type.name().isEmpty()) {
+            out.add(new SemToken(type.line() - 1, type.column() - 1, type.name().length(), TYPE_TYPE, 0));
+        }
+        if (type.paramTypes() != null) {
+            for (TypeAnnotation pt : type.paramTypes()) {
+                emitTypeToken(pt, out);
+            }
+        }
+        emitTypeToken(type.returnType(), out);
     }
 
     private static SemanticTokens encode(List<SemToken> sorted) {
