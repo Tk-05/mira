@@ -27,6 +27,8 @@ import org.eclipse.lsp4j.FoldingRange;
 import org.eclipse.lsp4j.FoldingRangeRequestParams;
 import org.eclipse.lsp4j.Hover;
 import org.eclipse.lsp4j.HoverParams;
+import org.eclipse.lsp4j.InlayHint;
+import org.eclipse.lsp4j.InlayHintParams;
 import org.eclipse.lsp4j.Location;
 import org.eclipse.lsp4j.LocationLink;
 import org.eclipse.lsp4j.Position;
@@ -255,6 +257,14 @@ public class DocumentService implements TextDocumentService {
                     new ResponseError(ResponseErrorCode.RequestFailed, e.getMessage(), null)));
             return failed;
         }
+    }
+
+    @Override
+    public CompletableFuture<List<InlayHint>> inlayHint(InlayHintParams params) {
+        String uri = params.getTextDocument().getUri();
+        List<Node> ast = astCache.getOrDefault(uri, List.of());
+        String content = documents.getOrDefault(uri, "");
+        return CompletableFuture.completedFuture(InlayHintProvider.provide(ast, content, params.getRange()));
     }
 
     @Override
