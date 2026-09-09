@@ -89,6 +89,8 @@ public class FileRunner {
             int warningCount = 0;
             Map<Path, Long> moduleCheckTimingsMs = Map.of();
             Map<Path, ModuleChecker.ParsedModule> checkedModules = Map.of();
+            long moduleDiscoveryWallMs = 0;
+            long moduleCheckWallMs = 0;
             if (!Flags.noCheck) {
                 long entryCheckStart = System.nanoTime();
                 boolean mainErrors = false;
@@ -100,16 +102,14 @@ public class FileRunner {
                     mainErrors = true;
                 }
                 entryCheckMs = (System.nanoTime() - entryCheckStart) / 1_000_000;
-                // captured and flushed here, before ModuleChecker.check() runs - it flushes
-                // (prints + clears) warnings itself once per module, so anything still sitting
-                // in the collector at that point would get silently swept into the first
-                // module's flush instead of being counted/attributed to the entry file
                 int entryWarningCount = WarningCollector.getWarnings().size();
                 WarningCollector.flush();
                 ModuleChecker.ModuleCheckResult moduleResult = ModuleChecker.check(asts, new LinkedHashSet<>());
                 moduleCheckTimingsMs = moduleResult.checkTimingsMs();
                 checkedModules = moduleResult.modules();
                 warningCount = entryWarningCount + moduleResult.warningCount();
+                moduleDiscoveryWallMs = moduleResult.discoveryWallMs();
+                moduleCheckWallMs = moduleResult.checkWallMs();
                 if (mainErrors || moduleResult.hadErrors()) {
                     return false;
                 }
@@ -122,7 +122,8 @@ public class FileRunner {
             if (Flags.checkOnly) {
                 if (Flags.stats) {
                     printStats(readFile, tokens, asts, tokenizeNanos, parseNanos, comptimeNanos, entryCheckMs,
-                            moduleCheckTimingsMs, checkedModules, warningCount, -1);
+                            moduleCheckTimingsMs, checkedModules, warningCount, moduleDiscoveryWallMs,
+                            moduleCheckWallMs, -1);
                 }
                 return true;
             }
@@ -136,7 +137,8 @@ public class FileRunner {
                 Flags.testsDone = true;
                 if (Flags.stats) {
                     printStats(readFile, tokens, asts, tokenizeNanos, parseNanos, comptimeNanos, entryCheckMs,
-                            moduleCheckTimingsMs, checkedModules, warningCount, -1,
+                            moduleCheckTimingsMs, checkedModules, warningCount, moduleDiscoveryWallMs,
+                            moduleCheckWallMs, -1,
                             new TestTotals(TestRunner.getLastPassed(), TestRunner.getLastFailed()));
                 }
                 if (Flags.coverage) {
@@ -151,7 +153,8 @@ public class FileRunner {
 
             if (Flags.stats && !Flags.compile) {
                 printStats(readFile, tokens, asts, tokenizeNanos, parseNanos, comptimeNanos, entryCheckMs,
-                        moduleCheckTimingsMs, checkedModules, warningCount, -1);
+                        moduleCheckTimingsMs, checkedModules, warningCount, moduleDiscoveryWallMs, moduleCheckWallMs,
+                        -1);
             }
 
             if (Flags.packageJar && !Flags.compile) {
@@ -167,6 +170,8 @@ public class FileRunner {
                 int finalWarningCount = warningCount;
                 Map<Path, Long> finalModuleCheckTimingsMs = moduleCheckTimingsMs;
                 Map<Path, ModuleChecker.ParsedModule> finalCheckedModules = checkedModules;
+                long finalModuleDiscoveryWallMs = moduleDiscoveryWallMs;
+                long finalModuleCheckWallMs = moduleCheckWallMs;
                 // afterCompile fires once bytecode generation is done but before --compile
                 // --run
                 // executes the result in memory (which happens inline, inside that same call) -
@@ -175,7 +180,8 @@ public class FileRunner {
                 new CompileRunner().run(asts, comptimeConsts, compileMs -> {
                     if (Flags.stats) {
                         printStats(readFile, tokens, asts, tokenizeNanos, parseNanos, comptimeNanos, finalEntryCheckMs,
-                                finalModuleCheckTimingsMs, finalCheckedModules, finalWarningCount, compileMs);
+                                finalModuleCheckTimingsMs, finalCheckedModules, finalWarningCount,
+                                finalModuleDiscoveryWallMs, finalModuleCheckWallMs, compileMs);
                     }
                 });
                 return true;
@@ -262,24 +268,30 @@ public class FileRunner {
 
     private static void printStats(String source, List<Token> tokens, List<Node> asts, long tokenizeNanos,
             long parseNanos, long comptimeNanos, long entryCheckMs, Map<Path, Long> moduleCheckTimingsMs,
-            Map<Path, ModuleChecker.ParsedModule> checkedModules, int warningCount, long compileMs) {
+            Map<Path, ModuleChecker.ParsedModule> checkedModules, int warningCount, long moduleDiscoveryWallMs,
+            long moduleCheckWallMs, long compileMs) {
         printStats(source, tokens, asts, tokenizeNanos, parseNanos, comptimeNanos, entryCheckMs, moduleCheckTimingsMs,
-                checkedModules, warningCount, compileMs, null);
+                checkedModules, warningCount, moduleDiscoveryWallMs, moduleCheckWallMs, compileMs, null);
     }
 
     /**
-     * Prints stats for every file that makes up the program - the entry file plus
-     * every module it imports, transitively - not just the entry file alone, since
-     * a program's real size/shape is usually spread across its imported modules.
-     * compileMs is the bytecode-generation time when this run was a --compile run
-     * (measured by CompileRunner and passed back in, since compilation finishes
-     * after this method would otherwise have already printed); -1 means not
-     * applicable (an interpreted run).
+     * Prints stats for every file that makes up the program - the entry file
+     * plus every module it imports, transitively - not just the entry file
+     * alone, since a program's real size/shape is usually spread across its
+     * imported modules. compileMs is the bytecode-generation time when this run
+     * was a --compile run (measured by CompileRunner and passed back in, since
+     * compilation finishes after this method would otherwise have already
+     * printed); -1 means not applicable (an interpreted run).
+     * moduleDiscoveryWallMs/moduleCheckWallMs are the real wall-clock time
+     * module discovery/checking took (both run modules in parallel - see
+     * ModuleChecker) - shown separately from the per-file tokenize/parse/check
+     * sums below, which are a sum of concurrently-overlapping durations and so
+     * no longer represent elapsed time on their own.
      */
     private static void printStats(String source, List<Token> tokens, List<Node> asts, long tokenizeNanos,
             long parseNanos, long comptimeNanos, long entryCheckMs, Map<Path, Long> moduleCheckTimingsMs,
-            Map<Path, ModuleChecker.ParsedModule> checkedModules, int warningCount, long compileMs,
-            TestTotals testTotals) {
+            Map<Path, ModuleChecker.ParsedModule> checkedModules, int warningCount, long moduleDiscoveryWallMs,
+            long moduleCheckWallMs, long compileMs, TestTotals testTotals) {
         Path entryPath = Flags.inputPath.get();
         Collection<ModuleChecker.ParsedModule> modules = checkedModules.values();
         List<FileStats> files = new ArrayList<>();
@@ -379,8 +391,12 @@ public class FileRunner {
             System.out.println();
             String compileSuffix = compileMs >= 0 ? ", bytecode generation " + compileMs + " ms" : "";
             System.out.printf(java.util.Locale.US,
-                    "Total (all files): tokenize %.3f ms, parse %.3f ms, static check %d ms%s%n", totalTokenizeMs,
-                    totalParseMs, totalCheckMs, compileSuffix);
+                    "Total (all files, CPU time summed): tokenize %.3f ms, parse %.3f ms, static check %d ms%s%n",
+                    totalTokenizeMs, totalParseMs, totalCheckMs, compileSuffix);
+            if (!modules.isEmpty()) {
+                System.out.println("Wall-clock (modules run in parallel): discovery " + moduleDiscoveryWallMs
+                        + " ms, static check " + moduleCheckWallMs + " ms");
+            }
         }
         System.out.println("=== END STATS ===");
         System.out.println();
@@ -394,12 +410,6 @@ public class FileRunner {
         return String.format(java.util.Locale.US, "%.3f ms", nanos / 1_000_000.0);
     }
 
-    /**
-     * Prints a coverage report for every file that makes up the program - the entry
-     * file plus every module it imports, transitively - mirroring the same file
-     * discovery {@link #printStats} uses, since coverage of "the codebase" means
-     * both the test file itself and the code it exercises.
-     */
     private static void printCoverage(List<Node> asts, Path entryPath) {
         List<CoverageTracker.FileEntry> files = new ArrayList<>();
         files.add(new CoverageTracker.FileEntry(CoverageTracker.moduleNameOf(asts), entryPath.getFileName().toString(),

@@ -36,9 +36,9 @@ public final class ModuleChecker {
     /**
      * tokenizeNanos/parseNanos are captured at the one real, load-bearing
      * tokenize+parse for this module (not a throwaway remeasurement for display
-     * purposes) - by the time any consumer re-tokenizes/re-parses the same source
-     * again later in the run, the JIT has already warmed up on this exact code path
-     * and the numbers stop being representative.
+     * purposes) - by the time any consumer re-tokenizes/re-parses the same
+     * source again later in the run, the JIT has already warmed up on this
+     * exact code path and the numbers stop being representative.
      */
     public record ParsedModule(Path path, List<Node> ast, String source, int tokenCount, long tokenizeNanos,
             long parseNanos) {
@@ -46,27 +46,35 @@ public final class ModuleChecker {
     }
 
     /**
-     * hadErrors/checkTimingsMs come from the actual per-module static-check pass;
-     * modules is the same ParsedModule set that pass already parsed, exposed so
-     * callers (e.g. --stats) can read real tokenize/parse timing and size info off
-     * it instead of re-parsing every module a second time. warningCount is tallied
-     * from each module's own {@link ModuleResult} after all per-module checks (each
-     * running on its own thread, see {@link #checkModule}) complete - warnings are
-     * collected and formatted on the checking thread itself, then printed by the
-     * caller in deterministic module order once every check is done, not
-     * interleaved live as each module finishes.
+     * hadErrors/checkTimingsMs come from the actual per-module static-check
+     * pass; modules is the same ParsedModule set that pass already parsed,
+     * exposed so callers (e.g. --stats) can read real tokenize/parse timing and
+     * size info off it instead of re-parsing every module a second time.
+     * warningCount is tallied from each module's own {@link ModuleResult} after
+     * all per-module checks (each running on its own thread, see
+     * {@link #checkModule}) complete - warnings are collected and formatted on
+     * the checking thread itself, then printed by the caller in deterministic
+     * module order once every check is done, not interleaved live as each
+     * module finishes.
+     *
+     * discoveryWallMs/checkWallMs are the REAL elapsed wall-clock time for the
+     * whole parallel discovery/check phase respectively - unlike summing each
+     * module's own timingMs (checkTimingsMs' values), which now overlap in time
+     * since modules run concurrently, these two numbers are what a caller
+     * should show to demonstrate the actual speedup from parallelizing.
      */
     public record ModuleCheckResult(boolean hadErrors, Map<Path, Long> checkTimingsMs, Map<Path, ParsedModule> modules,
-            int warningCount) {
+            int warningCount, long discoveryWallMs, long checkWallMs) {
 
     }
 
     /**
-     * Shared, JVM-lifetime virtual-thread executor for module discovery - mirrors
-     * {@code ImportResolver.MODULE_EXECUTOR}'s pattern/lifetime. Virtual threads
-     * suit this workload (I/O-bound file reads mixed with CPU-bound tokenize/parse,
-     * unpredictable recursion depth from nested imports) far better than a bounded
-     * platform-thread pool, which could deadlock on a deep/shared import graph.
+     * Shared, JVM-lifetime virtual-thread executor for module discovery -
+     * mirrors {@code ImportResolver.MODULE_EXECUTOR}'s pattern/lifetime.
+     * Virtual threads suit this workload (I/O-bound file reads mixed with
+     * CPU-bound tokenize/parse, unpredictable recursion depth from nested
+     * imports) far better than a bounded platform-thread pool, which could
+     * deadlock on a deep/shared import graph.
      */
     private static final ExecutorService EXECUTOR = Executors.newVirtualThreadPerTaskExecutor();
 
@@ -84,17 +92,21 @@ public final class ModuleChecker {
     public static ModuleCheckResult check(List<Node> rootAst, Set<Path> visited) {
         List<String> syntaxErrors = Collections.synchronizedList(new ArrayList<>());
         Path rootPath = Flags.inputPath.get();
+        long discoveryStart = System.nanoTime();
         Map<Path, ParsedModule> allModules = parallelCollectAllModules(rootAst, rootPath, visited, syntaxErrors);
+        long discoveryWallMs = (System.nanoTime() - discoveryStart) / 1_000_000;
         syntaxErrors.forEach(System.err::println);
 
         Map<Path, Set<String>> externalCallsByTarget = ModuleResolver.collectExternalCallsByTarget(rootAst, rootPath,
                 allModules);
+        long checkStart = System.nanoTime();
         List<CompletableFuture<ModuleResult>> checks = new ArrayList<>();
         for (ParsedModule module : allModules.values()) {
             Set<String> externalCalls = externalCallsByTarget.getOrDefault(module.path(), Set.of());
             checks.add(CompletableFuture.supplyAsync(() -> checkModule(module, externalCalls), EXECUTOR));
         }
         CompletableFuture.allOf(checks.toArray(CompletableFuture[]::new)).join();
+        long checkWallMs = (System.nanoTime() - checkStart) / 1_000_000;
 
         boolean hadErrors = !syntaxErrors.isEmpty();
         int warningCount = 0;
@@ -111,7 +123,7 @@ public final class ModuleChecker {
             }
         }
         pendingErrors.forEach(msg -> System.err.println(msg));
-        return new ModuleCheckResult(hadErrors, timingsMs, allModules, warningCount);
+        return new ModuleCheckResult(hadErrors, timingsMs, allModules, warningCount, discoveryWallMs, checkWallMs);
     }
 
     private record ModuleResult(Path path, boolean hadErrors, List<String> errorLines, List<String> warningLines,
@@ -119,15 +131,6 @@ public final class ModuleChecker {
 
     }
 
-    /**
-     * Runs on a fresh, single-use virtual thread per module (via EXECUTOR) - same
-     * reasoning as {@link #parseModule}, nothing to restore Flags to afterward.
-     * Diagnostics are returned rather than printed here so the caller can print
-     * them in deterministic module order instead of completion order; warningCount
-     * is captured before {@code Flags.suppressWarnings} gates which lines actually
-     * get formatted, matching {@code WarningCollector.flush()}'s own behavior of
-     * always counting but only conditionally printing.
-     */
     private static ModuleResult checkModule(ParsedModule module, Set<String> externalCalls) {
         long moduleStart = System.nanoTime();
         Flags.inputPath.set(module.path());
@@ -183,12 +186,12 @@ public final class ModuleChecker {
     }
 
     /**
-     * Parallel replacement for the old single-threaded recursive DFS: discovers and
-     * parses the full transitive module graph concurrently on virtual threads,
-     * deduped via {@code claimed}. The returned map is sorted by path string rather
-     * than by discovery/insertion order, since parallel discovery completes in a
-     * different order every run - callers (error/warning printing, --stats) need
-     * output that stays byte-identical across runs.
+     * Parallel replacement for the old single-threaded recursive DFS: discovers
+     * and parses the full transitive module graph concurrently on virtual
+     * threads, deduped via {@code claimed}. The returned map is sorted by path
+     * string rather than by discovery/insertion order, since parallel discovery
+     * completes in a different order every run - callers (error/warning
+     * printing, --stats) need output that stays byte-identical across runs.
      */
     private static Map<Path, ParsedModule> parallelCollectAllModules(List<Node> rootAst, Path rootPath,
             Set<Path> preVisited, List<String> syntaxErrors) {
