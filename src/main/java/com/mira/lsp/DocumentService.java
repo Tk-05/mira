@@ -6,6 +6,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 
 import org.eclipse.lsp4j.CallHierarchyIncomingCall;
 import org.eclipse.lsp4j.CallHierarchyIncomingCallsParams;
@@ -70,15 +74,28 @@ import com.mira.parser.nodes.Node;
 
 public class DocumentService implements TextDocumentService {
 
+    private static final long DIAGNOSTICS_DEBOUNCE_MS = 300;
+
     private final LspServer server;
     private final WorkspaceIndex workspaceIndex;
     private final Map<String, String> documents = new ConcurrentHashMap<>();
     private final Map<String, List<Node>> astCache = new ConcurrentHashMap<>();
     private volatile Path workspaceRoot;
 
+    private final ScheduledExecutorService diagnosticsScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+        Thread t = new Thread(r, "mira-diagnostics");
+        t.setDaemon(true);
+        return t;
+    });
+    private volatile ScheduledFuture<?> pendingDiagnostics;
+
     public DocumentService(LspServer server, WorkspaceIndex workspaceIndex) {
         this.server = server;
         this.workspaceIndex = workspaceIndex;
+    }
+
+    public void shutdown() {
+        diagnosticsScheduler.shutdownNow();
     }
 
     public void setWorkspaceRoot(Path root) {
@@ -104,7 +121,7 @@ public class DocumentService implements TextDocumentService {
         documents.put(uri, content);
         updateAstCache(uri, content);
         invalidateWorkspaceEntry(uri);
-        reanalyzeAll();
+        scheduleReanalysis(0);
     }
 
     @Override
@@ -114,7 +131,21 @@ public class DocumentService implements TextDocumentService {
         documents.put(uri, content);
         updateAstCache(uri, content);
         invalidateWorkspaceEntry(uri);
-        reanalyzeAll();
+        scheduleReanalysis(DIAGNOSTICS_DEBOUNCE_MS);
+    }
+
+    /**
+     * Cancels any not-yet-run reanalysis and schedules a fresh one after
+     * {@code delayMs} on the single diagnostics thread - so a burst of edits
+     * collapses into one check after the user actually pauses, instead of one
+     * full workspace check per keystroke.
+     */
+    private void scheduleReanalysis(long delayMs) {
+        ScheduledFuture<?> pending = pendingDiagnostics;
+        if (pending != null) {
+            pending.cancel(false);
+        }
+        pendingDiagnostics = diagnosticsScheduler.schedule(this::reanalyzeAll, delayMs, TimeUnit.MILLISECONDS);
     }
 
     @Override

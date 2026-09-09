@@ -138,6 +138,7 @@ public class LspServer implements LanguageServer, LanguageClientAware {
 
     @Override
     public CompletableFuture<Object> shutdown() {
+        docService.shutdown();
         return CompletableFuture.<Object>completedFuture(null);
     }
 
