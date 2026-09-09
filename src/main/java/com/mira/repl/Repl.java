@@ -106,8 +106,8 @@ public class Repl {
             normalized += ';';
         }
 
-        Flags.fileName = "<console>";
-        Flags.sourceLines = normalized.split("\n", -1);
+        Flags.fileName.set("<console>");
+        Flags.sourceLines.set(normalized.split("\n", -1));
 
         Object result = interpreter
                 .runWithoutLoadingNewContext(parser.parseTokens(tokenizer.tokenize(normalized, false)));
@@ -196,8 +196,8 @@ public class Repl {
             String source = Files.readString(path);
             Path previousPath = Flags.inputPath.get();
             Flags.inputPath.set(path.toAbsolutePath().normalize());
-            Flags.fileName = path.getFileName().toString();
-            Flags.sourceLines = source.split("\n", -1);
+            Flags.fileName.set(path.getFileName().toString());
+            Flags.sourceLines.set(source.split("\n", -1));
 
             interpreter.runWithoutLoadingNewContext(parser.parseTokens(tokenizer.tokenize(source, false)));
 

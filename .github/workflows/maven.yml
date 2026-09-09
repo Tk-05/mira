@@ -45,10 +45,17 @@ jobs:
         run: mvn -B -DskipTests -Pbuild-extension package --file pom.xml
 
       - name: Commit formatting changes
-        uses: stefanzweifel/git-auto-commit-action@v5
-        with:
-          commit_message: "Auto-format code [skip ci]"
-          file_pattern: "src/**/*.java lsp/src/**/*.ts"
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add 'src/**/*.java' || true
+          git add 'lsp/src/**/*.ts' || true
+          if git diff --cached --quiet; then
+            echo "Nothing to format-commit."
+          else
+            git commit -m "Auto-format code [skip ci]"
+            git push origin HEAD:${{ github.head_ref || github.ref_name }}
+          fi
 
       - name: Publish test results
         uses: EnricoMi/publish-unit-test-result-action@v2

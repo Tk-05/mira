@@ -62,8 +62,8 @@ public class CoverageIntegrationTest {
         List<Node> asts = new Parser().parseTokens(new Tokenizer().tokenize(source, false));
 
         Flags.inputPath.set(testFile);
-        Flags.fileName = testFile.getFileName().toString();
-        Flags.sourceLines = source.split("\n", -1);
+        Flags.fileName.set(testFile.getFileName().toString());
+        Flags.sourceLines.set(source.split("\n", -1));
         Flags.testMode = true;
 
         CoverageTracker.reset();

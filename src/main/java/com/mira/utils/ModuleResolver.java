@@ -8,7 +8,10 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import com.mira.cli.Flags;
@@ -18,6 +21,7 @@ import com.mira.parser.nodes.expression.Expression.CallExpression;
 import com.mira.parser.nodes.expression.Expression.DumbExpression;
 import com.mira.parser.nodes.expression.Expression.ImportExpression;
 import com.mira.parser.nodes.expression.Expression.ImportExpression.ImportKind;
+import com.mira.resolver.ModuleChecker;
 import com.mira.resolver.StaticCheck;
 
 public final class ModuleResolver {
@@ -78,6 +82,38 @@ public final class ModuleResolver {
         Set<String> directNames = findDirectBoundNames(callerAst, callerPath, targetPath);
         if (!directNames.isEmpty()) {
             collectDirectCalls(callerAst, directNames, out);
+        }
+    }
+
+    /**
+     * For every module in {@code allModules} (plus the root), collects which names
+     * OTHER modules call into it - walking each caller's AST once per import it
+     * has, instead of {@link #collectExternalCalls} being called once per (module,
+     * other module) pair, which re-walks every caller's AST once per target module
+     * in the whole graph.
+     */
+    public static Map<Path, Set<String>> collectExternalCallsByTarget(List<Node> rootAst, Path rootPath,
+            Map<Path, ModuleChecker.ParsedModule> allModules) {
+        Map<Path, Set<String>> result = new LinkedHashMap<>();
+        accumulateFromCaller(rootAst, rootPath, result);
+        for (ModuleChecker.ParsedModule module : allModules.values()) {
+            accumulateFromCaller(module.ast(), module.path(), result);
+        }
+        return result;
+    }
+
+    private static void accumulateFromCaller(List<Node> callerAst, Path callerPath, Map<Path, Set<String>> result) {
+        for (Node node : callerAst) {
+            if (!(node instanceof ImportExpression imp) || imp.getKind() != ImportKind.MODULE) {
+                continue;
+            }
+            Path targetPath = resolveModulePath(imp.getModule(), callerPath);
+            Set<String> out = result.computeIfAbsent(targetPath, k -> new LinkedHashSet<>());
+            if (imp.getNamespace() != null) {
+                out.addAll(StaticCheck.collectNamespaceCalls(callerAst, imp.getNamespace()));
+            } else if (imp.isSelective() && !imp.getSelectedFunctions().isEmpty()) {
+                collectDirectCalls(callerAst, new HashSet<>(imp.getSelectedFunctions()), out);
+            }
         }
     }
 

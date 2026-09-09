@@ -92,13 +92,13 @@ public final class DiagnosticFormatter {
 
         int line = warning.line();
         int col = warning.column();
-        String fileName = Flags.fileName != null ? Flags.fileName : "<input>";
+        String fileName = Flags.fileName.get() != null ? Flags.fileName.get() : "<input>";
 
         if (line > 0) {
             sb.append(cyan()).append("  --> ").append(reset()).append(fileName).append(":").append(line).append(":")
                     .append(col).append("\n");
 
-            String[] sourceLines = Flags.sourceLines;
+            String[] sourceLines = Flags.sourceLines.get();
             if (sourceLines != null && line <= sourceLines.length) {
                 String srcLine = sourceLines[line - 1];
 
@@ -146,13 +146,15 @@ public final class DiagnosticFormatter {
         int col = error.getColumn();
 
         String sourceFile = error.getSourceFile();
-        String fileName = sourceFile != null ? sourceFile : (Flags.fileName != null ? Flags.fileName : "<input>");
+        String fileName = sourceFile != null
+                ? sourceFile
+                : (Flags.fileName.get() != null ? Flags.fileName.get() : "<input>");
 
         if (line > 0) {
             sb.append(cyan()).append("  --> ").append(reset()).append(fileName).append(":").append(line).append(":")
                     .append(col).append("\n");
 
-            String[] sourceLines = Flags.sourceLines;
+            String[] sourceLines = Flags.sourceLines.get();
             if (sourceLines != null && line <= sourceLines.length && sourceFile == null) {
                 String srcLine = sourceLines[line - 1];
 

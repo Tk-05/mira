@@ -44,10 +44,10 @@ public class DiagnosticCollector {
             WorkspaceIndex workspaceIndex, Path workspaceRoot) {
         List<Diagnostic> result = new ArrayList<>();
         WarningCollector.clear();
-        String savedFileName = com.mira.cli.Flags.fileName;
-        String[] savedSourceLines = com.mira.cli.Flags.sourceLines;
-        com.mira.cli.Flags.fileName = filePath != null ? filePath.getFileName().toString() : savedFileName;
-        com.mira.cli.Flags.sourceLines = source.split("\n", -1);
+        String savedFileName = com.mira.cli.Flags.fileName.get();
+        String[] savedSourceLines = com.mira.cli.Flags.sourceLines.get();
+        com.mira.cli.Flags.fileName.set(filePath != null ? filePath.getFileName().toString() : savedFileName);
+        com.mira.cli.Flags.sourceLines.set(source.split("\n", -1));
         try {
             List<Token> tokens = new Tokenizer().tokenize(source, false);
             List<Node> ast = new Parser().parseTokens(tokens);
@@ -66,8 +66,8 @@ public class DiagnosticCollector {
         } catch (MiraError e) {
             result.add(fromError(e, DiagnosticSeverity.Error));
         } finally {
-            com.mira.cli.Flags.fileName = savedFileName;
-            com.mira.cli.Flags.sourceLines = savedSourceLines;
+            com.mira.cli.Flags.fileName.set(savedFileName);
+            com.mira.cli.Flags.sourceLines.set(savedSourceLines);
         }
         for (Warning w : WarningCollector.getWarnings()) {
             result.add(fromWarning(w));

@@ -80,8 +80,8 @@ public class Debugger {
     private static String loadSource() {
         try {
             String source = FileLoader.readFileFromPath(Flags.inputPath.get().toString());
-            Flags.fileName = Flags.inputPath.get().getFileName().toString();
-            Flags.sourceLines = source.split("\n", -1);
+            Flags.fileName.set(Flags.inputPath.get().getFileName().toString());
+            Flags.sourceLines.set(source.split("\n", -1));
             return source;
         } catch (IOException e) {
             System.err.println(DiagnosticFormatter.format(e));
@@ -190,7 +190,7 @@ public class Debugger {
                 }
             }
             if (!found) {
-                System.err.printf("Function '%s' not found in %s%n", name, Flags.fileName);
+                System.err.printf("Function '%s' not found in %s%n", name, Flags.fileName.get());
             }
         }
     }
@@ -291,8 +291,9 @@ public class Debugger {
     }
 
     private static String sourceLine(int line) {
-        if (Flags.sourceLines != null && line >= 1 && line <= Flags.sourceLines.length) {
-            return Flags.sourceLines[line - 1].stripLeading();
+        String[] sourceLines = Flags.sourceLines.get();
+        if (sourceLines != null && line >= 1 && line <= sourceLines.length) {
+            return sourceLines[line - 1].stripLeading();
         }
         return "<unknown>";
     }
