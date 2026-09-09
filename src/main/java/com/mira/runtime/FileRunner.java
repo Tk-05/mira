@@ -275,18 +275,17 @@ public class FileRunner {
     }
 
     /**
-     * Prints stats for every file that makes up the program - the entry file
-     * plus every module it imports, transitively - not just the entry file
-     * alone, since a program's real size/shape is usually spread across its
-     * imported modules. compileMs is the bytecode-generation time when this run
-     * was a --compile run (measured by CompileRunner and passed back in, since
-     * compilation finishes after this method would otherwise have already
-     * printed); -1 means not applicable (an interpreted run).
-     * moduleDiscoveryWallMs/moduleCheckWallMs are the real wall-clock time
-     * module discovery/checking took (both run modules in parallel - see
-     * ModuleChecker) - shown separately from the per-file tokenize/parse/check
-     * sums below, which are a sum of concurrently-overlapping durations and so
-     * no longer represent elapsed time on their own.
+     * Prints stats for every file that makes up the program - the entry file plus
+     * every module it imports, transitively - not just the entry file alone, since
+     * a program's real size/shape is usually spread across its imported modules.
+     * compileMs is the bytecode-generation time when this run was a --compile run
+     * (measured by CompileRunner and passed back in, since compilation finishes
+     * after this method would otherwise have already printed); -1 means not
+     * applicable (an interpreted run). moduleDiscoveryWallMs/moduleCheckWallMs are
+     * the real wall-clock time module discovery/checking took (both run modules in
+     * parallel - see ModuleChecker) - shown separately from the per-file
+     * tokenize/parse/check sums below, which are a sum of concurrently-overlapping
+     * durations and so no longer represent elapsed time on their own.
      */
     private static void printStats(String source, List<Token> tokens, List<Node> asts, long tokenizeNanos,
             long parseNanos, long comptimeNanos, long entryCheckMs, Map<Path, Long> moduleCheckTimingsMs,
