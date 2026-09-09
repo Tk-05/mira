@@ -21,20 +21,13 @@ import {
   Uri,
   window,
 } from "vscode";
-import {
-  LanguageClient,
-  LanguageClientOptions,
-  ServerOptions,
-} from "vscode-languageclient/node";
+import { LanguageClient, LanguageClientOptions, ServerOptions } from "vscode-languageclient/node";
 
 let client: LanguageClient;
 
 function getJarPath(): string {
   const config = workspace.getConfiguration("mira");
-  return (
-    config.get<string>("jarPath") ||
-    path.join(os.homedir(), ".mira", "mira.jar")
-  );
+  return config.get<string>("jarPath") || path.join(os.homedir(), ".mira", "mira.jar");
 }
 
 interface LspPosition {
@@ -54,10 +47,7 @@ function toVscodePosition(p: LspPosition): Position {
 function toVscodeLocation(loc: LspLocation): Location {
   return new Location(
     Uri.parse(loc.uri),
-    new Range(
-      toVscodePosition(loc.range.start),
-      toVscodePosition(loc.range.end),
-    ),
+    new Range(toVscodePosition(loc.range.start), toVscodePosition(loc.range.end)),
   );
 }
 
@@ -104,12 +94,9 @@ class MiraTrackerFactory implements DebugAdapterTrackerFactory {
       } catch {}
     };
     return {
-      onWillStartSession: () =>
-        log(`\n=== SESSION START ${new Date().toISOString()} ===`),
-      onWillReceiveMessage: (msg) =>
-        log(`${new Date().toISOString()} → ${JSON.stringify(msg)}`),
-      onDidSendMessage: (msg) =>
-        log(`${new Date().toISOString()} ← ${JSON.stringify(msg)}`),
+      onWillStartSession: () => log(`\n=== SESSION START ${new Date().toISOString()} ===`),
+      onWillReceiveMessage: (msg) => log(`${new Date().toISOString()} → ${JSON.stringify(msg)}`),
+      onDidSendMessage: (msg) => log(`${new Date().toISOString()} ← ${JSON.stringify(msg)}`),
       onError: (err) => log(`ERROR: ${err}`),
       onWillStopSession: () => log("=== SESSION STOP ==="),
     };
@@ -131,12 +118,7 @@ export function activate(context: ExtensionContext) {
     },
   };
 
-  client = new LanguageClient(
-    "mira",
-    "Mira Language Server",
-    serverOptions,
-    clientOptions,
-  );
+  client = new LanguageClient("mira", "Mira Language Server", serverOptions, clientOptions);
 
   client.start();
   context.subscriptions.push(client);
@@ -150,11 +132,7 @@ export function activate(context: ExtensionContext) {
       _session: DebugSession,
       _executable: DebugAdapterExecutable | undefined,
     ) {
-      return new DebugAdapterExecutable("java", [
-        "-jar",
-        getJarPath(),
-        "--dap",
-      ]);
+      return new DebugAdapterExecutable("java", ["-jar", getJarPath(), "--dap"]);
     },
   });
   context.subscriptions.push(factory);
@@ -169,9 +147,7 @@ export function activate(context: ExtensionContext) {
       const flags = hasMain ? " -m" : "";
       const terminal = window.createTerminal("Mira Run");
       terminal.show();
-      terminal.sendText(
-        `java -jar "${getJarPath()}" "${fileUri.fsPath}"${flags}`,
-      );
+      terminal.sendText(`java -jar "${getJarPath()}" "${fileUri.fsPath}"${flags}`);
     }),
     commands.registerCommand(
       "mira.showReferences",
@@ -186,18 +162,14 @@ export function activate(context: ExtensionContext) {
     ),
     commands.registerCommand("mira.runTests", (uri?: Uri | string) => {
       const fileUri =
-        typeof uri === "string"
-          ? Uri.parse(uri)
-          : (uri ?? window.activeTextEditor?.document.uri);
+        typeof uri === "string" ? Uri.parse(uri) : (uri ?? window.activeTextEditor?.document.uri);
       if (!fileUri) {
         window.showErrorMessage("No Mira file open.");
         return;
       }
       const terminal = window.createTerminal("Mira Test");
       terminal.show();
-      terminal.sendText(
-        `java -jar "${getJarPath()}" "${fileUri.fsPath}" --test`,
-      );
+      terminal.sendText(`java -jar "${getJarPath()}" "${fileUri.fsPath}" --test`);
     }),
     commands.registerCommand("mira.debug", async (uri?: Uri) => {
       const fileUri = uri ?? window.activeTextEditor?.document.uri;
@@ -205,9 +177,7 @@ export function activate(context: ExtensionContext) {
         window.showErrorMessage("No Mira file open.");
         return;
       }
-      const folder =
-        workspace.getWorkspaceFolder(fileUri) ??
-        workspace.workspaceFolders?.[0];
+      const folder = workspace.getWorkspaceFolder(fileUri) ?? workspace.workspaceFolders?.[0];
       const started = await debug.startDebugging(folder, {
         type: "mira",
         request: "launch",
@@ -220,10 +190,7 @@ export function activate(context: ExtensionContext) {
         );
       }
     }),
-    languages.registerCodeLensProvider(
-      { language: "mira" },
-      new MiraCodeLensProvider(),
-    ),
+    languages.registerCodeLensProvider({ language: "mira" }, new MiraCodeLensProvider()),
   );
 }
 

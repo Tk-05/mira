@@ -27,8 +27,20 @@ jobs:
           distribution: "temurin"
           cache: maven
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install extension dependencies
+        run: npm ci
+        working-directory: lsp
+
       - name: Run unit tests
         run: mvn -B test --file pom.xml
+
+      - name: Build Mira and VS Code extension
+        run: mvn -B -DskipTests -Pbuild-extension package --file pom.xml
 
       - name: Publish test results
         uses: EnricoMi/publish-unit-test-result-action@v2
