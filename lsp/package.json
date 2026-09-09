@@ -103,7 +103,7 @@
   "scripts": {
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
-    "package": "vsce package",
-    "build": "tsc -p ./ && vsce package"
+    "package": "vsce package -o mira-language.vsix",
+    "build": "tsc -p ./ && vsce package -o mira-language.vsix"
   }
 }

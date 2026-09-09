@@ -19,6 +19,8 @@ import org.eclipse.lsp4j.CallHierarchyOutgoingCallsParams;
 import org.eclipse.lsp4j.CallHierarchyPrepareParams;
 import org.eclipse.lsp4j.CodeAction;
 import org.eclipse.lsp4j.CodeActionParams;
+import org.eclipse.lsp4j.CodeLens;
+import org.eclipse.lsp4j.CodeLensParams;
 import org.eclipse.lsp4j.Command;
 import org.eclipse.lsp4j.CompletionItem;
 import org.eclipse.lsp4j.CompletionList;
@@ -176,6 +178,17 @@ public class DocumentService implements TextDocumentService {
         int lineCount = content.split("\n", -1).length;
         Range fullRange = new Range(new Position(0, 0), new Position(lineCount, 0));
         return CompletableFuture.completedFuture(List.of(new TextEdit(fullRange, formatted)));
+    }
+
+    @Override
+    public CompletableFuture<List<? extends CodeLens>> codeLens(CodeLensParams params) {
+        String uri = params.getTextDocument().getUri();
+        List<Node> ast = astCache.getOrDefault(uri, List.of());
+        String content = documents.getOrDefault(uri, "");
+        Path docPath = uriToPath(uri);
+        List<CodeLens> lenses = CodeLensProvider.provide(ast, content, uri, docPath, workspaceIndex, workspaceRoot,
+                documents);
+        return CompletableFuture.completedFuture(lenses);
     }
 
     @Override

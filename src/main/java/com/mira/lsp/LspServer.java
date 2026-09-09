@@ -8,6 +8,7 @@ import java.util.concurrent.CompletableFuture;
 
 import org.eclipse.lsp4j.CodeActionKind;
 import org.eclipse.lsp4j.CodeActionOptions;
+import org.eclipse.lsp4j.CodeLensOptions;
 import org.eclipse.lsp4j.CompletionOptions;
 import org.eclipse.lsp4j.Diagnostic;
 import org.eclipse.lsp4j.DidChangeWatchedFilesRegistrationOptions;
@@ -64,6 +65,7 @@ public class LspServer implements LanguageServer, LanguageClientAware {
         sigOpts.setTriggerCharacters(List.of("(", ","));
         caps.setSignatureHelpProvider(sigOpts);
         caps.setCodeActionProvider(new CodeActionOptions(List.of(CodeActionKind.QuickFix)));
+        caps.setCodeLensProvider(new CodeLensOptions(false));
         SemanticTokensWithRegistrationOptions semTokenOpts = new SemanticTokensWithRegistrationOptions();
         semTokenOpts.setLegend(new SemanticTokensLegend(
                 SemanticTokenProvider.TOKEN_TYPES,
