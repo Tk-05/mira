@@ -38,7 +38,8 @@ public class CompilerRunner {
             main.invoke(null, (Object) new String[0]);
         } catch (InvocationTargetException ite) {
             Throwable cause = ite.getCause();
-            if (cause instanceof RuntimeException re) throw re;
+            if (cause instanceof RuntimeException re)
+                throw re;
             throw new RuntimeException(cause);
         } catch (Exception e) {
             throw new RuntimeException(e);

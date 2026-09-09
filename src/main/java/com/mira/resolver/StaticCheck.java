@@ -239,21 +239,18 @@ public class StaticCheck {
             return;
         }
         try {
-            Files.walk(dir)
-                    .filter(p -> p.toString().endsWith(".mira") && !p.equals(sourcePath))
-                    .forEach(p -> {
-                        try {
-                            String src = openDocuments.getOrDefault(p, Files.readString(p));
-                            List<Node> siblingAst = new Parser().parseTokens(
-                                    new Tokenizer().tokenize(src, false));
-                            for (Node node : siblingAst) {
-                                if (node instanceof FuncDecl f && f.isPublic()) {
-                                    userFuncDecls.putIfAbsent(f.getName(), f);
-                                }
-                            }
-                        } catch (Exception ignored) {
+            Files.walk(dir).filter(p -> p.toString().endsWith(".mira") && !p.equals(sourcePath)).forEach(p -> {
+                try {
+                    String src = openDocuments.getOrDefault(p, Files.readString(p));
+                    List<Node> siblingAst = new Parser().parseTokens(new Tokenizer().tokenize(src, false));
+                    for (Node node : siblingAst) {
+                        if (node instanceof FuncDecl f && f.isPublic()) {
+                            userFuncDecls.putIfAbsent(f.getName(), f);
                         }
-                    });
+                    }
+                } catch (Exception ignored) {
+                }
+            });
         } catch (Exception ignored) {
         }
     }
@@ -318,14 +315,13 @@ public class StaticCheck {
                         userEnumDecls.put(e.getIdentifier(), e);
                     }
                 }
-                case ImportExpression imp ->
-                    preDeclareImport(imp);
+                case ImportExpression imp -> preDeclareImport(imp);
                 case TypeAliasDecl t -> {
                     if (typeAliases.containsKey(t.getName()) || BUILTIN_TYPE_NAMES.contains(t.getName())) {
                         errors.add(new DuplicateDeclarationError(t.getName(), t.line, 0));
                     } else {
-                        MiraType aliased = resolveNamedType(t.getAliasedType().name(),
-                                t.getAliasedType().line(), t.getAliasedType().column());
+                        MiraType aliased = resolveNamedType(t.getAliasedType().name(), t.getAliasedType().line(),
+                                t.getAliasedType().column());
                         if (aliased != null) {
                             typeAliases.put(t.getName(),
                                     t.getAliasedType().nullable() ? new MiraType.NullableType(aliased) : aliased);
@@ -345,10 +341,8 @@ public class StaticCheck {
         popScope();
 
         if (Flags.verbose) {
-            System.out.println(DiagnosticFormatter.formatInfo(
-                    "static check: " + ast.size() + " top-level node(s), "
-                    + errors.size() + " error(s), "
-                    + WarningCollector.getWarnings().size() + " warning(s)"));
+            System.out.println(DiagnosticFormatter.formatInfo("static check: " + ast.size() + " top-level node(s), "
+                    + errors.size() + " error(s), " + WarningCollector.getWarnings().size() + " warning(s)"));
         }
 
         if (!errors.isEmpty()) {
@@ -364,12 +358,9 @@ public class StaticCheck {
 
     private void resolveNode(Node node) {
         switch (node) {
-            case VarDecl stmt ->
-                resolveVarDecl(stmt);
-            case FuncDecl stmt ->
-                resolveFuncDecl(stmt);
-            case Assign stmt ->
-                resolveAssign(stmt);
+            case VarDecl stmt -> resolveVarDecl(stmt);
+            case FuncDecl stmt -> resolveFuncDecl(stmt);
+            case Assign stmt -> resolveAssign(stmt);
             case Return stmt -> {
                 if (functionDepth == 0) {
                     errors.add(new ReturnOutsideFunctionError(stmt.line, stmt.column));
@@ -389,22 +380,20 @@ public class StaticCheck {
                             // "skip if unknown" behavior
                             MiraType actual = inferMiraType(stmt.getValue());
                             errors.add(new ReturnTypeMismatchError(enclosing.getName(), "Void",
-                                    actual != null ? MiraType.display(actual) : "a value",
-                                    stmt.line, stmt.column));
+                                    actual != null ? MiraType.display(actual) : "a value", stmt.line, stmt.column));
                         } else {
-                            checkAssignable(stmt.getValue(), expected, (exp, actual) -> errors.add(
-                                    new ReturnTypeMismatchError(enclosing.getName(), exp, actual,
-                                            stmt.line, stmt.column)));
+                            checkAssignable(stmt.getValue(), expected,
+                                    (exp, actual) -> errors.add(new ReturnTypeMismatchError(enclosing.getName(), exp,
+                                            actual, stmt.line, stmt.column)));
                         }
                     } else if (expected != null && !MiraType.isVoid(expected)
                             && !MiraType.isAssignable(MiraType.NULL, expected)) {
-                        errors.add(new ReturnTypeMismatchError(enclosing.getName(),
-                                MiraType.display(expected), "Null", stmt.line, stmt.column));
+                        errors.add(new ReturnTypeMismatchError(enclosing.getName(), MiraType.display(expected), "Null",
+                                stmt.line, stmt.column));
                     }
                 }
             }
-            case If stmt ->
-                resolveIf(stmt);
+            case If stmt -> resolveIf(stmt);
             case Loop stmt -> {
                 if (stmt.isForeach()) {
                     resolveForeachLoop(stmt);
@@ -412,23 +401,17 @@ public class StaticCheck {
                     resolveForLoop(stmt);
                 }
             }
-            case While stmt ->
-                resolveWhile(stmt);
-            case Block stmt ->
-                resolveBlock(stmt);
-            case Switch stmt ->
-                resolveSwitch(stmt);
-            case TryCatch stmt ->
-                resolveTryCatch(stmt);
-            case Throw stmt ->
-                resolveExpr(stmt.getValue());
+            case While stmt -> resolveWhile(stmt);
+            case Block stmt -> resolveBlock(stmt);
+            case Switch stmt -> resolveSwitch(stmt);
+            case TryCatch stmt -> resolveTryCatch(stmt);
+            case Throw stmt -> resolveExpr(stmt.getValue());
             case EnumDecl stmt -> {
                 for (Expression value : stmt.getValues().values()) {
                     resolveExpr(value);
                 }
             }
-            case VarDestructure stmt ->
-                resolveVarDestructure(stmt);
+            case VarDestructure stmt -> resolveVarDestructure(stmt);
             case Lock stmt -> {
                 resolveExpr(stmt.getMutex());
                 resolveNodes(stmt.getBody());
@@ -438,8 +421,7 @@ public class StaticCheck {
                 resolveNodes(stmt.getBody());
                 inComptimeBlock = false;
             }
-            case StaticAssert stmt ->
-                resolveStaticAssert(stmt);
+            case StaticAssert stmt -> resolveStaticAssert(stmt);
             case TestCall stmt -> {
                 resolveExpr(stmt.getName());
                 resolveExpr(stmt.getTestFn());
@@ -454,24 +436,21 @@ public class StaticCheck {
                     errors.add(new ContinueOutsideLoopError(stmt.line, stmt.column));
                 }
             }
-            case CallExpression e ->
-                resolveCallExpression(e);
-            default ->
-                resolveExpr(node);
+            case CallExpression e -> resolveCallExpression(e);
+            default -> resolveExpr(node);
         }
     }
 
     private void resolveExpr(Node node) {
         switch (node) {
             case UnaryExpression e when "++".equals(e.getOperation().getLexeme())
-            || "--".equals(e.getOperation().getLexeme()) -> {
+                    || "--".equals(e.getOperation().getLexeme()) -> {
                 resolveExpr(e.getRight());
                 DumbExpression varD = extractVarRef(e.getRight());
                 if (varD != null) {
                     Node literal = varLiteralTypes.get(varD.getValue());
                     if (literal != null && isNonNumericLiteral(literal)) {
-                        errors.add(new PostExprNaNStaticError(
-                                varD.getValue(), varD.getLine(), varD.getColumn()));
+                        errors.add(new PostExprNaNStaticError(varD.getValue(), varD.getLine(), varD.getColumn()));
                     }
                 }
             }
@@ -488,7 +467,7 @@ public class StaticCheck {
                 }
             }
             case UnaryExpression e when "-".equals(e.getOperation().getLexeme())
-            || "~".equals(e.getOperation().getLexeme()) -> {
+                    || "~".equals(e.getOperation().getLexeme()) -> {
                 if (e.getRight() != null) {
                     resolveExpr(e.getRight());
                     warnIfStringOperand(e.getRight(), e.getOperation());
@@ -517,8 +496,7 @@ public class StaticCheck {
                 boolean rightLit = isNonStringLiteral(e.getRight());
                 if ((leftStr && rightLit) || (leftLit && rightStr)) {
                     WarningCollector.emit(WarningLevel.HINT,
-                            "Implicit string concatenation: mixed String and non-String operands",
-                            e.getOperator());
+                            "Implicit string concatenation: mixed String and non-String operands", e.getOperator());
                 }
                 operandChecks.checkBinaryOperandTypes(e);
             }
@@ -553,8 +531,7 @@ public class StaticCheck {
                 resolveExpr(e.getLeft());
                 resolveExpr(e.getRight());
             }
-            case CallExpression e ->
-                resolveCallExpression(e);
+            case CallExpression e -> resolveCallExpression(e);
             case NamespaceCallExpression e -> {
                 String alias = e.getAlias();
                 if (!knownNamespaces.contains(alias)) {
@@ -582,13 +559,15 @@ public class StaticCheck {
                         int max = nsFn.getMaxArity();
                         int actual = e.getArguments().size();
                         if (min == max && actual != min) {
-                            errors.add(new ArityMismatchError(e.getFunctionName(), min, actual, e.getLine(), e.getColumn()));
+                            errors.add(new ArityMismatchError(e.getFunctionName(), min, actual, e.getLine(),
+                                    e.getColumn()));
                         } else if (min != max && (actual < min || (max != -1 && actual > max))) {
-                            errors.add(new ArityMismatchError(e.getFunctionName(), min, max, actual, e.getLine(), e.getColumn()));
+                            errors.add(new ArityMismatchError(e.getFunctionName(), min, max, actual, e.getLine(),
+                                    e.getColumn()));
                         }
                         if (!e.getArguments().isEmpty()) {
-                            structChecks.walkFuncWithParamTypes(
-                                    nsFn, e.getArguments(), Map.of(), new HashSet<>(), e.getLine(), e.getColumn());
+                            structChecks.walkFuncWithParamTypes(nsFn, e.getArguments(), Map.of(), new HashSet<>(),
+                                    e.getLine(), e.getColumn());
                         }
                     }
                 }
@@ -603,25 +582,23 @@ public class StaticCheck {
                 if (literalBase != null && !(literalBase instanceof ObjectExpression)
                         && !(literalBase instanceof StructExpression)) {
                     String typeName = switch (literalBase) {
-                        case ListExpression ignored ->
-                            "list";
-                        case ArrayExpression ignored ->
-                            "array";
-                        case MapExpression ignored ->
-                            "map";
-                        default ->
-                            "non-object value";
+                        case ListExpression ignored -> "list";
+                        case ArrayExpression ignored -> "array";
+                        case MapExpression ignored -> "map";
+                        default -> "non-object value";
                     };
                     int line = e.getObject().line;
                     int col = e.getObject() instanceof DumbExpression de
-                            ? de.getColumn() + de.getValue().length() + 1 : 0;
+                            ? de.getColumn() + de.getValue().length() + 1
+                            : 0;
                     errors.add(new FieldAccessOnNonObjectError(e.getField(), typeName, line, col));
                 } else if (!e.isOptional()
                         && (literalBase instanceof ObjectExpression || literalBase instanceof StructExpression)) {
                     String field = e.getField();
                     if (!memberExists(literalBase, field)) {
                         DumbExpression varRef = extractVarRef(e.getObject());
-                        String objectName = varRef != null ? varRef.getValue()
+                        String objectName = varRef != null
+                                ? varRef.getValue()
                                 : literalBase instanceof StructExpression ? "struct" : "object";
                         int line = varRef != null ? varRef.getLine() : e.getObject().line;
                         int col = varRef != null ? varRef.getColumn() + varRef.getValue().length() + 1 : 0;
@@ -649,24 +626,18 @@ public class StaticCheck {
                 e.getArguments().forEach(this::resolveExpr);
                 structChecks.checkMethodArgumentTypes(e);
             }
-            case ArrayExpression e ->
-                e.getMembers().forEach(this::resolveExpr);
-            case ListExpression e ->
-                e.getMembers().forEach(this::resolveExpr);
-            case MapExpression e ->
-                e.getEntries().values().forEach(this::resolveExpr);
+            case ArrayExpression e -> e.getMembers().forEach(this::resolveExpr);
+            case ListExpression e -> e.getMembers().forEach(this::resolveExpr);
+            case MapExpression e -> e.getEntries().values().forEach(this::resolveExpr);
             case ObjectExpression e -> {
-                e.getVarDecls().stream()
-                        .filter(v -> v.getInitializer() != null)
-                        .forEach(v -> {
-                            resolveExpr(v.getInitializer());
-                            if (v.getType() != null) {
-                                MiraType expected = resolveTypeAnnotation(v.getType());
-                                checkAssignable(v.getInitializer(), expected, (exp, act) -> errors.add(
-                                        new TypeMismatchError(v.getName(), exp, act,
-                                                v.getInitializer().line, v.nameColumn)));
-                            }
-                        });
+                e.getVarDecls().stream().filter(v -> v.getInitializer() != null).forEach(v -> {
+                    resolveExpr(v.getInitializer());
+                    if (v.getType() != null) {
+                        MiraType expected = resolveTypeAnnotation(v.getType());
+                        checkAssignable(v.getInitializer(), expected, (exp, act) -> errors.add(
+                                new TypeMismatchError(v.getName(), exp, act, v.getInitializer().line, v.nameColumn)));
+                    }
+                });
                 for (var method : e.getMethods()) {
                     scope.push();
                     method.getParameters().forEach(p -> {
@@ -693,17 +664,14 @@ public class StaticCheck {
                 }
             }
             case StructExpression e -> {
-                e.getVarDecls().stream()
-                        .filter(v -> v.getInitializer() != null)
-                        .forEach(v -> {
-                            resolveExpr(v.getInitializer());
-                            if (v.getType() != null) {
-                                MiraType expected = resolveTypeAnnotation(v.getType());
-                                checkAssignable(v.getInitializer(), expected, (exp, act) -> errors.add(
-                                        new TypeMismatchError(v.getName(), exp, act,
-                                                v.getInitializer().line, v.nameColumn)));
-                            }
-                        });
+                e.getVarDecls().stream().filter(v -> v.getInitializer() != null).forEach(v -> {
+                    resolveExpr(v.getInitializer());
+                    if (v.getType() != null) {
+                        MiraType expected = resolveTypeAnnotation(v.getType());
+                        checkAssignable(v.getInitializer(), expected, (exp, act) -> errors.add(
+                                new TypeMismatchError(v.getName(), exp, act, v.getInitializer().line, v.nameColumn)));
+                    }
+                });
                 for (var method : e.getMethods()) {
                     scope.push();
                     method.getParameters().forEach(p -> {
@@ -738,30 +706,28 @@ public class StaticCheck {
                     String templateName = varRef != null ? varRef.getValue() : "struct";
                     for (var entry : e.getOverrides().entrySet()) {
                         String key = entry.getKey();
-                        VarDecl field = structExpr.getVarDecls().stream()
-                                .filter(v -> key.equals(v.getName()))
+                        VarDecl field = structExpr.getVarDecls().stream().filter(v -> key.equals(v.getName()))
                                 .findFirst().orElse(null);
                         boolean exists = field != null
                                 || structExpr.getMethods().stream().anyMatch(m -> key.equals(m.getName()));
                         if (!exists) {
-                            errors.add(new UndefinedObjectFieldStaticError(key, templateName, entry.getValue().line, 0));
+                            errors.add(
+                                    new UndefinedObjectFieldStaticError(key, templateName, entry.getValue().line, 0));
                         } else if (field != null && field.getType() != null) {
                             MiraType expected = resolveTypeAnnotation(field.getType());
                             Expression overrideValue = entry.getValue();
                             int column = expressionColumn(overrideValue, varRef != null ? varRef.getColumn() : 0);
                             int span = expressionSpan(overrideValue, key.length());
-                            checkAssignable(overrideValue, expected, (exp, actual) -> errors.add(
-                                    new StructFieldTypeMismatchError(key, templateName, exp, actual,
-                                            overrideValue.line, column, span)));
+                            checkAssignable(overrideValue, expected,
+                                    (exp, actual) -> errors.add(new StructFieldTypeMismatchError(key, templateName, exp,
+                                            actual, overrideValue.line, column, span)));
                         }
                     }
                 }
             }
             case AssignExpression e -> {
-                if (e.getReference() instanceof UnaryExpression u
-                        && "$".equals(u.getOperation().getLexeme())
-                        && u.getRight() instanceof DumbExpression d
-                        && isIdentifier(d)) {
+                if (e.getReference() instanceof UnaryExpression u && "$".equals(u.getOperation().getLexeme())
+                        && u.getRight() instanceof DumbExpression d && isIdentifier(d)) {
                     String name = d.getValue();
                     if (!scope.isDeclared(name)) {
                         errors.add(new UndeclaredVariableError(name, d.getLine(), d.getColumn()));
@@ -781,8 +747,8 @@ public class StaticCheck {
                         }
                         MiraType declared = declaredVarTypes.get(name);
                         if (declared != null) {
-                            checkAssignable(e.getValue(), declared, (expected, actual) -> errors.add(
-                                    new TypeMismatchError(name, expected, actual, d.getLine(), d.getColumn())));
+                            checkAssignable(e.getValue(), declared, (expected, actual) -> errors
+                                    .add(new TypeMismatchError(name, expected, actual, d.getLine(), d.getColumn())));
                         }
                     }
                 } else {
@@ -823,10 +789,8 @@ public class StaticCheck {
                 resolveExpr(e.getElseExpr());
                 nullNarrowing.restore(savedElse);
             }
-            case ComplexExpression e ->
-                e.getExpressions().forEach(this::resolveExpr);
-            case TypeofExpression e ->
-                resolveExpr(e.getExpr());
+            case ComplexExpression e -> e.getExpressions().forEach(this::resolveExpr);
+            case TypeofExpression e -> resolveExpr(e.getExpr());
             case SwitchExpression e -> {
                 resolveExpr(e.getSubject());
                 for (var c : e.getCases()) {
@@ -860,10 +824,8 @@ public class StaticCheck {
                     }
                 }
             }
-            case ImportExpression e ->
-                preDeclareImport(e);
-            case AwaitExpression e ->
-                resolveExpr(e.getExpr());
+            case ImportExpression e -> preDeclareImport(e);
+            case AwaitExpression e -> resolveExpr(e.getExpr());
             case ThrownException e -> {
                 if (e.getValue() != null) {
                     resolveExpr(e.getValue());
@@ -904,11 +866,10 @@ public class StaticCheck {
                         int actual = expr.getArguments().size() + implicitArgs;
                         int min = arity[0], max = arity[1];
                         if (min == max && actual != min) {
-                            errors.add(new ArityMismatchError(name, min, actual,
-                                    callee.getLine(), callee.getColumn()));
+                            errors.add(new ArityMismatchError(name, min, actual, callee.getLine(), callee.getColumn()));
                         } else if (min != max && (actual < min || (max >= 0 && actual > max))) {
-                            errors.add(new ArityMismatchError(name, min, max, actual,
-                                    callee.getLine(), callee.getColumn()));
+                            errors.add(new ArityMismatchError(name, min, max, actual, callee.getLine(),
+                                    callee.getColumn()));
                         }
                     }
                     FuncDecl fn = userFuncDecls.get(name);
@@ -930,8 +891,8 @@ public class StaticCheck {
                         if (!expr.getArguments().isEmpty()) {
                             Node tracked = varLiteralTypes.get(name);
                             if (tracked instanceof LambdaExpression lambda) {
-                                checkArgumentTypes(name, lambda.getParameters(), expr.getArguments(),
-                                        callee.getLine(), callee.getColumn());
+                                checkArgumentTypes(name, lambda.getParameters(), expr.getArguments(), callee.getLine(),
+                                        callee.getColumn());
                             } else if (declaredVarTypes.get(name) instanceof MiraType.FunctionType fnType) {
                                 checkArgumentTypesAgainstFunctionType(name, fnType, expr.getArguments(),
                                         callee.getLine(), callee.getColumn());
@@ -940,8 +901,7 @@ public class StaticCheck {
                     }
                 }
             } else {
-                errors.add(new LiteralNotCallableError(
-                        callee.getValue(), callee.getLine(), callee.getColumn()));
+                errors.add(new LiteralNotCallableError(callee.getValue(), callee.getLine(), callee.getColumn()));
             }
         } else {
             resolveExpr(expr.getCallee());
@@ -956,15 +916,14 @@ public class StaticCheck {
         if (scope.isDeclaredInCurrentScope(stmt.getName())) {
             errors.add(new DuplicateDeclarationError(stmt.getName(), stmt.line, stmt.nameColumn));
         }
-        if (scope.isDeclared(stmt.getName())
-                && !scope.isDeclaredInCurrentScope(stmt.getName())
+        if (scope.isDeclared(stmt.getName()) && !scope.isDeclaredInCurrentScope(stmt.getName())
                 && !scope.isDeclaredInOutermostScope(stmt.getName())) {
-            warn("Variable '" + stmt.getName() + "' shadows an outer declaration",
-                    stmt.line, stmt.nameColumn, stmt.getName().length());
+            warn("Variable '" + stmt.getName() + "' shadows an outer declaration", stmt.line, stmt.nameColumn,
+                    stmt.getName().length());
         }
         if (stmt.isConst() && stmt.getInitializer() == null) {
-            warn("Const '" + stmt.getName() + "' declared without an initializer",
-                    stmt.line, stmt.nameColumn, stmt.getName().length());
+            warn("Const '" + stmt.getName() + "' declared without an initializer", stmt.line, stmt.nameColumn,
+                    stmt.getName().length());
         }
         scope.declare(stmt.getName(), stmt.line, stmt.nameColumn, stmt.isConst(), inComptimeBlock && stmt.isConst());
         if (stmt.getInitializer() != null && isKnownLiteral(stmt.getInitializer())) {
@@ -985,8 +944,8 @@ public class StaticCheck {
             if (declared != null) {
                 declaredVarTypes.put(stmt.getName(), declared);
                 if (stmt.getInitializer() != null) {
-                    checkAssignable(stmt.getInitializer(), declared, (expected, actual) -> errors.add(
-                            new TypeMismatchError(stmt.getName(), expected, actual, stmt.line, stmt.nameColumn)));
+                    checkAssignable(stmt.getInitializer(), declared, (expected, actual) -> errors
+                            .add(new TypeMismatchError(stmt.getName(), expected, actual, stmt.line, stmt.nameColumn)));
                 }
             }
         }
@@ -1047,8 +1006,7 @@ public class StaticCheck {
                 checkComptimeExpr(e.getThenExpr());
                 checkComptimeExpr(e.getElseExpr());
             }
-            default ->
-                errors.add(new StaticAssertRuntimeValueError("expression", 0, 0));
+            default -> errors.add(new StaticAssertRuntimeValueError("expression", 0, 0));
         }
     }
 
@@ -1096,17 +1054,15 @@ public class StaticCheck {
             }
         });
         if (hasAnyReturn(stmt.getBody()) && !alwaysReturns(stmt.getBody())) {
-            warn("Function '" + stmt.getName() + "' may not return a value on all code paths",
-                    stmt.line, stmt.nameColumn, stmt.getName().length());
+            warn("Function '" + stmt.getName() + "' may not return a value on all code paths", stmt.line,
+                    stmt.nameColumn, stmt.getName().length());
         }
         popScope();
     }
 
     private void resolveAssign(Assign stmt) {
-        if (stmt.getReference() instanceof UnaryExpression u
-                && "$".equals(u.getOperation().getLexeme())
-                && u.getRight() instanceof DumbExpression d
-                && isIdentifier(d)) {
+        if (stmt.getReference() instanceof UnaryExpression u && "$".equals(u.getOperation().getLexeme())
+                && u.getRight() instanceof DumbExpression d && isIdentifier(d)) {
             String name = d.getValue();
             if (!scope.isDeclared(name)) {
                 errors.add(new UndeclaredVariableError(name, d.getLine(), d.getColumn()));
@@ -1126,8 +1082,8 @@ public class StaticCheck {
                 }
                 MiraType declared = declaredVarTypes.get(name);
                 if (declared != null) {
-                    checkAssignable(stmt.getExpression(), declared, (expected, actual) -> errors.add(
-                            new TypeMismatchError(name, expected, actual, d.getLine(), d.getColumn())));
+                    checkAssignable(stmt.getExpression(), declared, (expected, actual) -> errors
+                            .add(new TypeMismatchError(name, expected, actual, d.getLine(), d.getColumn())));
                     checkCompoundAssignResultType(stmt, declared, name, d.getLine(), d.getColumn());
                 }
             }
@@ -1139,14 +1095,14 @@ public class StaticCheck {
     }
 
     /**
-     * A compound assignment ("x +: y") is desugared by the parser into
-     * Assign(x, BinaryExpression(x, "+", y)) - the operand-level check
-     * (mismatched types on the two sides) already runs generically when that
-     * BinaryExpression is resolved below, same as any other "+". What's not
-     * covered there: whether the *result* still fits x's own declared type.
-     * That only diverges from a plain operand check for "+", since it alone
-     * tolerates a String on either side (concatenation) - "x +: \"oops\"" with
-     * x : Number silently produces a String, with nothing to catch it.
+     * A compound assignment ("x +: y") is desugared by the parser into Assign(x,
+     * BinaryExpression(x, "+", y)) - the operand-level check (mismatched types on
+     * the two sides) already runs generically when that BinaryExpression is
+     * resolved below, same as any other "+". What's not covered there: whether the
+     * *result* still fits x's own declared type. That only diverges from a plain
+     * operand check for "+", since it alone tolerates a String on either side
+     * (concatenation) - "x +: \"oops\"" with x : Number silently produces a String,
+     * with nothing to catch it.
      */
     private void checkCompoundAssignResultType(Assign stmt, MiraType declared, String name, int line, int column) {
         if (!(stmt.getExpression() instanceof BinaryExpression be) || be.getLeft() != stmt.getReference()) {
@@ -1161,10 +1117,11 @@ public class StaticCheck {
         }
         boolean isPlus = "+".equals(be.getOperator().getLexeme());
         MiraType resultType = isPlus && (isStringType(declared) || isStringType(rightType))
-                ? MiraType.STRING : MiraType.NUMBER;
+                ? MiraType.STRING
+                : MiraType.NUMBER;
         if (!MiraType.isAssignable(resultType, declared)) {
-            errors.add(new TypeMismatchError(name, MiraType.display(declared), MiraType.display(resultType),
-                    line, column));
+            errors.add(new TypeMismatchError(name, MiraType.display(declared), MiraType.display(resultType), line,
+                    column));
         }
     }
 
@@ -1249,8 +1206,7 @@ public class StaticCheck {
             resolveBody(stmt.getDefaultBody());
             popScope();
         }
-        checkSwitchExhaustiveness(stmt.getSubject(),
-                stmt.getCases().stream().map(SwitchCase::getValue).toList(),
+        checkSwitchExhaustiveness(stmt.getSubject(), stmt.getCases().stream().map(SwitchCase::getValue).toList(),
                 stmt.getDefaultBody() != null, stmt.line, stmt.column);
     }
 
@@ -1389,12 +1345,9 @@ public class StaticCheck {
             Map<String, Boolean> declared = new HashMap<>();
             for (Node n : modAst) {
                 switch (n) {
-                    case FuncDecl fd ->
-                        declared.put(fd.getName(), fd.isPublic());
-                    case VarDecl vd ->
-                        declared.put(vd.getName(), vd.isPublic());
-                    case EnumDecl ed ->
-                        declared.put(ed.getIdentifier(), ed.isPublic());
+                    case FuncDecl fd -> declared.put(fd.getName(), fd.isPublic());
+                    case VarDecl vd -> declared.put(vd.getName(), vd.isPublic());
+                    case EnumDecl ed -> declared.put(ed.getIdentifier(), ed.isPublic());
                     default -> {
                     }
                 }
@@ -1433,12 +1386,9 @@ public class StaticCheck {
             Map<String, Boolean> declared = new HashMap<>();
             for (Node n : modAst) {
                 switch (n) {
-                    case FuncDecl fd ->
-                        declared.put(fd.getName(), fd.isPublic());
-                    case VarDecl vd ->
-                        declared.put(vd.getName(), vd.isPublic());
-                    case EnumDecl ed ->
-                        declared.put(ed.getIdentifier(), ed.isPublic());
+                    case FuncDecl fd -> declared.put(fd.getName(), fd.isPublic());
+                    case VarDecl vd -> declared.put(vd.getName(), vd.isPublic());
+                    case EnumDecl ed -> declared.put(ed.getIdentifier(), ed.isPublic());
                     default -> {
                     }
                 }
@@ -1461,8 +1411,8 @@ public class StaticCheck {
         try {
             for (Node node : body) {
                 if (terminated) {
-                    WarningCollector.emit(WarningLevel.WARNING, "Unreachable code",
-                            lineOf(node), columnOf(node), spanOf(node));
+                    WarningCollector.emit(WarningLevel.WARNING, "Unreachable code", lineOf(node), columnOf(node),
+                            spanOf(node));
                 } else {
                     resolveNode(node);
                     if (node instanceof Return || node instanceof Throw) {
@@ -1486,11 +1436,11 @@ public class StaticCheck {
                     WarningCollector.emit(WarningLevel.WARNING, "'" + name + "' is imported but never used",
                             info.line(), 1, Math.max(sourceLineLength(info.line()), name.length()));
                 } else if (info.isFunction() && !isModule) {
-                    WarningCollector.emit(WarningLevel.HINT, "'" + name + "' is defined but never called",
-                            info.line(), info.column(), name.length());
+                    WarningCollector.emit(WarningLevel.HINT, "'" + name + "' is defined but never called", info.line(),
+                            info.column(), name.length());
                 } else {
-                    WarningCollector.emit(WarningLevel.HINT, "'" + name + "' is declared but never used",
-                            info.line(), info.column(), name.length());
+                    WarningCollector.emit(WarningLevel.HINT, "'" + name + "' is declared but never used", info.line(),
+                            info.column(), name.length());
                 }
             }
         }
@@ -1511,8 +1461,7 @@ public class StaticCheck {
     private void warnIfStringOperand(Node operand, Token operator) {
         if (isStringLiteral(operand)) {
             WarningCollector.emit(WarningLevel.WARNING,
-                    "Operator '" + operator.getLexeme() + "' used on a String literal",
-                    operator);
+                    "Operator '" + operator.getLexeme() + "' used on a String literal", operator);
         }
     }
 
@@ -1552,14 +1501,14 @@ public class StaticCheck {
 
     /**
      * When every branch of a ternary/switch resolves to the same known literal
-     * shape (e.g. both sides of `cond ? 1 : 2` are Numbers), tracking survives
-     * a reassignment through it instead of being dropped as "unknown" - a
+     * shape (e.g. both sides of `cond ? 1 : 2` are Numbers), tracking survives a
+     * reassignment through it instead of being dropped as "unknown" - a
      * reassignment like `$a : cond ? 1 : 2;` (previously invisible to
-     * varLiteralTypes, since neither branch is itself a literal *node* the way
-     * a plain `$a : 1;` reassignment is) now correctly updates what's tracked
-     * for `a`. Returns one representative branch's literal node (any one works,
-     * since callers only ever consult its *type* via literalNodeToType), or
-     * null if the branches disagree or any branch's own shape isn't known.
+     * varLiteralTypes, since neither branch is itself a literal *node* the way a
+     * plain `$a : 1;` reassignment is) now correctly updates what's tracked for
+     * `a`. Returns one representative branch's literal node (any one works, since
+     * callers only ever consult its *type* via literalNodeToType), or null if the
+     * branches disagree or any branch's own shape isn't known.
      */
     private Node agreeingLiteralType(List<Node> branches) {
         Node first = null;
@@ -1587,10 +1536,8 @@ public class StaticCheck {
         if (isKnownLiteral(objectExpr)) {
             return objectExpr;
         }
-        if (objectExpr instanceof UnaryExpression u
-                && "$".equals(u.getOperation().getLexeme())
-                && u.getRight() instanceof DumbExpression d
-                && isIdentifier(d)) {
+        if (objectExpr instanceof UnaryExpression u && "$".equals(u.getOperation().getLexeme())
+                && u.getRight() instanceof DumbExpression d && isIdentifier(d)) {
             return varLiteralTypes.get(d.getValue());
         }
         return null;
@@ -1611,7 +1558,8 @@ public class StaticCheck {
         if (ann == null) {
             return null;
         }
-        MiraType base = ann.isFunctionType() ? resolveFunctionTypeAnnotation(ann)
+        MiraType base = ann.isFunctionType()
+                ? resolveFunctionTypeAnnotation(ann)
                 : resolveNamedType(ann.name(), ann.line(), ann.column());
         if (base == null) {
             return null;
@@ -1661,18 +1609,16 @@ public class StaticCheck {
     }
 
     /**
-     * Infers the MiraType of an expression, when there's enough information to
-     * be confident - a variable with a declared type, a literal, a struct init,
-     * or a call to a function with a declared return type. Returns null
-     * (meaning "unknown, skip the check") for anything else, notably binary/
-     * unary expressions and calls to unannotated functions - guessing wrong
-     * there would produce a false positive, which gradual typing must never do.
+     * Infers the MiraType of an expression, when there's enough information to be
+     * confident - a variable with a declared type, a literal, a struct init, or a
+     * call to a function with a declared return type. Returns null (meaning
+     * "unknown, skip the check") for anything else, notably binary/ unary
+     * expressions and calls to unannotated functions - guessing wrong there would
+     * produce a false positive, which gradual typing must never do.
      */
     MiraType inferMiraType(Node expr) {
-        if (expr instanceof UnaryExpression u
-                && "$".equals(u.getOperation().getLexeme())
-                && u.getRight() instanceof DumbExpression d
-                && isIdentifier(d)) {
+        if (expr instanceof UnaryExpression u && "$".equals(u.getOperation().getLexeme())
+                && u.getRight() instanceof DumbExpression d && isIdentifier(d)) {
             MiraType declared = declaredVarTypes.get(d.getValue());
             if (declared != null) {
                 return declared;
@@ -1689,7 +1635,8 @@ public class StaticCheck {
             // as a value, e.g. to a Fn(...)-typed parameter) - its own
             // declared signature is its type
             FuncDecl referencedFn = userFuncDecls.get(d.getValue());
-            return referencedFn != null ? functionTypeOf(referencedFn.getParameters(), referencedFn.getReturnType())
+            return referencedFn != null
+                    ? functionTypeOf(referencedFn.getParameters(), referencedFn.getReturnType())
                     : null;
         }
         if (expr instanceof StructInitExpression si) {
@@ -1697,8 +1644,7 @@ public class StaticCheck {
             // Resolves to the specific struct template's nominal name when known
             // (e.g. NamedType("point") for `$point{...}`), falling back to the
             // generic structural Object only if the template can't be traced.
-            return templateLiteral instanceof StructExpression
-                    ? literalNodeToType(templateLiteral) : MiraType.OBJECT;
+            return templateLiteral instanceof StructExpression ? literalNodeToType(templateLiteral) : MiraType.OBJECT;
         }
         if (expr instanceof CallExpression call && call.getCallee() instanceof DumbExpression callee
                 && isIdentifier(callee)) {
@@ -1715,7 +1661,8 @@ public class StaticCheck {
         }
         if (expr instanceof MethodCallExpression mce) {
             Node literalBase = resolveLiteralBase(mce.getObject());
-            List<FuncDecl> methods = literalBase instanceof StructExpression st ? st.getMethods()
+            List<FuncDecl> methods = literalBase instanceof StructExpression st
+                    ? st.getMethods()
                     : literalBase instanceof ObjectExpression obj ? obj.getMethods() : null;
             if (methods == null) {
                 return null;
@@ -1723,7 +1670,8 @@ public class StaticCheck {
             FuncDecl method = methods.stream().filter(m -> mce.getMethod().equals(m.getName())).findFirst()
                     .orElse(null);
             return method != null && method.getReturnType() != null
-                    ? resolveTypeAnnotation(method.getReturnType()) : null;
+                    ? resolveTypeAnnotation(method.getReturnType())
+                    : null;
         }
         if (expr instanceof FieldAccessExpression fae) {
             Node fieldObject = fae.getObject();
@@ -1751,19 +1699,15 @@ public class StaticCheck {
     }
 
     /**
-     * Maps one of isKnownLiteral()'s recognized literal shapes to a MiraType,
-     * or null if not a literal.
+     * Maps one of isKnownLiteral()'s recognized literal shapes to a MiraType, or
+     * null if not a literal.
      */
     private MiraType literalNodeToType(Node n) {
         return switch (n) {
-            case ListExpression ignored ->
-                MiraType.LIST;
-            case ArrayExpression ignored ->
-                MiraType.ARRAY;
-            case MapExpression ignored ->
-                MiraType.MAP;
-            case ObjectExpression ignored ->
-                MiraType.OBJECT;
+            case ListExpression ignored -> MiraType.LIST;
+            case ArrayExpression ignored -> MiraType.ARRAY;
+            case MapExpression ignored -> MiraType.MAP;
+            case ObjectExpression ignored -> MiraType.OBJECT;
             case StructExpression st -> {
                 String name = structTemplateNames.get(st);
                 yield name != null ? new MiraType.NamedType(name) : MiraType.OBJECT;
@@ -1778,10 +1722,8 @@ public class StaticCheck {
                 literalTokenType(d);
             case UnaryExpression u when isInvertedLiteral(u) ->
                 "!".equals(u.getOperation().getLexeme()) ? MiraType.BOOL : MiraType.NUMBER;
-            case LambdaExpression lambda ->
-                functionTypeOf(lambda.getParameters(), null);
-            default ->
-                null;
+            case LambdaExpression lambda -> functionTypeOf(lambda.getParameters(), null);
+            default -> null;
         };
     }
 
@@ -1843,13 +1785,12 @@ public class StaticCheck {
     private void checkStrictAnnotations(FuncDecl fn) {
         for (Parameter p : fn.getParameters()) {
             if (p.type() == null) {
-                errors.add(new MissingTypeAnnotationError(fn.getName(),
-                        "parameter '" + p.name() + "'", fn.line, fn.nameColumn));
+                errors.add(new MissingTypeAnnotationError(fn.getName(), "parameter '" + p.name() + "'", fn.line,
+                        fn.nameColumn));
             }
         }
         if (fn.getReturnType() == null) {
-            errors.add(new MissingTypeAnnotationError(fn.getName(),
-                    "its return type", fn.line, fn.nameColumn));
+            errors.add(new MissingTypeAnnotationError(fn.getName(), "its return type", fn.line, fn.nameColumn));
         }
     }
 
@@ -1858,14 +1799,14 @@ public class StaticCheck {
     }
 
     /**
-     * Shared by every call shape that can carry typed parameters: a plain
-     * top-level function call, a method call on an object/struct instance, and
-     * calling a lambda value held in a variable - callableName is whatever
-     * reads naturally in the error message (the function's own name, the
-     * method's name, or the variable holding the lambda).
+     * Shared by every call shape that can carry typed parameters: a plain top-level
+     * function call, a method call on an object/struct instance, and calling a
+     * lambda value held in a variable - callableName is whatever reads naturally in
+     * the error message (the function's own name, the method's name, or the
+     * variable holding the lambda).
      */
-    void checkArgumentTypes(String callableName, List<Parameter> params, List<Expression> args,
-            int fallbackLine, int fallbackColumn) {
+    void checkArgumentTypes(String callableName, List<Parameter> params, List<Expression> args, int fallbackLine,
+            int fallbackColumn) {
         for (int i = 0; i < Math.min(params.size(), args.size()); i++) {
             Parameter param = params.get(i);
             if (param.type() == null) {
@@ -1880,8 +1821,8 @@ public class StaticCheck {
             int line = argNode.line > 0 ? argNode.line : fallbackLine;
             int column = expressionColumn(argNode, fallbackColumn);
             int span = expressionSpan(argNode, callableName.length());
-            checkAssignable(argNode, expected, (exp, actual) -> errors.add(
-                    new ArgumentTypeMismatchError(callableName, param.name(), exp, actual, line, column, span)));
+            checkAssignable(argNode, expected, (exp, actual) -> errors
+                    .add(new ArgumentTypeMismatchError(callableName, param.name(), exp, actual, line, column, span)));
         }
     }
 
@@ -1899,16 +1840,16 @@ public class StaticCheck {
             int column = expressionColumn(argNode, fallbackColumn);
             int span = expressionSpan(argNode, callableName.length());
             String argLabel = "#" + (i + 1);
-            checkAssignable(argNode, expectedType, (exp, act) -> errors.add(
-                    new ArgumentTypeMismatchError(callableName, argLabel, exp, act, line, column, span)));
+            checkAssignable(argNode, expectedType, (exp, act) -> errors
+                    .add(new ArgumentTypeMismatchError(callableName, argLabel, exp, act, line, column, span)));
         }
     }
 
     /**
-     * Same idea as {@link #checkArgumentTypes}, but for a call into a native
-     * lib whose signature came from a {@link NativeInterfaceManifest} rather
-     * than a Mira {@code FuncDecl} - the manifest carries only types, no
-     * parameter names, so arguments are labeled positionally ('#1', '#2', ...).
+     * Same idea as {@link #checkArgumentTypes}, but for a call into a native lib
+     * whose signature came from a {@link NativeInterfaceManifest} rather than a
+     * Mira {@code FuncDecl} - the manifest carries only types, no parameter names,
+     * so arguments are labeled positionally ('#1', '#2', ...).
      */
     private void checkNativeArgumentTypes(NamespaceCallExpression e, Signature sig) {
         List<String> paramTypes = sig.paramTypes();
@@ -1925,8 +1866,8 @@ public class StaticCheck {
             int column = expressionColumn(argNode, e.getColumn());
             int span = expressionSpan(argNode, e.getFunctionName().length());
             String argLabel = "#" + (i + 1);
-            checkAssignable(argNode, expectedType, (exp, act) -> errors.add(
-                    new ArgumentTypeMismatchError(e.getFunctionName(), argLabel, exp, act, line, column, span)));
+            checkAssignable(argNode, expectedType, (exp, act) -> errors
+                    .add(new ArgumentTypeMismatchError(e.getFunctionName(), argLabel, exp, act, line, column, span)));
         }
     }
 
@@ -1934,8 +1875,8 @@ public class StaticCheck {
         if (paramType == null || !p.hasDefault()) {
             return;
         }
-        checkAssignable(p.defaultValue(), paramType, (expected, actual) -> errors.add(
-                new TypeMismatchError(p.name(), expected, actual, p.defaultValue().line, p.column())));
+        checkAssignable(p.defaultValue(), paramType, (expected, actual) -> errors
+                .add(new TypeMismatchError(p.name(), expected, actual, p.defaultValue().line, p.column())));
     }
 
 }

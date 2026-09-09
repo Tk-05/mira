@@ -65,7 +65,8 @@ public class CompletionProviderTest {
 
         assertTrue(items.stream().anyMatch(i -> i.getLabel().equals("greet")));
         assertFalse(items.stream().anyMatch(i -> i.getLabel().startsWith("null.")));
-        // only the selected function should be suggested, not every public function in the module
+        // only the selected function should be suggested, not every public function in
+        // the module
         assertFalse(items.stream().anyMatch(i -> i.getLabel().equals("other")));
     }
 
@@ -139,8 +140,7 @@ public class CompletionProviderTest {
                 }
                 """;
         Position pos = new Position(3, 14); // "x" in "return p.x;"
-        List<CompletionItem> items = CompletionProvider.provide(parse(source), "file:///test.mira",
-                source, pos, null);
+        List<CompletionItem> items = CompletionProvider.provide(parse(source), "file:///test.mira", source, pos, null);
 
         assertTrue(items.stream().anyMatch(i -> i.getLabel().equals("x")));
         assertTrue(items.stream().anyMatch(i -> i.getLabel().equals("y")));
@@ -158,8 +158,7 @@ public class CompletionProviderTest {
                 }
                 """;
         Position pos = new Position(2, 15); // "a" in "return obj.a;"
-        List<CompletionItem> items = CompletionProvider.provide(parse(source), "file:///test.mira",
-                source, pos, null);
+        List<CompletionItem> items = CompletionProvider.provide(parse(source), "file:///test.mira", source, pos, null);
 
         assertTrue(items.stream().anyMatch(i -> i.getLabel().equals("a")));
         assertTrue(items.stream().anyMatch(i -> i.getLabel().equals("method")));
@@ -175,8 +174,7 @@ public class CompletionProviderTest {
                 }
                 """;
         Position pos = new Position(2, 18); // "RED" in "Color.RED"
-        List<CompletionItem> items = CompletionProvider.provide(parse(source), "file:///test.mira",
-                source, pos, null);
+        List<CompletionItem> items = CompletionProvider.provide(parse(source), "file:///test.mira", source, pos, null);
 
         assertTrue(items.stream().anyMatch(i -> i.getLabel().equals("RED")));
         assertTrue(items.stream().anyMatch(i -> i.getLabel().equals("GREEN")));
@@ -202,8 +200,8 @@ public class CompletionProviderTest {
         Files.writeString(mainPath, source);
 
         Position pos = new Position(2, 16); // "greet" in "lib.greet()"
-        List<CompletionItem> items = CompletionProvider.provide(parse(source), mainPath.toUri().toString(),
-                source, pos, mainPath);
+        List<CompletionItem> items = CompletionProvider.provide(parse(source), mainPath.toUri().toString(), source, pos,
+                mainPath);
 
         assertTrue(items.stream().anyMatch(i -> i.getLabel().equals("greet")));
         assertFalse(items.stream().anyMatch(i -> i.getLabel().equals("lib.greet")));
@@ -227,8 +225,8 @@ public class CompletionProviderTest {
         Files.writeString(mainPath, source);
 
         Position pos = new Position(2, 16); // "GetWidth" in "ext.GetWidth()"
-        List<CompletionItem> items = CompletionProvider.provide(parse(source), mainPath.toUri().toString(),
-                source, pos, mainPath);
+        List<CompletionItem> items = CompletionProvider.provide(parse(source), mainPath.toUri().toString(), source, pos,
+                mainPath);
 
         assertTrue(items.stream().anyMatch(i -> i.getLabel().equals("GetWidth")));
         assertFalse(items.stream().anyMatch(i -> i.getLabel().equals("ext.GetWidth")));
@@ -242,8 +240,7 @@ public class CompletionProviderTest {
                 }
                 """;
         Position pos = new Position(1, 12); // inside "return 1;" - not a field access
-        List<CompletionItem> items = CompletionProvider.provide(parse(source), "file:///test.mira",
-                source, pos, null);
+        List<CompletionItem> items = CompletionProvider.provide(parse(source), "file:///test.mira", source, pos, null);
 
         assertTrue(items.stream().anyMatch(i -> i.getLabel().equals("Number")));
         assertTrue(items.stream().anyMatch(i -> i.getLabel().equals("main")));

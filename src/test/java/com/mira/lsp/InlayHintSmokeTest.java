@@ -20,10 +20,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import org.junit.jupiter.api.Test;
 
 /**
- * Drives inlayHint through the real
- * {@link LspServer} -> {@link DocumentService} wiring (didOpen -> request),
- * matching HoverCompletionSmokeTest's rationale: catches wiring bugs a direct
- * provider call can't see.
+ * Drives inlayHint through the real {@link LspServer} ->
+ * {@link DocumentService} wiring (didOpen -> request), matching
+ * HoverCompletionSmokeTest's rationale: catches wiring bugs a direct provider
+ * call can't see.
  */
 public class InlayHintSmokeTest {
 

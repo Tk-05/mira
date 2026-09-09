@@ -95,12 +95,9 @@ public class Collection implements Lib {
 
     private static List<Expression> toMembers(Object arg) {
         return switch (arg) {
-            case ArrayExpression a ->
-                new ArrayList<>(a.getMembers());
-            case ListExpression l ->
-                new ArrayList<>(l.getMembers());
-            default ->
-                throw new RuntimeException("Expected array or list, got: " + arg.getClass().getSimpleName());
+            case ArrayExpression a -> new ArrayList<>(a.getMembers());
+            case ListExpression l -> new ArrayList<>(l.getMembers());
+            default -> throw new RuntimeException("Expected array or list, got: " + arg.getClass().getSimpleName());
         };
     }
 
@@ -191,12 +188,9 @@ public class Collection implements Lib {
             List<Expression> result = new ArrayList<>();
             for (Expression e : toMembers(args.get(0))) {
                 switch (e) {
-                    case ArrayExpression inner ->
-                        result.addAll(inner.getMembers());
-                    case ListExpression inner ->
-                        result.addAll(inner.getMembers());
-                    default ->
-                        result.add(e);
+                    case ArrayExpression inner -> result.addAll(inner.getMembers());
+                    case ListExpression inner -> result.addAll(inner.getMembers());
+                    default -> result.add(e);
                 }
             }
             return new ListExpression(result);
@@ -561,7 +555,8 @@ public class Collection implements Lib {
         environment.define("drop", new NativeFunction(2, "col, n", args -> {
             List<Expression> members = toMembers(args.get(0));
             int n = (int) Double.parseDouble(String.valueOf(args.get(1)));
-            return new ListExpression(new ArrayList<>(members.subList(java.lang.Math.min(n, members.size()), members.size())));
+            return new ListExpression(
+                    new ArrayList<>(members.subList(java.lang.Math.min(n, members.size()), members.size())));
         }));
 
         environment.define("chunk", new NativeFunction(2, "col, size", args -> {
@@ -572,7 +567,8 @@ public class Collection implements Lib {
             }
             List<Expression> result = new ArrayList<>();
             for (int i = 0; i < members.size(); i += size) {
-                result.add(new ListExpression(new ArrayList<>(members.subList(i, java.lang.Math.min(i + size, members.size())))));
+                result.add(new ListExpression(
+                        new ArrayList<>(members.subList(i, java.lang.Math.min(i + size, members.size())))));
             }
             return new ListExpression(result);
         }));

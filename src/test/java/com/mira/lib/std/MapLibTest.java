@@ -213,7 +213,8 @@ public class MapLibTest {
 
     private static com.mira.parser.nodes.expression.Expression.ListExpression makeListExpr(String... vals) {
         java.util.List<com.mira.parser.nodes.expression.Expression> members = new java.util.ArrayList<>();
-        for (String v : vals) members.add(wrap(v));
+        for (String v : vals)
+            members.add(wrap(v));
         return new com.mira.parser.nodes.expression.Expression.ListExpression(members);
     }
 }

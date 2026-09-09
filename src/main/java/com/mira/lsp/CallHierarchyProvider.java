@@ -90,12 +90,12 @@ public class CallHierarchyProvider {
             if (n instanceof CallExpression e && e.getCallee() instanceof DumbExpression d) {
                 resolveDirectTarget(ast, sourcePath, d.getValue(), workspaceIndex, openDocumentsByUri)
                         .ifPresent(t -> addOutgoingHit(itemByKey, rangesByKey, t,
-                        rangeOf(d.getLine(), d.getColumn(), d.getValue().length())));
+                                rangeOf(d.getLine(), d.getColumn(), d.getValue().length())));
             } else if (n instanceof NamespaceCallExpression nce) {
                 resolveNamespacedTarget(ast, sourcePath, nce.getAlias(), nce.getFunctionName(), workspaceIndex,
                         openDocumentsByUri)
                         .ifPresent(t -> addOutgoingHit(itemByKey, rangesByKey, t,
-                        rangeOf(nce.getLine(), nce.getColumn(), nce.getFunctionName().length())));
+                                rangeOf(nce.getLine(), nce.getColumn(), nce.getFunctionName().length())));
             }
             AstWalker.children(n, queue);
         }
@@ -175,8 +175,8 @@ public class CallHierarchyProvider {
     private static void collectDirectCallers(List<Node> ast, String targetName, String uri, String content,
             List<Hit> out) {
         walkWithEnclosingFunc(ast, (node, enclosing) -> {
-            if (enclosing != null && node instanceof CallExpression e
-                    && e.getCallee() instanceof DumbExpression d && targetName.equals(d.getValue())) {
+            if (enclosing != null && node instanceof CallExpression e && e.getCallee() instanceof DumbExpression d
+                    && targetName.equals(d.getValue())) {
                 out.add(new Hit(enclosing, uri, content, rangeOf(d.getLine(), d.getColumn(), targetName.length())));
             }
         });
@@ -185,8 +185,8 @@ public class CallHierarchyProvider {
     private static void collectQualifiedCallers(List<Node> ast, String alias, String targetName, String uri,
             String content, List<Hit> out) {
         walkWithEnclosingFunc(ast, (node, enclosing) -> {
-            if (enclosing != null && node instanceof NamespaceCallExpression nce
-                    && alias.equals(nce.getAlias()) && targetName.equals(nce.getFunctionName())) {
+            if (enclosing != null && node instanceof NamespaceCallExpression nce && alias.equals(nce.getAlias())
+                    && targetName.equals(nce.getFunctionName())) {
                 out.add(new Hit(enclosing, uri, content, rangeOf(nce.getLine(), nce.getColumn(), targetName.length())));
             }
         });
@@ -200,9 +200,9 @@ public class CallHierarchyProvider {
                     workspaceIndex.getSource(callerPath, openDocumentsByUri)));
         }
         for (Node n : callerAst) {
-            if (n instanceof ImportExpression imp && imp.getKind() == ImportKind.MODULE
-                    && imp.getNamespace() == null && imp.isSelective()
-                    && imp.getSelectedFunctions() != null && imp.getSelectedFunctions().contains(name)) {
+            if (n instanceof ImportExpression imp && imp.getKind() == ImportKind.MODULE && imp.getNamespace() == null
+                    && imp.isSelective() && imp.getSelectedFunctions() != null
+                    && imp.getSelectedFunctions().contains(name)) {
                 Path modPath = ModuleResolver.resolveModulePath(imp.getModule(), callerPath);
                 FuncDecl found = findFuncDeclByName(workspaceIndex.getAst(modPath, openDocumentsByUri), name);
                 if (found != null) {

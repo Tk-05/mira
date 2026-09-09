@@ -14,10 +14,14 @@ public class WhileTest extends AbstractWhileTests {
     private final InterpreterRunner backend = new InterpreterRunner();
 
     @BeforeEach
-    void setup() { backend.reset(); }
+    void setup() {
+        backend.reset();
+    }
 
     @Override
-    protected String runForOutput(String source) { return backend.run(source); }
+    protected String runForOutput(String source) {
+        return backend.run(source);
+    }
 
     @Test
     void simpleWhile() {

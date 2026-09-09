@@ -95,8 +95,8 @@ public class ParserTest {
 
     @Test
     void funcDeclParsesParamTypesAndReturnType() {
-        List<Node> ast = parser.parseTokens(
-                tokenizer.tokenize("fn add(a : Int, b : Int : 0) -> Int { return 1; }", false));
+        List<Node> ast = parser
+                .parseTokens(tokenizer.tokenize("fn add(a : Int, b : Int : 0) -> Int { return 1; }", false));
         Statement.FuncDecl decl = (Statement.FuncDecl) ast.getFirst();
 
         assertNotNull(decl.getReturnType());
@@ -111,8 +111,8 @@ public class ParserTest {
 
     @Test
     void funcDeclParsesFunctionTypeParam() {
-        List<Node> ast = parser.parseTokens(
-                tokenizer.tokenize("fn apply(cb : Fn(Number, Number) -> Number) { return 1; }", false));
+        List<Node> ast = parser
+                .parseTokens(tokenizer.tokenize("fn apply(cb : Fn(Number, Number) -> Number) { return 1; }", false));
         Statement.FuncDecl decl = (Statement.FuncDecl) ast.getFirst();
 
         var type = decl.getParameters().get(0).type();
@@ -308,8 +308,8 @@ public class ParserTest {
     @Test
     void parseReturn() {
         String retStmt = """
-                return;
-""";
+                                return;
+                """;
         List<Node> ast = parser.parseTokens(tokenizer.tokenize(retStmt, false));
         assertEquals(1, ast.size());
         assertInstanceOf(Statement.Return.class, ast.getFirst());
@@ -388,8 +388,7 @@ public class ParserTest {
 
     @Test
     void parseForWithoutBraces() {
-        List<Node> ast = parser.parseTokens(tokenizer.tokenize(
-                "for (var i : 0; i < 10; i : (i + 1)) foo();", false));
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize("for (var i : 0; i < 10; i : (i + 1)) foo();", false));
         Loop forStmt = assertInstanceOf(Loop.class, ast.getFirst());
         assertFalse(forStmt.isForeach());
         assertEquals(1, forStmt.getBody().size());
@@ -397,8 +396,7 @@ public class ParserTest {
 
     @Test
     void parseForeachWithoutBraces() {
-        List<Node> ast = parser.parseTokens(tokenizer.tokenize(
-                "for (var x in list) foo();", false));
+        List<Node> ast = parser.parseTokens(tokenizer.tokenize("for (var x in list) foo();", false));
         Loop foreachStmt = assertInstanceOf(Loop.class, ast.getFirst());
         assertTrue(foreachStmt.isForeach());
         assertEquals(1, foreachStmt.getBody().size());
@@ -454,8 +452,8 @@ public class ParserTest {
     @Test
     void parseBreak() {
         String breakStmt = """
-                break;
-""";
+                                break;
+                """;
         List<Node> ast = parser.parseTokens(tokenizer.tokenize(breakStmt, false));
         assertEquals(1, ast.size());
         assertInstanceOf(Break.class, ast.getFirst());

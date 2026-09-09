@@ -27,12 +27,9 @@ public class SetLib implements Lib {
 
     private static List<Expression> toMembers(Object arg) {
         return switch (arg) {
-            case ArrayExpression a ->
-                new ArrayList<>(a.getMembers());
-            case ListExpression l ->
-                new ArrayList<>(l.getMembers());
-            default ->
-                throw new RuntimeException("Expected list (set), got: " + arg.getClass().getSimpleName());
+            case ArrayExpression a -> new ArrayList<>(a.getMembers());
+            case ListExpression l -> new ArrayList<>(l.getMembers());
+            default -> throw new RuntimeException("Expected list (set), got: " + arg.getClass().getSimpleName());
         };
     }
 
@@ -55,8 +52,7 @@ public class SetLib implements Lib {
     @Override
     public void loadLib(Environment environment) {
 
-        environment.define("newSet", new NativeFunction(0, args
-                -> new ListExpression(new ArrayList<>())));
+        environment.define("newSet", new NativeFunction(0, args -> new ListExpression(new ArrayList<>())));
 
         environment.define("add", new NativeFunction(2, "set, value", args -> {
             LinkedHashSet<String> set = toSet(args.get(0));
@@ -70,11 +66,10 @@ public class SetLib implements Lib {
             return fromSet(set);
         }));
 
-        environment.define("has", new NativeFunction(2, "set, value", args
-                -> toSet(args.get(0)).contains(String.valueOf(args.get(1)))));
+        environment.define("has",
+                new NativeFunction(2, "set, value", args -> toSet(args.get(0)).contains(String.valueOf(args.get(1)))));
 
-        environment.define("size", new NativeFunction(1, "set", args
-                -> (double) toSet(args.get(0)).size()));
+        environment.define("size", new NativeFunction(1, "set", args -> (double) toSet(args.get(0)).size()));
 
         environment.define("union", new NativeFunction(2, "set1, set2", args -> {
             LinkedHashSet<String> set = toSet(args.get(0));
@@ -95,10 +90,8 @@ public class SetLib implements Lib {
             return fromSet(set);
         }));
 
-        environment.define("toList", new NativeFunction(1, "set", args
-                -> fromSet(toSet(args.get(0)))));
+        environment.define("toList", new NativeFunction(1, "set", args -> fromSet(toSet(args.get(0)))));
 
-        environment.define("fromList", new NativeFunction(1, "list", args
-                -> fromSet(toSet(args.get(0)))));
+        environment.define("fromList", new NativeFunction(1, "list", args -> fromSet(toSet(args.get(0)))));
     }
 }

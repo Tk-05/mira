@@ -31,8 +31,8 @@ public class DocumentHighlightProviderTest {
                 }
                 """;
         Position pos = new Position(1, 9); // "sum" in "var sum : a + b;"
-        List<DocumentHighlight> highlights = DocumentHighlightProvider.provide(
-                parse(source), source, pos, "file:///test.mira");
+        List<DocumentHighlight> highlights = DocumentHighlightProvider.provide(parse(source), source, pos,
+                "file:///test.mira");
         assertEquals(2, highlights.size());
     }
 
@@ -49,8 +49,8 @@ public class DocumentHighlightProviderTest {
                 }
                 """;
         Position pos = new Position(6, 17); // "size" in "obj.size" (real field access)
-        List<DocumentHighlight> highlights = DocumentHighlightProvider.provide(
-                parse(source), source, pos, "file:///test.mira");
+        List<DocumentHighlight> highlights = DocumentHighlightProvider.provide(parse(source), source, pos,
+                "file:///test.mira");
         assertEquals(1, highlights.size());
         assertEquals(6, highlights.get(0).getRange().getStart().getLine());
     }
@@ -77,8 +77,8 @@ public class DocumentHighlightProviderTest {
         Files.writeString(mainPath, mainSource);
 
         Position pos = new Position(2, 15); // "helper" in "lib.helper()"
-        List<DocumentHighlight> highlights = DocumentHighlightProvider.provide(
-                parse(mainSource), mainSource, pos, mainPath.toUri().toString());
+        List<DocumentHighlight> highlights = DocumentHighlightProvider.provide(parse(mainSource), mainSource, pos,
+                mainPath.toUri().toString());
         assertTrue(highlights.size() <= 1);
     }
 }

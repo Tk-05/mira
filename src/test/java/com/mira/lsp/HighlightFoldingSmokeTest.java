@@ -76,8 +76,7 @@ public class HighlightFoldingSmokeTest {
         DocumentHighlightParams hp = new DocumentHighlightParams();
         hp.setTextDocument(new TextDocumentIdentifier(uri));
         hp.setPosition(new Position(1, 9)); // "sum" in "var sum : a + b;"
-        List<? extends DocumentHighlight> highlights = server.getTextDocumentService()
-                .documentHighlight(hp).join();
+        List<? extends DocumentHighlight> highlights = server.getTextDocumentService().documentHighlight(hp).join();
         assertEquals(2, highlights.size());
 
         FoldingRangeRequestParams fp = new FoldingRangeRequestParams();

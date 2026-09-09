@@ -68,9 +68,8 @@ public class LspServer implements LanguageServer, LanguageClientAware {
         caps.setCodeActionProvider(new CodeActionOptions(List.of(CodeActionKind.QuickFix)));
         caps.setCodeLensProvider(new CodeLensOptions(false));
         SemanticTokensWithRegistrationOptions semTokenOpts = new SemanticTokensWithRegistrationOptions();
-        semTokenOpts.setLegend(new SemanticTokensLegend(
-                SemanticTokenProvider.TOKEN_TYPES,
-                SemanticTokenProvider.TOKEN_MODIFIERS));
+        semTokenOpts.setLegend(
+                new SemanticTokensLegend(SemanticTokenProvider.TOKEN_TYPES, SemanticTokenProvider.TOKEN_MODIFIERS));
         semTokenOpts.setFull(true);
         semTokenOpts.setRange(true);
         caps.setSemanticTokensProvider(semTokenOpts);
@@ -80,9 +79,9 @@ public class LspServer implements LanguageServer, LanguageClientAware {
 
     /**
      * Without this, WorkspaceIndex's cached file list (allMiraFiles) is never
-     * invalidated when a .mira file is created or deleted on disk outside an
-     * open editor buffer, since didChangeWatchedFiles notifications only arrive
-     * once the server has asked the client to send them.
+     * invalidated when a .mira file is created or deleted on disk outside an open
+     * editor buffer, since didChangeWatchedFiles notifications only arrive once the
+     * server has asked the client to send them.
      */
     private void registerFileWatcherIfSupported(InitializeParams params) {
         var workspaceCaps = params.getCapabilities() != null ? params.getCapabilities().getWorkspace() : null;
@@ -92,8 +91,8 @@ public class LspServer implements LanguageServer, LanguageClientAware {
             return;
         }
         FileSystemWatcher watcher = new FileSystemWatcher(Either.forLeft("**/*.mira"));
-        DidChangeWatchedFilesRegistrationOptions options
-                = new DidChangeWatchedFilesRegistrationOptions(List.of(watcher));
+        DidChangeWatchedFilesRegistrationOptions options = new DidChangeWatchedFilesRegistrationOptions(
+                List.of(watcher));
         Registration registration = new Registration("mira-file-watcher", "workspace/didChangeWatchedFiles", options);
         client.registerCapability(new RegistrationParams(List.of(registration)));
     }

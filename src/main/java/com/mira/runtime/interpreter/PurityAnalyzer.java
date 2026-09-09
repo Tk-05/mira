@@ -64,8 +64,7 @@ public class PurityAnalyzer {
         while (changed) {
             changed = false;
             for (Map.Entry<String, FuncDecl> entry : functions.entrySet()) {
-                if (pure.contains(entry.getKey())
-                        && !isBodyPure(entry.getValue().getBody(), pure, aliasToLib)) {
+                if (pure.contains(entry.getKey()) && !isBodyPure(entry.getValue().getBody(), pure, aliasToLib)) {
                     pure.remove(entry.getKey());
                     changed = true;
                 }
@@ -86,86 +85,58 @@ public class PurityAnalyzer {
 
     private static boolean isNodePure(Node node, Set<String> pure, Map<String, String> aliasToLib) {
         return switch (node) {
-            case CallExpression call ->
-                isCallPure(call, pure);
+            case CallExpression call -> isCallPure(call, pure);
             case NamespaceCallExpression ns ->
                 !IMPURE_NAMESPACES.contains(aliasToLib.getOrDefault(ns.getAlias(), ns.getAlias()));
             case BinaryExpression bin ->
-                isNodePure(bin.getLeft(), pure, aliasToLib)
-                && isNodePure(bin.getRight(), pure, aliasToLib);
-            case UnaryExpression u ->
-                u.getRight() == null || isNodePure(u.getRight(), pure, aliasToLib);
-            case ComplexExpression c ->
-                c.getExpressions().stream().allMatch(e -> isNodePure(e, pure, aliasToLib));
-            case ArrayExpression a ->
-                a.getMembers().stream().allMatch(e -> isNodePure(e, pure, aliasToLib));
-            case ListExpression l ->
-                l.getMembers().stream().allMatch(e -> isNodePure(e, pure, aliasToLib));
+                isNodePure(bin.getLeft(), pure, aliasToLib) && isNodePure(bin.getRight(), pure, aliasToLib);
+            case UnaryExpression u -> u.getRight() == null || isNodePure(u.getRight(), pure, aliasToLib);
+            case ComplexExpression c -> c.getExpressions().stream().allMatch(e -> isNodePure(e, pure, aliasToLib));
+            case ArrayExpression a -> a.getMembers().stream().allMatch(e -> isNodePure(e, pure, aliasToLib));
+            case ListExpression l -> l.getMembers().stream().allMatch(e -> isNodePure(e, pure, aliasToLib));
             // Arrays/lists/objects are mutable references; the call-result cache keys on
             // argument identity, so a function reading through one isn't safely cacheable
             // even if its own body has no side effects (contents can change between calls).
-            case AccessExpression a ->
-                false;
-            case FieldAccessExpression f ->
-                false;
-            case MethodCallExpression m ->
-                false;
-            case AwaitExpression a ->
-                false;
-            case ObjectExpression o ->
-                o.getVarDecls().stream()
-                .allMatch(v -> v.getInitializer() == null || isNodePure(v.getInitializer(), pure, aliasToLib))
-                && o.getMethods().stream().allMatch(m -> isBodyPure(m.getBody(), pure, aliasToLib));
-            case StructExpression s ->
-                s.getVarDecls().stream()
-                .allMatch(v -> v.getInitializer() == null || isNodePure(v.getInitializer(), pure, aliasToLib))
-                && s.getMethods().stream().allMatch(m -> isBodyPure(m.getBody(), pure, aliasToLib));
-            case StructInitExpression si ->
-                isNodePure(si.getTarget(), pure, aliasToLib)
-                && si.getOverrides().values().stream().allMatch(v -> isNodePure(v, pure, aliasToLib));
-            case AssignExpression ae ->
-                false;
-            case LambdaExpression lam ->
-                isBodyPure(lam.getBody(), pure, aliasToLib);
-            case RangeExpression r ->
-                true;
-            case DumbExpression d2 ->
-                true;
+            case AccessExpression a -> false;
+            case FieldAccessExpression f -> false;
+            case MethodCallExpression m -> false;
+            case AwaitExpression a -> false;
+            case ObjectExpression o -> o.getVarDecls().stream()
+                    .allMatch(v -> v.getInitializer() == null || isNodePure(v.getInitializer(), pure, aliasToLib))
+                    && o.getMethods().stream().allMatch(m -> isBodyPure(m.getBody(), pure, aliasToLib));
+            case StructExpression s -> s.getVarDecls().stream()
+                    .allMatch(v -> v.getInitializer() == null || isNodePure(v.getInitializer(), pure, aliasToLib))
+                    && s.getMethods().stream().allMatch(m -> isBodyPure(m.getBody(), pure, aliasToLib));
+            case StructInitExpression si -> isNodePure(si.getTarget(), pure, aliasToLib)
+                    && si.getOverrides().values().stream().allMatch(v -> isNodePure(v, pure, aliasToLib));
+            case AssignExpression ae -> false;
+            case LambdaExpression lam -> isBodyPure(lam.getBody(), pure, aliasToLib);
+            case RangeExpression r -> true;
+            case DumbExpression d2 -> true;
 
             case If stmt ->
-                isNodePure(stmt.getCondition(), pure, aliasToLib)
-                && isBodyPure(stmt.getThenBody(), pure, aliasToLib)
-                && (stmt.getElseBody() == null || isBodyPure(stmt.getElseBody(), pure, aliasToLib));
-            case Loop stmt ->
-                stmt.isForeach()
-                ? isBodyPure(stmt.getBody(), pure, aliasToLib)
-                : (stmt.getCondition() == null || isNodePure(stmt.getCondition(), pure, aliasToLib))
-                && isBodyPure(stmt.getVarDecls(), pure, aliasToLib)
-                && isBodyPure(stmt.getPostExpressions(), pure, aliasToLib)
-                && isBodyPure(stmt.getBody(), pure, aliasToLib);
+                isNodePure(stmt.getCondition(), pure, aliasToLib) && isBodyPure(stmt.getThenBody(), pure, aliasToLib)
+                        && (stmt.getElseBody() == null || isBodyPure(stmt.getElseBody(), pure, aliasToLib));
+            case Loop stmt -> stmt.isForeach()
+                    ? isBodyPure(stmt.getBody(), pure, aliasToLib)
+                    : (stmt.getCondition() == null || isNodePure(stmt.getCondition(), pure, aliasToLib))
+                            && isBodyPure(stmt.getVarDecls(), pure, aliasToLib)
+                            && isBodyPure(stmt.getPostExpressions(), pure, aliasToLib)
+                            && isBodyPure(stmt.getBody(), pure, aliasToLib);
             case While stmt ->
-                isNodePure(stmt.getCondition(), pure, aliasToLib)
-                && isBodyPure(stmt.getBody(), pure, aliasToLib);
-            case Block stmt ->
-                isBodyPure(stmt.getBody(), pure, aliasToLib);
-            case TryCatch stmt ->
-                isBodyPure(stmt.getTryBody(), pure, aliasToLib)
-                && stmt.getCatchClauses().stream().allMatch(c -> isBodyPure(c.getBody(), pure, aliasToLib));
-            case Switch stmt ->
-                isNodePure(stmt.getSubject(), pure, aliasToLib)
-                && stmt.getCases().stream().allMatch(c -> isBodyPure(c.getBody(), pure, aliasToLib))
-                && (stmt.getDefaultBody() == null || isBodyPure(stmt.getDefaultBody(), pure, aliasToLib));
-            case Return ret ->
-                ret.getValue() == null || isNodePure(ret.getValue(), pure, aliasToLib);
-            case VarDecl v ->
-                v.getInitializer() == null || isNodePure(v.getInitializer(), pure, aliasToLib);
-            case Assign a ->
-                isNodePure(a.getExpression(), pure, aliasToLib);
-            case Throw t ->
-                isNodePure(t.getValue(), pure, aliasToLib);
+                isNodePure(stmt.getCondition(), pure, aliasToLib) && isBodyPure(stmt.getBody(), pure, aliasToLib);
+            case Block stmt -> isBodyPure(stmt.getBody(), pure, aliasToLib);
+            case TryCatch stmt -> isBodyPure(stmt.getTryBody(), pure, aliasToLib)
+                    && stmt.getCatchClauses().stream().allMatch(c -> isBodyPure(c.getBody(), pure, aliasToLib));
+            case Switch stmt -> isNodePure(stmt.getSubject(), pure, aliasToLib)
+                    && stmt.getCases().stream().allMatch(c -> isBodyPure(c.getBody(), pure, aliasToLib))
+                    && (stmt.getDefaultBody() == null || isBodyPure(stmt.getDefaultBody(), pure, aliasToLib));
+            case Return ret -> ret.getValue() == null || isNodePure(ret.getValue(), pure, aliasToLib);
+            case VarDecl v -> v.getInitializer() == null || isNodePure(v.getInitializer(), pure, aliasToLib);
+            case Assign a -> isNodePure(a.getExpression(), pure, aliasToLib);
+            case Throw t -> isNodePure(t.getValue(), pure, aliasToLib);
 
-            default ->
-                true;
+            default -> true;
         };
     }
 

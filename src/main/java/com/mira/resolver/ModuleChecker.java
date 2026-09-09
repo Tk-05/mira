@@ -28,28 +28,28 @@ public final class ModuleChecker {
     /**
      * tokenizeNanos/parseNanos are captured at the one real, load-bearing
      * tokenize+parse for this module (not a throwaway remeasurement for display
-     * purposes) - by the time any consumer re-tokenizes/re-parses the same
-     * source again later in the run, the JIT has already warmed up on this
-     * exact code path and the numbers stop being representative.
+     * purposes) - by the time any consumer re-tokenizes/re-parses the same source
+     * again later in the run, the JIT has already warmed up on this exact code path
+     * and the numbers stop being representative.
      */
-    public record ParsedModule(Path path, List<Node> ast, String source,
-            int tokenCount, long tokenizeNanos, long parseNanos) {
+    public record ParsedModule(Path path, List<Node> ast, String source, int tokenCount, long tokenizeNanos,
+            long parseNanos) {
 
     }
 
     /**
-     * hadErrors/checkTimingsMs come from the actual per-module static-check
-     * pass; modules is the same ParsedModule set that pass already parsed,
-     * exposed so callers (e.g. --stats) can read real tokenize/parse timing and
-     * size info off it instead of re-parsing every module a second time.
-     * warningCount is tallied module-by-module as each one is flushed - this
-     * loop already calls WarningCollector.flush() per module (so warnings print
-     * as each module is checked, not batched to the end), which drains the
-     * collector; a caller reading WarningCollector.getWarnings().size() only
-     * after this method returns would always see 0.
+     * hadErrors/checkTimingsMs come from the actual per-module static-check pass;
+     * modules is the same ParsedModule set that pass already parsed, exposed so
+     * callers (e.g. --stats) can read real tokenize/parse timing and size info off
+     * it instead of re-parsing every module a second time. warningCount is tallied
+     * module-by-module as each one is flushed - this loop already calls
+     * WarningCollector.flush() per module (so warnings print as each module is
+     * checked, not batched to the end), which drains the collector; a caller
+     * reading WarningCollector.getWarnings().size() only after this method returns
+     * would always see 0.
      */
-    public record ModuleCheckResult(boolean hadErrors, Map<Path, Long> checkTimingsMs,
-            Map<Path, ParsedModule> modules, int warningCount) {
+    public record ModuleCheckResult(boolean hadErrors, Map<Path, Long> checkTimingsMs, Map<Path, ParsedModule> modules,
+            int warningCount) {
 
     }
 
@@ -99,9 +99,7 @@ public final class ModuleChecker {
             } catch (MultipleStaticCheckErrors mse) {
                 warningCount += WarningCollector.getWarnings().size();
                 WarningCollector.flush();
-                mse.getErrors().stream()
-                        .map(DiagnosticFormatter::format)
-                        .forEach(pendingErrors::add);
+                mse.getErrors().stream().map(DiagnosticFormatter::format).forEach(pendingErrors::add);
                 hadErrors = true;
             } catch (Exception ignored) {
             } finally {
@@ -121,8 +119,7 @@ public final class ModuleChecker {
         return graph;
     }
 
-    private static void collectDeps(List<Node> ast, Path parentPath,
-            Map<Path, List<Path>> graph, Set<Path> visited) {
+    private static void collectDeps(List<Node> ast, Path parentPath, Map<Path, List<Path>> graph, Set<Path> visited) {
         List<Path> directImports = new ArrayList<>();
         for (Node node : ast) {
             if (!(node instanceof ImportExpression imp) || imp.getKind() != ImportKind.MODULE) {
@@ -143,8 +140,8 @@ public final class ModuleChecker {
         graph.put(parentPath, directImports);
     }
 
-    private static void collectAllModules(List<Node> ast, Path parentPath,
-            Map<Path, ParsedModule> out, Set<Path> visited, List<String> syntaxErrors) {
+    private static void collectAllModules(List<Node> ast, Path parentPath, Map<Path, ParsedModule> out,
+            Set<Path> visited, List<String> syntaxErrors) {
         for (Node node : ast) {
             if (!(node instanceof ImportExpression imp) || imp.getKind() != ImportKind.MODULE) {
                 continue;
@@ -170,8 +167,8 @@ public final class ModuleChecker {
                 long parseStart = System.nanoTime();
                 List<Node> moduleAst = new Parser().parseTokens(moduleTokens);
                 long parseNanos = System.nanoTime() - parseStart;
-                out.put(modulePath, new ParsedModule(modulePath, moduleAst, source,
-                        moduleTokens.size(), tokenizeNanos, parseNanos));
+                out.put(modulePath, new ParsedModule(modulePath, moduleAst, source, moduleTokens.size(), tokenizeNanos,
+                        parseNanos));
                 collectAllModules(moduleAst, modulePath, out, visited, syntaxErrors);
             } catch (MultipleLexerErrors mle) {
                 mle.getErrors().stream().map(DiagnosticFormatter::format).forEach(syntaxErrors::add);

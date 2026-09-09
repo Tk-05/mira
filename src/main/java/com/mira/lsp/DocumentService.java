@@ -141,8 +141,8 @@ public class DocumentService implements TextDocumentService {
     /**
      * Cancels any not-yet-run reanalysis and schedules a fresh one after
      * {@code delayMs} on the single diagnostics thread - so a burst of edits
-     * collapses into one check after the user actually pauses, instead of one
-     * full workspace check per keystroke.
+     * collapses into one check after the user actually pauses, instead of one full
+     * workspace check per keystroke.
      */
     private void scheduleReanalysis(long delayMs) {
         ScheduledFuture<?> pending = pendingDiagnostics;
@@ -199,8 +199,8 @@ public class DocumentService implements TextDocumentService {
         List<Node> ast = astCache.getOrDefault(uri, List.of());
         String content = documents.getOrDefault(uri, "");
         Path docPath = uriToPath(uri);
-        List<Either<Command, CodeAction>> actions = CodeActionProvider.provide(params, ast, uri, content,
-                docPath, workspaceIndex, workspaceRoot, documents);
+        List<Either<Command, CodeAction>> actions = CodeActionProvider.provide(params, ast, uri, content, docPath,
+                workspaceIndex, workspaceRoot, documents);
         return CompletableFuture.completedFuture(actions);
     }
 
@@ -219,8 +219,8 @@ public class DocumentService implements TextDocumentService {
         List<Node> ast = astCache.getOrDefault(uri, List.of());
         String content = documents.getOrDefault(uri, "");
         Path docPath = uriToPath(uri);
-        SignatureHelp help = SignatureHelpProvider.provide(ast, content, params.getPosition(),
-                docPath, workspaceIndex, documents);
+        SignatureHelp help = SignatureHelpProvider.provide(ast, content, params.getPosition(), docPath, workspaceIndex,
+                documents);
         return CompletableFuture.completedFuture(help);
     }
 
@@ -239,8 +239,8 @@ public class DocumentService implements TextDocumentService {
         String uri = params.getTextDocument().getUri();
         List<Node> ast = astCache.getOrDefault(uri, List.of());
         String content = documents.getOrDefault(uri, "");
-        Hover hover = HoverProvider.provide(ast, content, params.getPosition(), uriToPath(uri),
-                workspaceIndex, documents);
+        Hover hover = HoverProvider.provide(ast, content, params.getPosition(), uriToPath(uri), workspaceIndex,
+                documents);
         return CompletableFuture.completedFuture(hover);
     }
 
@@ -271,21 +271,22 @@ public class DocumentService implements TextDocumentService {
     @Override
     public CompletableFuture<List<CallHierarchyIncomingCall>> callHierarchyIncomingCalls(
             CallHierarchyIncomingCallsParams params) {
-        List<CallHierarchyIncomingCall> calls = CallHierarchyProvider.incomingCalls(params.getItem(),
-                workspaceIndex, workspaceRoot, documents);
+        List<CallHierarchyIncomingCall> calls = CallHierarchyProvider.incomingCalls(params.getItem(), workspaceIndex,
+                workspaceRoot, documents);
         return CompletableFuture.completedFuture(calls);
     }
 
     @Override
     public CompletableFuture<List<CallHierarchyOutgoingCall>> callHierarchyOutgoingCalls(
             CallHierarchyOutgoingCallsParams params) {
-        List<CallHierarchyOutgoingCall> calls = CallHierarchyProvider.outgoingCalls(params.getItem(),
-                workspaceIndex, documents);
+        List<CallHierarchyOutgoingCall> calls = CallHierarchyProvider.outgoingCalls(params.getItem(), workspaceIndex,
+                documents);
         return CompletableFuture.completedFuture(calls);
     }
 
     @Override
-    public CompletableFuture<Either<List<? extends Location>, List<? extends LocationLink>>> definition(DefinitionParams params) {
+    public CompletableFuture<Either<List<? extends Location>, List<? extends LocationLink>>> definition(
+            DefinitionParams params) {
         String uri = params.getTextDocument().getUri();
         List<Node> ast = astCache.getOrDefault(uri, List.of());
         String content = documents.getOrDefault(uri, "");
@@ -301,8 +302,8 @@ public class DocumentService implements TextDocumentService {
         String content = documents.getOrDefault(uri, "");
         Path docPath = uriToPath(uri);
         boolean includeDeclaration = params.getContext() != null && params.getContext().isIncludeDeclaration();
-        List<Location> result = ReferenceProvider.provide(ast, content, params.getPosition(), uri,
-                docPath, workspaceIndex, workspaceRoot, documents, includeDeclaration);
+        List<Location> result = ReferenceProvider.provide(ast, content, params.getPosition(), uri, docPath,
+                workspaceIndex, workspaceRoot, documents, includeDeclaration);
         return CompletableFuture.completedFuture(result);
     }
 
@@ -329,10 +330,11 @@ public class DocumentService implements TextDocumentService {
         List<Node> ast = astCache.getOrDefault(uri, List.of());
         String content = documents.getOrDefault(uri, "");
         Path docPath = uriToPath(uri);
-        Range range = RenameProvider.prepareRename(ast, content, params.getPosition(), uri,
-                docPath, workspaceIndex, workspaceRoot, documents);
-        Either3<Range, PrepareRenameResult, PrepareRenameDefaultBehavior> result
-                = range != null ? Either3.forFirst(range) : null;
+        Range range = RenameProvider.prepareRename(ast, content, params.getPosition(), uri, docPath, workspaceIndex,
+                workspaceRoot, documents);
+        Either3<Range, PrepareRenameResult, PrepareRenameDefaultBehavior> result = range != null
+                ? Either3.forFirst(range)
+                : null;
         return CompletableFuture.completedFuture(result);
     }
 
@@ -343,8 +345,8 @@ public class DocumentService implements TextDocumentService {
         String content = documents.getOrDefault(uri, "");
         Path docPath = uriToPath(uri);
         try {
-            WorkspaceEdit edit = RenameProvider.rename(ast, content, params.getPosition(), uri,
-                    docPath, workspaceIndex, workspaceRoot, documents, params.getNewName());
+            WorkspaceEdit edit = RenameProvider.rename(ast, content, params.getPosition(), uri, docPath, workspaceIndex,
+                    workspaceRoot, documents, params.getNewName());
             return CompletableFuture.completedFuture(edit);
         } catch (RenameProvider.RenameRejectedException e) {
             CompletableFuture<WorkspaceEdit> failed = new CompletableFuture<>();
@@ -363,13 +365,13 @@ public class DocumentService implements TextDocumentService {
     }
 
     @Override
-    public CompletableFuture<List<Either<SymbolInformation, DocumentSymbol>>> documentSymbol(DocumentSymbolParams params) {
+    public CompletableFuture<List<Either<SymbolInformation, DocumentSymbol>>> documentSymbol(
+            DocumentSymbolParams params) {
         String uri = params.getTextDocument().getUri();
         List<Node> ast = astCache.getOrDefault(uri, List.of());
         String content = documents.getOrDefault(uri, "");
         List<Either<SymbolInformation, DocumentSymbol>> result = DocumentSymbolProvider.provide(ast, content).stream()
-                .map(Either::<SymbolInformation, DocumentSymbol>forRight)
-                .toList();
+                .map(Either::<SymbolInformation, DocumentSymbol>forRight).toList();
         return CompletableFuture.completedFuture(result);
     }
 
@@ -384,10 +386,8 @@ public class DocumentService implements TextDocumentService {
 
     private void reanalyzeAll() {
         Map<Path, String> openDocuments = openDocumentsByPath();
-        documents.forEach((docUri, docContent)
-                -> server.publishDiagnostics(docUri,
-                        DiagnosticCollector.collect(docContent, uriToPath(docUri), openDocuments,
-                                workspaceIndex, workspaceRoot)));
+        documents.forEach((docUri, docContent) -> server.publishDiagnostics(docUri, DiagnosticCollector
+                .collect(docContent, uriToPath(docUri), openDocuments, workspaceIndex, workspaceRoot)));
     }
 
     Map<Path, String> openDocumentsByPath() {

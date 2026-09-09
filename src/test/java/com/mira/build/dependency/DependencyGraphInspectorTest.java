@@ -34,19 +34,16 @@ public class DependencyGraphInspectorTest {
     @Test
     void pathDependencyAvailableAndRecursesIntoItsOwnDependencies() throws Exception {
         Path grandchildDir = Files.createDirectory(tmp.resolve("grandchild"));
-        Files.writeString(grandchildDir.resolve("mira.toml"),
-                "[project]\nname = \"grandchild\"\nentry = \"g.mira\"\n");
+        Files.writeString(grandchildDir.resolve("mira.toml"), "[project]\nname = \"grandchild\"\nentry = \"g.mira\"\n");
         Files.createFile(grandchildDir.resolve("g.mira"));
 
         Path childDir = Files.createDirectory(tmp.resolve("child"));
-        Files.writeString(childDir.resolve("mira.toml"),
-                "[project]\nname = \"child\"\nentry = \"c.mira\"\n"
+        Files.writeString(childDir.resolve("mira.toml"), "[project]\nname = \"child\"\nentry = \"c.mira\"\n"
                 + "[dependencies]\ngrandchild = { path = \"" + escaped(grandchildDir) + "\" }\n");
         Files.createFile(childDir.resolve("c.mira"));
 
         Path rootDir = Files.createDirectory(tmp.resolve("root"));
-        Files.writeString(rootDir.resolve("mira.toml"),
-                "[project]\nname = \"root\"\nentry = \"main.mira\"\n"
+        Files.writeString(rootDir.resolve("mira.toml"), "[project]\nname = \"root\"\nentry = \"main.mira\"\n"
                 + "[dependencies]\nchild = { path = \"" + escaped(childDir) + "\" }\n");
         Files.createFile(rootDir.resolve("main.mira"));
 
@@ -65,8 +62,7 @@ public class DependencyGraphInspectorTest {
     @Test
     void missingPathDependencyIsLeafMarkedMissing() throws Exception {
         Path rootDir = Files.createDirectory(tmp.resolve("root"));
-        Files.writeString(rootDir.resolve("mira.toml"),
-                "[project]\nname = \"root\"\nentry = \"main.mira\"\n"
+        Files.writeString(rootDir.resolve("mira.toml"), "[project]\nname = \"root\"\nentry = \"main.mira\"\n"
                 + "[dependencies]\nghost = { path = \"../does-not-exist\" }\n");
         Files.createFile(rootDir.resolve("main.mira"));
 
@@ -83,12 +79,10 @@ public class DependencyGraphInspectorTest {
     void cycleIsDetectedInsteadOfInfiniteRecursion() throws Exception {
         Path aDir = Files.createDirectory(tmp.resolve("a"));
         Path bDir = Files.createDirectory(tmp.resolve("b"));
-        Files.writeString(aDir.resolve("mira.toml"),
-                "[project]\nname = \"a\"\nentry = \"a.mira\"\n"
+        Files.writeString(aDir.resolve("mira.toml"), "[project]\nname = \"a\"\nentry = \"a.mira\"\n"
                 + "[dependencies]\nb = { path = \"" + escaped(bDir) + "\" }\n");
         Files.createFile(aDir.resolve("a.mira"));
-        Files.writeString(bDir.resolve("mira.toml"),
-                "[project]\nname = \"b\"\nentry = \"b.mira\"\n"
+        Files.writeString(bDir.resolve("mira.toml"), "[project]\nname = \"b\"\nentry = \"b.mira\"\n"
                 + "[dependencies]\na = { path = \"" + escaped(aDir) + "\" }\n");
         Files.createFile(bDir.resolve("b.mira"));
 
@@ -106,8 +100,7 @@ public class DependencyGraphInspectorTest {
     @Test
     void gitDependencyMissingWhenNeverResolved() throws Exception {
         Path rootDir = Files.createDirectory(tmp.resolve("root"));
-        Files.writeString(rootDir.resolve("mira.toml"),
-                "[project]\nname = \"root\"\nentry = \"main.mira\"\n"
+        Files.writeString(rootDir.resolve("mira.toml"), "[project]\nname = \"root\"\nentry = \"main.mira\"\n"
                 + "[dependencies]\nlib = { git = \"https://example.com/lib.git\", tag = \"v1.0.0\" }\n");
         Files.createFile(rootDir.resolve("main.mira"));
 
@@ -121,9 +114,12 @@ public class DependencyGraphInspectorTest {
 
     @Test
     void nativeDependencyReflectsCacheStateBeforeAndAfterFetch() throws Exception {
-        // Content must be unique per test run: the native artifact cache lives under the real
-        // ~/.mira/packages (by design, shared across projects/processes), so a fixed byte string
-        // would already be cached — and thus "available" — after the first time this test runs.
+        // Content must be unique per test run: the native artifact cache lives under
+        // the real
+        // ~/.mira/packages (by design, shared across projects/processes), so a fixed
+        // byte string
+        // would already be cached — and thus "available" — after the first time this
+        // test runs.
         byte[] content = ("native-fixture-" + java.util.UUID.randomUUID()).getBytes();
         String sha = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(content));
         Path fixtureDir = Files.createDirectory(tmp.resolve("fixture"));
@@ -131,9 +127,8 @@ public class DependencyGraphInspectorTest {
 
         Path rootDir = Files.createDirectory(tmp.resolve("root"));
         Files.writeString(rootDir.resolve("mira.toml"),
-                "[project]\nname = \"root\"\nentry = \"main.mira\"\n"
-                + "[native]\next = { url = \"" + fixtureDir.resolve("ext.jar").toUri()
-                + "\", sha256 = \"" + sha + "\" }\n");
+                "[project]\nname = \"root\"\nentry = \"main.mira\"\n" + "[native]\next = { url = \""
+                        + fixtureDir.resolve("ext.jar").toUri() + "\", sha256 = \"" + sha + "\" }\n");
         Files.createFile(rootDir.resolve("main.mira"));
 
         ProjectConfig cfg = ProjectLoader.load(rootDir.resolve("mira.toml"));

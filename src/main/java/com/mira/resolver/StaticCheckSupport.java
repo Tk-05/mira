@@ -55,14 +55,12 @@ final class StaticCheckSupport {
     // Type-checking (gradual: only ever consulted/enforced when an explicit
     // annotation is present somewhere in the comparison - unannotated code
     // is never newly rejected).
-    static final Set<String> BUILTIN_TYPE_NAMES = Set.of(
-            "Number", "String", "Bool", "List", "Array", "Map", "Object", "Fn", "Null", "Any", "Void");
+    static final Set<String> BUILTIN_TYPE_NAMES = Set.of("Number", "String", "Bool", "List", "Array", "Map", "Object",
+            "Fn", "Null", "Any", "Void");
 
-    static final Set<String> STRING_UNSAFE_OPERATORS = Set.of(
-            "-", "*", "%", "\\%", "**", "&", "|", "^", "<<", ">>");
+    static final Set<String> STRING_UNSAFE_OPERATORS = Set.of("-", "*", "%", "\\%", "**", "&", "|", "^", "<<", ">>");
 
-    static final Set<String> ARITHMETIC_TYPE_CHECKED_OPERATORS = Set.of(
-            "+", "-", "*", "/", "%", "\\%", "**");
+    static final Set<String> ARITHMETIC_TYPE_CHECKED_OPERATORS = Set.of("+", "-", "*", "/", "%", "\\%", "**");
 
     // "==" / "!=" are deliberately excluded: comparing an explicitly-typed value
     // against e.g. a nullable's `null` check is a common, legitimate pattern this
@@ -87,8 +85,7 @@ final class StaticCheckSupport {
     @SuppressWarnings("unchecked")
     static void addChildren(Node node, Deque<Node> queue) {
         switch (node) {
-            case FuncDecl s ->
-                queue.addAll(s.getBody());
+            case FuncDecl s -> queue.addAll(s.getBody());
             case VarDecl s -> {
                 if (s.getInitializer() != null) {
                     queue.add(s.getInitializer());
@@ -108,8 +105,7 @@ final class StaticCheckSupport {
 
                 }
             }
-            case Throw s ->
-                queue.add(s.getValue());
+            case Throw s -> queue.add(s.getValue());
             case If s -> {
                 queue.add(s.getCondition());
                 queue.addAll(s.getThenBody());
@@ -134,8 +130,7 @@ final class StaticCheckSupport {
                 }
                 queue.addAll(s.getBody());
             }
-            case Block s ->
-                queue.addAll(s.getBody());
+            case Block s -> queue.addAll(s.getBody());
             case TryCatch s -> {
                 queue.addAll(s.getTryBody());
                 s.getCatchClauses().forEach(c -> queue.addAll(c.getBody()));
@@ -144,26 +139,22 @@ final class StaticCheckSupport {
                 queue.add(s.getMutex());
                 queue.addAll(s.getBody());
             }
-            case ComptimeBlock s ->
-                queue.addAll(s.getBody());
+            case ComptimeBlock s -> queue.addAll(s.getBody());
             case BinaryExpression e -> {
                 queue.add(e.getLeft());
                 queue.add(e.getRight());
             }
-            case UnaryExpression e ->
-                queue.add(e.getRight());
+            case UnaryExpression e -> queue.add(e.getRight());
             case CallExpression e -> {
                 queue.add(e.getCallee());
                 queue.addAll(e.getArguments());
             }
-            case NamespaceCallExpression e ->
-                queue.addAll(e.getArguments());
+            case NamespaceCallExpression e -> queue.addAll(e.getArguments());
             case AccessExpression e -> {
                 queue.add(e.getReference());
                 queue.addAll(e.getIndecies());
             }
-            case FieldAccessExpression e ->
-                queue.add(e.getObject());
+            case FieldAccessExpression e -> queue.add(e.getObject());
             case MethodCallExpression e -> {
                 queue.add(e.getObject());
                 queue.addAll(e.getArguments());
@@ -173,16 +164,11 @@ final class StaticCheckSupport {
                 queue.add(e.getThenExpr());
                 queue.add(e.getElseExpr());
             }
-            case ArrayExpression e ->
-                queue.addAll(e.getMembers());
-            case ListExpression e ->
-                queue.addAll(e.getMembers());
-            case ComplexExpression e ->
-                queue.addAll(e.getExpressions());
-            case LambdaExpression e ->
-                queue.addAll(e.getBody());
-            case ExecBlock e ->
-                queue.addAll(e.getBody());
+            case ArrayExpression e -> queue.addAll(e.getMembers());
+            case ListExpression e -> queue.addAll(e.getMembers());
+            case ComplexExpression e -> queue.addAll(e.getExpressions());
+            case LambdaExpression e -> queue.addAll(e.getBody());
+            case ExecBlock e -> queue.addAll(e.getBody());
             default -> {
             }
         }
@@ -196,10 +182,8 @@ final class StaticCheckSupport {
     }
 
     static DumbExpression extractVarRef(Node expr) {
-        if (expr instanceof UnaryExpression u
-                && "$".equals(u.getOperation().getLexeme())
-                && u.getRight() instanceof DumbExpression d
-                && isIdentifier(d)) {
+        if (expr instanceof UnaryExpression u && "$".equals(u.getOperation().getLexeme())
+                && u.getRight() instanceof DumbExpression d && isIdentifier(d)) {
             return d;
         }
         return null;
@@ -207,90 +191,53 @@ final class StaticCheckSupport {
 
     static int lineOf(Node node) {
         return switch (node) {
-            case VarDecl s ->
-                s.line;
-            case FuncDecl s ->
-                s.line;
-            case Return s ->
-                s.line;
-            case If s ->
-                s.line;
-            case Loop s ->
-                s.line;
-            case While s ->
-                s.line;
-            case Block s ->
-                s.line;
-            case Switch s ->
-                s.line;
-            case TryCatch s ->
-                s.line;
-            case Throw s ->
-                s.line;
-            case Assign s ->
-                s.line;
-            case CallExpression e when e.getCallee() instanceof DumbExpression d ->
-                d.getLine();
-            default ->
-                0;
+            case VarDecl s -> s.line;
+            case FuncDecl s -> s.line;
+            case Return s -> s.line;
+            case If s -> s.line;
+            case Loop s -> s.line;
+            case While s -> s.line;
+            case Block s -> s.line;
+            case Switch s -> s.line;
+            case TryCatch s -> s.line;
+            case Throw s -> s.line;
+            case Assign s -> s.line;
+            case CallExpression e when e.getCallee() instanceof DumbExpression d -> d.getLine();
+            default -> 0;
         };
     }
 
     static int columnOf(Node node) {
         return switch (node) {
-            case VarDecl s ->
-                s.column;
-            case FuncDecl s ->
-                s.column;
-            case Return s ->
-                s.column;
-            case If s ->
-                s.column;
-            case Loop s ->
-                s.column;
-            case While s ->
-                s.column;
-            case Block s ->
-                s.column;
-            case Switch s ->
-                s.column;
-            case TryCatch s ->
-                s.column;
-            case Throw s ->
-                s.column;
-            case Assign s ->
-                s.column;
-            case CallExpression e when e.getCallee() instanceof DumbExpression d ->
-                d.getColumn();
-            default ->
-                0;
+            case VarDecl s -> s.column;
+            case FuncDecl s -> s.column;
+            case Return s -> s.column;
+            case If s -> s.column;
+            case Loop s -> s.column;
+            case While s -> s.column;
+            case Block s -> s.column;
+            case Switch s -> s.column;
+            case TryCatch s -> s.column;
+            case Throw s -> s.column;
+            case Assign s -> s.column;
+            case CallExpression e when e.getCallee() instanceof DumbExpression d -> d.getColumn();
+            default -> 0;
         };
     }
 
     static int spanOf(Node node) {
         return switch (node) {
-            case VarDecl s ->
-                s.getName().length();
-            case FuncDecl s ->
-                s.getName().length();
-            case Return ignored ->
-                "return".length();
-            case Throw ignored ->
-                "throw".length();
-            case If ignored ->
-                "if".length();
-            case Loop ignored ->
-                "for".length();
-            case While ignored ->
-                "while".length();
-            case Switch ignored ->
-                "switch".length();
-            case TryCatch ignored ->
-                "try".length();
-            case CallExpression e when e.getCallee() instanceof DumbExpression d ->
-                d.getValue().length();
-            default ->
-                1;
+            case VarDecl s -> s.getName().length();
+            case FuncDecl s -> s.getName().length();
+            case Return ignored -> "return".length();
+            case Throw ignored -> "throw".length();
+            case If ignored -> "if".length();
+            case Loop ignored -> "for".length();
+            case While ignored -> "while".length();
+            case Switch ignored -> "switch".length();
+            case TryCatch ignored -> "try".length();
+            case CallExpression e when e.getCallee() instanceof DumbExpression d -> d.getValue().length();
+            default -> 1;
         };
     }
 
@@ -380,24 +327,19 @@ final class StaticCheckSupport {
     }
 
     /**
-     * A bare {@code return;} isn't represented as a {@code null} value in the
-     * AST - {@code Parser.parseReturn} fills in a synthetic {@code 0.0} literal
-     * token at line/column {@code -1} so downstream code always has an
-     * {@code Expression} to work with. This tells that sentinel apart from a
-     * real, user-written return value (including a genuine
-     * {@code return 0.0;}).
+     * A bare {@code return;} isn't represented as a {@code null} value in the AST -
+     * {@code Parser.parseReturn} fills in a synthetic {@code 0.0} literal token at
+     * line/column {@code -1} so downstream code always has an {@code Expression} to
+     * work with. This tells that sentinel apart from a real, user-written return
+     * value (including a genuine {@code return 0.0;}).
      */
     static boolean isBareReturn(Expression value) {
         return value instanceof DumbExpression d && d.getLine() == -1;
     }
 
     static boolean isKnownLiteral(Node n) {
-        return n instanceof ListExpression
-                || n instanceof ArrayExpression
-                || n instanceof MapExpression
-                || n instanceof ObjectExpression
-                || n instanceof StructExpression
-                || n instanceof LambdaExpression
+        return n instanceof ListExpression || n instanceof ArrayExpression || n instanceof MapExpression
+                || n instanceof ObjectExpression || n instanceof StructExpression || n instanceof LambdaExpression
                 || (n instanceof DumbExpression d && !isIdentifier(d))
                 // `-1`/`~1`/`!true` are each a UnaryExpression wrapping the literal
                 // token, not themselves a DumbExpression - without this, e.g. `var x :
@@ -409,13 +351,10 @@ final class StaticCheckSupport {
     static boolean isInvertedLiteral(Node n) {
         return n instanceof UnaryExpression u && u.getRight() instanceof DumbExpression d
                 && switch (u.getOperation().getLexeme()) {
-            case "-", "~" ->
-                isNumericLiteralToken(d);
-            case "!" ->
-                isBooleanLiteralToken(d);
-            default ->
-                false;
-        };
+                    case "-", "~" -> isNumericLiteralToken(d);
+                    case "!" -> isBooleanLiteralToken(d);
+                    default -> false;
+                };
     }
 
     static boolean isNumericLiteralToken(DumbExpression d) {
@@ -434,8 +373,8 @@ final class StaticCheckSupport {
     }
 
     static boolean isNonNumericLiteral(Node n) {
-        if (n instanceof ListExpression || n instanceof ArrayExpression
-                || n instanceof MapExpression || n instanceof ObjectExpression) {
+        if (n instanceof ListExpression || n instanceof ArrayExpression || n instanceof MapExpression
+                || n instanceof ObjectExpression) {
             return true;
         }
         return n instanceof DumbExpression d && d.getTokenType() == TokenType.STRING_LITERAL;
@@ -449,8 +388,7 @@ final class StaticCheckSupport {
     }
 
     static boolean sameNamedType(MiraType a, MiraType b) {
-        return a instanceof MiraType.NamedType na && b instanceof MiraType.NamedType nb
-                && na.name().equals(nb.name());
+        return a instanceof MiraType.NamedType na && b instanceof MiraType.NamedType nb && na.name().equals(nb.name());
     }
 
     static boolean isNumberType(MiraType t) {
@@ -483,22 +421,19 @@ final class StaticCheckSupport {
                     return true;
                 }
                 case If ifStmt -> {
-                    if (ifStmt.getElseBody() != null
-                            && alwaysReturns(ifStmt.getThenBody())
+                    if (ifStmt.getElseBody() != null && alwaysReturns(ifStmt.getThenBody())
                             && alwaysReturns(ifStmt.getElseBody())) {
                         return true;
                     }
                 }
                 case Switch sw -> {
-                    if (sw.getDefaultBody() != null
-                            && sw.getCases().stream().allMatch(c -> alwaysReturns(c.getBody()))
+                    if (sw.getDefaultBody() != null && sw.getCases().stream().allMatch(c -> alwaysReturns(c.getBody()))
                             && alwaysReturns(sw.getDefaultBody())) {
                         return true;
                     }
                 }
                 case TryCatch tc -> {
-                    if (alwaysReturns(tc.getTryBody())
-                            && !tc.getCatchClauses().isEmpty()
+                    if (alwaysReturns(tc.getTryBody()) && !tc.getCatchClauses().isEmpty()
                             && tc.getCatchClauses().stream().allMatch(c -> alwaysReturns(c.getBody()))) {
                         return true;
                     }

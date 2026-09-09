@@ -60,8 +60,9 @@ public class DocumentServiceDebounceTest {
     }
 
     private static void change(LspServer server, String uri, int version, String newText) {
-        server.getTextDocumentService().didChange(new DidChangeTextDocumentParams(
-                new VersionedTextDocumentIdentifier(uri, version), List.of(new TextDocumentContentChangeEvent(newText))));
+        server.getTextDocumentService()
+                .didChange(new DidChangeTextDocumentParams(new VersionedTextDocumentIdentifier(uri, version),
+                        List.of(new TextDocumentContentChangeEvent(newText))));
     }
 
     @Test
@@ -95,8 +96,7 @@ public class DocumentServiceDebounceTest {
         server.connect(client);
 
         String uri = "file:///debounce2.mira";
-        TextDocumentItem doc = new TextDocumentItem(uri, "mira", 1,
-                "module main;\nfn main() {\n    return 0;\n}\n");
+        TextDocumentItem doc = new TextDocumentItem(uri, "mira", 1, "module main;\nfn main() {\n    return 0;\n}\n");
         server.getTextDocumentService().didOpen(new DidOpenTextDocumentParams(doc));
         Thread.sleep(200);
         client.published.clear();

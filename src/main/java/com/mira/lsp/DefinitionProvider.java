@@ -116,9 +116,8 @@ public class DefinitionProvider {
         return id.isEmpty() ? null : id;
     }
 
-    private static Location findFieldDefinition(
-            List<Node> ast, String fieldName, String objectName,
-            String uri, String content, Path docPath, int cursorLine) {
+    private static Location findFieldDefinition(List<Node> ast, String fieldName, String objectName, String uri,
+            String content, Path docPath, int cursorLine) {
 
         if (objectName != null) {
             Node type = resolveObjectType(ast, objectName, cursorLine);
@@ -133,8 +132,7 @@ public class DefinitionProvider {
             // a module namespace alias instead.
             if (docPath != null) {
                 for (Node n : ast) {
-                    if (n instanceof ImportExpression imp
-                            && imp.getKind() == ImportExpression.ImportKind.MODULE
+                    if (n instanceof ImportExpression imp && imp.getKind() == ImportExpression.ImportKind.MODULE
                             && objectName.equals(imp.getNamespace())) {
                         Path modPath = ModuleResolver.resolveModulePath(imp.getModule(), docPath);
                         Location loc = searchInModule(modPath, fieldName, null);
@@ -152,12 +150,11 @@ public class DefinitionProvider {
     }
 
     /**
-     * Resolves what {@code objectName} refers to at {@code cursorLine},
-     * respecting shadowing: a declaration local to the innermost enclosing
-     * function wins over a same-named declaration anywhere else in the file
-     * (module scope, or another, unrelated function). Without this, two
-     * unrelated objects that happen to share a variable name would be
-     * indistinguishable to callers.
+     * Resolves what {@code objectName} refers to at {@code cursorLine}, respecting
+     * shadowing: a declaration local to the innermost enclosing function wins over
+     * a same-named declaration anywhere else in the file (module scope, or another,
+     * unrelated function). Without this, two unrelated objects that happen to share
+     * a variable name would be indistinguishable to callers.
      */
     static Node resolveObjectType(List<Node> ast, String objectName, int cursorLine) {
         FuncDecl enclosing = findEnclosingFunction(ast, cursorLine);
@@ -204,9 +201,8 @@ public class DefinitionProvider {
             if (n == null) {
                 continue;
             }
-            if (n instanceof FuncDecl f && f.line > 0 && f.endLine > 0
-                    && f.line <= cursorLine && cursorLine <= f.endLine
-                    && (best == null || (f.endLine - f.line) < (best.endLine - best.line))) {
+            if (n instanceof FuncDecl f && f.line > 0 && f.endLine > 0 && f.line <= cursorLine
+                    && cursorLine <= f.endLine && (best == null || (f.endLine - f.line) < (best.endLine - best.line))) {
                 best = f;
             }
             AstWalker.children(n, queue);
@@ -215,11 +211,10 @@ public class DefinitionProvider {
     }
 
     /**
-     * Among every {@code var objectName} reachable within {@code body}
-     * (including nested blocks/functions), picks the one declared closest to
-     * (and at or before) {@code cursorLine} - the nearest enclosing
-     * declaration, matching normal lexical shadowing instead of
-     * file-declaration-order.
+     * Among every {@code var objectName} reachable within {@code body} (including
+     * nested blocks/functions), picks the one declared closest to (and at or
+     * before) {@code cursorLine} - the nearest enclosing declaration, matching
+     * normal lexical shadowing instead of file-declaration-order.
      */
     private static VarDecl nearestVarDecl(List<Node> body, String objectName, int cursorLine) {
         VarDecl bestBefore = null;
@@ -243,8 +238,7 @@ public class DefinitionProvider {
     }
 
     private static String extractName(Node expr) {
-        if (expr instanceof UnaryExpression u
-                && "$".equals(u.getOperation().getLexeme())
+        if (expr instanceof UnaryExpression u && "$".equals(u.getOperation().getLexeme())
                 && u.getRight() instanceof DumbExpression d) {
             return d.getValue();
         }
@@ -257,8 +251,8 @@ public class DefinitionProvider {
     /**
      * Whether {@code type} (a struct/object literal or enum) already declares a
      * member named {@code name} - field, method, or enum value. Used by
-     * {@link RenameProvider} to refuse a field rename that would collide with
-     * an existing sibling member.
+     * {@link RenameProvider} to refuse a field rename that would collide with an
+     * existing sibling member.
      */
     static boolean typeHasMember(Node type, String name) {
         if (findMethodInType(type, name) != null) {
@@ -383,13 +377,12 @@ public class DefinitionProvider {
     }
 
     /**
-     * Resolves a plain (non-field) identifier reference at {@code cursorLine}
-     * by walking outward through the chain of lexical scopes actually enclosing
-     * the cursor - innermost first - so an inner declaration correctly shadows
-     * an unrelated same-named declaration elsewhere in the file (e.g. in a
-     * sibling branch, or at the top level), instead of returning whichever
-     * declaration happens to appear first in AST traversal order regardless of
-     * scope.
+     * Resolves a plain (non-field) identifier reference at {@code cursorLine} by
+     * walking outward through the chain of lexical scopes actually enclosing the
+     * cursor - innermost first - so an inner declaration correctly shadows an
+     * unrelated same-named declaration elsewhere in the file (e.g. in a sibling
+     * branch, or at the top level), instead of returning whichever declaration
+     * happens to appear first in AST traversal order regardless of scope.
      */
     static Location findScoped(List<Node> ast, String name, String uri, String content, int cursorLine) {
         for (Scope scope : buildScopeChain(ast, cursorLine)) {
@@ -403,10 +396,10 @@ public class DefinitionProvider {
 
     /**
      * Builds the full chain of scopes enclosing {@code cursorLine}, innermost
-     * first. Built up front (rather than descending and searching in the same
-     * pass) so that failing to find {@code name} in the innermost scope falls
-     * back to searching each enclosing scope in turn, instead of stopping as
-     * soon as there is nothing deeper left to descend into.
+     * first. Built up front (rather than descending and searching in the same pass)
+     * so that failing to find {@code name} in the innermost scope falls back to
+     * searching each enclosing scope in turn, instead of stopping as soon as there
+     * is nothing deeper left to descend into.
      */
     static List<Scope> buildScopeChain(List<Node> ast, int cursorLine) {
         List<Scope> chain = new ArrayList<>();
@@ -426,8 +419,8 @@ public class DefinitionProvider {
      */
     private static Scope enclosingChild(Scope scope, int cursorLine) {
         for (Node n : scope.body()) {
-            if (!(n instanceof Statement s) || s.line <= 0 || s.endLine <= 0
-                    || cursorLine < s.line || cursorLine > s.endLine) {
+            if (!(n instanceof Statement s) || s.line <= 0 || s.endLine <= 0 || cursorLine < s.line
+                    || cursorLine > s.endLine) {
                 continue;
             }
             List<Node> child = childBodyAt(n, cursorLine);
@@ -533,13 +526,12 @@ public class DefinitionProvider {
     }
 
     /**
-     * Searches only the direct statements of {@code body} (not nested blocks)
-     * for a declaration of {@code name}, preferring the one closest to (and at
-     * or before) {@code cursorLine} - the nearest enclosing declaration -
-     * falling back to the nearest one after it if none precede.
+     * Searches only the direct statements of {@code body} (not nested blocks) for a
+     * declaration of {@code name}, preferring the one closest to (and at or before)
+     * {@code cursorLine} - the nearest enclosing declaration - falling back to the
+     * nearest one after it if none precede.
      */
-    private static Location findDirectInBody(List<Node> body, String name, String uri, String content,
-            int cursorLine) {
+    private static Location findDirectInBody(List<Node> body, String name, String uri, String content, int cursorLine) {
         Location before = null;
         int beforeLine = -1;
         Location after = null;

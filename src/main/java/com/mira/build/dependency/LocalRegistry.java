@@ -46,8 +46,8 @@ public final class LocalRegistry {
             Files.createDirectories(dest);
             copyProject(projectRoot, dest, outputDir);
         } catch (IOException e) {
-            throw new BuildException("Failed to install '" + name + "' " + version + " to " + dest
-                    + ": " + e.getMessage());
+            throw new BuildException(
+                    "Failed to install '" + name + "' " + version + " to " + dest + ": " + e.getMessage());
         }
         return dest;
     }

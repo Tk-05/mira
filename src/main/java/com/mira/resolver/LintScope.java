@@ -7,7 +7,8 @@ import java.util.Map;
 
 public class LintScope {
 
-    public record VarInfo(int line, int column, boolean isConst, boolean used, boolean isImport, boolean isFunction, boolean isComptime) {
+    public record VarInfo(int line, int column, boolean isConst, boolean used, boolean isImport, boolean isFunction,
+            boolean isComptime) {
 
         public VarInfo(int line, int column, boolean isConst, boolean used) {
             this(line, column, isConst, used, false, false, false);

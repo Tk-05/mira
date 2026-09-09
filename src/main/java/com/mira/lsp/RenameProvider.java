@@ -30,8 +30,8 @@ public class RenameProvider {
         if (word == null || word.isBlank()) {
             return null;
         }
-        List<Location> refs = ReferenceProvider.provide(ast, content, pos, uri, docPath,
-                workspaceIndex, workspaceRoot, openDocumentsByUri, true);
+        List<Location> refs = ReferenceProvider.provide(ast, content, pos, uri, docPath, workspaceIndex, workspaceRoot,
+                openDocumentsByUri, true);
         if (refs.isEmpty()) {
             return null;
         }
@@ -39,8 +39,7 @@ public class RenameProvider {
     }
 
     public static WorkspaceEdit rename(List<Node> ast, String content, Position pos, String uri, Path docPath,
-            WorkspaceIndex workspaceIndex, Path workspaceRoot, Map<String, String> openDocumentsByUri,
-            String newName) {
+            WorkspaceIndex workspaceIndex, Path workspaceRoot, Map<String, String> openDocumentsByUri, String newName) {
         String identifierError = identifierError(newName);
         if (identifierError != null) {
             throw new RenameRejectedException(identifierError);
@@ -49,21 +48,19 @@ public class RenameProvider {
         if (collision != null) {
             throw new RenameRejectedException(collision);
         }
-        List<Location> refs = ReferenceProvider.provide(ast, content, pos, uri, docPath,
-                workspaceIndex, workspaceRoot, openDocumentsByUri, true);
+        List<Location> refs = ReferenceProvider.provide(ast, content, pos, uri, docPath, workspaceIndex, workspaceRoot,
+                openDocumentsByUri, true);
         if (refs.isEmpty()) {
             throw new RenameRejectedException("Cannot find any references to rename here.");
         }
         Map<String, List<TextEdit>> changes = new LinkedHashMap<>();
         for (Location loc : refs) {
-            changes.computeIfAbsent(loc.getUri(), k -> new ArrayList<>())
-                    .add(new TextEdit(loc.getRange(), newName));
+            changes.computeIfAbsent(loc.getUri(), k -> new ArrayList<>()).add(new TextEdit(loc.getRange(), newName));
         }
         return new WorkspaceEdit(changes);
     }
 
-    private static String collisionReason(List<Node> ast, String content, Position pos, String uri,
-            String newName) {
+    private static String collisionReason(List<Node> ast, String content, Position pos, String uri, String newName) {
         String oldName = HoverProvider.wordAt(content, pos);
         if (newName.equals(oldName)) {
             return null;

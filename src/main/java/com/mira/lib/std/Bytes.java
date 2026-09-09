@@ -40,17 +40,13 @@ public class Bytes implements Lib {
 
     private static List<Object> toNumberList(Object arg) {
         List<Expression> members = switch (arg) {
-            case ArrayExpression a ->
-                a.getMembers();
-            case ListExpression l ->
-                l.getMembers();
-            default ->
-                throw new RuntimeException("Expected list, got: " + arg.getClass().getSimpleName());
+            case ArrayExpression a -> a.getMembers();
+            case ListExpression l -> l.getMembers();
+            default -> throw new RuntimeException("Expected list, got: " + arg.getClass().getSimpleName());
         };
         List<Object> out = new ArrayList<>(members.size());
         for (Expression e : members) {
-            out.add(Double.parseDouble(String.valueOf(
-                    e instanceof DumbExpression d ? d.getValue() : e)));
+            out.add(Double.parseDouble(String.valueOf(e instanceof DumbExpression d ? d.getValue() : e)));
         }
         return out;
     }
@@ -167,8 +163,7 @@ public class Bytes implements Lib {
 
         environment.define("writeFile", new NativeFunction(2, "path, b", args -> {
             try {
-                Files.write(Paths.get(String.valueOf(args.get(0))),
-                        toBytes(args.get(1)).getData());
+                Files.write(Paths.get(String.valueOf(args.get(0))), toBytes(args.get(1)).getData());
                 return NullValue.INSTANCE;
             } catch (IOException e) {
                 throw new RuntimeException("bytes.writeFile failed: " + e.getMessage());

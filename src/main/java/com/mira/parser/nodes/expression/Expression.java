@@ -363,12 +363,9 @@ public abstract class Expression implements Node {
             String selection = isSelective() ? " {" + String.join(", ", selectedFunctions) + "}" : "";
             String alias = namespace != null ? " as " + namespace : "";
             return switch (kind) {
-                case NATIVE ->
-                    "import native " + path + alias;
-                case MODULE ->
-                    "import module " + path + selection + alias;
-                case STDLIB ->
-                    "import " + path + selection + alias;
+                case NATIVE -> "import native " + path + alias;
+                case MODULE -> "import module " + path + selection + alias;
+                case STDLIB -> "import " + path + selection + alias;
             };
         }
 
@@ -413,7 +410,8 @@ public abstract class Expression implements Node {
             this(alias, functionName, arguments, line, 0);
         }
 
-        public NamespaceCallExpression(String alias, String functionName, List<Expression> arguments, int line, int column) {
+        public NamespaceCallExpression(String alias, String functionName, List<Expression> arguments, int line,
+                int column) {
             this.alias = alias;
             this.functionName = functionName;
             this.arguments = arguments;
@@ -839,7 +837,8 @@ public abstract class Expression implements Node {
             this(parameters, body, variadicParam, isAsync, false);
         }
 
-        public LambdaExpression(List<Parameter> parameters, List<Node> body, String variadicParam, boolean isAsync, boolean isArrow) {
+        public LambdaExpression(List<Parameter> parameters, List<Node> body, String variadicParam, boolean isAsync,
+                boolean isArrow) {
             this.parameters = parameters;
             this.body = body;
             this.variadicParam = variadicParam;

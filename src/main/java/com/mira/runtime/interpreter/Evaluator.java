@@ -24,13 +24,13 @@ public class Evaluator {
     }
 
     private static final int EVAL_CACHE_MAX = 512;
-    private static final Map<CacheKey, Object> CACHE = Collections.synchronizedMap(
-            new LinkedHashMap<>(16, 0.75f, true) {
-        @Override
-        protected boolean removeEldestEntry(Map.Entry<CacheKey, Object> eldest) {
-            return size() > EVAL_CACHE_MAX;
-        }
-    });
+    private static final Map<CacheKey, Object> CACHE = Collections
+            .synchronizedMap(new LinkedHashMap<>(16, 0.75f, true) {
+                @Override
+                protected boolean removeEldestEntry(Map.Entry<CacheKey, Object> eldest) {
+                    return size() > EVAL_CACHE_MAX;
+                }
+            });
 
     private List<Token> tokens;
     private int current;
@@ -142,16 +142,11 @@ public class Evaluator {
             double r = toNumber(right);
 
             left = switch (op) {
-                case ">" ->
-                    l > r;
-                case "<" ->
-                    l < r;
-                case ">=" ->
-                    l >= r;
-                case "<=" ->
-                    l <= r;
-                default ->
-                    false;
+                case ">" -> l > r;
+                case "<" -> l < r;
+                case ">=" -> l >= r;
+                case "<=" -> l <= r;
+                default -> false;
             };
         }
 
@@ -195,10 +190,8 @@ public class Evaluator {
             Object right = power();
 
             left = switch (op) {
-                case "*" ->
-                    numericMul(left, right);
-                case "/" ->
-                    toNumber(left) / toNumber(right);
+                case "*" -> numericMul(left, right);
+                case "/" -> toNumber(left) / toNumber(right);
                 case "%" -> {
                     if (left instanceof Long la && right instanceof Long lb) {
                         yield la % lb;
@@ -211,8 +204,7 @@ public class Evaluator {
                     }
                     yield Math.floor(toNumber(left) / toNumber(right));
                 }
-                default ->
-                    throw new AssertionError();
+                default -> throw new AssertionError();
             };
         }
 

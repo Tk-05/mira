@@ -20,13 +20,13 @@ import com.mira.parser.nodes.statement.Statement.FuncDecl;
 import com.mira.resolver.StaticCheckSupport.OperandTypes;
 
 /**
- * Binary/unary/comparison operand-type checks and the bareword-callable
- * check (`checkVariableCallable`), which shares {@code inferMiraType}-based
- * inference with the operand checks below it. Delegates back to
- * {@link StaticCheck} for the type-inference/resolution machinery
- * (`inferMiraType`, `resolveTypeAnnotation`) and its shared state
- * (`declaredVarTypes`, `userFuncDecls`, `errors`) - those stay centralized
- * there since nearly every other check in the file also depends on them.
+ * Binary/unary/comparison operand-type checks and the bareword-callable check
+ * (`checkVariableCallable`), which shares {@code inferMiraType}-based inference
+ * with the operand checks below it. Delegates back to {@link StaticCheck} for
+ * the type-inference/resolution machinery (`inferMiraType`,
+ * `resolveTypeAnnotation`) and its shared state (`declaredVarTypes`,
+ * `userFuncDecls`, `errors`) - those stay centralized there since nearly every
+ * other check in the file also depends on them.
  */
 final class OperandTypeChecks {
 
@@ -37,13 +37,13 @@ final class OperandTypeChecks {
     }
 
     /**
-     * Shared gate for every operand-type check below: resolves both operand
-     * types only when at least one side carries an explicit annotation (same
-     * rule as checkAssignable's callers everywhere else in this file - a bare
-     * literal/ bareword mismatch like `5 - "oops"` stays covered by the
-     * pre-existing, softer isStringLiteral-based warnings and must not escalate
-     * into a hard error here), and only when both sides resolve to a concrete,
-     * non-Any, non-nullable type worth comparing.
+     * Shared gate for every operand-type check below: resolves both operand types
+     * only when at least one side carries an explicit annotation (same rule as
+     * checkAssignable's callers everywhere else in this file - a bare literal/
+     * bareword mismatch like `5 - "oops"` stays covered by the pre-existing, softer
+     * isStringLiteral-based warnings and must not escalate into a hard error here),
+     * and only when both sides resolve to a concrete, non-Any, non-nullable type
+     * worth comparing.
      */
     private OperandTypes resolveGatedOperandTypes(Node left, Node right) {
         MiraType leftExplicit = inferExplicitlyTypedOperand(left);
@@ -53,9 +53,9 @@ final class OperandTypeChecks {
         }
         MiraType leftType = leftExplicit != null ? leftExplicit : owner.inferMiraType(left);
         MiraType rightType = rightExplicit != null ? rightExplicit : owner.inferMiraType(right);
-        if (leftType == null || rightType == null
-                || leftType instanceof MiraType.AnyType || rightType instanceof MiraType.AnyType
-                || leftType instanceof MiraType.NullableType || rightType instanceof MiraType.NullableType) {
+        if (leftType == null || rightType == null || leftType instanceof MiraType.AnyType
+                || rightType instanceof MiraType.AnyType || leftType instanceof MiraType.NullableType
+                || rightType instanceof MiraType.NullableType) {
             return null;
         }
         return new OperandTypes(leftType, rightType);
@@ -74,8 +74,8 @@ final class OperandTypeChecks {
         // String (the other side gets stringified), not just when both sides
         // match exactly like every other arithmetic operator requires.
         boolean mismatch = "+".equals(op)
-                ? !(isNumberType(types.left()) && isNumberType(types.right()))
-                && !isStringType(types.left()) && !isStringType(types.right())
+                ? !(isNumberType(types.left()) && isNumberType(types.right())) && !isStringType(types.left())
+                        && !isStringType(types.right())
                 : !isNumberType(types.left()) || !isNumberType(types.right());
         if (mismatch) {
             owner.errors.add(new BinaryOperatorTypeMismatchError(op, MiraType.display(types.left()),
@@ -88,14 +88,14 @@ final class OperandTypeChecks {
         if (types == null || sameNamedType(types.left(), types.right())) {
             return;
         }
-        owner.errors.add(new BinaryOperatorTypeMismatchError(e.getOperator().getLexeme(),
-                MiraType.display(types.left()), MiraType.display(types.right()),
-                e.getOperator().getLine(), e.getOperator().getColumn()));
+        owner.errors
+                .add(new BinaryOperatorTypeMismatchError(e.getOperator().getLexeme(), MiraType.display(types.left()),
+                        MiraType.display(types.right()), e.getOperator().getLine(), e.getOperator().getColumn()));
     }
 
     /**
-     * Builds the same synthetic "$" unary wrapper the parser itself builds for
-     * a bareword variable read (see {@code Parser.wrapAsVariableRef}) - lets
+     * Builds the same synthetic "$" unary wrapper the parser itself builds for a
+     * bareword variable read (see {@code Parser.wrapAsVariableRef}) - lets
      * name-only-callee checks reuse $-ref-shaped inference (inferMiraType,
      * checkVariableCallable) without duplicating it.
      */
@@ -112,8 +112,8 @@ final class OperandTypeChecks {
         if (type instanceof MiraType.FunctionType || type instanceof MiraType.NamedType n && "Fn".equals(n.name())) {
             return;
         }
-        owner.errors.add(new VariableNotCallableError(nameExpr.getValue(), MiraType.display(type),
-                nameExpr.getLine(), nameExpr.getColumn()));
+        owner.errors.add(new VariableNotCallableError(nameExpr.getValue(), MiraType.display(type), nameExpr.getLine(),
+                nameExpr.getColumn()));
     }
 
     void checkUnaryOperandType(UnaryExpression e) {
@@ -130,10 +130,8 @@ final class OperandTypeChecks {
      * resolveGatedOperandTypes/checkUnaryOperandType.
      */
     private MiraType inferExplicitlyTypedOperand(Node expr) {
-        if (expr instanceof UnaryExpression u
-                && "$".equals(u.getOperation().getLexeme())
-                && u.getRight() instanceof DumbExpression d
-                && isIdentifier(d)) {
+        if (expr instanceof UnaryExpression u && "$".equals(u.getOperation().getLexeme())
+                && u.getRight() instanceof DumbExpression d && isIdentifier(d)) {
             return owner.declaredVarTypes.get(d.getValue());
         }
         if (expr instanceof CallExpression call && call.getCallee() instanceof DumbExpression callee

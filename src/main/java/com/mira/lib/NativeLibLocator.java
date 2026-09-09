@@ -10,14 +10,14 @@ import java.nio.file.StandardCopyOption;
 import com.mira.cli.Flags;
 
 /**
- * Finds the jar behind an {@code import native "..." as alias;} without
- * loading anything from it - shared by {@code ImportResolver} (which goes on
- * to actually load the jar) and the static checker / LSP (which only ever
- * needs the path, to read a classloading-free manifest resource out of it;
- * see {@link NativeInterfaceManifest}). Deliberately skips the compiled-jar
+ * Finds the jar behind an {@code import native "..." as alias;} without loading
+ * anything from it - shared by {@code ImportResolver} (which goes on to
+ * actually load the jar) and the static checker / LSP (which only ever needs
+ * the path, to read a classloading-free manifest resource out of it; see
+ * {@link NativeInterfaceManifest}). Deliberately skips the compiled-jar
  * {@code mira-native-libs.properties} fast path - that one requires
- * instantiating the {@code Lib} class itself, which is a runtime-only
- * concern this locator must stay safe without.
+ * instantiating the {@code Lib} class itself, which is a runtime-only concern
+ * this locator must stay safe without.
  */
 public final class NativeLibLocator {
 
@@ -25,8 +25,11 @@ public final class NativeLibLocator {
     }
 
     /**
-     * @param rawPath the literal path/filename from the import statement
-     * @param importingFile the source file containing the import, for resolving a relative path (may be null)
+     * @param rawPath
+     *            the literal path/filename from the import statement
+     * @param importingFile
+     *            the source file containing the import, for resolving a relative
+     *            path (may be null)
      * @return the resolved jar path, or null if it can't be found
      */
     public static Path locate(String rawPath, Path importingFile) {

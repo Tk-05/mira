@@ -40,10 +40,10 @@ public final class CompiledRuntimeSupport {
 
     }
 
-    private static final ThreadLocal<Deque<StackFrame>> CALL_STACK
-            = ThreadLocal.withInitial(ArrayDeque::new);
+    private static final ThreadLocal<Deque<StackFrame>> CALL_STACK = ThreadLocal.withInitial(ArrayDeque::new);
 
-    // Set only when a program is compiled with -profile; instrumentation calls below
+    // Set only when a program is compiled with -profile; instrumentation calls
+    // below
     // are only ever emitted into bytecode in that case (see MethodEmitter), so the
     // null-check here is purely a safety net for stray/standalone-run instrumented
     // .class files where no profiler was ever installed.
@@ -109,14 +109,15 @@ public final class CompiledRuntimeSupport {
 
     public static final Object CACHE_MISS = new Object();
 
-    private static final java.util.concurrent.ConcurrentHashMap<String, java.util.Set<String>> moduleMainAdditions
-            = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final java.util.concurrent.ConcurrentHashMap<String, java.util.Set<String>> moduleMainAdditions = new java.util.concurrent.ConcurrentHashMap<>();
 
-    public static Object cacheGet(java.util.concurrent.ConcurrentHashMap<java.util.List<Object>, Object> cache, Object[] args) {
+    public static Object cacheGet(java.util.concurrent.ConcurrentHashMap<java.util.List<Object>, Object> cache,
+            Object[] args) {
         return cache.getOrDefault(java.util.Arrays.asList(args), CACHE_MISS);
     }
 
-    public static void cachePut(java.util.concurrent.ConcurrentHashMap<java.util.List<Object>, Object> cache, Object[] args, Object value) {
+    public static void cachePut(java.util.concurrent.ConcurrentHashMap<java.util.List<Object>, Object> cache,
+            Object[] args, Object value) {
         cache.put(java.util.Arrays.asList(args), value);
     }
 
@@ -225,12 +226,9 @@ public final class CompiledRuntimeSupport {
 
     public static boolean isTruthy(Object value) {
         return switch (value) {
-            case Boolean b ->
-                b;
-            case NullValue n ->
-                false;
-            case Number n ->
-                n.doubleValue() != 0;
+            case Boolean b -> b;
+            case NullValue n -> false;
+            case Number n -> n.doubleValue() != 0;
             case String s -> {
                 if (s.equals("true")) {
                     yield true;
@@ -244,10 +242,8 @@ public final class CompiledRuntimeSupport {
                     yield !s.isEmpty();
                 }
             }
-            case null ->
-                false;
-            default ->
-                true;
+            case null -> false;
+            default -> true;
         };
     }
 
@@ -386,78 +382,52 @@ public final class CompiledRuntimeSupport {
         if (left instanceof Number ln && right instanceof Number rn) {
             double l = ln.doubleValue(), r = rn.doubleValue();
             return switch (op) {
-                case "==" ->
-                    l == r;
-                case "!=" ->
-                    l != r;
-                case "<" ->
-                    l < r;
-                case ">" ->
-                    l > r;
-                case "<=" ->
-                    l <= r;
-                case ">=" ->
-                    l >= r;
-                default ->
-                    throw new UnknownOperatorError(op);
+                case "==" -> l == r;
+                case "!=" -> l != r;
+                case "<" -> l < r;
+                case ">" -> l > r;
+                case "<=" -> l <= r;
+                case ">=" -> l >= r;
+                default -> throw new UnknownOperatorError(op);
             };
         }
         if (left instanceof Boolean lb && right instanceof Boolean rb) {
             return switch (op) {
-                case "==" ->
-                    lb.equals(rb);
-                case "!=" ->
-                    !lb.equals(rb);
-                default ->
-                    throw new UnknownOperatorError(op);
+                case "==" -> lb.equals(rb);
+                case "!=" -> !lb.equals(rb);
+                default -> throw new UnknownOperatorError(op);
             };
         }
         if ((left instanceof NullValue || left == null) || (right instanceof NullValue || right == null)) {
-            boolean bothNull = (left instanceof NullValue || left == null) && (right instanceof NullValue || right == null);
+            boolean bothNull = (left instanceof NullValue || left == null)
+                    && (right instanceof NullValue || right == null);
             return switch (op) {
-                case "==" ->
-                    bothNull;
-                case "!=" ->
-                    !bothNull;
-                default ->
-                    false;
+                case "==" -> bothNull;
+                case "!=" -> !bothNull;
+                default -> false;
             };
         }
         String l = String.valueOf(left), r = String.valueOf(right);
         try {
             double ld = Double.parseDouble(l), rd = Double.parseDouble(r);
             return switch (op) {
-                case "==" ->
-                    ld == rd;
-                case "!=" ->
-                    ld != rd;
-                case "<" ->
-                    ld < rd;
-                case ">" ->
-                    ld > rd;
-                case "<=" ->
-                    ld <= rd;
-                case ">=" ->
-                    ld >= rd;
-                default ->
-                    throw new UnknownOperatorError(op);
+                case "==" -> ld == rd;
+                case "!=" -> ld != rd;
+                case "<" -> ld < rd;
+                case ">" -> ld > rd;
+                case "<=" -> ld <= rd;
+                case ">=" -> ld >= rd;
+                default -> throw new UnknownOperatorError(op);
             };
         } catch (NumberFormatException e) {
             return switch (op) {
-                case "==" ->
-                    l.equals(r);
-                case "!=" ->
-                    !l.equals(r);
-                case "<" ->
-                    l.compareTo(r) < 0;
-                case ">" ->
-                    l.compareTo(r) > 0;
-                case "<=" ->
-                    l.compareTo(r) <= 0;
-                case ">=" ->
-                    l.compareTo(r) >= 0;
-                default ->
-                    throw new UnknownOperatorError(op);
+                case "==" -> l.equals(r);
+                case "!=" -> !l.equals(r);
+                case "<" -> l.compareTo(r) < 0;
+                case ">" -> l.compareTo(r) > 0;
+                case "<=" -> l.compareTo(r) <= 0;
+                case ">=" -> l.compareTo(r) >= 0;
+                default -> throw new UnknownOperatorError(op);
             };
         }
     }
@@ -574,19 +544,15 @@ public final class CompiledRuntimeSupport {
     }
 
     private static Object evalExpr(Expression expr) {
-        if (expr instanceof ArrayExpression || expr instanceof ListExpression
-                || expr instanceof MapExpression) {
+        if (expr instanceof ArrayExpression || expr instanceof ListExpression || expr instanceof MapExpression) {
             return expr;
         }
         if (expr instanceof DumbExpression dumb) {
             String val = dumb.getValue();
             return switch (val) {
-                case "true" ->
-                    Boolean.TRUE;
-                case "false" ->
-                    Boolean.FALSE;
-                case "null" ->
-                    NullValue.INSTANCE;
+                case "true" -> Boolean.TRUE;
+                case "false" -> Boolean.FALSE;
+                case "null" -> NullValue.INSTANCE;
                 default -> {
                     if (!val.isEmpty() && (Character.isDigit(val.charAt(0)) || val.charAt(0) == '-')) {
                         try {
@@ -623,8 +589,7 @@ public final class CompiledRuntimeSupport {
                 int i = ((Number) index).intValue();
                 yield evalExpr(list.getMembers().get(i));
             }
-            default ->
-                throw new com.mira.error.runtime.RuntimeError.NotIterableError();
+            default -> throw new com.mira.error.runtime.RuntimeError.NotIterableError();
         };
     }
 
@@ -638,14 +603,10 @@ public final class CompiledRuntimeSupport {
 
     public static void arraySet(Object container, Object index, Object value) {
         switch (container) {
-            case ArrayExpression arr ->
-                arr.getMembers().set(((Number) index).intValue(), wrapExpr(value));
-            case ListExpression list ->
-                list.getMembers().set(((Number) index).intValue(), wrapExpr(value));
-            case MapExpression map ->
-                map.getEntries().put(String.valueOf(index), wrapExpr(value));
-            default ->
-                throw new com.mira.error.runtime.RuntimeError.NotIterableError();
+            case ArrayExpression arr -> arr.getMembers().set(((Number) index).intValue(), wrapExpr(value));
+            case ListExpression list -> list.getMembers().set(((Number) index).intValue(), wrapExpr(value));
+            case MapExpression map -> map.getEntries().put(String.valueOf(index), wrapExpr(value));
+            default -> throw new com.mira.error.runtime.RuntimeError.NotIterableError();
         }
     }
 
@@ -793,27 +754,19 @@ public final class CompiledRuntimeSupport {
 
     public static int collectionSize(Object container) {
         return switch (container) {
-            case ArrayExpression arr ->
-                arr.getMembers().size();
-            case ListExpression list ->
-                list.getMembers().size();
-            case String s ->
-                s.length();
-            default ->
-                throw new RuntimeException("Not iterable: " + container);
+            case ArrayExpression arr -> arr.getMembers().size();
+            case ListExpression list -> list.getMembers().size();
+            case String s -> s.length();
+            default -> throw new RuntimeException("Not iterable: " + container);
         };
     }
 
     public static Object collectionGet(Object container, int index) {
         return switch (container) {
-            case ArrayExpression arr ->
-                evalExpr(arr.getMembers().get(index));
-            case ListExpression list ->
-                evalExpr(list.getMembers().get(index));
-            case String s ->
-                String.valueOf(s.charAt(index));
-            default ->
-                throw new RuntimeException("Not iterable: " + container);
+            case ArrayExpression arr -> evalExpr(arr.getMembers().get(index));
+            case ListExpression list -> evalExpr(list.getMembers().get(index));
+            case String s -> String.valueOf(s.charAt(index));
+            default -> throw new RuntimeException("Not iterable: " + container);
         };
     }
 
@@ -844,8 +797,8 @@ public final class CompiledRuntimeSupport {
 
     public static Object asyncWrap(Callable callable, Object[] args) {
         java.util.List<Object> argsList = java.util.Arrays.asList(args);
-        java.util.concurrent.CompletableFuture<Object> future
-                = java.util.concurrent.CompletableFuture.supplyAsync(() -> callable.call(null, argsList));
+        java.util.concurrent.CompletableFuture<Object> future = java.util.concurrent.CompletableFuture
+                .supplyAsync(() -> callable.call(null, argsList));
         return new com.mira.runtime.functions.Promise(future);
     }
 

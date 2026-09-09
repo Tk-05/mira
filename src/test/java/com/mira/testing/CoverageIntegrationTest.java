@@ -74,8 +74,8 @@ public class CoverageIntegrationTest {
         List<CoverageTracker.FileEntry> files = new ArrayList<>();
         files.add(new CoverageTracker.FileEntry(CoverageTracker.moduleNameOf(asts), "main_test.mira", asts));
         for (ModuleChecker.ParsedModule module : ModuleChecker.collectAllModules(asts, testFile).values()) {
-            files.add(new CoverageTracker.FileEntry(
-                    CoverageTracker.moduleNameOf(module.ast()), "mathlib.mira", module.ast()));
+            files.add(new CoverageTracker.FileEntry(CoverageTracker.moduleNameOf(module.ast()), "mathlib.mira",
+                    module.ast()));
         }
 
         ByteArrayOutputStream buffer = new ByteArrayOutputStream();

@@ -37,8 +37,8 @@ public class RenameProviderTest {
                 """;
         List<Node> ast = parse(source);
         Position pos = new Position(1, 9);
-        WorkspaceEdit edit = RenameProvider.rename(ast, source, pos, "file:///test.mira",
-                null, new WorkspaceIndex(), null, Map.of(), "total");
+        WorkspaceEdit edit = RenameProvider.rename(ast, source, pos, "file:///test.mira", null, new WorkspaceIndex(),
+                null, Map.of(), "total");
         assertNotNull(edit);
         List<TextEdit> edits = edit.getChanges().get("file:///test.mira");
         assertEquals(2, edits.size());
@@ -58,8 +58,8 @@ public class RenameProviderTest {
         List<Node> ast = parse(source);
         // cursor on "count" in "obj.count"
         Position pos = new Position(4, 18);
-        Range range = RenameProvider.prepareRename(ast, source, pos, "file:///test.mira",
-                null, new WorkspaceIndex(), null, Map.of());
+        Range range = RenameProvider.prepareRename(ast, source, pos, "file:///test.mira", null, new WorkspaceIndex(),
+                null, Map.of());
         assertNotNull(range);
     }
 
@@ -79,8 +79,8 @@ public class RenameProviderTest {
                 """;
         List<Node> ast = parse(source);
         Position pos = new Position(4, 18);
-        WorkspaceEdit edit = RenameProvider.rename(ast, source, pos, "file:///test.mira",
-                null, new WorkspaceIndex(), null, Map.of(), "total");
+        WorkspaceEdit edit = RenameProvider.rename(ast, source, pos, "file:///test.mira", null, new WorkspaceIndex(),
+                null, Map.of(), "total");
         assertNotNull(edit);
         List<TextEdit> edits = edit.getChanges().get("file:///test.mira");
         assertEquals(1, edits.size());
@@ -96,8 +96,8 @@ public class RenameProviderTest {
                 """;
         List<Node> ast = parse(source);
         Position pos = new Position(0, 4);
-        Range range = RenameProvider.prepareRename(ast, source, pos, "file:///test.mira",
-                null, new WorkspaceIndex(), null, Map.of());
+        Range range = RenameProvider.prepareRename(ast, source, pos, "file:///test.mira", null, new WorkspaceIndex(),
+                null, Map.of());
         assertNotNull(range);
     }
 
@@ -121,8 +121,8 @@ public class RenameProviderTest {
         WorkspaceIndex index = new WorkspaceIndex();
         Position pos = new Position(0, 8);
         String libUri = libPath.toUri().toString();
-        WorkspaceEdit edit = RenameProvider.rename(libAst, Files.readString(libPath), pos, libUri,
-                libPath, index, tempDir, Map.of(), "assist");
+        WorkspaceEdit edit = RenameProvider.rename(libAst, Files.readString(libPath), pos, libUri, libPath, index,
+                tempDir, Map.of(), "assist");
 
         assertNotNull(edit);
         assertEquals(2, edit.getChanges().size());
@@ -150,8 +150,8 @@ public class RenameProviderTest {
         WorkspaceIndex index = new WorkspaceIndex();
         Position pos = new Position(0, 8);
         String libUri = libPath.toUri().toString();
-        WorkspaceEdit edit = RenameProvider.rename(libAst, Files.readString(libPath), pos, libUri,
-                libPath, index, tempDir, Map.of(), "assist");
+        WorkspaceEdit edit = RenameProvider.rename(libAst, Files.readString(libPath), pos, libUri, libPath, index,
+                tempDir, Map.of(), "assist");
 
         assertNotNull(edit);
         assertEquals(2, edit.getChanges().size());
@@ -171,39 +171,39 @@ public class RenameProviderTest {
     @Test
     void rejectsNameStartingWithDigit() {
         RenameProvider.RenameRejectedException ex = assertThrows(RenameProvider.RenameRejectedException.class,
-                () -> RenameProvider.rename(parse(source()), source(), new Position(1, 9),
-                        "file:///test.mira", null, new WorkspaceIndex(), null, Map.of(), "123total"));
+                () -> RenameProvider.rename(parse(source()), source(), new Position(1, 9), "file:///test.mira", null,
+                        new WorkspaceIndex(), null, Map.of(), "123total"));
         assertTrue(ex.getMessage().contains("must start with a letter"));
     }
 
     @Test
     void rejectsNameWithInvalidCharacters() {
         RenameProvider.RenameRejectedException ex = assertThrows(RenameProvider.RenameRejectedException.class,
-                () -> RenameProvider.rename(parse(source()), source(), new Position(1, 9),
-                        "file:///test.mira", null, new WorkspaceIndex(), null, Map.of(), "my var"));
+                () -> RenameProvider.rename(parse(source()), source(), new Position(1, 9), "file:///test.mira", null,
+                        new WorkspaceIndex(), null, Map.of(), "my var"));
         assertTrue(ex.getMessage().contains("only letters, digits, and '_'"));
     }
 
     @Test
     void rejectsBlankName() {
         RenameProvider.RenameRejectedException ex = assertThrows(RenameProvider.RenameRejectedException.class,
-                () -> RenameProvider.rename(parse(source()), source(), new Position(1, 9),
-                        "file:///test.mira", null, new WorkspaceIndex(), null, Map.of(), ""));
+                () -> RenameProvider.rename(parse(source()), source(), new Position(1, 9), "file:///test.mira", null,
+                        new WorkspaceIndex(), null, Map.of(), ""));
         assertTrue(ex.getMessage().contains("must not be empty"));
     }
 
     @Test
     void rejectsReservedKeyword() {
         RenameProvider.RenameRejectedException ex = assertThrows(RenameProvider.RenameRejectedException.class,
-                () -> RenameProvider.rename(parse(source()), source(), new Position(1, 9),
-                        "file:///test.mira", null, new WorkspaceIndex(), null, Map.of(), "fn"));
+                () -> RenameProvider.rename(parse(source()), source(), new Position(1, 9), "file:///test.mira", null,
+                        new WorkspaceIndex(), null, Map.of(), "fn"));
         assertTrue(ex.getMessage().contains("reserved keyword"));
     }
 
     @Test
     void acceptsUnderscorePrefixedName() {
-        WorkspaceEdit edit = RenameProvider.rename(parse(source()), source(), new Position(1, 9),
-                "file:///test.mira", null, new WorkspaceIndex(), null, Map.of(), "_total");
+        WorkspaceEdit edit = RenameProvider.rename(parse(source()), source(), new Position(1, 9), "file:///test.mira",
+                null, new WorkspaceIndex(), null, Map.of(), "_total");
         assertNotNull(edit);
     }
 
@@ -211,15 +211,15 @@ public class RenameProviderTest {
     void rejectsRenameThatCollidesWithParameterAlreadyInScope() {
         // "sum" -> "a" would collide with the existing parameter "a".
         RenameProvider.RenameRejectedException ex = assertThrows(RenameProvider.RenameRejectedException.class,
-                () -> RenameProvider.rename(parse(source()), source(), new Position(1, 9),
-                        "file:///test.mira", null, new WorkspaceIndex(), null, Map.of(), "a"));
+                () -> RenameProvider.rename(parse(source()), source(), new Position(1, 9), "file:///test.mira", null,
+                        new WorkspaceIndex(), null, Map.of(), "a"));
         assertTrue(ex.getMessage().contains("already declared in this scope"));
     }
 
     @Test
     void allowsRenameToItsOwnCurrentName() {
-        WorkspaceEdit edit = RenameProvider.rename(parse(source()), source(), new Position(1, 9),
-                "file:///test.mira", null, new WorkspaceIndex(), null, Map.of(), "sum");
+        WorkspaceEdit edit = RenameProvider.rename(parse(source()), source(), new Position(1, 9), "file:///test.mira",
+                null, new WorkspaceIndex(), null, Map.of(), "sum");
         assertNotNull(edit);
     }
 
@@ -237,16 +237,16 @@ public class RenameProviderTest {
         List<Node> ast = parse(source);
         Position pos = new Position(5, 18); // "count" in "obj.count"
         RenameProvider.RenameRejectedException ex = assertThrows(RenameProvider.RenameRejectedException.class,
-                () -> RenameProvider.rename(ast, source, pos, "file:///test.mira",
-                        null, new WorkspaceIndex(), null, Map.of(), "total"));
+                () -> RenameProvider.rename(ast, source, pos, "file:///test.mira", null, new WorkspaceIndex(), null,
+                        Map.of(), "total"));
         assertTrue(ex.getMessage().contains("already exists on this type"));
     }
 
     @Test
     void rejectsRenameWhereNoWordSitsUnderTheCursor() {
         RenameProvider.RenameRejectedException ex = assertThrows(RenameProvider.RenameRejectedException.class,
-                () -> RenameProvider.rename(parse(source()), source(), new Position(0, 0),
-                        "file:///test.mira", null, new WorkspaceIndex(), null, Map.of(), "renamed"));
+                () -> RenameProvider.rename(parse(source()), source(), new Position(0, 0), "file:///test.mira", null,
+                        new WorkspaceIndex(), null, Map.of(), "renamed"));
         assertTrue(ex.getMessage().contains("Cannot find any references"));
     }
 }

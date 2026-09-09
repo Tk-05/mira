@@ -30,8 +30,7 @@ public class NativeFunction implements Callable {
     }
 
     @Override
-    public Object call(Interpreter interpreter,
-            List<Object> arguments) {
+    public Object call(Interpreter interpreter, List<Object> arguments) {
         return body.execute(arguments);
     }
 

@@ -11,8 +11,7 @@ public class RuntimeError extends MiraError {
     public static class ObjectAlreadyDefinedInScope extends RuntimeError {
 
         public ObjectAlreadyDefinedInScope(String name) {
-            super("E201",
-                    "'" + name + "' is already defined in this scope",
+            super("E201", "'" + name + "' is already defined in this scope",
                     "Rename the variable, or remove the duplicate declaration");
         }
     }
@@ -20,8 +19,7 @@ public class RuntimeError extends MiraError {
     public static class UndefinedVariableError extends RuntimeError {
 
         public UndefinedVariableError(String identifier) {
-            super("E202",
-                    "Undefined variable '" + identifier + "'",
+            super("E202", "Undefined variable '" + identifier + "'",
                     "Declare '" + identifier + "' with 'var' or 'const' before using it");
         }
 
@@ -33,25 +31,21 @@ public class RuntimeError extends MiraError {
     public static class ArgMismatchError extends RuntimeError {
 
         public ArgMismatchError(String function, int expected, int actual) {
-            super("E203",
-                    "'" + function + "' expects " + expected + " argument" + (expected == 1 ? "" : "s")
+            super("E203", "'" + function + "' expects " + expected + " argument" + (expected == 1 ? "" : "s")
                     + ", but got " + actual,
                     "Check the function signature and the number of arguments you are passing");
         }
 
         public ArgMismatchError(String function, int expected, int actual, String signature) {
-            super("E203",
-                    "'" + function + "' expects " + expected + " argument" + (expected == 1 ? "" : "s")
-                    + ", but got " + actual,
-                    signature);
+            super("E203", "'" + function + "' expects " + expected + " argument" + (expected == 1 ? "" : "s")
+                    + ", but got " + actual, signature);
         }
     }
 
     public static class UndefinedReferenceError extends RuntimeError {
 
         public UndefinedReferenceError(String identifier) {
-            super("E204",
-                    "'" + identifier + "' is not defined",
+            super("E204", "'" + identifier + "' is not defined",
                     "Make sure '" + identifier + "' is imported or declared before use");
         }
 
@@ -63,8 +57,7 @@ public class RuntimeError extends MiraError {
     public static class ReferenceIsImmutableError extends RuntimeError {
 
         public ReferenceIsImmutableError(String name) {
-            super("E205",
-                    "Cannot reassign constant '" + name + "'",
+            super("E205", "Cannot reassign constant '" + name + "'",
                     "Declare with 'var' instead of 'const' if the value needs to change");
         }
     }
@@ -83,8 +76,7 @@ public class RuntimeError extends MiraError {
     public static class MismatchedParenthesesError extends RuntimeError {
 
         public MismatchedParenthesesError() {
-            super("E207", "Mismatched parentheses",
-                    "Make sure every '(' has a matching ')'");
+            super("E207", "Mismatched parentheses", "Make sure every '(' has a matching ')'");
         }
     }
 
@@ -104,9 +96,7 @@ public class RuntimeError extends MiraError {
     public static class PostExprNaNError extends RuntimeError {
 
         public PostExprNaNError(String ident) {
-            super("E210",
-                    "Cannot apply numeric increment/decrement to '" + ident + "' — it is not a number",
-                    null);
+            super("E210", "Cannot apply numeric increment/decrement to '" + ident + "' — it is not a number", null);
         }
     }
 
@@ -124,8 +114,7 @@ public class RuntimeError extends MiraError {
     public static class NotCallableError extends RuntimeError {
 
         public NotCallableError(String name) {
-            super("E212",
-                    "'" + name + "' is not a function and cannot be called",
+            super("E212", "'" + name + "' is not a function and cannot be called",
                     "Make sure '" + name + "' is declared as a function with 'fn'");
         }
     }
@@ -133,17 +122,14 @@ public class RuntimeError extends MiraError {
     public static class NotANamespaceError extends RuntimeError {
 
         public NotANamespaceError(String alias) {
-            super("E213",
-                    "'" + alias + "' is not a namespace",
-                    "Import the module before accessing it with '.'");
+            super("E213", "'" + alias + "' is not a namespace", "Import the module before accessing it with '.'");
         }
     }
 
     public static class ImmutableCollectionError extends RuntimeError {
 
         public ImmutableCollectionError() {
-            super("E214",
-                    "Cannot modify an immutable collection",
+            super("E214", "Cannot modify an immutable collection",
                     "Only mutable lists (declared with '{...}') support index assignment");
         }
     }
@@ -151,14 +137,12 @@ public class RuntimeError extends MiraError {
     public static class FieldAccessError extends RuntimeError {
 
         public FieldAccessError(String field) {
-            super("E215",
-                    "Cannot access field '" + field + "' on a non-object value",
+            super("E215", "Cannot access field '" + field + "' on a non-object value",
                     "Make sure the value is an object literal before using '.' field access");
         }
 
         public FieldAccessError(String field, String actualType) {
-            super("E215",
-                    "Cannot access field '" + field + "' on " + actualType + " (expected object)",
+            super("E215", "Cannot access field '" + field + "' on " + actualType + " (expected object)",
                     "Make sure the value is an object literal before using '.' field access");
         }
     }
@@ -166,8 +150,7 @@ public class RuntimeError extends MiraError {
     public static class TypeConversionError extends RuntimeError {
 
         public TypeConversionError(Object value) {
-            super("E216",
-                    "Cannot convert '" + value + "' to a number",
+            super("E216", "Cannot convert '" + value + "' to a number",
                     "Make sure the value is a numeric string or a number before using it in arithmetic");
         }
     }
@@ -175,17 +158,14 @@ public class RuntimeError extends MiraError {
     public static class RangeStepZeroError extends RuntimeError {
 
         public RangeStepZeroError() {
-            super("E217",
-                    "Range step cannot be zero",
-                    "Provide a non-zero step value");
+            super("E217", "Range step cannot be zero", "Provide a non-zero step value");
         }
     }
 
     public static class NotIterableError extends RuntimeError {
 
         public NotIterableError() {
-            super("E218",
-                    "Value is not iterable — expected a list, tuple, or range",
+            super("E218", "Value is not iterable — expected a list, tuple, or range",
                     "Use a list '{...}', a tuple '[...]', or a range expression as the collection");
         }
     }
@@ -193,9 +173,7 @@ public class RuntimeError extends MiraError {
     public static class InvalidArgumentError extends RuntimeError {
 
         public InvalidArgumentError(String function, String detail) {
-            super("E220",
-                    "Invalid argument to '" + function + "': " + detail,
-                    null);
+            super("E220", "Invalid argument to '" + function + "': " + detail, null);
         }
     }
 
@@ -203,8 +181,7 @@ public class RuntimeError extends MiraError {
 
         public LibImportConflictError(String libA, String libB, java.util.Set<String> conflicting) {
             super("E221",
-                    "Import conflict between '" + libA + "' and '" + libB + "': "
-                    + "conflicting names: " + conflicting,
+                    "Import conflict between '" + libA + "' and '" + libB + "': " + "conflicting names: " + conflicting,
                     "Use 'import " + libB + " as <alias>;' to avoid name collisions");
         }
     }
@@ -212,8 +189,7 @@ public class RuntimeError extends MiraError {
     public static class NativeLibNotFoundError extends RuntimeError {
 
         public NativeLibNotFoundError(String path) {
-            super("E222",
-                    "Native JAR not found: '" + path + "'",
+            super("E222", "Native JAR not found: '" + path + "'",
                     "Check that the file path is correct and the JAR exists");
         }
     }
@@ -221,28 +197,25 @@ public class RuntimeError extends MiraError {
     public static class NativeLibNoImplementationError extends RuntimeError {
 
         public NativeLibNoImplementationError(String path) {
-            super("E223",
-                    "No Lib implementation found in native JAR: '" + path + "'",
+            super("E223", "No Lib implementation found in native JAR: '" + path + "'",
                     "Ensure the JAR contains META-INF/services/com.mira.lib.Lib "
-                    + "and that the listed class implements com.mira.lib.Lib");
+                            + "and that the listed class implements com.mira.lib.Lib");
         }
     }
 
     public static class NativeLibLoadError extends RuntimeError {
 
         public NativeLibLoadError(String path, Throwable cause) {
-            super("E224",
-                    "Failed to load native JAR '" + path + "': " + cause.getMessage(),
+            super("E224", "Failed to load native JAR '" + path + "': " + cause.getMessage(),
                     "Verify the JAR is a valid archive and its classes are compatible "
-                    + "with the current interpreter version");
+                            + "with the current interpreter version");
         }
     }
 
     public static class ModuleMissingDeclarationError extends RuntimeError {
 
         public ModuleMissingDeclarationError(String module) {
-            super("E225",
-                    "Module '" + module + "' is missing a 'module' declaration",
+            super("E225", "Module '" + module + "' is missing a 'module' declaration",
                     "Add 'module <name>;' as the first statement in '" + module + "'");
         }
     }
@@ -250,17 +223,14 @@ public class RuntimeError extends MiraError {
     public static class DivisionByZeroError extends RuntimeError {
 
         public DivisionByZeroError() {
-            super("E228",
-                    "Division by zero",
-                    "Check that the divisor is not zero before dividing");
+            super("E228", "Division by zero", "Check that the divisor is not zero before dividing");
         }
     }
 
     public static class IndexOutOfBoundsError extends RuntimeError {
 
         public IndexOutOfBoundsError(int index, int size) {
-            super("E229",
-                    "Index " + index + " is out of bounds (size: " + size + ")",
+            super("E229", "Index " + index + " is out of bounds (size: " + size + ")",
                     "Use an index between 0 and " + (size - 1));
         }
     }
@@ -268,8 +238,7 @@ public class RuntimeError extends MiraError {
     public static class PrivateSymbolImportError extends RuntimeError {
 
         public PrivateSymbolImportError(String symbol, String module) {
-            super("E230",
-                    "Cannot import private symbol '" + symbol + "' from module '" + module + "'",
+            super("E230", "Cannot import private symbol '" + symbol + "' from module '" + module + "'",
                     "Mark the declaration with 'pub' in the module to make it importable");
         }
     }
@@ -277,8 +246,7 @@ public class RuntimeError extends MiraError {
     public static class ModuleSymbolNotFoundError extends RuntimeError {
 
         public ModuleSymbolNotFoundError(String symbol, String module) {
-            super("E231",
-                    "Symbol '" + symbol + "' not found in module '" + module + "'",
+            super("E231", "Symbol '" + symbol + "' not found in module '" + module + "'",
                     "Check the spelling and make sure the symbol is declared with 'pub' in the module");
         }
     }
@@ -286,8 +254,7 @@ public class RuntimeError extends MiraError {
     public static class NotAStructTemplateError extends RuntimeError {
 
         public NotAStructTemplateError() {
-            super("E232",
-                    "Value is not a struct template and cannot be instantiated",
+            super("E232", "Value is not a struct template and cannot be instantiated",
                     "Make sure the target was declared with 'struct { ... }' before instantiating it");
         }
     }
@@ -295,8 +262,7 @@ public class RuntimeError extends MiraError {
     public static class UnknownStructFieldError extends RuntimeError {
 
         public UnknownStructFieldError(String field) {
-            super("E233",
-                    "Struct has no field '" + field + "'",
+            super("E233", "Struct has no field '" + field + "'",
                     "Check the spelling, or add the field to the 'struct { ... }' template");
         }
     }
@@ -304,8 +270,7 @@ public class RuntimeError extends MiraError {
     public static class ModuleNotFoundError extends RuntimeError {
 
         public ModuleNotFoundError(String path) {
-            super("E234",
-                    "Module file not found: '" + path + "'",
+            super("E234", "Module file not found: '" + path + "'",
                     "Check that the path is correct and relative to the importing file");
         }
     }
@@ -313,8 +278,7 @@ public class RuntimeError extends MiraError {
     public static class NativeBindingError extends RuntimeError {
 
         public NativeBindingError(String name, String reason) {
-            super("E235",
-                    "Cannot bind native member '" + name + "': " + reason,
+            super("E235", "Cannot bind native member '" + name + "': " + reason,
                     "Check the ReflectiveLib's targets() and overrides() for '" + name + "'");
         }
     }

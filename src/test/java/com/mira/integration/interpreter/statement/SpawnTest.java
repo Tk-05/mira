@@ -14,10 +14,14 @@ public class SpawnTest extends AbstractSpawnTests {
     private final InterpreterRunner backend = new InterpreterRunner();
 
     @BeforeEach
-    void setup() { backend.reset(); }
+    void setup() {
+        backend.reset();
+    }
 
     @Override
-    protected String runForOutput(String source) { return backend.run(source); }
+    protected String runForOutput(String source) {
+        return backend.run(source);
+    }
 
     @Test
     void spawnReturnsPromise() {
@@ -27,14 +31,12 @@ public class SpawnTest extends AbstractSpawnTests {
 
     @Test
     void awaitSpawnedNumber() {
-        assertEquals(42.0, InterpreterRunner.normNum(backend.runAndGetValue(
-                "(await spawn(fn() { return 42; }));")));
+        assertEquals(42.0, InterpreterRunner.normNum(backend.runAndGetValue("(await spawn(fn() { return 42; }));")));
     }
 
     @Test
     void awaitSpawnedString() {
-        assertEquals("hello", backend.runAndGetValue(
-                "await spawn(fn() { return \"hello\"; });"));
+        assertEquals("hello", backend.runAndGetValue("await spawn(fn() { return \"hello\"; });"));
     }
 
     @Test

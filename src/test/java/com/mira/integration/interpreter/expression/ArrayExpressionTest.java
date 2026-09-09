@@ -30,20 +30,17 @@ public class ArrayExpressionTest extends AbstractArrayExpressionTests {
 
     @Test
     void arrayWithExpressions() {
-        assertEquals(3.0, InterpreterRunner.normNum(backend.runAndGetValue(
-                "var arr : [1+2, 3*4, 5]; (arr[0]);")));
+        assertEquals(3.0, InterpreterRunner.normNum(backend.runAndGetValue("var arr : [1+2, 3*4, 5]; (arr[0]);")));
     }
 
     @Test
     void arrayFirstElement() {
-        assertEquals(1.0, InterpreterRunner.normNum(backend.runAndGetValue(
-                "var arr : [1,2,3]; (arr[0]);")));
+        assertEquals(1.0, InterpreterRunner.normNum(backend.runAndGetValue("var arr : [1,2,3]; (arr[0]);")));
     }
 
     @Test
     void arrayLastElement() {
-        assertEquals(3.0, InterpreterRunner.normNum(backend.runAndGetValue(
-                "var arr : [1,2,3]; (arr[2]);")));
+        assertEquals(3.0, InterpreterRunner.normNum(backend.runAndGetValue("var arr : [1,2,3]; (arr[2]);")));
     }
 
     @Test

@@ -214,7 +214,9 @@ public class DapServer implements IDebugProtocolServer {
             Flags.inputPath.set(programPath);
             interpreter = new Interpreter();
             interpreter.setDebugHook((line, env) -> {
-                Set<Integer> bps = programPath != null ? breakpointLines.getOrDefault(programPath, Collections.emptySet()) : Collections.emptySet();
+                Set<Integer> bps = programPath != null
+                        ? breakpointLines.getOrDefault(programPath, Collections.emptySet())
+                        : Collections.emptySet();
 
                 boolean stepHit = stepMode && (stepOverDepth < 0 || interpreter.getCallStack().size() <= stepOverDepth);
                 boolean hit = stepHit || bps.contains(line);
@@ -423,12 +425,14 @@ public class DapServer implements IDebugProtocolServer {
     }
 
     @Override
-    public CompletableFuture<SetFunctionBreakpointsResponse> setFunctionBreakpoints(SetFunctionBreakpointsArguments args) {
+    public CompletableFuture<SetFunctionBreakpointsResponse> setFunctionBreakpoints(
+            SetFunctionBreakpointsArguments args) {
         return CompletableFuture.completedFuture(new SetFunctionBreakpointsResponse());
     }
 
     @Override
-    public CompletableFuture<SetExceptionBreakpointsResponse> setExceptionBreakpoints(SetExceptionBreakpointsArguments args) {
+    public CompletableFuture<SetExceptionBreakpointsResponse> setExceptionBreakpoints(
+            SetExceptionBreakpointsArguments args) {
         return CompletableFuture.completedFuture(new SetExceptionBreakpointsResponse());
     }
 
@@ -443,7 +447,8 @@ public class DapServer implements IDebugProtocolServer {
     }
 
     @Override
-    public CompletableFuture<SetInstructionBreakpointsResponse> setInstructionBreakpoints(SetInstructionBreakpointsArguments args) {
+    public CompletableFuture<SetInstructionBreakpointsResponse> setInstructionBreakpoints(
+            SetInstructionBreakpointsArguments args) {
         return CompletableFuture.completedFuture(new SetInstructionBreakpointsResponse());
     }
 

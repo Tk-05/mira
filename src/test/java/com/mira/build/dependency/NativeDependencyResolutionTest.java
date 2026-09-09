@@ -48,8 +48,7 @@ public class NativeDependencyResolutionTest {
         String url = fixtureDir.resolve("ext.jar").toUri().toString();
 
         Path consumerDir = Files.createDirectory(tmp.resolve("consumer"));
-        Files.writeString(consumerDir.resolve("mira.toml"),
-                "[project]\nname = \"app\"\nentry = \"main.mira\"\n"
+        Files.writeString(consumerDir.resolve("mira.toml"), "[project]\nname = \"app\"\nentry = \"main.mira\"\n"
                 + "[native]\next = { url = \"" + url + "\", sha256 = \"" + sha + "\" }\n");
         Files.createFile(consumerDir.resolve("main.mira"));
 
@@ -67,14 +66,12 @@ public class NativeDependencyResolutionTest {
         String url = fixtureDir.resolve("lib.jar").toUri().toString();
 
         Path libDir = Files.createDirectory(tmp.resolve("lib"));
-        Files.writeString(libDir.resolve("mira.toml"),
-                "[project]\nname = \"lib\"\nentry = \"lib.mira\"\n"
+        Files.writeString(libDir.resolve("mira.toml"), "[project]\nname = \"lib\"\nentry = \"lib.mira\"\n"
                 + "[native]\nnative-lib = { url = \"" + url + "\", sha256 = \"" + sha + "\" }\n");
         Files.createFile(libDir.resolve("lib.mira"));
 
         Path consumerDir = Files.createDirectory(tmp.resolve("consumer"));
-        Files.writeString(consumerDir.resolve("mira.toml"),
-                "[project]\nname = \"app\"\nentry = \"main.mira\"\n"
+        Files.writeString(consumerDir.resolve("mira.toml"), "[project]\nname = \"app\"\nentry = \"main.mira\"\n"
                 + "[dependencies]\nlib = { path = \"" + escaped(libDir) + "\" }\n");
         Files.createFile(consumerDir.resolve("main.mira"));
 
@@ -93,20 +90,17 @@ public class NativeDependencyResolutionTest {
         String url = fixtureDir.resolve("deep.jar").toUri().toString();
 
         Path libBDir = Files.createDirectory(tmp.resolve("libB"));
-        Files.writeString(libBDir.resolve("mira.toml"),
-                "[project]\nname = \"libB\"\nentry = \"b.mira\"\n"
+        Files.writeString(libBDir.resolve("mira.toml"), "[project]\nname = \"libB\"\nentry = \"b.mira\"\n"
                 + "[native]\ndeep = { url = \"" + url + "\", sha256 = \"" + sha + "\" }\n");
         Files.createFile(libBDir.resolve("b.mira"));
 
         Path libADir = Files.createDirectory(tmp.resolve("libA"));
-        Files.writeString(libADir.resolve("mira.toml"),
-                "[project]\nname = \"libA\"\nentry = \"a.mira\"\n"
+        Files.writeString(libADir.resolve("mira.toml"), "[project]\nname = \"libA\"\nentry = \"a.mira\"\n"
                 + "[dependencies]\nlibB = { path = \"" + escaped(libBDir) + "\" }\n");
         Files.createFile(libADir.resolve("a.mira"));
 
         Path consumerDir = Files.createDirectory(tmp.resolve("consumer"));
-        Files.writeString(consumerDir.resolve("mira.toml"),
-                "[project]\nname = \"app\"\nentry = \"main.mira\"\n"
+        Files.writeString(consumerDir.resolve("mira.toml"), "[project]\nname = \"app\"\nentry = \"main.mira\"\n"
                 + "[dependencies]\nlibA = { path = \"" + escaped(libADir) + "\" }\n");
         Files.createFile(consumerDir.resolve("main.mira"));
 
@@ -120,8 +114,8 @@ public class NativeDependencyResolutionTest {
     }
 
     /**
-     * Mirrors the real "Breakout depends on Engine depends on Raylib" scenario,
-     * via mira-install-style deps.
+     * Mirrors the real "Breakout depends on Engine depends on Raylib" scenario, via
+     * mira-install-style deps.
      */
     @Test
     void breakoutEngineRaylibChainViaRegistryDependencies() throws Exception {
@@ -131,20 +125,18 @@ public class NativeDependencyResolutionTest {
 
         Path raylibInstall = LocalRegistry.installDir("raylib", "0.1.0");
         Files.createDirectories(raylibInstall);
-        Files.writeString(raylibInstall.resolve("mira.toml"),
-                "[project]\nname = \"raylib\"\nversion = \"0.1.0\"\n"
+        Files.writeString(raylibInstall.resolve("mira.toml"), "[project]\nname = \"raylib\"\nversion = \"0.1.0\"\n"
                 + "[native]\nraylib = { url = \"" + url + "\", sha256 = \"" + sha + "\" }\n");
 
         Path engineInstall = LocalRegistry.installDir("engine", "1.0.0");
         Files.createDirectories(engineInstall);
         Files.writeString(engineInstall.resolve("mira.toml"),
                 "[project]\nname = \"engine\"\nversion = \"1.0.0\"\nentry = \"engine.mira\"\n"
-                + "[dependencies]\nraylib = { version = \"0.1.0\" }\n");
+                        + "[dependencies]\nraylib = { version = \"0.1.0\" }\n");
         Files.writeString(engineInstall.resolve("engine.mira"), "module engine;\n");
 
         Path breakoutDir = Files.createDirectory(tmp.resolve("breakout"));
-        Files.writeString(breakoutDir.resolve("mira.toml"),
-                "[project]\nname = \"breakout\"\nentry = \"main.mira\"\n"
+        Files.writeString(breakoutDir.resolve("mira.toml"), "[project]\nname = \"breakout\"\nentry = \"main.mira\"\n"
                 + "[dependencies]\nengine = { version = \"1.0.0\" }\n");
         Files.createFile(breakoutDir.resolve("main.mira"));
 
@@ -161,18 +153,15 @@ public class NativeDependencyResolutionTest {
     void cycleInTransitiveGraphDoesNotInfiniteLoop() throws Exception {
         Path aDir = Files.createDirectory(tmp.resolve("a"));
         Path bDir = Files.createDirectory(tmp.resolve("b"));
-        Files.writeString(aDir.resolve("mira.toml"),
-                "[project]\nname = \"a\"\nentry = \"a.mira\"\n"
+        Files.writeString(aDir.resolve("mira.toml"), "[project]\nname = \"a\"\nentry = \"a.mira\"\n"
                 + "[dependencies]\nb = { path = \"" + escaped(bDir) + "\" }\n");
         Files.createFile(aDir.resolve("a.mira"));
-        Files.writeString(bDir.resolve("mira.toml"),
-                "[project]\nname = \"b\"\nentry = \"b.mira\"\n"
+        Files.writeString(bDir.resolve("mira.toml"), "[project]\nname = \"b\"\nentry = \"b.mira\"\n"
                 + "[dependencies]\na = { path = \"" + escaped(aDir) + "\" }\n");
         Files.createFile(bDir.resolve("b.mira"));
 
         Path consumerDir = Files.createDirectory(tmp.resolve("consumer"));
-        Files.writeString(consumerDir.resolve("mira.toml"),
-                "[project]\nname = \"app\"\nentry = \"main.mira\"\n"
+        Files.writeString(consumerDir.resolve("mira.toml"), "[project]\nname = \"app\"\nentry = \"main.mira\"\n"
                 + "[dependencies]\na = { path = \"" + escaped(aDir) + "\" }\n");
         Files.createFile(consumerDir.resolve("main.mira"));
 
@@ -193,10 +182,9 @@ public class NativeDependencyResolutionTest {
 
         Path consumerDir = Files.createDirectory(tmp.resolve("consumer"));
         Files.writeString(consumerDir.resolve("mira.toml"),
-                "[project]\nname = \"app\"\nentry = \"main.mira\"\n"
-                + "[native]\n"
-                + "extA = { url = \"" + fixtureDirA.resolve("a.jar").toUri() + "\" }\n"
-                + "extB = { url = \"" + fixtureDirB.resolve("b.jar").toUri() + "\" }\n");
+                "[project]\nname = \"app\"\nentry = \"main.mira\"\n" + "[native]\n" + "extA = { url = \""
+                        + fixtureDirA.resolve("a.jar").toUri() + "\" }\n" + "extB = { url = \""
+                        + fixtureDirB.resolve("b.jar").toUri() + "\" }\n");
         Files.createFile(consumerDir.resolve("main.mira"));
 
         ProjectConfig cfg = ProjectLoader.load(consumerDir.resolve("mira.toml"));
@@ -214,15 +202,13 @@ public class NativeDependencyResolutionTest {
 
         Path libDir = Files.createDirectory(tmp.resolve("lib"));
         Files.writeString(libDir.resolve("mira.toml"),
-                "[project]\nname = \"lib\"\nentry = \"lib.mira\"\n"
-                + "[dependencies]\n"
-                + "unrelated-broken = { path = \"../does-not-exist\" }\n"
-                + "[native]\nfound = { url = \"" + url + "\", sha256 = \"" + sha + "\" }\n");
+                "[project]\nname = \"lib\"\nentry = \"lib.mira\"\n" + "[dependencies]\n"
+                        + "unrelated-broken = { path = \"../does-not-exist\" }\n" + "[native]\nfound = { url = \"" + url
+                        + "\", sha256 = \"" + sha + "\" }\n");
         Files.createFile(libDir.resolve("lib.mira"));
 
         Path consumerDir = Files.createDirectory(tmp.resolve("consumer"));
-        Files.writeString(consumerDir.resolve("mira.toml"),
-                "[project]\nname = \"app\"\nentry = \"main.mira\"\n"
+        Files.writeString(consumerDir.resolve("mira.toml"), "[project]\nname = \"app\"\nentry = \"main.mira\"\n"
                 + "[dependencies]\nlib = { path = \"" + escaped(libDir) + "\" }\n");
         Files.createFile(consumerDir.resolve("main.mira"));
 
@@ -232,7 +218,7 @@ public class NativeDependencyResolutionTest {
         assertEquals(1, resolution.sourceRoots().size());
         assertEquals(1, resolution.nativeRoots().size(),
                 "lib's own [native] table must still resolve even though one of its OTHER, unrelated "
-                + "dependencies can't be found");
+                        + "dependencies can't be found");
     }
 
     @Test
@@ -249,24 +235,20 @@ public class NativeDependencyResolutionTest {
 
         Path libADir = Files.createDirectory(tmp.resolve("libA"));
         Files.writeString(libADir.resolve("mira.toml"),
-                "[project]\nname = \"libA\"\nentry = \"a.mira\"\n"
-                + "[native]\nshared = { url = \"" + fixtureA.resolve("shared.jar").toUri()
-                + "\", sha256 = \"" + sha + "\" }\n");
+                "[project]\nname = \"libA\"\nentry = \"a.mira\"\n" + "[native]\nshared = { url = \""
+                        + fixtureA.resolve("shared.jar").toUri() + "\", sha256 = \"" + sha + "\" }\n");
         Files.createFile(libADir.resolve("a.mira"));
 
         Path libBDir = Files.createDirectory(tmp.resolve("libB"));
         Files.writeString(libBDir.resolve("mira.toml"),
-                "[project]\nname = \"libB\"\nentry = \"b.mira\"\n"
-                + "[native]\nshared = { url = \"" + fixtureB.resolve("shared.jar").toUri()
-                + "\", sha256 = \"" + sha + "\" }\n");
+                "[project]\nname = \"libB\"\nentry = \"b.mira\"\n" + "[native]\nshared = { url = \""
+                        + fixtureB.resolve("shared.jar").toUri() + "\", sha256 = \"" + sha + "\" }\n");
         Files.createFile(libBDir.resolve("b.mira"));
 
         Path consumerDir = Files.createDirectory(tmp.resolve("consumer"));
         Files.writeString(consumerDir.resolve("mira.toml"),
-                "[project]\nname = \"app\"\nentry = \"main.mira\"\n"
-                + "[dependencies]\n"
-                + "libA = { path = \"" + escaped(libADir) + "\" }\n"
-                + "libB = { path = \"" + escaped(libBDir) + "\" }\n");
+                "[project]\nname = \"app\"\nentry = \"main.mira\"\n" + "[dependencies]\n" + "libA = { path = \""
+                        + escaped(libADir) + "\" }\n" + "libB = { path = \"" + escaped(libBDir) + "\" }\n");
         Files.createFile(consumerDir.resolve("main.mira"));
 
         ProjectConfig cfg = ProjectLoader.load(consumerDir.resolve("mira.toml"));

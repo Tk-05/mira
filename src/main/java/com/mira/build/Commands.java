@@ -42,17 +42,9 @@ public class Commands {
         if (Files.exists(tomlPath)) {
             System.out.println("mira.toml already exists, skipping.");
         } else {
-            String toml = "[project]\n"
-                    + "name    = \"" + name + "\"\n"
-                    + "version = \"0.1.0\"\n"
-                    + "entry   = \"src/main.mira\"\n"
-                    + "\n"
-                    + "[build]\n"
-                    + "mode = \"interpret\"\n"
-                    + "main = true\n"
-                    + "\n"
-                    + "[test]\n"
-                    + "pattern = \"**/*_test.mira\"\n";
+            String toml = "[project]\n" + "name    = \"" + name + "\"\n" + "version = \"0.1.0\"\n"
+                    + "entry   = \"src/main.mira\"\n" + "\n" + "[build]\n" + "mode = \"interpret\"\n" + "main = true\n"
+                    + "\n" + "[test]\n" + "pattern = \"**/*_test.mira\"\n";
             try {
                 Files.writeString(tomlPath, toml);
                 System.out.println("Created mira.toml");
@@ -64,11 +56,8 @@ public class Commands {
         if (Files.exists(mainPath)) {
             System.out.println("src/main.mira already exists, skipping.");
         } else {
-            String mainMira = "module main;\n"
-                    + "\n"
-                    + "fn main() {\n"
-                    + "    print(\"Hello from " + name + "!\\n\");\n"
-                    + "}\n";
+            String mainMira = "module main;\n" + "\n" + "fn main() {\n" + "    print(\"Hello from " + name
+                    + "!\\n\");\n" + "}\n";
             try {
                 Files.createDirectories(mainPath.getParent());
                 Files.writeString(mainPath, mainMira);
@@ -86,13 +75,11 @@ public class Commands {
     }
 
     static void install(String[] args, Path workDir) {
-        ProjectConfig config = ProjectLoader.find(workDir)
-                .orElseThrow(() -> new BuildException(
-                """
-                        No mira.toml found in current directory or any parent.
-                        Run 'mira init' to create a new project."""));
-        Path dest = LocalRegistry.install(
-                config.name(), config.version(), config.projectRoot(), config.build().outputDir());
+        ProjectConfig config = ProjectLoader.find(workDir).orElseThrow(() -> new BuildException("""
+                No mira.toml found in current directory or any parent.
+                Run 'mira init' to create a new project."""));
+        Path dest = LocalRegistry.install(config.name(), config.version(), config.projectRoot(),
+                config.build().outputDir());
         System.out.println("Installed " + config.name() + " " + config.version() + " -> " + dest);
     }
 
@@ -101,11 +88,9 @@ public class Commands {
     }
 
     static void deps(String[] args, Path workDir) {
-        ProjectConfig config = ProjectLoader.find(workDir)
-                .orElseThrow(() -> new BuildException(
-                """
-                        No mira.toml found in current directory or any parent.
-                        Run 'mira init' to create a new project."""));
+        ProjectConfig config = ProjectLoader.find(workDir).orElseThrow(() -> new BuildException("""
+                No mira.toml found in current directory or any parent.
+                Run 'mira init' to create a new project."""));
         DependencyGraphInspector.DepNode root = DependencyGraphInspector.buildTree(config);
         DependencyTreePrinter.print(root);
     }
@@ -130,20 +115,13 @@ public class Commands {
     private static void applyCommonOptions(String[] args) {
         for (String arg : args) {
             switch (arg) {
-                case "--no-warn" ->
-                    Flags.suppressWarnings = true;
-                case "--no-color" ->
-                    Flags.noColor = true;
-                case "--profile" ->
-                    Flags.profile = true;
-                case "--stats" ->
-                    Flags.stats = true;
-                case "--coverage" ->
-                    Flags.coverage = true;
-                case "--strict-types" ->
-                    Flags.strictTypes = true;
-                case "-v", "--verbose" ->
-                    Flags.verbose = true;
+                case "--no-warn" -> Flags.suppressWarnings = true;
+                case "--no-color" -> Flags.noColor = true;
+                case "--profile" -> Flags.profile = true;
+                case "--stats" -> Flags.stats = true;
+                case "--coverage" -> Flags.coverage = true;
+                case "--strict-types" -> Flags.strictTypes = true;
+                case "-v", "--verbose" -> Flags.verbose = true;
                 default -> {
                 }
             }
@@ -168,8 +146,7 @@ public class Commands {
 
         ctx.applyFlags(effectiveMode, overrides.jarBundle());
 
-        if (effectiveMode == ProjectConfig.BuildMode.COMPILE
-                || effectiveMode == ProjectConfig.BuildMode.PACKAGE) {
+        if (effectiveMode == ProjectConfig.BuildMode.COMPILE || effectiveMode == ProjectConfig.BuildMode.PACKAGE) {
             Flags.compileAndRun = true;
             Flags.packageJar = false;
         }
@@ -204,8 +181,7 @@ public class Commands {
         if (ctx.config().test() != null) {
             BuildRunner.runTest(ctx);
         } else {
-            System.out.println(DiagnosticFormatter.formatInfo(
-                    "no [test] section defined — skipping tests"));
+            System.out.println(DiagnosticFormatter.formatInfo("no [test] section defined — skipping tests"));
         }
     }
 
@@ -267,39 +243,32 @@ public class Commands {
     }
 
     static BuildContext requireContext(Path startDir) {
-        ProjectConfig config = ProjectLoader.find(startDir)
-                .orElseThrow(() -> new BuildException(
-                """
-                        No mira.toml found in current directory or any parent.
-                        Run 'mira init' to create a new project."""));
+        ProjectConfig config = ProjectLoader.find(startDir).orElseThrow(() -> new BuildException("""
+                No mira.toml found in current directory or any parent.
+                Run 'mira init' to create a new project."""));
         DependencyResolver.Resolution resolution = DependencyResolver.resolve(config);
         return new BuildContext(config, resolution.sourceRoots(), resolution.nativeRoots());
     }
 
     private static ProjectConfig.BuildMode parseBuildMode(String s) {
         return switch (s) {
-            case "compile" ->
-                ProjectConfig.BuildMode.COMPILE;
-            case "package" ->
-                ProjectConfig.BuildMode.PACKAGE;
-            case "interpret" ->
-                ProjectConfig.BuildMode.INTERPRET;
+            case "compile" -> ProjectConfig.BuildMode.COMPILE;
+            case "package" -> ProjectConfig.BuildMode.PACKAGE;
+            case "interpret" -> ProjectConfig.BuildMode.INTERPRET;
             default ->
-                throw new BuildException(
-                        "Unknown build mode: '" + s + "'. Expected: interpret, compile, package");
+                throw new BuildException("Unknown build mode: '" + s + "'. Expected: interpret, compile, package");
         };
     }
 
     private static void deleteRecursively(Path dir) throws IOException {
         try (Stream<Path> stream = Files.walk(dir)) {
-            stream.sorted(Comparator.reverseOrder())
-                    .forEach(p -> {
-                        try {
-                            Files.delete(p);
-                        } catch (IOException e) {
-                            throw new UncheckedIOException(e);
-                        }
-                    });
+            stream.sorted(Comparator.reverseOrder()).forEach(p -> {
+                try {
+                    Files.delete(p);
+                } catch (IOException e) {
+                    throw new UncheckedIOException(e);
+                }
+            });
         }
     }
 }

@@ -43,14 +43,12 @@ public class DynamicImportTest {
 
     @Test
     void wholeModuleImportReturnsCallableNamespace() {
-        assertEquals("5", backend.run(
-                "var mod : importDynamic(\"plugin.mira\"); print(mod.add(2, 3));"));
+        assertEquals("5", backend.run("var mod : importDynamic(\"plugin.mira\"); print(mod.add(2, 3));"));
     }
 
     @Test
     void selectiveImportReturnsOnlyRequestedSymbol() {
-        assertEquals("5", backend.run(
-                "var mod : importDynamic(\"plugin.mira\", {\"add\"}); print(mod.add(2, 3));"));
+        assertEquals("5", backend.run("var mod : importDynamic(\"plugin.mira\", {\"add\"}); print(mod.add(2, 3));"));
     }
 
     @Test

@@ -20,10 +20,14 @@ public class VarDeclTest extends AbstractVarDeclTests {
     private final InterpreterRunner backend = new InterpreterRunner();
 
     @BeforeEach
-    void setup() { backend.reset(); }
+    void setup() {
+        backend.reset();
+    }
 
     @Override
-    protected String runForOutput(String source) { return backend.run(source); }
+    protected String runForOutput(String source) {
+        return backend.run(source);
+    }
 
     @Test
     void uninitializedDeclaration() {
@@ -59,8 +63,7 @@ public class VarDeclTest extends AbstractVarDeclTests {
 
     @Test
     void constDeclarationReassignThrows() {
-        assertThrows(ReferenceIsImmutableError.class,
-                () -> backend.runAndGetValue("const x : 0; x : 1;"));
+        assertThrows(ReferenceIsImmutableError.class, () -> backend.runAndGetValue("const x : 0; x : 1;"));
     }
 
     @Test

@@ -33,8 +33,8 @@ public class CallHierarchyProviderTest {
                 }
                 """;
         String uri = "file:///test.mira";
-        List<CallHierarchyItem> items = CallHierarchyProvider.prepare(parse(source), source,
-                new Position(0, 4), uri, new WorkspaceIndex(), Map.of());
+        List<CallHierarchyItem> items = CallHierarchyProvider.prepare(parse(source), source, new Position(0, 4), uri,
+                new WorkspaceIndex(), Map.of());
         assertEquals(1, items.size());
         assertEquals("add", items.get(0).getName());
     }
@@ -51,8 +51,8 @@ public class CallHierarchyProviderTest {
                 """;
         String uri = "file:///test.mira";
         // cursor on "add" inside main()'s call
-        List<CallHierarchyItem> items = CallHierarchyProvider.prepare(parse(source), source,
-                new Position(4, 12), uri, new WorkspaceIndex(), Map.of());
+        List<CallHierarchyItem> items = CallHierarchyProvider.prepare(parse(source), source, new Position(4, 12), uri,
+                new WorkspaceIndex(), Map.of());
         assertEquals(1, items.size());
         assertEquals("add", items.get(0).getName());
     }
@@ -63,8 +63,8 @@ public class CallHierarchyProviderTest {
                 var x : 1;
                 """;
         String uri = "file:///test.mira";
-        List<CallHierarchyItem> items = CallHierarchyProvider.prepare(parse(source), source,
-                new Position(0, 4), uri, new WorkspaceIndex(), Map.of());
+        List<CallHierarchyItem> items = CallHierarchyProvider.prepare(parse(source), source, new Position(0, 4), uri,
+                new WorkspaceIndex(), Map.of());
         assertEquals(0, items.size());
     }
 
@@ -208,8 +208,8 @@ public class CallHierarchyProviderTest {
         WorkspaceIndex index = new WorkspaceIndex();
         List<Node> mainAst = index.getAst(mainPath, Map.of());
         String mainUri = mainPath.toUri().toString();
-        List<CallHierarchyItem> items = CallHierarchyProvider.prepare(mainAst, mainSource,
-                new Position(1, 4), mainUri, index, Map.of());
+        List<CallHierarchyItem> items = CallHierarchyProvider.prepare(mainAst, mainSource, new Position(1, 4), mainUri,
+                index, Map.of());
         assertEquals(1, items.size());
 
         List<CallHierarchyOutgoingCall> calls = CallHierarchyProvider.outgoingCalls(items.get(0), index, Map.of());
@@ -267,8 +267,7 @@ public class CallHierarchyProviderTest {
         assertEquals(1, mainItems.size());
         assertEquals("main", mainItems.get(0).getName());
 
-        List<CallHierarchyOutgoingCall> calls = CallHierarchyProvider.outgoingCalls(mainItems.get(0), index,
-                Map.of());
+        List<CallHierarchyOutgoingCall> calls = CallHierarchyProvider.outgoingCalls(mainItems.get(0), index, Map.of());
         assertTrue(calls.isEmpty(), "method calls on objects must not be resolved as plain function calls");
     }
 }

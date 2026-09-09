@@ -28,7 +28,8 @@ public class Json implements Lib {
             try {
                 // Match quoted strings (with escape handling), numbers, booleans
                 Matcher m = Pattern
-                        .compile("\"" + Pattern.quote(key) + "\"\\s*:\\s*(?:\"((?:[^\"\\\\]|\\\\.)*)\"|([\\d.eE+\\-]+)|(true|false|null))")
+                        .compile("\"" + Pattern.quote(key)
+                                + "\"\\s*:\\s*(?:\"((?:[^\"\\\\]|\\\\.)*)\"|([\\d.eE+\\-]+)|(true|false|null))")
                         .matcher(json);
                 if (m.find()) {
                     for (int i = 1; i <= m.groupCount(); i++) {
@@ -62,8 +63,8 @@ public class Json implements Lib {
                         }
                         if (!inStr) {
                             if (c == open) {
-                                depth++; 
-                            }else if (c == close) {
+                                depth++;
+                            } else if (c == close) {
                                 depth--;
                                 if (depth == 0) {
                                     return json.substring(start, i + 1);
@@ -88,14 +89,11 @@ public class Json implements Lib {
             String json = String.valueOf(args.get(0));
             String key = String.valueOf(args.get(1));
             try {
-                Matcher arrayMatcher = Pattern
-                        .compile("\"" + key + "\"\\s*:\\s*\\[([^\\]]*)]")
-                        .matcher(json);
+                Matcher arrayMatcher = Pattern.compile("\"" + key + "\"\\s*:\\s*\\[([^\\]]*)]").matcher(json);
                 List<Expression> results = new ArrayList<>();
                 if (arrayMatcher.find()) {
                     String arrayContent = arrayMatcher.group(1);
-                    Matcher itemMatcher = Pattern
-                            .compile("\"([^\"]*)\"|([\\d.eE+\\-]+)|(true|false|null)")
+                    Matcher itemMatcher = Pattern.compile("\"([^\"]*)\"|([\\d.eE+\\-]+)|(true|false|null)")
                             .matcher(arrayContent);
                     while (itemMatcher.find()) {
                         for (int i = 1; i <= itemMatcher.groupCount(); i++) {
@@ -113,8 +111,7 @@ public class Json implements Lib {
         }));
 
         environment.define("jsonBuild", new NativeFunction(2, "keys, values", args -> {
-            if (!(args.get(0) instanceof ListExpression keys)
-                    || !(args.get(1) instanceof ListExpression values)) {
+            if (!(args.get(0) instanceof ListExpression keys) || !(args.get(1) instanceof ListExpression values)) {
                 throw new RuntimeException("jsonBuild requires two lists");
             }
             List<Expression> k = keys.getMembers();
@@ -125,13 +122,18 @@ public class Json implements Lib {
 
             StringBuilder sb = new StringBuilder("{");
             for (int i = 0; i < k.size(); i++) {
-                String key = k.get(i) instanceof DumbExpression d ? String.valueOf(d.getValue()) : String.valueOf(k.get(i));
-                String val = v.get(i) instanceof DumbExpression d ? String.valueOf(d.getValue()) : String.valueOf(v.get(i));
+                String key = k.get(i) instanceof DumbExpression d
+                        ? String.valueOf(d.getValue())
+                        : String.valueOf(k.get(i));
+                String val = v.get(i) instanceof DumbExpression d
+                        ? String.valueOf(d.getValue())
+                        : String.valueOf(v.get(i));
                 sb.append("\"").append(key.replace("\\", "\\\\").replace("\"", "\\\"")).append("\":");
-                if (val.matches("-?\\d+(\\.\\d+)?") || val.equals("true") || val.equals("false") || val.equals("null")) {
+                if (val.matches("-?\\d+(\\.\\d+)?") || val.equals("true") || val.equals("false")
+                        || val.equals("null")) {
                     sb.append(val);
                 } else if (val.startsWith("{") || val.startsWith("[")) {
-                    sb.append(val);  // nested JSON — store raw, not quoted
+                    sb.append(val); // nested JSON — store raw, not quoted
                 } else {
                     sb.append("\"").append(val.replace("\\", "\\\\").replace("\"", "\\\"")).append("\"");
                 }
@@ -184,22 +186,19 @@ public class Json implements Lib {
             String parentKey = String.valueOf(args.get(1));
             String arrayKey = String.valueOf(args.get(2));
             try {
-                Matcher objectMatcher = Pattern
-                        .compile("\"" + Pattern.quote(parentKey) + "\"\\s*:\\s*\\{([^}]*)\\}")
+                Matcher objectMatcher = Pattern.compile("\"" + Pattern.quote(parentKey) + "\"\\s*:\\s*\\{([^}]*)\\}")
                         .matcher(json);
                 if (!objectMatcher.find()) {
                     throw new RuntimeException("jsonGetArray: parent key '" + parentKey + "' not found");
                 }
                 String nested = "{" + objectMatcher.group(1) + "}";
 
-                Matcher arrayMatcher = Pattern
-                        .compile("\"" + Pattern.quote(arrayKey) + "\"\\s*:\\s*\\[([^\\]]*)]")
+                Matcher arrayMatcher = Pattern.compile("\"" + Pattern.quote(arrayKey) + "\"\\s*:\\s*\\[([^\\]]*)]")
                         .matcher(nested);
                 List<Expression> results = new ArrayList<>();
                 if (arrayMatcher.find()) {
                     String arrayContent = arrayMatcher.group(1);
-                    Matcher itemMatcher = Pattern
-                            .compile("\"([^\"]*)\"|([\\d.eE+\\-]+)|(true|false|null)")
+                    Matcher itemMatcher = Pattern.compile("\"([^\"]*)\"|([\\d.eE+\\-]+)|(true|false|null)")
                             .matcher(arrayContent);
                     while (itemMatcher.find()) {
                         for (int i = 1; i <= itemMatcher.groupCount(); i++) {
@@ -352,7 +351,7 @@ public class Json implements Lib {
             } else {
                 String s = String.valueOf(value);
                 if (s.startsWith("{") || s.startsWith("[")) {
-                    valStr = s;  // nested JSON — store raw, not quoted
+                    valStr = s; // nested JSON — store raw, not quoted
                 } else {
                     valStr = "\"" + s.replace("\\", "\\\\").replace("\"", "\\\"") + "\"";
                 }

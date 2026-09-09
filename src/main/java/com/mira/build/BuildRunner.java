@@ -54,8 +54,8 @@ public class BuildRunner {
             System.exit(1);
         }
         if (Flags.compile) {
-            System.out.println(DiagnosticFormatter.formatInfo(
-                    "finished in " + (System.currentTimeMillis() - start) + " ms"));
+            System.out.println(
+                    DiagnosticFormatter.formatInfo("finished in " + (System.currentTimeMillis() - start) + " ms"));
         }
         runHook(ctx, ctx.config().build().postBuild());
     }
@@ -65,11 +65,8 @@ public class BuildRunner {
         Path projectRoot = config.projectRoot();
 
         if (config.test() == null) {
-            throw new BuildException(
-                    "no [test] section defined in mira.toml\n"
-                    + "Add a [test] section to configure test discovery, e.g.:\n"
-                    + "\n"
-                    + "  [test]\n"
+            throw new BuildException("no [test] section defined in mira.toml\n"
+                    + "Add a [test] section to configure test discovery, e.g.:\n" + "\n" + "  [test]\n"
                     + "  pattern = \"**/*_test.mira\"");
         }
 
@@ -87,8 +84,8 @@ public class BuildRunner {
         }
 
         if (testFiles.isEmpty()) {
-            System.out.println(DiagnosticFormatter.formatInfo(
-                    "no test files found matching: " + config.test().pattern()));
+            System.out.println(
+                    DiagnosticFormatter.formatInfo("no test files found matching: " + config.test().pattern()));
             return;
         }
 
@@ -121,12 +118,12 @@ public class BuildRunner {
                     anyFailed = true;
                 }
                 if (Flags.coverage) {
-                    coverageFiles.put(testFile, new CoverageTracker.FileEntry(
-                            CoverageTracker.moduleNameOf(asts), testFile.getFileName().toString(), asts));
+                    coverageFiles.put(testFile, new CoverageTracker.FileEntry(CoverageTracker.moduleNameOf(asts),
+                            testFile.getFileName().toString(), asts));
                     for (var entry : ModuleChecker.collectAllModules(asts, testFile).entrySet()) {
-                        coverageFiles.putIfAbsent(entry.getKey(), new CoverageTracker.FileEntry(
-                                CoverageTracker.moduleNameOf(entry.getValue().ast()),
-                                entry.getKey().getFileName().toString(), entry.getValue().ast()));
+                        coverageFiles.putIfAbsent(entry.getKey(),
+                                new CoverageTracker.FileEntry(CoverageTracker.moduleNameOf(entry.getValue().ast()),
+                                        entry.getKey().getFileName().toString(), entry.getValue().ast()));
                     }
                 }
             } catch (MultipleLexerErrors mle) {
@@ -145,10 +142,11 @@ public class BuildRunner {
         System.out.println("  Passed : " + totalPassed);
         System.out.println("  Failed : " + totalFailed);
         System.out.println("  Total  : " + (totalPassed + totalFailed));
-        System.out.println(anyFailed ? "  " + DiagnosticFormatter.formatFail("FAILED")
+        System.out.println(anyFailed
+                ? "  " + DiagnosticFormatter.formatFail("FAILED")
                 : "  " + DiagnosticFormatter.formatPass("OK"));
-        System.out.println(DiagnosticFormatter.formatInfo(
-                "all tests finished in " + (System.currentTimeMillis() - totalStart) + " ms"));
+        System.out.println(DiagnosticFormatter
+                .formatInfo("all tests finished in " + (System.currentTimeMillis() - totalStart) + " ms"));
         if (Flags.coverage) {
             CoverageTracker.printReport(System.out, new ArrayList<>(coverageFiles.values()));
             CoverageTracker.setEnabled(false);
@@ -173,14 +171,10 @@ public class BuildRunner {
     private static List<Path> findTestFiles(Path root, String pattern) {
         Pattern compiled = Pattern.compile(globToRegex(pattern));
         try (Stream<Path> stream = Files.walk(root)) {
-            return stream
-                    .filter(Files::isRegularFile)
-                    .filter(p -> {
-                        String rel = root.relativize(p).toString().replace(java.io.File.separatorChar, '/');
-                        return compiled.matcher(rel).matches();
-                    })
-                    .sorted()
-                    .collect(Collectors.toCollection(ArrayList::new));
+            return stream.filter(Files::isRegularFile).filter(p -> {
+                String rel = root.relativize(p).toString().replace(java.io.File.separatorChar, '/');
+                return compiled.matcher(rel).matches();
+            }).sorted().collect(Collectors.toCollection(ArrayList::new));
         } catch (IOException e) {
             return new ArrayList<>();
         }

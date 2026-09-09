@@ -17,10 +17,8 @@ public class ComptimeExecutor {
     private static final String PREFIX = "[comptime] ";
 
     public Map<String, Object> execute(List<Node> ast) {
-        List<Node> body = ast.stream()
-                .filter(n -> n instanceof ComptimeBlock)
-                .flatMap(n -> ((ComptimeBlock) n).getBody().stream())
-                .toList();
+        List<Node> body = ast.stream().filter(n -> n instanceof ComptimeBlock)
+                .flatMap(n -> ((ComptimeBlock) n).getBody().stream()).toList();
 
         if (body.isEmpty()) {
             return Collections.emptyMap();

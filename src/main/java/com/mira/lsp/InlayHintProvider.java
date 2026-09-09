@@ -28,11 +28,11 @@ import com.mira.resolver.MiraType;
 
 /**
  * Inferred-type hints for {@code var}/{@code const} declarations that have no
- * explicit type annotation, e.g.
- * {@code var x : 5;} -> {@code var x: Number : 5;} rendered inline. Only ever
- * infers from the initializer's own direct literal shape
- * (number/string/bool/null tokens, array/list/map/object/struct literals,
- * lambdas, and a negated/inverted numeric or boolean literal) - mirroring
+ * explicit type annotation, e.g. {@code var x : 5;} ->
+ * {@code var x: Number : 5;} rendered inline. Only ever infers from the
+ * initializer's own direct literal shape (number/string/bool/null tokens,
+ * array/list/map/object/struct literals, lambdas, and a negated/inverted
+ * numeric or boolean literal) - mirroring
  * {@code StaticCheck.literalNodeToType}'s philosophy of never chasing a
  * variable/call/field reference to guess a type, since a wrong guess shown
  * inline is worse than no hint at all. Deliberately reimplemented here rather
@@ -79,24 +79,16 @@ public class InlayHintProvider {
 
     private static MiraType inferLiteralType(Expression expr) {
         return switch (expr) {
-            case ListExpression ignored ->
-                MiraType.LIST;
-            case ArrayExpression ignored ->
-                MiraType.ARRAY;
-            case MapExpression ignored ->
-                MiraType.MAP;
-            case ObjectExpression ignored ->
-                MiraType.OBJECT;
-            case StructExpression ignored ->
-                MiraType.OBJECT;
-            case LambdaExpression ignored ->
-                MiraType.FN;
+            case ListExpression ignored -> MiraType.LIST;
+            case ArrayExpression ignored -> MiraType.ARRAY;
+            case MapExpression ignored -> MiraType.MAP;
+            case ObjectExpression ignored -> MiraType.OBJECT;
+            case StructExpression ignored -> MiraType.OBJECT;
+            case LambdaExpression ignored -> MiraType.FN;
             case UnaryExpression u when isInvertedNumberOrBool(u) ->
                 "!".equals(u.getOperation().getLexeme()) ? MiraType.BOOL : MiraType.NUMBER;
-            case DumbExpression d ->
-                literalTokenType(d);
-            default ->
-                null;
+            case DumbExpression d -> literalTokenType(d);
+            default -> null;
         };
     }
 

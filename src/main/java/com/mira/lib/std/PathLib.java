@@ -37,17 +37,17 @@ public class PathLib implements Lib {
             return result.toString();
         }));
 
-        environment.define("normalize", new NativeFunction(1, "path", args
-                -> Path.of(str(args.get(0))).normalize().toString()));
+        environment.define("normalize",
+                new NativeFunction(1, "path", args -> Path.of(str(args.get(0))).normalize().toString()));
 
-        environment.define("resolve", new NativeFunction(2, "base, rel", args
-                -> Path.of(str(args.get(0))).resolve(str(args.get(1))).toString()));
+        environment.define("resolve", new NativeFunction(2, "base, rel",
+                args -> Path.of(str(args.get(0))).resolve(str(args.get(1))).toString()));
 
-        environment.define("relative", new NativeFunction(2, "from, to", args
-                -> Path.of(str(args.get(0))).relativize(Path.of(str(args.get(1)))).toString()));
+        environment.define("relative", new NativeFunction(2, "from, to",
+                args -> Path.of(str(args.get(0))).relativize(Path.of(str(args.get(1)))).toString()));
 
-        environment.define("absolute", new NativeFunction(1, "path", args
-                -> Path.of(str(args.get(0))).toAbsolutePath().toString()));
+        environment.define("absolute",
+                new NativeFunction(1, "path", args -> Path.of(str(args.get(0))).toAbsolutePath().toString()));
 
         environment.define("parent", new NativeFunction(1, "path", args -> {
             Path parent = Path.of(str(args.get(0))).getParent();
@@ -81,8 +81,7 @@ public class PathLib implements Lib {
             return dot > 0 ? s.substring(dot + 1) : "";
         }));
 
-        environment.define("isAbsolute", new NativeFunction(1, "path", args
-                -> Path.of(str(args.get(0))).isAbsolute()));
+        environment.define("isAbsolute", new NativeFunction(1, "path", args -> Path.of(str(args.get(0))).isAbsolute()));
 
         environment.define("split", new NativeFunction(1, "path", args -> {
             Path p = Path.of(str(args.get(0)));

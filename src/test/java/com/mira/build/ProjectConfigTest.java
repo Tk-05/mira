@@ -29,28 +29,13 @@ public class ProjectConfigTest {
 
     @Test
     void allFieldsPresent() {
-        Map<String, Object> map = Map.of(
-                "project", section(
-                        "name", "demo",
-                        "version", "2.0.0",
-                        "entry", "src/main.mira",
-                        "description", "A demo",
-                        "authors", List.of("Alice")
-                ),
-                "build", section(
-                        "mode", "compile",
-                        "main", Boolean.TRUE,
-                        "output", "build",
-                        "args", List.of("--verbose")
-                ),
-                "test", section(
-                        "pattern", "tests/**/*.mira",
-                        "extra", List.of("extra.mira")
-                ),
-                "dependencies", Map.of(
-                        "lib", section("path", "../lib")
-                )
-        );
+        Map<String, Object> map = Map.of("project",
+                section("name", "demo", "version", "2.0.0", "entry", "src/main.mira", "description", "A demo",
+                        "authors", List.of("Alice")),
+                "build",
+                section("mode", "compile", "main", Boolean.TRUE, "output", "build", "args", List.of("--verbose")),
+                "test", section("pattern", "tests/**/*.mira", "extra", List.of("extra.mira")), "dependencies",
+                Map.of("lib", section("path", "../lib")));
 
         ProjectConfig cfg = ProjectConfig.fromMap(map, root);
 
@@ -75,9 +60,7 @@ public class ProjectConfigTest {
 
     @Test
     void defaultsApplied() {
-        Map<String, Object> map = Map.of(
-                "project", section("entry", "src/main.mira")
-        );
+        Map<String, Object> map = Map.of("project", section("entry", "src/main.mira"));
 
         ProjectConfig cfg = ProjectConfig.fromMap(map, root);
 
@@ -96,10 +79,8 @@ public class ProjectConfigTest {
 
     @Test
     void strictTypesParsedFromBuildSection() {
-        Map<String, Object> map = Map.of(
-                "project", section("entry", "src/main.mira"),
-                "build", section("strict-types", Boolean.TRUE)
-        );
+        Map<String, Object> map = Map.of("project", section("entry", "src/main.mira"), "build",
+                section("strict-types", Boolean.TRUE));
 
         ProjectConfig cfg = ProjectConfig.fromMap(map, root);
 
@@ -108,10 +89,8 @@ public class ProjectConfigTest {
 
     @Test
     void buildModePackage() {
-        Map<String, Object> map = Map.of(
-                "project", section("entry", "main.mira"),
-                "build", section("mode", "package", "jar-bundle", "full")
-        );
+        Map<String, Object> map = Map.of("project", section("entry", "main.mira"), "build",
+                section("mode", "package", "jar-bundle", "full"));
         ProjectConfig cfg = ProjectConfig.fromMap(map, root);
         assertEquals(ProjectConfig.BuildMode.PACKAGE, cfg.build().mode());
         assertEquals(ProjectConfig.JarBundle.FULL, cfg.build().jarBundle());
@@ -119,68 +98,52 @@ public class ProjectConfigTest {
 
     @Test
     void buildModePackageSlimBundle() {
-        Map<String, Object> map = Map.of(
-                "project", section("entry", "main.mira"),
-                "build", section("mode", "package", "jar-bundle", "slim")
-        );
+        Map<String, Object> map = Map.of("project", section("entry", "main.mira"), "build",
+                section("mode", "package", "jar-bundle", "slim"));
         ProjectConfig cfg = ProjectConfig.fromMap(map, root);
         assertEquals(ProjectConfig.JarBundle.SLIM, cfg.build().jarBundle());
     }
 
     @Test
     void buildModePackageWithoutJarBundleThrows() {
-        Map<String, Object> map = Map.of(
-                "project", section("entry", "main.mira"),
-                "build", section("mode", "package")
-        );
+        Map<String, Object> map = Map.of("project", section("entry", "main.mira"), "build", section("mode", "package"));
         BuildException ex = assertThrows(BuildException.class, () -> ProjectConfig.fromMap(map, root));
         assertTrue(ex.getMessage().contains("jar-bundle"));
     }
 
     @Test
     void jarBundleWithoutPackageModeThrows() {
-        Map<String, Object> map = Map.of(
-                "project", section("entry", "main.mira"),
-                "build", section("mode", "interpret", "jar-bundle", "slim")
-        );
+        Map<String, Object> map = Map.of("project", section("entry", "main.mira"), "build",
+                section("mode", "interpret", "jar-bundle", "slim"));
         BuildException ex = assertThrows(BuildException.class, () -> ProjectConfig.fromMap(map, root));
         assertTrue(ex.getMessage().contains("jar-bundle"));
     }
 
     @Test
     void unknownJarBundleThrows() {
-        Map<String, Object> map = Map.of(
-                "project", section("entry", "main.mira"),
-                "build", section("mode", "package", "jar-bundle", "bogus")
-        );
+        Map<String, Object> map = Map.of("project", section("entry", "main.mira"), "build",
+                section("mode", "package", "jar-bundle", "bogus"));
         assertThrows(BuildException.class, () -> ProjectConfig.fromMap(map, root));
     }
 
     @Test
     void buildModeInterpretIsDefault() {
-        Map<String, Object> map = Map.of(
-                "project", section("entry", "main.mira"),
-                "build", section("mode", "interpret")
-        );
+        Map<String, Object> map = Map.of("project", section("entry", "main.mira"), "build",
+                section("mode", "interpret"));
         ProjectConfig cfg = ProjectConfig.fromMap(map, root);
         assertEquals(ProjectConfig.BuildMode.INTERPRET, cfg.build().mode());
     }
 
     @Test
     void unknownBuildModeFallsBackToInterpret() {
-        Map<String, Object> map = Map.of(
-                "project", section("entry", "main.mira"),
-                "build", section("mode", "unknown")
-        );
+        Map<String, Object> map = Map.of("project", section("entry", "main.mira"), "build", section("mode", "unknown"));
         ProjectConfig cfg = ProjectConfig.fromMap(map, root);
         assertEquals(ProjectConfig.BuildMode.INTERPRET, cfg.build().mode());
     }
 
     @Test
     void entryIsResolvedRelativeToRoot() {
-        Map<String, Object> map = Map.of(
-                "project", section("entry", "src/app/main.mira")
-        );
+        Map<String, Object> map = Map.of("project", section("entry", "src/app/main.mira"));
         ProjectConfig cfg = ProjectConfig.fromMap(map, root);
         assertEquals(root.resolve("src/app/main.mira").normalize(), cfg.entry());
     }
@@ -194,10 +157,8 @@ public class ProjectConfigTest {
 
     @Test
     void runModeExplicitlySet() {
-        Map<String, Object> map = Map.of(
-                "project", section("entry", "main.mira"),
-                "build", section("mode", "compile", "run-mode", "interpret")
-        );
+        Map<String, Object> map = Map.of("project", section("entry", "main.mira"), "build",
+                section("mode", "compile", "run-mode", "interpret"));
         ProjectConfig cfg = ProjectConfig.fromMap(map, root);
         assertEquals(ProjectConfig.BuildMode.COMPILE, cfg.build().mode());
         assertEquals(ProjectConfig.BuildMode.INTERPRET, cfg.build().effectiveRunMode());
@@ -205,20 +166,15 @@ public class ProjectConfigTest {
 
     @Test
     void runModeFallsBackToBuildMode() {
-        Map<String, Object> map = Map.of(
-                "project", section("entry", "main.mira"),
-                "build", section("mode", "compile")
-        );
+        Map<String, Object> map = Map.of("project", section("entry", "main.mira"), "build", section("mode", "compile"));
         ProjectConfig cfg = ProjectConfig.fromMap(map, root);
         assertEquals(ProjectConfig.BuildMode.COMPILE, cfg.build().effectiveRunMode());
     }
 
     @Test
     void runModeIndependentOfBuildMode() {
-        Map<String, Object> map = Map.of(
-                "project", section("entry", "main.mira"),
-                "build", section("mode", "package", "run-mode", "compile", "jar-bundle", "full")
-        );
+        Map<String, Object> map = Map.of("project", section("entry", "main.mira"), "build",
+                section("mode", "package", "run-mode", "compile", "jar-bundle", "full"));
         ProjectConfig cfg = ProjectConfig.fromMap(map, root);
         assertEquals(ProjectConfig.BuildMode.PACKAGE, cfg.build().mode());
         assertEquals(ProjectConfig.BuildMode.COMPILE, cfg.build().effectiveRunMode());
@@ -233,10 +189,8 @@ public class ProjectConfigTest {
 
     @Test
     void testSectionPresentWhenDefined() {
-        Map<String, Object> map = Map.of(
-                "project", section("entry", "main.mira"),
-                "test", section("pattern", "tests/**/*.mira", "extra", List.of())
-        );
+        Map<String, Object> map = Map.of("project", section("entry", "main.mira"), "test",
+                section("pattern", "tests/**/*.mira", "extra", List.of()));
         ProjectConfig cfg = ProjectConfig.fromMap(map, root);
         assertNotNull(cfg.test());
         assertEquals("tests/**/*.mira", cfg.test().pattern());
@@ -251,10 +205,8 @@ public class ProjectConfigTest {
 
     @Test
     void dependencyWithoutPathThrows() {
-        Map<String, Object> map = Map.of(
-                "project", section("entry", "main.mira"),
-                "dependencies", Map.of("bad-dep", section("git", "https://example.com"))
-        );
+        Map<String, Object> map = Map.of("project", section("entry", "main.mira"), "dependencies",
+                Map.of("bad-dep", section("git", "https://example.com")));
         assertThrows(BuildException.class, () -> ProjectConfig.fromMap(map, root));
     }
 
@@ -268,12 +220,8 @@ public class ProjectConfigTest {
     @Test
     void nativeDependencyParsed() {
         String sha = "a".repeat(64);
-        Map<String, Object> map = Map.of(
-                "project", section("entry", "main.mira"),
-                "native", Map.of(
-                        "raylib", section("url", "https://example.com/raylib.jar", "sha256", sha)
-                )
-        );
+        Map<String, Object> map = Map.of("project", section("entry", "main.mira"), "native",
+                Map.of("raylib", section("url", "https://example.com/raylib.jar", "sha256", sha)));
         ProjectConfig cfg = ProjectConfig.fromMap(map, root);
         ProjectConfig.NativeDependency dep = cfg.nativeDependencies().get("raylib");
         assertNotNull(dep);
@@ -284,40 +232,30 @@ public class ProjectConfigTest {
     @Test
     void nativeDependencySha256IsLowercased() {
         String sha = "A".repeat(64);
-        Map<String, Object> map = Map.of(
-                "project", section("entry", "main.mira"),
-                "native", Map.of(
-                        "raylib", section("url", "https://example.com/raylib.jar", "sha256", sha)
-                )
-        );
+        Map<String, Object> map = Map.of("project", section("entry", "main.mira"), "native",
+                Map.of("raylib", section("url", "https://example.com/raylib.jar", "sha256", sha)));
         ProjectConfig cfg = ProjectConfig.fromMap(map, root);
         assertEquals(sha.toLowerCase(java.util.Locale.ROOT), cfg.nativeDependencies().get("raylib").sha256());
     }
 
     @Test
     void nativeDependencyMissingUrlThrows() {
-        Map<String, Object> map = Map.of(
-                "project", section("entry", "main.mira"),
-                "native", Map.of("raylib", section("sha256", "a".repeat(64)))
-        );
+        Map<String, Object> map = Map.of("project", section("entry", "main.mira"), "native",
+                Map.of("raylib", section("sha256", "a".repeat(64))));
         assertThrows(BuildException.class, () -> ProjectConfig.fromMap(map, root));
     }
 
     @Test
     void nativeDependencyMissingSha256Throws() {
-        Map<String, Object> map = Map.of(
-                "project", section("entry", "main.mira"),
-                "native", Map.of("raylib", section("url", "https://example.com/raylib.jar"))
-        );
+        Map<String, Object> map = Map.of("project", section("entry", "main.mira"), "native",
+                Map.of("raylib", section("url", "https://example.com/raylib.jar")));
         assertThrows(BuildException.class, () -> ProjectConfig.fromMap(map, root));
     }
 
     @Test
     void nativeDependencyFileUrlWithoutSha256IsAllowed() {
-        Map<String, Object> map = Map.of(
-                "project", section("entry", "main.mira"),
-                "native", Map.of("raylib", section("url", "file:///C:/raylib.jar"))
-        );
+        Map<String, Object> map = Map.of("project", section("entry", "main.mira"), "native",
+                Map.of("raylib", section("url", "file:///C:/raylib.jar")));
         ProjectConfig cfg = ProjectConfig.fromMap(map, root);
         ProjectConfig.NativeDependency dep = cfg.nativeDependencies().get("raylib");
         assertNotNull(dep);
@@ -326,33 +264,22 @@ public class ProjectConfigTest {
 
     @Test
     void nativeDependencyFileUrlWithSha256StillValidatesFormat() {
-        Map<String, Object> map = Map.of(
-                "project", section("entry", "main.mira"),
-                "native", Map.of("raylib", section("url", "file:///C:/raylib.jar", "sha256", "not-a-hash"))
-        );
+        Map<String, Object> map = Map.of("project", section("entry", "main.mira"), "native",
+                Map.of("raylib", section("url", "file:///C:/raylib.jar", "sha256", "not-a-hash")));
         assertThrows(BuildException.class, () -> ProjectConfig.fromMap(map, root));
     }
 
     @Test
     void nativeDependencyInvalidSha256Throws() {
-        Map<String, Object> map = Map.of(
-                "project", section("entry", "main.mira"),
-                "native", Map.of(
-                        "raylib", section("url", "https://example.com/raylib.jar", "sha256", "not-a-hash")
-                )
-        );
+        Map<String, Object> map = Map.of("project", section("entry", "main.mira"), "native",
+                Map.of("raylib", section("url", "https://example.com/raylib.jar", "sha256", "not-a-hash")));
         assertThrows(BuildException.class, () -> ProjectConfig.fromMap(map, root));
     }
 
     @Test
     void nativeDependencyUnknownKeyThrows() {
-        Map<String, Object> map = Map.of(
-                "project", section("entry", "main.mira"),
-                "native", Map.of(
-                        "raylib", section("url", "https://example.com/raylib.jar",
-                                "sha256", "a".repeat(64), "bogus", "x")
-                )
-        );
+        Map<String, Object> map = Map.of("project", section("entry", "main.mira"), "native", Map.of("raylib",
+                section("url", "https://example.com/raylib.jar", "sha256", "a".repeat(64), "bogus", "x")));
         assertThrows(BuildException.class, () -> ProjectConfig.fromMap(map, root));
     }
 
@@ -365,10 +292,8 @@ public class ProjectConfigTest {
 
     @Test
     void taskShorthandParsedAsCmd() {
-        Map<String, Object> map = Map.of(
-                "project", section("entry", "main.mira"),
-                "tasks", section("clean", "rm -rf out/")
-        );
+        Map<String, Object> map = Map.of("project", section("entry", "main.mira"), "tasks",
+                section("clean", "rm -rf out/"));
         ProjectConfig cfg = ProjectConfig.fromMap(map, root);
         TaskConfig task = cfg.tasks().get("clean");
         assertNotNull(task);
@@ -379,10 +304,8 @@ public class ProjectConfigTest {
 
     @Test
     void taskShorthandMiraExtensionParsedAsScript() {
-        Map<String, Object> map = Map.of(
-                "project", section("entry", "main.mira"),
-                "tasks", section("demo", "scripts/demo.mira")
-        );
+        Map<String, Object> map = Map.of("project", section("entry", "main.mira"), "tasks",
+                section("demo", "scripts/demo.mira"));
         ProjectConfig cfg = ProjectConfig.fromMap(map, root);
         TaskConfig task = cfg.tasks().get("demo");
         assertNotNull(task);
@@ -393,12 +316,8 @@ public class ProjectConfigTest {
 
     @Test
     void taskWithInlineTable() {
-        Map<String, Object> map = Map.of(
-                "project", section("entry", "main.mira"),
-                "tasks", section(
-                        "codegen", section("script", "scripts/gen.mira", "description", "Generate code")
-                )
-        );
+        Map<String, Object> map = Map.of("project", section("entry", "main.mira"), "tasks",
+                section("codegen", section("script", "scripts/gen.mira", "description", "Generate code")));
         ProjectConfig cfg = ProjectConfig.fromMap(map, root);
         TaskConfig task = cfg.tasks().get("codegen");
         assertNotNull(task);
@@ -410,31 +329,22 @@ public class ProjectConfigTest {
 
     @Test
     void taskWithBothCmdAndScriptThrows() {
-        Map<String, Object> map = Map.of(
-                "project", section("entry", "main.mira"),
-                "tasks", section("bad", section("cmd", "echo hi", "script", "x.mira"))
-        );
+        Map<String, Object> map = Map.of("project", section("entry", "main.mira"), "tasks",
+                section("bad", section("cmd", "echo hi", "script", "x.mira")));
         assertThrows(BuildException.class, () -> ProjectConfig.fromMap(map, root));
     }
 
     @Test
     void taskWithNeitherCmdNorScriptThrows() {
-        Map<String, Object> map = Map.of(
-                "project", section("entry", "main.mira"),
-                "tasks", section("bad", section("description", "missing action"))
-        );
+        Map<String, Object> map = Map.of("project", section("entry", "main.mira"), "tasks",
+                section("bad", section("description", "missing action")));
         assertThrows(BuildException.class, () -> ProjectConfig.fromMap(map, root));
     }
 
     @Test
     void multipleTasksParsed() {
-        Map<String, Object> map = Map.of(
-                "project", section("entry", "main.mira"),
-                "tasks", section(
-                        "clean", "rm -rf out/",
-                        "build", section("cmd", "gradle build", "description", "Build native")
-                )
-        );
+        Map<String, Object> map = Map.of("project", section("entry", "main.mira"), "tasks", section("clean",
+                "rm -rf out/", "build", section("cmd", "gradle build", "description", "Build native")));
         ProjectConfig cfg = ProjectConfig.fromMap(map, root);
         assertEquals(2, cfg.tasks().size());
         assertTrue(cfg.tasks().containsKey("clean"));
@@ -443,10 +353,8 @@ public class ProjectConfigTest {
 
     @Test
     void buildHooksSingleString() {
-        Map<String, Object> map = Map.of(
-                "project", section("entry", "main.mira"),
-                "build", section("mode", "interpret", "pre-build", "codegen", "post-build", "notify")
-        );
+        Map<String, Object> map = Map.of("project", section("entry", "main.mira"), "build",
+                section("mode", "interpret", "pre-build", "codegen", "post-build", "notify"));
         ProjectConfig cfg = ProjectConfig.fromMap(map, root);
         assertEquals(List.of("codegen"), cfg.build().preBuild());
         assertEquals(List.of("notify"), cfg.build().postBuild());
@@ -454,13 +362,8 @@ public class ProjectConfigTest {
 
     @Test
     void buildHooksArray() {
-        Map<String, Object> map = Map.of(
-                "project", section("entry", "main.mira"),
-                "build", section(
-                        "pre-build", List.of("codegen", "lint"),
-                        "post-build", List.of("notify", "upload")
-                )
-        );
+        Map<String, Object> map = Map.of("project", section("entry", "main.mira"), "build",
+                section("pre-build", List.of("codegen", "lint"), "post-build", List.of("notify", "upload")));
         ProjectConfig cfg = ProjectConfig.fromMap(map, root);
         assertEquals(List.of("codegen", "lint"), cfg.build().preBuild());
         assertEquals(List.of("notify", "upload"), cfg.build().postBuild());
@@ -468,10 +371,8 @@ public class ProjectConfigTest {
 
     @Test
     void runHooksParsed() {
-        Map<String, Object> map = Map.of(
-                "project", section("entry", "main.mira"),
-                "build", section("pre-run", "prepare", "post-run", "cleanup")
-        );
+        Map<String, Object> map = Map.of("project", section("entry", "main.mira"), "build",
+                section("pre-run", "prepare", "post-run", "cleanup"));
         ProjectConfig cfg = ProjectConfig.fromMap(map, root);
         assertEquals(List.of("prepare"), cfg.build().preRun());
         assertEquals(List.of("cleanup"), cfg.build().postRun());
@@ -479,13 +380,8 @@ public class ProjectConfigTest {
 
     @Test
     void testHooksParsed() {
-        Map<String, Object> map = Map.of(
-                "project", section("entry", "main.mira"),
-                "test", section(
-                        "pattern", "**/*_test.mira", "extra", List.of(),
-                        "pre-test", "seed-db", "post-test", "teardown"
-                )
-        );
+        Map<String, Object> map = Map.of("project", section("entry", "main.mira"), "test", section("pattern",
+                "**/*_test.mira", "extra", List.of(), "pre-test", "seed-db", "post-test", "teardown"));
         ProjectConfig cfg = ProjectConfig.fromMap(map, root);
         assertNotNull(cfg.test());
         assertEquals(List.of("seed-db"), cfg.test().preTest());
@@ -494,11 +390,8 @@ public class ProjectConfigTest {
 
     @Test
     void hooksEmptyWhenNotSet() {
-        Map<String, Object> map = Map.of(
-                "project", section("entry", "main.mira"),
-                "build", section("mode", "interpret"),
-                "test", section("pattern", "**/*_test.mira", "extra", List.of())
-        );
+        Map<String, Object> map = Map.of("project", section("entry", "main.mira"), "build",
+                section("mode", "interpret"), "test", section("pattern", "**/*_test.mira", "extra", List.of()));
         ProjectConfig cfg = ProjectConfig.fromMap(map, root);
         assertTrue(cfg.build().preBuild().isEmpty());
         assertTrue(cfg.build().postBuild().isEmpty());

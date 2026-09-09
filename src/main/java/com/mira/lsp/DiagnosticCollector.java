@@ -36,9 +36,9 @@ public class DiagnosticCollector {
     /**
      * Same as the 3-arg overload, but routes sibling-file lookups (for
      * external-call detection) through the shared {@link WorkspaceIndex} cache
-     * instead of re-reading/re-tokenizing/re-parsing every sibling
-     * {@code .mira} file from scratch on every call — the difference between
-     * O(1) cached lookups and a full reparse pass on every keystroke.
+     * instead of re-reading/re-tokenizing/re-parsing every sibling {@code .mira}
+     * file from scratch on every call — the difference between O(1) cached lookups
+     * and a full reparse pass on every keystroke.
      */
     public static List<Diagnostic> collect(String source, Path filePath, Map<Path, String> openDocuments,
             WorkspaceIndex workspaceIndex, Path workspaceRoot) {
@@ -87,18 +87,16 @@ public class DiagnosticCollector {
                 ? workspaceIndex.allMiraFiles(workspaceRoot)
                 : ModuleResolver.findAllMiraFiles(dir);
         Map<String, String> openByUri = workspaceIndex != null ? toUriKeyed(openDocuments) : Map.of();
-        siblings.stream()
-                .filter(p -> !p.equals(filePath))
-                .forEach(callerPath -> {
-                    try {
-                        List<Node> callerAst = workspaceIndex != null
-                                ? workspaceIndex.getAst(callerPath, openByUri)
-                                : new Parser().parseTokens(new Tokenizer().tokenize(
-                                        openDocuments.getOrDefault(callerPath, Files.readString(callerPath)), false));
-                        ModuleResolver.collectExternalCalls(callerAst, callerPath, filePath, externalCalls);
-                    } catch (Exception ignored) {
-                    }
-                });
+        siblings.stream().filter(p -> !p.equals(filePath)).forEach(callerPath -> {
+            try {
+                List<Node> callerAst = workspaceIndex != null
+                        ? workspaceIndex.getAst(callerPath, openByUri)
+                        : new Parser().parseTokens(new Tokenizer()
+                                .tokenize(openDocuments.getOrDefault(callerPath, Files.readString(callerPath)), false));
+                ModuleResolver.collectExternalCalls(callerAst, callerPath, filePath, externalCalls);
+            } catch (Exception ignored) {
+            }
+        });
         return externalCalls;
     }
 
@@ -128,12 +126,11 @@ public class DiagnosticCollector {
         int line = Math.max(w.line() - 1, 0);
         int col = Math.max(w.column() - 1, 0);
         int endLine = w.endLine() > 0 ? Math.max(w.endLine() - 1, 0) : line;
-        Position end = endLine > line
-                ? new Position(endLine + 1, 0)
-                : new Position(line, col + Math.max(1, w.span()));
+        Position end = endLine > line ? new Position(endLine + 1, 0) : new Position(line, col + Math.max(1, w.span()));
         Range range = new Range(new Position(line, col), end);
         DiagnosticSeverity sev = w.level() == WarningLevel.WARNING
-                ? DiagnosticSeverity.Warning : DiagnosticSeverity.Information;
+                ? DiagnosticSeverity.Warning
+                : DiagnosticSeverity.Information;
         return new Diagnostic(range, w.message(), sev, "mira");
     }
 }

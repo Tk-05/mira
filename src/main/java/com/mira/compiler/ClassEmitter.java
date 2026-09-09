@@ -49,8 +49,8 @@ public class ClassEmitter {
     }
 
     public void declareCacheField(String funcName) {
-        cw.visitField(ACC_PRIVATE | ACC_STATIC, "CACHE$" + funcName,
-                "Ljava/util/concurrent/ConcurrentHashMap;", null, null).visitEnd();
+        cw.visitField(ACC_PRIVATE | ACC_STATIC, "CACHE$" + funcName, "Ljava/util/concurrent/ConcurrentHashMap;", null,
+                null).visitEnd();
     }
 
     public MethodVisitor openStaticInit() {
@@ -58,19 +58,17 @@ public class ClassEmitter {
     }
 
     public MethodVisitor openMain() {
-        return cw.visitMethod(ACC_PUBLIC | ACC_STATIC, "main",
-                "([Ljava/lang/String;)V", null, null);
+        return cw.visitMethod(ACC_PUBLIC | ACC_STATIC, "main", "([Ljava/lang/String;)V", null, null);
     }
 
     public MethodVisitor openFunction(String mangledName) {
         return cw.visitMethod(ACC_STATIC, mangledName, FN_DESC, null, null);
     }
 
-    public void emitLambdaClass(String lambdaClassName, String outerClassName,
-            String methodName, int arity) {
+    public void emitLambdaClass(String lambdaClassName, String outerClassName, String methodName, int arity) {
         ClassWriter lcw = new MiraClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS);
-        lcw.visit(V21, ACC_PUBLIC | ACC_FINAL, lambdaClassName, null,
-                "java/lang/Object", new String[]{"com/mira/runtime/functions/Callable"});
+        lcw.visit(V21, ACC_PUBLIC | ACC_FINAL, lambdaClassName, null, "java/lang/Object",
+                new String[]{"com/mira/runtime/functions/Callable"});
 
         lcw.visitField(ACC_PRIVATE | ACC_FINAL, "arity", "I", null, null).visitEnd();
 
@@ -94,8 +92,7 @@ public class ClassEmitter {
         ga.visitEnd();
 
         MethodVisitor call = lcw.visitMethod(ACC_PUBLIC, "call",
-                "(Lcom/mira/runtime/interpreter/Interpreter;Ljava/util/List;)Ljava/lang/Object;",
-                null, null);
+                "(Lcom/mira/runtime/interpreter/Interpreter;Ljava/util/List;)Ljava/lang/Object;", null, null);
         call.visitCode();
         call.visitVarInsn(ALOAD, 2);
         call.visitMethodInsn(INVOKEINTERFACE, "java/util/List", "toArray", "()[Ljava/lang/Object;", true);
@@ -108,11 +105,11 @@ public class ClassEmitter {
         extraClasses.put(lambdaClassName, lcw.toByteArray());
     }
 
-    public void emitLambdaClassWithCaptures(String lambdaClassName, String outerClassName,
-            String methodName, int arity) {
+    public void emitLambdaClassWithCaptures(String lambdaClassName, String outerClassName, String methodName,
+            int arity) {
         ClassWriter lcw = new MiraClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS);
-        lcw.visit(V21, ACC_PUBLIC | ACC_FINAL, lambdaClassName, null,
-                "java/lang/Object", new String[]{"com/mira/runtime/functions/Callable"});
+        lcw.visit(V21, ACC_PUBLIC | ACC_FINAL, lambdaClassName, null, "java/lang/Object",
+                new String[]{"com/mira/runtime/functions/Callable"});
 
         lcw.visitField(ACC_PRIVATE | ACC_FINAL, "arity", "I", null, null).visitEnd();
         lcw.visitField(ACC_PRIVATE | ACC_FINAL, "captures", "[Ljava/lang/Object;", null, null).visitEnd();
@@ -140,8 +137,7 @@ public class ClassEmitter {
         ga.visitEnd();
 
         MethodVisitor call = lcw.visitMethod(ACC_PUBLIC, "call",
-                "(Lcom/mira/runtime/interpreter/Interpreter;Ljava/util/List;)Ljava/lang/Object;",
-                null, null);
+                "(Lcom/mira/runtime/interpreter/Interpreter;Ljava/util/List;)Ljava/lang/Object;", null, null);
         call.visitCode();
         call.visitVarInsn(ALOAD, 0);
         call.visitFieldInsn(GETFIELD, lambdaClassName, "captures", "[Ljava/lang/Object;");
@@ -160,8 +156,8 @@ public class ClassEmitter {
 
     public void emitAsyncLambdaClassWithCaptures(String asyncClassName, String syncClassName, int arity) {
         ClassWriter acw = new MiraClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS);
-        acw.visit(V21, ACC_PUBLIC | ACC_FINAL, asyncClassName, null,
-                "java/lang/Object", new String[]{"com/mira/runtime/functions/Callable"});
+        acw.visit(V21, ACC_PUBLIC | ACC_FINAL, asyncClassName, null, "java/lang/Object",
+                new String[]{"com/mira/runtime/functions/Callable"});
 
         acw.visitField(ACC_PRIVATE | ACC_FINAL, "arity", "I", null, null).visitEnd();
         acw.visitField(ACC_PRIVATE | ACC_FINAL, "captures", "[Ljava/lang/Object;", null, null).visitEnd();
@@ -189,8 +185,7 @@ public class ClassEmitter {
         ga.visitEnd();
 
         MethodVisitor call = acw.visitMethod(ACC_PUBLIC, "call",
-                "(Lcom/mira/runtime/interpreter/Interpreter;Ljava/util/List;)Ljava/lang/Object;",
-                null, null);
+                "(Lcom/mira/runtime/interpreter/Interpreter;Ljava/util/List;)Ljava/lang/Object;", null, null);
         call.visitCode();
         call.visitTypeInsn(NEW, syncClassName);
         call.visitInsn(DUP);
@@ -213,8 +208,8 @@ public class ClassEmitter {
 
     public void emitAsyncLambdaClass(String asyncClassName, String syncClassName, int arity) {
         ClassWriter acw = new MiraClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS);
-        acw.visit(V21, ACC_PUBLIC | ACC_FINAL, asyncClassName, null,
-                "java/lang/Object", new String[]{"com/mira/runtime/functions/Callable"});
+        acw.visit(V21, ACC_PUBLIC | ACC_FINAL, asyncClassName, null, "java/lang/Object",
+                new String[]{"com/mira/runtime/functions/Callable"});
 
         acw.visitField(ACC_PRIVATE | ACC_FINAL, "arity", "I", null, null).visitEnd();
 
@@ -238,8 +233,7 @@ public class ClassEmitter {
         ga.visitEnd();
 
         MethodVisitor call = acw.visitMethod(ACC_PUBLIC, "call",
-                "(Lcom/mira/runtime/interpreter/Interpreter;Ljava/util/List;)Ljava/lang/Object;",
-                null, null);
+                "(Lcom/mira/runtime/interpreter/Interpreter;Ljava/util/List;)Ljava/lang/Object;", null, null);
         call.visitCode();
         call.visitTypeInsn(NEW, syncClassName);
         call.visitInsn(DUP);

@@ -12,11 +12,13 @@ public final class DapLauncher {
     }
 
     public static void launch() throws Exception {
-        // Capture stdin before any other class (especially Internal's static initializer)
+        // Capture stdin before any other class (especially Internal's static
+        // initializer)
         // can wrap or consume bytes from the DAP pipe.
         InputStream dapIn = System.in;
 
-        // Redirect System.out → stderr so accidental prints don't corrupt the DAP stream.
+        // Redirect System.out → stderr so accidental prints don't corrupt the DAP
+        // stream.
         PrintStream dapOut = System.out;
         System.setOut(System.err);
 
@@ -25,7 +27,10 @@ public final class DapLauncher {
         System.setIn(new InputStream() {
             @Override
             public int read() throws IOException {
-                try { Thread.sleep(Long.MAX_VALUE); } catch (InterruptedException ignored) {}
+                try {
+                    Thread.sleep(Long.MAX_VALUE);
+                } catch (InterruptedException ignored) {
+                }
                 return -1;
             }
         });

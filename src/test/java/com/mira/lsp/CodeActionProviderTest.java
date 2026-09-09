@@ -45,13 +45,11 @@ public class CodeActionProviderTest {
         assertTrue(diagnostics.stream().anyMatch(d -> d.getMessage().contains("unused")),
                 "expected an unused-variable diagnostic, got: " + diagnostics);
 
-        CodeActionParams params = new CodeActionParams(
-                new TextDocumentIdentifier(uri),
-                new Range(new Position(2, 8), new Position(2, 14)),
-                new CodeActionContext(diagnostics));
+        CodeActionParams params = new CodeActionParams(new TextDocumentIdentifier(uri),
+                new Range(new Position(2, 8), new Position(2, 14)), new CodeActionContext(diagnostics));
 
-        List<Either<Command, CodeAction>> actions = CodeActionProvider.provide(params, parse(source), uri, source,
-                null, new WorkspaceIndex(), null, Map.of());
+        List<Either<Command, CodeAction>> actions = CodeActionProvider.provide(params, parse(source), uri, source, null,
+                new WorkspaceIndex(), null, Map.of());
         assertEquals(1, actions.size());
         CodeAction action = actions.get(0).getRight();
         assertEquals("Remove unused 'unused'", action.getTitle());
@@ -63,12 +61,10 @@ public class CodeActionProviderTest {
     @Test
     void noActionsWithoutMatchingDiagnostics() {
         String uri = "file:///test.mira";
-        CodeActionParams params = new CodeActionParams(
-                new TextDocumentIdentifier(uri),
-                new Range(new Position(0, 0), new Position(0, 0)),
-                new CodeActionContext(List.of()));
-        List<Either<Command, CodeAction>> actions = CodeActionProvider.provide(params, parse("module main;\n"),
-                uri, "module main;\n", null, new WorkspaceIndex(), null, Map.of());
+        CodeActionParams params = new CodeActionParams(new TextDocumentIdentifier(uri),
+                new Range(new Position(0, 0), new Position(0, 0)), new CodeActionContext(List.of()));
+        List<Either<Command, CodeAction>> actions = CodeActionProvider.provide(params, parse("module main;\n"), uri,
+                "module main;\n", null, new WorkspaceIndex(), null, Map.of());
         assertEquals(0, actions.size());
     }
 
@@ -87,12 +83,10 @@ public class CodeActionProviderTest {
         assertTrue(diagnostics.stream().anyMatch(d -> d.getMessage().contains("reassign constant 'x'")),
                 "expected a const-reassignment diagnostic, got: " + diagnostics);
 
-        CodeActionParams params = new CodeActionParams(
-                new TextDocumentIdentifier(uri),
-                new Range(new Position(3, 4), new Position(3, 6)),
-                new CodeActionContext(diagnostics));
-        List<Either<Command, CodeAction>> actions = CodeActionProvider.provide(params, parse(source), uri, source,
-                null, new WorkspaceIndex(), null, Map.of());
+        CodeActionParams params = new CodeActionParams(new TextDocumentIdentifier(uri),
+                new Range(new Position(3, 4), new Position(3, 6)), new CodeActionContext(diagnostics));
+        List<Either<Command, CodeAction>> actions = CodeActionProvider.provide(params, parse(source), uri, source, null,
+                new WorkspaceIndex(), null, Map.of());
 
         assertEquals(1, actions.size());
         CodeAction action = actions.get(0).getRight();
@@ -115,12 +109,10 @@ public class CodeActionProviderTest {
         assertTrue(diagnostics.stream().anyMatch(d -> d.getMessage().contains("missing a 'module' declaration")),
                 "expected a missing-module-declaration diagnostic, got: " + diagnostics);
 
-        CodeActionParams params = new CodeActionParams(
-                new TextDocumentIdentifier(uri),
-                new Range(new Position(0, 0), new Position(0, 0)),
-                new CodeActionContext(diagnostics));
-        List<Either<Command, CodeAction>> actions = CodeActionProvider.provide(params, parse(source), uri, source,
-                null, new WorkspaceIndex(), null, Map.of());
+        CodeActionParams params = new CodeActionParams(new TextDocumentIdentifier(uri),
+                new Range(new Position(0, 0), new Position(0, 0)), new CodeActionContext(diagnostics));
+        List<Either<Command, CodeAction>> actions = CodeActionProvider.provide(params, parse(source), uri, source, null,
+                new WorkspaceIndex(), null, Map.of());
 
         assertEquals(1, actions.size());
         CodeAction action = actions.get(0).getRight();
@@ -144,12 +136,10 @@ public class CodeActionProviderTest {
         assertTrue(diagnostics.stream().anyMatch(d -> d.getMessage().contains("never declared")),
                 "expected an undeclared-variable diagnostic, got: " + diagnostics);
 
-        CodeActionParams params = new CodeActionParams(
-                new TextDocumentIdentifier(uri),
-                new Range(new Position(2, 11), new Position(2, 12)),
-                new CodeActionContext(diagnostics));
-        List<Either<Command, CodeAction>> actions = CodeActionProvider.provide(params, parse(source), uri, source,
-                null, new WorkspaceIndex(), null, Map.of());
+        CodeActionParams params = new CodeActionParams(new TextDocumentIdentifier(uri),
+                new Range(new Position(2, 11), new Position(2, 12)), new CodeActionContext(diagnostics));
+        List<Either<Command, CodeAction>> actions = CodeActionProvider.provide(params, parse(source), uri, source, null,
+                new WorkspaceIndex(), null, Map.of());
 
         assertEquals(1, actions.size());
         CodeAction action = actions.get(0).getRight();
@@ -171,17 +161,14 @@ public class CodeActionProviderTest {
                 """;
         String uri = "file:///test.mira";
         List<Diagnostic> diagnostics = DiagnosticCollector.collect(source, null, Map.of());
-        Diagnostic unusedB = diagnostics.stream()
-                .filter(d -> d.getMessage().contains("'b' is declared but never used"))
+        Diagnostic unusedB = diagnostics.stream().filter(d -> d.getMessage().contains("'b' is declared but never used"))
                 .findFirst()
                 .orElseThrow(() -> new AssertionError("expected unused 'b' diagnostic, got: " + diagnostics));
 
-        CodeActionParams params = new CodeActionParams(
-                new TextDocumentIdentifier(uri),
-                unusedB.getRange(),
+        CodeActionParams params = new CodeActionParams(new TextDocumentIdentifier(uri), unusedB.getRange(),
                 new CodeActionContext(List.of(unusedB)));
-        List<Either<Command, CodeAction>> actions = CodeActionProvider.provide(params, parse(source), uri, source,
-                null, new WorkspaceIndex(), null, Map.of());
+        List<Either<Command, CodeAction>> actions = CodeActionProvider.provide(params, parse(source), uri, source, null,
+                new WorkspaceIndex(), null, Map.of());
 
         assertEquals(1, actions.size());
         TextEdit edit = actions.get(0).getRight().getEdit().getChanges().get(uri).get(0);
@@ -201,17 +188,14 @@ public class CodeActionProviderTest {
                 """;
         String uri = "file:///test.mira";
         List<Diagnostic> diagnostics = DiagnosticCollector.collect(source, null, Map.of());
-        Diagnostic unusedB = diagnostics.stream()
-                .filter(d -> d.getMessage().contains("'b' is declared but never used"))
+        Diagnostic unusedB = diagnostics.stream().filter(d -> d.getMessage().contains("'b' is declared but never used"))
                 .findFirst()
                 .orElseThrow(() -> new AssertionError("expected unused 'b' diagnostic, got: " + diagnostics));
 
-        CodeActionParams params = new CodeActionParams(
-                new TextDocumentIdentifier(uri),
-                unusedB.getRange(),
+        CodeActionParams params = new CodeActionParams(new TextDocumentIdentifier(uri), unusedB.getRange(),
                 new CodeActionContext(List.of(unusedB)));
-        List<Either<Command, CodeAction>> actions = CodeActionProvider.provide(params, parse(source), uri, source,
-                null, new WorkspaceIndex(), null, Map.of());
+        List<Either<Command, CodeAction>> actions = CodeActionProvider.provide(params, parse(source), uri, source, null,
+                new WorkspaceIndex(), null, Map.of());
 
         assertEquals(1, actions.size());
         TextEdit edit = actions.get(0).getRight().getEdit().getChanges().get(uri).get(0);
@@ -243,15 +227,11 @@ public class CodeActionProviderTest {
 
         List<Diagnostic> diagnostics = DiagnosticCollector.collect(source, mainPath, Map.of());
         Diagnostic unusedImport = diagnostics.stream()
-                .filter(d -> d.getMessage().contains("'unused' is imported but never used"))
-                .findFirst()
-                .orElseThrow(() -> new AssertionError("expected unused 'unused' import diagnostic, got: "
-                + diagnostics));
+                .filter(d -> d.getMessage().contains("'unused' is imported but never used")).findFirst().orElseThrow(
+                        () -> new AssertionError("expected unused 'unused' import diagnostic, got: " + diagnostics));
 
         String uri = mainPath.toUri().toString();
-        CodeActionParams params = new CodeActionParams(
-                new TextDocumentIdentifier(uri),
-                unusedImport.getRange(),
+        CodeActionParams params = new CodeActionParams(new TextDocumentIdentifier(uri), unusedImport.getRange(),
                 new CodeActionContext(List.of(unusedImport)));
         List<Either<Command, CodeAction>> actions = CodeActionProvider.provide(params, parse(source), uri, source,
                 mainPath, new WorkspaceIndex(), tempDir, Map.of());
@@ -287,10 +267,8 @@ public class CodeActionProviderTest {
                 "expected a private-access diagnostic, got: " + diagnostics);
 
         String mainUri = mainPath.toUri().toString();
-        CodeActionParams params = new CodeActionParams(
-                new TextDocumentIdentifier(mainUri),
-                new Range(new Position(3, 11), new Position(3, 24)),
-                new CodeActionContext(diagnostics));
+        CodeActionParams params = new CodeActionParams(new TextDocumentIdentifier(mainUri),
+                new Range(new Position(3, 11), new Position(3, 24)), new CodeActionContext(diagnostics));
 
         WorkspaceIndex index = new WorkspaceIndex();
         List<Either<Command, CodeAction>> actions = CodeActionProvider.provide(params, parse(mainSource), mainUri,
@@ -324,15 +302,12 @@ public class CodeActionProviderTest {
         Files.writeString(mainPath, source);
 
         List<Diagnostic> diagnostics = DiagnosticCollector.collect(source, mainPath, Map.of());
-        Diagnostic undefined = diagnostics.stream()
-                .filter(d -> d.getMessage().contains("is called but never defined"))
+        Diagnostic undefined = diagnostics.stream().filter(d -> d.getMessage().contains("is called but never defined"))
                 .findFirst()
                 .orElseThrow(() -> new AssertionError("expected undefined-function diagnostic, got: " + diagnostics));
 
         String uri = mainPath.toUri().toString();
-        CodeActionParams params = new CodeActionParams(
-                new TextDocumentIdentifier(uri),
-                undefined.getRange(),
+        CodeActionParams params = new CodeActionParams(new TextDocumentIdentifier(uri), undefined.getRange(),
                 new CodeActionContext(List.of(undefined)));
         List<Either<Command, CodeAction>> actions = CodeActionProvider.provide(params, parse(source), uri, source,
                 mainPath, new WorkspaceIndex(), tempDir, Map.of());
@@ -367,15 +342,12 @@ public class CodeActionProviderTest {
         Files.writeString(mainPath, source);
 
         List<Diagnostic> diagnostics = DiagnosticCollector.collect(source, mainPath, Map.of());
-        Diagnostic undefined = diagnostics.stream()
-                .filter(d -> d.getMessage().contains("is called but never defined"))
+        Diagnostic undefined = diagnostics.stream().filter(d -> d.getMessage().contains("is called but never defined"))
                 .findFirst()
                 .orElseThrow(() -> new AssertionError("expected undefined-function diagnostic, got: " + diagnostics));
 
         String uri = mainPath.toUri().toString();
-        CodeActionParams params = new CodeActionParams(
-                new TextDocumentIdentifier(uri),
-                undefined.getRange(),
+        CodeActionParams params = new CodeActionParams(new TextDocumentIdentifier(uri), undefined.getRange(),
                 new CodeActionContext(List.of(undefined)));
         List<Either<Command, CodeAction>> actions = CodeActionProvider.provide(params, parse(source), uri, source,
                 mainPath, new WorkspaceIndex(), tempDir, Map.of());
@@ -398,15 +370,12 @@ public class CodeActionProviderTest {
         Files.writeString(mainPath, source);
 
         List<Diagnostic> diagnostics = DiagnosticCollector.collect(source, mainPath, Map.of());
-        Diagnostic undefined = diagnostics.stream()
-                .filter(d -> d.getMessage().contains("is called but never defined"))
+        Diagnostic undefined = diagnostics.stream().filter(d -> d.getMessage().contains("is called but never defined"))
                 .findFirst()
                 .orElseThrow(() -> new AssertionError("expected undefined-function diagnostic, got: " + diagnostics));
 
         String uri = mainPath.toUri().toString();
-        CodeActionParams params = new CodeActionParams(
-                new TextDocumentIdentifier(uri),
-                undefined.getRange(),
+        CodeActionParams params = new CodeActionParams(new TextDocumentIdentifier(uri), undefined.getRange(),
                 new CodeActionContext(List.of(undefined)));
         List<Either<Command, CodeAction>> actions = CodeActionProvider.provide(params, parse(source), uri, source,
                 mainPath, new WorkspaceIndex(), tempDir, Map.of());
@@ -432,15 +401,12 @@ public class CodeActionProviderTest {
         Files.writeString(mainPath, source);
 
         List<Diagnostic> diagnostics = DiagnosticCollector.collect(source, mainPath, Map.of());
-        Diagnostic undefined = diagnostics.stream()
-                .filter(d -> d.getMessage().contains("is called but never defined"))
+        Diagnostic undefined = diagnostics.stream().filter(d -> d.getMessage().contains("is called but never defined"))
                 .findFirst()
                 .orElseThrow(() -> new AssertionError("expected undefined-function diagnostic, got: " + diagnostics));
 
         String uri = mainPath.toUri().toString();
-        CodeActionParams params = new CodeActionParams(
-                new TextDocumentIdentifier(uri),
-                undefined.getRange(),
+        CodeActionParams params = new CodeActionParams(new TextDocumentIdentifier(uri), undefined.getRange(),
                 new CodeActionContext(List.of(undefined)));
         List<Either<Command, CodeAction>> actions = CodeActionProvider.provide(params, parse(source), uri, source,
                 mainPath, new WorkspaceIndex(), tempDir, Map.of());

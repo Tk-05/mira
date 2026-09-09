@@ -119,9 +119,9 @@ public class SignatureHelpProvider {
     }
 
     /**
-     * Reads the declared signature for a native lib call straight out of its
-     * jar's classloading-free manifest (see {@link NativeInterfaceManifest}) -
-     * never loads the jar's actual Java classes just to show a signature hint.
+     * Reads the declared signature for a native lib call straight out of its jar's
+     * classloading-free manifest (see {@link NativeInterfaceManifest}) - never
+     * loads the jar's actual Java classes just to show a signature hint.
      */
     private static List<String> resolveNativeParams(ImportExpression imp, String member, Path docPath) {
         String rawPath = imp.getModule().replace("\"", "");

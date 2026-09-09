@@ -56,98 +56,82 @@ public class ModuleVisibilityTest {
 
     @Test
     void fullImportExportsPubFunction() {
-        assertEquals("hello world",
-                run("import module \"mymod.mira\"; greet(\"world\");"));
+        assertEquals("hello world", run("import module \"mymod.mira\"; greet(\"world\");"));
     }
 
     @Test
     void fullImportDoesNotExportPrivateFunction() {
-        assertThrows(RuntimeException.class,
-                () -> run("import module \"mymod.mira\"; secret();"));
+        assertThrows(RuntimeException.class, () -> run("import module \"mymod.mira\"; secret();"));
     }
 
     @Test
     void fullImportExportsPubConst() {
-        assertEquals(42.0,
-                InterpreterRunner.normNum(run("import module \"mymod.mira\"; MAGIC;")));
+        assertEquals(42.0, InterpreterRunner.normNum(run("import module \"mymod.mira\"; MAGIC;")));
     }
 
     @Test
     void fullImportWithAliasExportsPubFunction() {
-        assertEquals("hello world",
-                run("import module \"mymod.mira\" as mod; mod.greet(\"world\");"));
+        assertEquals("hello world", run("import module \"mymod.mira\" as mod; mod.greet(\"world\");"));
     }
 
     @Test
     void fullImportWithAliasDoesNotExposePrivateFunction() {
-        assertThrows(RuntimeException.class,
-                () -> run("import module \"mymod.mira\" as mod; mod.secret();"));
+        assertThrows(RuntimeException.class, () -> run("import module \"mymod.mira\" as mod; mod.secret();"));
     }
 
     @Test
     void selectiveImportPubFunctionWorks() {
-        assertEquals("hello world",
-                run("import module \"mymod.mira\" {greet}; greet(\"world\");"));
+        assertEquals("hello world", run("import module \"mymod.mira\" {greet}; greet(\"world\");"));
     }
 
     @Test
     void selectiveImportPubConstWorks() {
-        assertEquals(42.0,
-                InterpreterRunner.normNum(run("import module \"mymod.mira\" {MAGIC}; MAGIC;")));
+        assertEquals(42.0, InterpreterRunner.normNum(run("import module \"mymod.mira\" {MAGIC}; MAGIC;")));
     }
 
     @Test
     void selectiveImportDoesNotLoadOtherSymbols() {
-        assertThrows(RuntimeException.class,
-                () -> run("import module \"mymod.mira\" {greet}; MAGIC;"));
+        assertThrows(RuntimeException.class, () -> run("import module \"mymod.mira\" {greet}; MAGIC;"));
     }
 
     @Test
     void selectiveImportPrivateSymbolThrowsPrivateError() {
-        assertThrows(PrivateSymbolImportError.class,
-                () -> run("import module \"mymod.mira\" {secret};"));
+        assertThrows(PrivateSymbolImportError.class, () -> run("import module \"mymod.mira\" {secret};"));
     }
 
     @Test
     void selectiveImportUnknownSymbolThrowsNotFoundError() {
-        assertThrows(ModuleSymbolNotFoundError.class,
-                () -> run("import module \"mymod.mira\" {doesNotExist};"));
+        assertThrows(ModuleSymbolNotFoundError.class, () -> run("import module \"mymod.mira\" {doesNotExist};"));
     }
 
     @Test
     void selectiveImportWithAlias() {
-        assertEquals("hello world",
-                run("import module \"mymod.mira\" {greet} as m; m.greet(\"world\");"));
+        assertEquals("hello world", run("import module \"mymod.mira\" {greet} as m; m.greet(\"world\");"));
     }
 
     @Test
     void selectiveImportWithAliasDoesNotPollutGlobalScope() {
-        assertThrows(RuntimeException.class,
-                () -> run("import module \"mymod.mira\" {greet} as m; greet(\"world\");"));
+        assertThrows(RuntimeException.class, () -> run("import module \"mymod.mira\" {greet} as m; greet(\"world\");"));
     }
 
     @Test
     void selectiveImportMultipleSymbols() {
-        assertDoesNotThrow(
-                () -> run("import module \"mymod.mira\" {greet, MAGIC}; greet(\"x\"); MAGIC;"));
+        assertDoesNotThrow(() -> run("import module \"mymod.mira\" {greet, MAGIC}; greet(\"x\"); MAGIC;"));
     }
 
     // --- Stdlib brace syntax ---
     @Test
     void stdlibBraceSyntaxMakesFunctionAvailable() {
-        assertEquals("hello",
-                run("import string {trim}; trim(\" hello \");"));
+        assertEquals("hello", run("import string {trim}; trim(\" hello \");"));
     }
 
     @Test
     void stdlibBraceSyntaxDoesNotLoadOtherFunctions() {
-        assertThrows(RuntimeException.class,
-                () -> run("import string {trim}; split(\"a,b\", \",\");"));
+        assertThrows(RuntimeException.class, () -> run("import string {trim}; split(\"a,b\", \",\");"));
     }
 
     @Test
     void stdlibBraceSyntaxWithAlias() {
-        assertEquals("hello",
-                run("import string {trim} as str; str.trim(\" hello \");"));
+        assertEquals("hello", run("import string {trim} as str; str.trim(\" hello \");"));
     }
 }

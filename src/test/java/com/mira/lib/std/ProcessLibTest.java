@@ -315,8 +315,7 @@ public class ProcessLibTest {
     void testListProcessesContainsCurrentPid() {
         ListExpression result = (ListExpression) call("listProcesses");
         String currentPid = String.valueOf((long) ProcessHandle.current().pid());
-        boolean found = result.getMembers().stream()
-                .anyMatch(e -> e.toString().contains(currentPid));
+        boolean found = result.getMembers().stream().anyMatch(e -> e.toString().contains(currentPid));
         assertTrue(found);
     }
 

@@ -50,14 +50,12 @@ public class NamespaceCallDefaultParamTest {
 
     @Test
     void namespaceCallUsesDefaultWhenArgOmitted() {
-        assertEquals("Hello World",
-                run("import module \"mymod.mira\" as lib; lib.greet(\"World\");"));
+        assertEquals("Hello World", run("import module \"mymod.mira\" as lib; lib.greet(\"World\");"));
     }
 
     @Test
     void namespaceCallAcceptsExplicitOptionalArg() {
-        assertEquals("Hi World",
-                run("import module \"mymod.mira\" as lib; lib.greet(\"World\", \"Hi\");"));
+        assertEquals("Hi World", run("import module \"mymod.mira\" as lib; lib.greet(\"World\", \"Hi\");"));
     }
 
     @Test
@@ -68,7 +66,6 @@ public class NamespaceCallDefaultParamTest {
 
     @Test
     void namespaceCallTooFewArgsStillThrows() {
-        assertThrows(RuntimeException.class,
-                () -> run("import module \"mymod.mira\" as lib; lib.greet();"));
+        assertThrows(RuntimeException.class, () -> run("import module \"mymod.mira\" as lib; lib.greet();"));
     }
 }

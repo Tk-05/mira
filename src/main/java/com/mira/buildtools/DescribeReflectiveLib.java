@@ -16,9 +16,9 @@ import com.mira.runtime.functions.NativeInterop.ResolvedBinding;
 /**
  * Build-time only: reflects a {@link ReflectiveLib} implementation's declared
  * bindings and writes them as a {@link NativeInterfaceManifest} into the
- * library's own build output. Run this from the library's own build (where
- * its native dependencies are on the classpath) - never from a consumer's
- * project, and never as part of loading a native jar at Mira runtime.
+ * library's own build output. Run this from the library's own build (where its
+ * native dependencies are on the classpath) - never from a consumer's project,
+ * and never as part of loading a native jar at Mira runtime.
  *
  * <p>
  * Usage: {@code java -cp <lib classes + deps + mira> \
@@ -50,9 +50,9 @@ public final class DescribeReflectiveLib {
     private static void write(ReflectiveLib lib, Path outPath) throws IOException {
         Map<String, Signature> manifest = new LinkedHashMap<>();
         for (ResolvedBinding binding : NativeInterop.describe(lib)) {
-            manifest.put(binding.name(), new Signature(
-                    binding.paramTypes().stream().map(t -> t.miraTypeName()).toList(),
-                    binding.returnType().miraTypeName()));
+            manifest.put(binding.name(),
+                    new Signature(binding.paramTypes().stream().map(t -> t.miraTypeName()).toList(),
+                            binding.returnType().miraTypeName()));
         }
         try (var out = new FileOutputStream(outPath.toFile())) {
             NativeInterfaceManifest.write(manifest, out);

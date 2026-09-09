@@ -15,10 +15,14 @@ public class AsyncAwaitTest extends AbstractAsyncAwaitTests {
     private final InterpreterRunner backend = new InterpreterRunner();
 
     @BeforeEach
-    void setup() { backend.reset(); }
+    void setup() {
+        backend.reset();
+    }
 
     @Override
-    protected String runForOutput(String source) { return backend.run(source); }
+    protected String runForOutput(String source) {
+        return backend.run(source);
+    }
 
     @Test
     void asyncFunctionReturnsPromise() {
@@ -28,14 +32,14 @@ public class AsyncAwaitTest extends AbstractAsyncAwaitTests {
 
     @Test
     void awaitResolvesReturnValue() {
-        assertEquals(42.0, InterpreterRunner.normNum(backend.runAndGetValue(
-                "async fn task() { return 42; } (await task());")));
+        assertEquals(42.0,
+                InterpreterRunner.normNum(backend.runAndGetValue("async fn task() { return 42; } (await task());")));
     }
 
     @Test
     void awaitWithParameter() {
-        assertEquals(10.0, InterpreterRunner.normNum(backend.runAndGetValue(
-                "async fn double(n) { return (n * 2); } (await double(5));")));
+        assertEquals(10.0, InterpreterRunner
+                .normNum(backend.runAndGetValue("async fn double(n) { return (n * 2); } (await double(5));")));
     }
 
     @Test
@@ -50,8 +54,8 @@ public class AsyncAwaitTest extends AbstractAsyncAwaitTests {
 
     @Test
     void awaitOnSyncFunctionPassesThrough() {
-        assertEquals(3.0, InterpreterRunner.normNum(backend.runAndGetValue(
-                "fn add(a, b) { return (a + b); } (await add(1, 2));")));
+        assertEquals(3.0, InterpreterRunner
+                .normNum(backend.runAndGetValue("fn add(a, b) { return (a + b); } (await add(1, 2));")));
     }
 
     @Test
@@ -62,8 +66,8 @@ public class AsyncAwaitTest extends AbstractAsyncAwaitTests {
 
     @Test
     void awaitAsyncLambda() {
-        assertEquals(99.0, InterpreterRunner.normNum(backend.runAndGetValue(
-                "var task : async fn() { return 99; }; (await task());")));
+        assertEquals(99.0, InterpreterRunner
+                .normNum(backend.runAndGetValue("var task : async fn() { return 99; }; (await task());")));
     }
 
     @Test

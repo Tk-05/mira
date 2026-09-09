@@ -100,16 +100,15 @@ public class HoverCompletionSmokeTest {
 
     /**
      * Exact real-world case that was reported broken: hovering the alias in
-     * {@code import native "...raylib.jar" as ray;} - uses the actual
-     * checked-in raylib fixture jar, not a synthetic one.
+     * {@code import native "...raylib.jar" as ray;} - uses the actual checked-in
+     * raylib fixture jar, not a synthetic one.
      */
     @Test
     void hoversNativeImportAliasAgainstRealRaylibJar() {
         LspServer server = new LspServer();
         server.connect(new NoopClient());
 
-        Path realDocPath = java.nio.file.Paths.get(
-                "src/main/resources/demo/Debug.mira").toAbsolutePath();
+        Path realDocPath = java.nio.file.Paths.get("src/main/resources/demo/Debug.mira").toAbsolutePath();
         String source = "import native \"../../../../extern/raylib/target/raylib.jar\" as ray;\n";
 
         TextDocumentItem doc = new TextDocumentItem(realDocPath.toUri().toString(), "mira", 1, source);

@@ -82,10 +82,9 @@ public class CallHierarchySmokeTest {
         TextDocumentItem doc = new TextDocumentItem(uri, "mira", 1, source);
         server.getTextDocumentService().didOpen(new DidOpenTextDocumentParams(doc));
 
-        CallHierarchyPrepareParams prepareParams = new CallHierarchyPrepareParams(
-                new TextDocumentIdentifier(uri), new Position(0, 4));
-        List<CallHierarchyItem> items = server.getTextDocumentService()
-                .prepareCallHierarchy(prepareParams).join();
+        CallHierarchyPrepareParams prepareParams = new CallHierarchyPrepareParams(new TextDocumentIdentifier(uri),
+                new Position(0, 4));
+        List<CallHierarchyItem> items = server.getTextDocumentService().prepareCallHierarchy(prepareParams).join();
         assertEquals(1, items.size());
         assertEquals("helper", items.get(0).getName());
 
@@ -94,10 +93,9 @@ public class CallHierarchySmokeTest {
         assertEquals(1, incoming.size());
         assertEquals("main", incoming.get(0).getFrom().getName());
 
-        CallHierarchyPrepareParams mainPrepare = new CallHierarchyPrepareParams(
-                new TextDocumentIdentifier(uri), new Position(3, 4));
-        List<CallHierarchyItem> mainItems = server.getTextDocumentService()
-                .prepareCallHierarchy(mainPrepare).join();
+        CallHierarchyPrepareParams mainPrepare = new CallHierarchyPrepareParams(new TextDocumentIdentifier(uri),
+                new Position(3, 4));
+        List<CallHierarchyItem> mainItems = server.getTextDocumentService().prepareCallHierarchy(mainPrepare).join();
         List<CallHierarchyOutgoingCall> outgoing = server.getTextDocumentService()
                 .callHierarchyOutgoingCalls(new CallHierarchyOutgoingCallsParams(mainItems.get(0))).join();
         assertEquals(1, outgoing.size());

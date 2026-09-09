@@ -147,8 +147,9 @@ public class Profiler {
 
         out.println();
         out.printf("%-8s %-25s %-20s %10s %12s%n", "Line", "Function", "Module", "Hits", "Total(ms)");
-        lineStats.entrySet().stream()
-                .sorted(Comparator.comparingLong((Map.Entry<Integer, LineStats> e) -> e.getValue().totalNanos).reversed())
+        lineStats
+                .entrySet().stream().sorted(Comparator
+                        .comparingLong((Map.Entry<Integer, LineStats> e) -> e.getValue().totalNanos).reversed())
                 .forEach(e -> {
                     LineStats s = e.getValue();
                     double totalMs = s.totalNanos / 1_000_000.0;

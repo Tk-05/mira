@@ -76,8 +76,8 @@ public class CodeLensProviderTest {
         List<CodeLens> lenses = CodeLensProvider.provide(index.getAst(file, Map.of()), source, uri, file, index,
                 tempDir, Map.of());
 
-        CodeLens helperLens = lenses.stream().filter(l -> "1 reference".equals(l.getCommand().getTitle()))
-                .findFirst().orElseThrow();
+        CodeLens helperLens = lenses.stream().filter(l -> "1 reference".equals(l.getCommand().getTitle())).findFirst()
+                .orElseThrow();
         assertEquals("mira.showReferences", helperLens.getCommand().getCommand());
         assertEquals(3, helperLens.getCommand().getArguments().size());
     }

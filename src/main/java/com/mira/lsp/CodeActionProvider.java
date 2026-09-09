@@ -30,19 +30,18 @@ import com.mira.parser.nodes.statement.Statement.VarDestructure;
 
 public class CodeActionProvider {
 
-    private static final Pattern UNUSED_PATTERN = Pattern.compile(
-            "^'([^']+)' is (?:imported but never used|declared but never used|defined but never called)$");
+    private static final Pattern UNUSED_PATTERN = Pattern
+            .compile("^'([^']+)' is (?:imported but never used|declared but never used|defined but never called)$");
     private static final Pattern CONST_REASSIGN_PATTERN = Pattern.compile("^Cannot reassign constant '([^']+)'$");
-    private static final Pattern CONST_MODIFY_PATTERN
-            = Pattern.compile("^Cannot modify element of constant '([^']+)'$");
-    private static final Pattern PRIVATE_ACCESS_PATTERN
-            = Pattern.compile("^'([^']+)' is private in module '([^']+)'$");
-    private static final Pattern PRIVATE_IMPORT_PATTERN
-            = Pattern.compile("^Cannot import private symbol '([^']+)' from module '([^']+)'$");
-    private static final Pattern UNDECLARED_VAR_PATTERN
-            = Pattern.compile("^Variable '([^']+)' is used but never declared$");
-    private static final Pattern UNDEFINED_FUNCTION_PATTERN
-            = Pattern.compile("^Function '([^']+)' is called but never defined$");
+    private static final Pattern CONST_MODIFY_PATTERN = Pattern
+            .compile("^Cannot modify element of constant '([^']+)'$");
+    private static final Pattern PRIVATE_ACCESS_PATTERN = Pattern.compile("^'([^']+)' is private in module '([^']+)'$");
+    private static final Pattern PRIVATE_IMPORT_PATTERN = Pattern
+            .compile("^Cannot import private symbol '([^']+)' from module '([^']+)'$");
+    private static final Pattern UNDECLARED_VAR_PATTERN = Pattern
+            .compile("^Variable '([^']+)' is used but never declared$");
+    private static final Pattern UNDEFINED_FUNCTION_PATTERN = Pattern
+            .compile("^Function '([^']+)' is called but never defined$");
 
     private static String codeOf(Diagnostic d) {
         var code = d.getCode();
@@ -78,16 +77,16 @@ public class CodeActionProvider {
             if (action != null) {
                 actions.add(Either.forRight(action));
             }
-            for (CodeAction importFix : buildAddMissingImportFix(d, uri, ast, docPath, workspaceIndex,
-                    workspaceRoot, openDocumentsByUri)) {
+            for (CodeAction importFix : buildAddMissingImportFix(d, uri, ast, docPath, workspaceIndex, workspaceRoot,
+                    openDocumentsByUri)) {
                 actions.add(Either.forRight(importFix));
             }
         }
         return actions;
     }
 
-    private static List<CodeAction> buildAddMissingImportFix(Diagnostic d, String uri, List<Node> ast,
-            Path docPath, WorkspaceIndex workspaceIndex, Path workspaceRoot, Map<String, String> openDocumentsByUri) {
+    private static List<CodeAction> buildAddMissingImportFix(Diagnostic d, String uri, List<Node> ast, Path docPath,
+            WorkspaceIndex workspaceIndex, Path workspaceRoot, Map<String, String> openDocumentsByUri) {
         if (!"E302".equals(codeOf(d)) || docPath == null || workspaceIndex == null || workspaceRoot == null) {
             return List.of();
         }
@@ -100,8 +99,8 @@ public class CodeActionProvider {
 
         List<CodeAction> actions = new ArrayList<>();
         for (Path candidate : workspaceIndex.allMiraFiles(workspaceRoot)) {
-            if (candidate.equals(docPath) || !hasPublicFunction(workspaceIndex.getAst(candidate, openDocumentsByUri),
-                    name)) {
+            if (candidate.equals(docPath)
+                    || !hasPublicFunction(workspaceIndex.getAst(candidate, openDocumentsByUri), name)) {
                 continue;
             }
             String importPath = relativeImportPath(docPath, candidate);
@@ -109,7 +108,8 @@ public class CodeActionProvider {
                     "import module \"" + importPath + "\" {" + name + "};\n");
             WorkspaceEdit workspaceEdit = new WorkspaceEdit(Map.of(uri, List.of(edit)));
 
-            String fileLabel = candidate.getFileName() != null ? candidate.getFileName().toString()
+            String fileLabel = candidate.getFileName() != null
+                    ? candidate.getFileName().toString()
                     : candidate.toString();
             CodeAction action = new CodeAction("Import '" + name + "' from '" + fileLabel + "'");
             action.setKind(CodeActionKind.QuickFix);
@@ -190,10 +190,10 @@ public class CodeActionProvider {
      * When {@code name}'s declaration shares its source line with other still-
      * relevant names - a comma-separated {@code var a, b;}, a destructuring
      * {@code var (a, b) : expr;}, or a selective {@code import ... {a, b};} -
-     * deleting the whole line (the default fix) would silently remove those
-     * other, still-used bindings too. In that case, edit out just {@code name}
-     * instead. Returns null when the declaration is alone on its line, meaning
-     * the whole-line delete is safe.
+     * deleting the whole line (the default fix) would silently remove those other,
+     * still-used bindings too. In that case, edit out just {@code name} instead.
+     * Returns null when the declaration is alone on its line, meaning the
+     * whole-line delete is safe.
      */
     private static TextEdit buildSurgicalRemoval(List<Node> ast, String name, int lineIdx, String lineText) {
         int declLine = lineIdx + 1;
@@ -374,8 +374,8 @@ public class CodeActionProvider {
         }
 
         String targetUri = target.toUri().toString();
-        TextEdit edit = new TextEdit(
-                new Range(new Position(lineIdx, firstNonWs), new Position(lineIdx, firstNonWs)), "pub ");
+        TextEdit edit = new TextEdit(new Range(new Position(lineIdx, firstNonWs), new Position(lineIdx, firstNonWs)),
+                "pub ");
         WorkspaceEdit workspaceEdit = new WorkspaceEdit(Map.of(targetUri, List.of(edit)));
 
         CodeAction action = new CodeAction("Mark '" + symbol + "' as 'pub' in " + moduleFileName);

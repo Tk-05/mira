@@ -30,9 +30,9 @@ import com.mira.utils.ModuleResolver;
 
 public class ReferenceProvider {
 
-    public static List<Location> provide(List<Node> ast, String content, Position pos, String uri,
-            Path docPath, WorkspaceIndex workspaceIndex, Path workspaceRoot,
-            Map<String, String> openDocumentsByUri, boolean includeDeclaration) {
+    public static List<Location> provide(List<Node> ast, String content, Position pos, String uri, Path docPath,
+            WorkspaceIndex workspaceIndex, Path workspaceRoot, Map<String, String> openDocumentsByUri,
+            boolean includeDeclaration) {
         String word = HoverProvider.wordAt(content, pos);
         if (word == null || word.isBlank()) {
             return List.of();
@@ -100,8 +100,8 @@ public class ReferenceProvider {
         }
     }
 
-    private static void addParamDecls(List<Parameter> params, int declLine, String name, String uri,
-            String content, List<Location> out) {
+    private static void addParamDecls(List<Parameter> params, int declLine, String name, String uri, String content,
+            List<Location> out) {
         for (Parameter p : params) {
             if (p.name().equals(name)) {
                 out.add(new Location(uri, LspPositions.nameRange(content, declLine, p.column(), name)));
@@ -109,8 +109,8 @@ public class ReferenceProvider {
         }
     }
 
-    private static void collectCrossFile(String name, Path docPath, WorkspaceIndex workspaceIndex,
-            Path workspaceRoot, Map<String, String> openDocumentsByUri, List<Location> out) {
+    private static void collectCrossFile(String name, Path docPath, WorkspaceIndex workspaceIndex, Path workspaceRoot,
+            Map<String, String> openDocumentsByUri, List<Location> out) {
         for (Path other : workspaceIndex.allMiraFiles(workspaceRoot)) {
             if (other.equals(docPath)) {
                 continue;
@@ -153,8 +153,8 @@ public class ReferenceProvider {
             if (n == null) {
                 continue;
             }
-            if (n instanceof NamespaceCallExpression nce
-                    && alias.equals(nce.getAlias()) && name.equals(nce.getFunctionName())) {
+            if (n instanceof NamespaceCallExpression nce && alias.equals(nce.getAlias())
+                    && name.equals(nce.getFunctionName())) {
                 int line = Math.max(nce.getLine() - 1, 0);
                 int col = Math.max(nce.getColumn() - 1, 0);
                 out.add(new Location(uri, new Range(new Position(line, col), new Position(line, col + name.length()))));
@@ -164,10 +164,10 @@ public class ReferenceProvider {
     }
 
     /**
-     * Finds {@code .name} occurrences via the real token stream rather than a
-     * raw text scan, so matches inside string literals or comments (which
-     * produce no tokens, or a single opaque STRING_LITERAL token) are never
-     * mistaken for a genuine field reference.
+     * Finds {@code .name} occurrences via the real token stream rather than a raw
+     * text scan, so matches inside string literals or comments (which produce no
+     * tokens, or a single opaque STRING_LITERAL token) are never mistaken for a
+     * genuine field reference.
      */
     private static List<Location> textScanFieldReferences(String content, String uri, String name) {
         List<Location> out = new ArrayList<>();
@@ -178,8 +178,7 @@ public class ReferenceProvider {
             return out;
         }
         List<Token> significant = tokens.stream()
-                .filter(t -> !(t.getTokenType() == TokenType.EXPRESSION && t.getLexeme().isBlank()))
-                .toList();
+                .filter(t -> !(t.getTokenType() == TokenType.EXPRESSION && t.getLexeme().isBlank())).toList();
         for (int i = 1; i < significant.size(); i++) {
             Token prev = significant.get(i - 1);
             Token curr = significant.get(i);

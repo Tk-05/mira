@@ -61,11 +61,11 @@ public class CodeLensProvider {
                 continue;
             }
             if (!frame.insideMethod() && node instanceof FuncDecl f) {
-                addReferenceLens(fullAst, f, content, uri, docPath, workspaceIndex, workspaceRoot,
-                        openDocumentsByUri, out);
+                addReferenceLens(fullAst, f, content, uri, docPath, workspaceIndex, workspaceRoot, openDocumentsByUri,
+                        out);
             }
-            boolean nextInsideMethod = frame.insideMethod()
-                    || node instanceof ObjectExpression || node instanceof StructExpression;
+            boolean nextInsideMethod = frame.insideMethod() || node instanceof ObjectExpression
+                    || node instanceof StructExpression;
             Deque<Node> children = new ArrayDeque<>();
             AstWalker.children(node, children);
             for (Node c : children) {
@@ -84,8 +84,7 @@ public class CodeLensProvider {
         List<Location> refs = ReferenceProvider.provide(fullAst, content, nameRange.getStart(), uri, docPath,
                 workspaceIndex, workspaceRoot, openDocumentsByUri, false);
         String label = refs.size() == 1 ? "1 reference" : refs.size() + " references";
-        Command command = new Command(label, "mira.showReferences",
-                List.of(uri, nameRange.getStart(), refs));
+        Command command = new Command(label, "mira.showReferences", List.of(uri, nameRange.getStart(), refs));
         out.add(new CodeLens(nameRange, command, null));
     }
 
@@ -97,8 +96,7 @@ public class CodeLensProvider {
                 continue;
             }
             if (n instanceof TestCall tc && tc.line > 0) {
-                Range range = new Range(
-                        new org.eclipse.lsp4j.Position(tc.line - 1, 0),
+                Range range = new Range(new org.eclipse.lsp4j.Position(tc.line - 1, 0),
                         new org.eclipse.lsp4j.Position(tc.line - 1, 0));
                 Command command = new Command("▶ Run Tests", "mira.runTests", List.of(uri));
                 out.add(new CodeLens(range, command, null));

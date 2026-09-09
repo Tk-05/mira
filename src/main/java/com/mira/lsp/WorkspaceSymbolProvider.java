@@ -12,8 +12,8 @@ public class WorkspaceSymbolProvider {
 
     private static final int MAX_RESULTS = 200;
 
-    public static List<SymbolInformation> provide(String query, Path workspaceRoot,
-            WorkspaceIndex workspaceIndex, Map<String, String> openDocumentsByUri) {
+    public static List<SymbolInformation> provide(String query, Path workspaceRoot, WorkspaceIndex workspaceIndex,
+            Map<String, String> openDocumentsByUri) {
         if (workspaceRoot == null) {
             return List.of();
         }
@@ -28,8 +28,7 @@ public class WorkspaceSymbolProvider {
             }
         }
 
-        scored.sort(Comparator.<Scored>comparingInt(s -> -s.score)
-                .thenComparing(s -> s.symbol.getName()));
+        scored.sort(Comparator.<Scored>comparingInt(s -> -s.score).thenComparing(s -> s.symbol.getName()));
         List<SymbolInformation> result = new ArrayList<>(Math.min(scored.size(), MAX_RESULTS));
         for (int i = 0; i < scored.size() && i < MAX_RESULTS; i++) {
             result.add(scored.get(i).symbol);

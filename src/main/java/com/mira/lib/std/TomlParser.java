@@ -150,14 +150,10 @@ public class TomlParser {
             char c = raw.charAt(i);
             if (escaped) {
                 switch (c) {
-                    case '"' ->
-                        sb.append('"');
-                    case '\\' ->
-                        sb.append('\\');
-                    case 'n' ->
-                        sb.append('\n');
-                    case 't' ->
-                        sb.append('\t');
+                    case '"' -> sb.append('"');
+                    case '\\' -> sb.append('\\');
+                    case 'n' -> sb.append('\n');
+                    case 't' -> sb.append('\t');
                     default -> {
                         sb.append('\\');
                         sb.append(c);

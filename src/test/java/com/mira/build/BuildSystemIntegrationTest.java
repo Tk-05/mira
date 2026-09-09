@@ -186,8 +186,7 @@ public class BuildSystemIntegrationTest {
 
         Path tomlPath = projectDir.resolve("mira.toml");
         Files.writeString(tomlPath,
-                "[project]\nname=\"app\"\nentry=\"main.mira\"\n"
-                + "[dependencies]\ndep = { path = \"dep\" }\n");
+                "[project]\nname=\"app\"\nentry=\"main.mira\"\n" + "[dependencies]\ndep = { path = \"dep\" }\n");
         ProjectConfig cfg = ProjectLoader.load(tomlPath);
 
         Flags.verbose = true;
@@ -201,8 +200,7 @@ public class BuildSystemIntegrationTest {
     @Test
     void resolveErrorOnMissingDepDirectory() throws IOException {
         Path tomlPath = projectDir.resolve("mira.toml");
-        Files.writeString(tomlPath,
-                "[project]\nname=\"app\"\nentry=\"main.mira\"\n"
+        Files.writeString(tomlPath, "[project]\nname=\"app\"\nentry=\"main.mira\"\n"
                 + "[dependencies]\nlib = { path = \"../nonexistent\" }\n");
         ProjectConfig cfg = ProjectLoader.load(tomlPath);
         assertThrows(BuildException.class, () -> DependencyResolver.resolve(cfg));
@@ -215,8 +213,7 @@ public class BuildSystemIntegrationTest {
 
         Path tomlPath = projectDir.resolve("mira.toml");
         Files.writeString(tomlPath,
-                "[project]\nname=\"app\"\nentry=\"main.mira\"\n"
-                + "[dependencies]\ndep = { path = \"dep\" }\n");
+                "[project]\nname=\"app\"\nentry=\"main.mira\"\n" + "[dependencies]\ndep = { path = \"dep\" }\n");
         ProjectConfig cfg = ProjectLoader.load(tomlPath);
         assertThrows(BuildException.class, () -> DependencyResolver.resolve(cfg));
     }
@@ -229,10 +226,8 @@ public class BuildSystemIntegrationTest {
         Files.writeString(depDir.resolve("d.mira"), "module dep;\n");
 
         Path tomlPath = projectDir.resolve("mira.toml");
-        Files.writeString(tomlPath,
-                "[project]\nname=\"app\"\nentry=\"main.mira\"\n"
-                + "[dependencies]\ndep = { path = \"dep\" }\n"
-                + "ghost = { path = \"does-not-exist\" }\n");
+        Files.writeString(tomlPath, "[project]\nname=\"app\"\nentry=\"main.mira\"\n"
+                + "[dependencies]\ndep = { path = \"dep\" }\n" + "ghost = { path = \"does-not-exist\" }\n");
         Files.writeString(projectDir.resolve("main.mira"), "module main;\n");
 
         Commands.deps(new String[]{"deps"}, projectDir);
@@ -249,8 +244,8 @@ public class BuildSystemIntegrationTest {
         Path tomlPath = projectDir.resolve("mira.toml");
         Files.writeString(tomlPath,
                 "[project]\nname=\"app\"\nentry=\"main.mira\"\n"
-                + "[native]\next = { url = \"https://example.com/nonexistent/ext.jar\", sha256 = \""
-                + "a".repeat(64) + "\" }\n");
+                        + "[native]\next = { url = \"https://example.com/nonexistent/ext.jar\", sha256 = \""
+                        + "a".repeat(64) + "\" }\n");
         Files.writeString(projectDir.resolve("main.mira"), "module main;\n");
 
         Commands.deps(new String[]{"deps"}, projectDir);
@@ -319,8 +314,7 @@ public class BuildSystemIntegrationTest {
         Files.createDirectories(projectDir.resolve("src"));
         Files.writeString(projectDir.resolve("src/main.mira"), "module main;\nfn main() { print(\"hi\"); }\n");
 
-        BuildException ex = assertThrows(BuildException.class,
-                () -> ProjectLoader.find(projectDir).orElseThrow());
+        BuildException ex = assertThrows(BuildException.class, () -> ProjectLoader.find(projectDir).orElseThrow());
         assertTrue(ex.getMessage().contains("jar-bundle"));
     }
 
@@ -328,8 +322,7 @@ public class BuildSystemIntegrationTest {
     void jarBundleWithNonPackageModeThrows() throws IOException {
         writeMinimalProject("interpret-with-bundle", "interpret", false, "slim");
 
-        BuildException ex = assertThrows(BuildException.class,
-                () -> ProjectLoader.find(projectDir).orElseThrow());
+        BuildException ex = assertThrows(BuildException.class, () -> ProjectLoader.find(projectDir).orElseThrow());
         assertTrue(ex.getMessage().contains("jar-bundle"));
     }
 
@@ -392,8 +385,7 @@ public class BuildSystemIntegrationTest {
 
     @Test
     void applyFlagsThrowsWhenEntryFileDoesNotExist() throws IOException {
-        Files.writeString(projectDir.resolve("mira.toml"),
-                "[project]\nname = \"app\"\nentry = \"missing.mira\"\n");
+        Files.writeString(projectDir.resolve("mira.toml"), "[project]\nname = \"app\"\nentry = \"missing.mira\"\n");
         ProjectConfig cfg = ProjectLoader.find(projectDir).orElseThrow();
         BuildContext ctx = new BuildContext(cfg, List.of());
 
@@ -424,8 +416,7 @@ public class BuildSystemIntegrationTest {
     void runExecutesMainFunction() throws IOException {
         writeToml(projectDir, "hello", "src/main.mira", "interpret", true);
         Files.createDirectories(projectDir.resolve("src"));
-        Files.writeString(projectDir.resolve("src/main.mira"),
-                "module main;\nfn main() { print(\"run-ok\"); }\n");
+        Files.writeString(projectDir.resolve("src/main.mira"), "module main;\nfn main() { print(\"run-ok\"); }\n");
 
         BuildContext ctx = Commands.requireContext(projectDir);
         ctx.applyFlags(ProjectConfig.BuildMode.INTERPRET);
@@ -469,8 +460,7 @@ public class BuildSystemIntegrationTest {
     void packageSlimModeJarRunsCorrectly() throws Exception {
         writeToml(projectDir, "slim-run", "src/main.mira", "package", true, "slim");
         Files.createDirectories(projectDir.resolve("src"));
-        Files.writeString(projectDir.resolve("src/main.mira"),
-                "module main;\nfn main() { print(\"slim-ok\"); }\n");
+        Files.writeString(projectDir.resolve("src/main.mira"), "module main;\nfn main() { print(\"slim-ok\"); }\n");
 
         BuildContext ctx = Commands.requireContext(projectDir);
         ctx.applyFlags(ProjectConfig.BuildMode.PACKAGE, ProjectConfig.JarBundle.SLIM);
@@ -481,8 +471,7 @@ public class BuildSystemIntegrationTest {
         assertTrue(Files.exists(jarPath));
 
         Process process = new ProcessBuilder("java", "-jar", jarPath.toAbsolutePath().toString())
-                .redirectErrorStream(true)
-                .start();
+                .redirectErrorStream(true).start();
         String output = new String(process.getInputStream().readAllBytes());
         int exitCode = process.waitFor();
 
@@ -494,8 +483,7 @@ public class BuildSystemIntegrationTest {
     void packageSlimModeEvalStillWorks() throws Exception {
         writeToml(projectDir, "slim-eval", "src/main.mira", "package", true, "slim");
         Files.createDirectories(projectDir.resolve("src"));
-        Files.writeString(projectDir.resolve("src/main.mira"),
-                "module main;\nfn main() { print(eval(\"1 + 2\")); }\n");
+        Files.writeString(projectDir.resolve("src/main.mira"), "module main;\nfn main() { print(eval(\"1 + 2\")); }\n");
 
         BuildContext ctx = Commands.requireContext(projectDir);
         ctx.applyFlags(ProjectConfig.BuildMode.PACKAGE, ProjectConfig.JarBundle.SLIM);
@@ -505,8 +493,7 @@ public class BuildSystemIntegrationTest {
         Path jarPath = projectDir.resolve("out/main.jar");
 
         Process process = new ProcessBuilder("java", "-jar", jarPath.toAbsolutePath().toString())
-                .redirectErrorStream(true)
-                .start();
+                .redirectErrorStream(true).start();
         String output = new String(process.getInputStream().readAllBytes());
         int exitCode = process.waitFor();
 
@@ -516,24 +503,17 @@ public class BuildSystemIntegrationTest {
 
     @Test
     void runWithoutTomlThrows() {
-        assertThrows(BuildException.class,
-                () -> Commands.requireContext(projectDir));
+        assertThrows(BuildException.class, () -> Commands.requireContext(projectDir));
     }
 
-    private void writeToml(Path dir, String name, String entry, String mode, boolean main)
-            throws IOException {
+    private void writeToml(Path dir, String name, String entry, String mode, boolean main) throws IOException {
         writeToml(dir, name, entry, mode, main, null);
     }
 
     private void writeToml(Path dir, String name, String entry, String mode, boolean main, String jarBundle)
             throws IOException {
-        String content = "[project]\n"
-                + "name = \"" + name + "\"\n"
-                + "version = \"0.1.0\"\n"
-                + "entry = \"" + entry + "\"\n"
-                + "\n[build]\n"
-                + "mode = \"" + mode + "\"\n"
-                + "main = " + main + "\n"
+        String content = "[project]\n" + "name = \"" + name + "\"\n" + "version = \"0.1.0\"\n" + "entry = \"" + entry
+                + "\"\n" + "\n[build]\n" + "mode = \"" + mode + "\"\n" + "main = " + main + "\n"
                 + (jarBundle != null ? "jar-bundle = \"" + jarBundle + "\"\n" : "");
         Files.writeString(dir.resolve("mira.toml"), content);
     }

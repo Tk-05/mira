@@ -71,8 +71,7 @@ public class Tokenizer {
      * Guarantees the scan makes forward progress after a bad token so the outer
      * loop in {@link #tokenize} can keep collecting further errors instead of
      * looping forever at the same position. Most error sites already consume at
-     * least one character before throwing; this is a safety net for any that
-     * don't.
+     * least one character before throwing; this is a safety net for any that don't.
      */
     private void recoverFromError() {
         if (current == start && !isAtEnd()) {
@@ -112,8 +111,7 @@ public class Tokenizer {
                 }
             }
 
-            case '"' ->
-                scanString();
+            case '"' -> scanString();
 
             default -> {
                 if (c == '/' && !isAtEnd() && peek() == '/') {
@@ -193,16 +191,11 @@ public class Tokenizer {
                 char escaped = peek();
 
                 switch (escaped) {
-                    case 'n' ->
-                        valueBuilder.append('\n');
-                    case 't' ->
-                        valueBuilder.append('\t');
-                    case 'r' ->
-                        valueBuilder.append('\r');
-                    case '"' ->
-                        valueBuilder.append('"');
-                    case '\\' ->
-                        valueBuilder.append('\\');
+                    case 'n' -> valueBuilder.append('\n');
+                    case 't' -> valueBuilder.append('\t');
+                    case 'r' -> valueBuilder.append('\r');
+                    case '"' -> valueBuilder.append('"');
+                    case '\\' -> valueBuilder.append('\\');
                     case 'u' -> {
                         advance();
                         StringBuilder hex = new StringBuilder();
@@ -245,12 +238,7 @@ public class Tokenizer {
 
         advance();
 
-        tokens.add(new Token(
-                TokenType.STRING_LITERAL,
-                valueBuilder.toString(),
-                tokenStartLine,
-                tokenStartColumn
-        ));
+        tokens.add(new Token(TokenType.STRING_LITERAL, valueBuilder.toString(), tokenStartLine, tokenStartColumn));
     }
 
     private void scanTextBlock() {
@@ -267,7 +255,8 @@ public class Tokenizer {
                 advance();
                 advance();
                 advance();
-                tokens.add(new Token(TokenType.STRING_LITERAL, valueBuilder.toString(), tokenStartLine, tokenStartColumn));
+                tokens.add(
+                        new Token(TokenType.STRING_LITERAL, valueBuilder.toString(), tokenStartLine, tokenStartColumn));
                 return;
             }
 
@@ -289,9 +278,7 @@ public class Tokenizer {
 
         String text = source.substring(start, current);
 
-        TokenType type = Vocabulary.stringIsKeyword(text)
-                ? TokenType.KEYWORD
-                : TokenType.EXPRESSION;
+        TokenType type = Vocabulary.stringIsKeyword(text) ? TokenType.KEYWORD : TokenType.EXPRESSION;
 
         tokens.add(new Token(type, text, tokenStartLine, tokenStartColumn));
     }
@@ -366,12 +353,7 @@ public class Tokenizer {
 
         current = start + bestMatch.length();
 
-        tokens.add(new Token(
-                TokenType.OPERATION,
-                bestMatch,
-                tokenStartLine,
-                tokenStartColumn
-        ));
+        tokens.add(new Token(TokenType.OPERATION, bestMatch, tokenStartLine, tokenStartColumn));
     }
 
     private void scanDelimiter() {
@@ -396,12 +378,7 @@ public class Tokenizer {
 
         current = start + bestMatch.length();
 
-        tokens.add(new Token(
-                TokenType.DELIMITER,
-                bestMatch,
-                tokenStartLine,
-                tokenStartColumn
-        ));
+        tokens.add(new Token(TokenType.DELIMITER, bestMatch, tokenStartLine, tokenStartColumn));
     }
 
     private void addToken(TokenType type) {

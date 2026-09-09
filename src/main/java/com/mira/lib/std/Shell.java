@@ -29,8 +29,7 @@ public class Shell implements Lib {
                 java.lang.Process process = pb.start();
 
                 StringBuilder output = new StringBuilder();
-                try (BufferedReader reader = new BufferedReader(
-                        new InputStreamReader(process.getInputStream()))) {
+                try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
                     String line;
                     while ((line = reader.readLine()) != null) {
                         output.append(line).append("\n");

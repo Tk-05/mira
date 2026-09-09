@@ -54,13 +54,16 @@ public class ImportResolver {
     }
 
     private static final Internal internal = new Internal();
-    // Dedicated per-task virtual-thread executor for resolving aliased module imports.
-    // Nested aliased imports recursively submit further blocking (.join()) tasks here;
+    // Dedicated per-task virtual-thread executor for resolving aliased module
+    // imports.
+    // Nested aliased imports recursively submit further blocking (.join()) tasks
+    // here;
     // using ForkJoinPool.commonPool() (bounded to availableProcessors()-1) for that
     // starves out under enough recursive fan-out (every pool thread ends up blocked
     // waiting on a child task with no free thread left to run it) - a real deadlock
     // observed on projects with deep, widely shared aliased-import graphs. Virtual
-    // threads are cheap and unbounded, so blocking here never exhausts a shared pool.
+    // threads are cheap and unbounded, so blocking here never exhausts a shared
+    // pool.
     private static final ExecutorService MODULE_EXECUTOR = Executors.newVirtualThreadPerTaskExecutor();
     private static final Map<String, CachedModule> astCache = new ConcurrentHashMap<>();
     private static final ConcurrentHashMap<String, CompletableFuture<Void>> moduleLoadFutures = new ConcurrentHashMap<>();
@@ -69,10 +72,14 @@ public class ImportResolver {
     private static final ConcurrentHashMap<String, Lib> loadedNativeLibs = new ConcurrentHashMap<>();
     private static final List<URLClassLoader> nativeClassLoaders = new ArrayList<>();
     private static final ConcurrentHashMap<String, Namespace> resolvedModules = new ConcurrentHashMap<>();
-    // funcName -> moduleName, per module (keyed the same way as astCache/resolvedModules). Populated
-    // once by whichever caller resolves a module first; consulted by every subsequent importer of
-    // that same module (including the dedup fast-path below) so each caller's own Interpreter gets
-    // correct function->module registrations regardless of who actually did the parsing.
+    // funcName -> moduleName, per module (keyed the same way as
+    // astCache/resolvedModules). Populated
+    // once by whichever caller resolves a module first; consulted by every
+    // subsequent importer of
+    // that same module (including the dedup fast-path below) so each caller's own
+    // Interpreter gets
+    // correct function->module registrations regardless of who actually did the
+    // parsing.
     private static final ConcurrentHashMap<String, Map<String, String>> moduleFunctionNames = new ConcurrentHashMap<>();
 
     public static void loadInternal(Environment environment) {
@@ -95,10 +102,8 @@ public class ImportResolver {
         };
         ImportExpression expr = new ImportExpression(moduleExpr, alias, kind);
         switch (kind) {
-            case STDLIB ->
-                resolveStdlibImport(expr, env);
-            case NATIVE ->
-                resolveNativeImport(expr, env);
+            case STDLIB -> resolveStdlibImport(expr, env);
+            case NATIVE -> resolveNativeImport(expr, env);
             case MODULE -> {
                 Interpreter scratch = new Interpreter();
                 resolveModuleImport(scratch, scratch, expr, env);
@@ -128,7 +133,8 @@ public class ImportResolver {
         nativeClassLoaders.clear();
     }
 
-    public static void resolveImports(List<ImportExpression> imports, Environment environment, Interpreter interpreter, boolean entryPoint) {
+    public static void resolveImports(List<ImportExpression> imports, Environment environment, Interpreter interpreter,
+            boolean entryPoint) {
         long start = System.currentTimeMillis();
 
         if (entryPoint) {
@@ -136,14 +142,12 @@ public class ImportResolver {
         }
 
         Path parentInputPath = Flags.inputPath.get();
-        List<ImportExpression> aliasedModules = imports.stream()
-                .filter(e -> e.getKind() == ImportKind.MODULE
-                && e.getNamespace() != null && !e.getNamespace().isBlank())
+        List<ImportExpression> aliasedModules = imports.stream().filter(
+                e -> e.getKind() == ImportKind.MODULE && e.getNamespace() != null && !e.getNamespace().isBlank())
                 .toList();
 
         if (!aliasedModules.isEmpty()) {
-            List<CompletableFuture<Void>> futures = aliasedModules.stream()
-                    .map(e -> CompletableFuture.runAsync(() -> {
+            List<CompletableFuture<Void>> futures = aliasedModules.stream().map(e -> CompletableFuture.runAsync(() -> {
                 Flags.inputPath.set(parentInputPath);
                 // A throwaway Interpreter carries out the resolution itself (loadASTIntoContext
                 // swaps shared localEnvironment/globalEnvironment instance fields, which is not
@@ -152,8 +156,7 @@ public class ImportResolver {
                 // one that actually runs the program afterward, and a plain Map.put is safe to
                 // share across these tasks now that functionModule is a ConcurrentHashMap.
                 resolveModuleImport(new Interpreter(), interpreter, e, environment);
-            }, MODULE_EXECUTOR))
-                    .toList();
+            }, MODULE_EXECUTOR)).toList();
             try {
                 CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new)).join();
             } catch (CompletionException e) {
@@ -169,18 +172,15 @@ public class ImportResolver {
         }
 
         for (ImportExpression expr : imports) {
-            if (expr.getKind() == ImportExpression.ImportKind.MODULE
-                    && expr.getNamespace() != null && !expr.getNamespace().isBlank()) {
+            if (expr.getKind() == ImportExpression.ImportKind.MODULE && expr.getNamespace() != null
+                    && !expr.getNamespace().isBlank()) {
                 continue;
             }
             try {
                 switch (expr.getKind()) {
-                    case MODULE ->
-                        resolveModuleImport(interpreter, interpreter, expr, environment);
-                    case NATIVE ->
-                        resolveNativeImport(expr, environment);
-                    case STDLIB ->
-                        resolveStdlibImport(expr, environment);
+                    case MODULE -> resolveModuleImport(interpreter, interpreter, expr, environment);
+                    case NATIVE -> resolveNativeImport(expr, environment);
+                    case STDLIB -> resolveStdlibImport(expr, environment);
                 }
             } catch (MiraError e) {
                 if (!e.getImportChain().isEmpty()) {
@@ -304,15 +304,19 @@ public class ImportResolver {
             internal.loadLib(modulePrivateEnv);
             // Nested imports (of this already-imported module) keep using the isolated
             // execution interpreter, not registrationInterpreter, so loadASTIntoContext's
-            // localEnvironment/globalEnvironment swapping never touches the real interpreter
+            // localEnvironment/globalEnvironment swapping never touches the real
+            // interpreter
             // concurrently, even for deeper import chains under a top-level parallel batch.
-            // A function imported transitively through an aliased module of an aliased module
-            // may not get registered on the real interpreter, same as before this fix - only
+            // A function imported transitively through an aliased module of an aliased
+            // module
+            // may not get registered on the real interpreter, same as before this fix -
+            // only
             // directly-imported modules' own functions are covered.
             resolveImports(nestedImports, modulePrivateEnv, interpreter, false);
             Set<String> importedSymbols = new HashSet<>(modulePrivateEnv.keySet());
 
-            Map<String, String> functionModules = moduleFunctionNames.computeIfAbsent(moduleKey, k -> new ConcurrentHashMap<>());
+            Map<String, String> functionModules = moduleFunctionNames.computeIfAbsent(moduleKey,
+                    k -> new ConcurrentHashMap<>());
             for (Node ast : moduleBody) {
                 switch (ast) {
                     case FuncDecl fd -> {
@@ -320,18 +324,15 @@ public class ImportResolver {
                         functionModules.put(fd.getName(), moduleName);
                         interpreter.loadASTIntoContext(fd, modulePrivateEnv);
                     }
-                    case EnumDecl ed ->
-                        interpreter.loadASTIntoContext(ed, modulePrivateEnv);
-                    case VarDecl vd when vd.isConst() ->
-                        interpreter.loadASTIntoContext(vd, modulePrivateEnv);
+                    case EnumDecl ed -> interpreter.loadASTIntoContext(ed, modulePrivateEnv);
+                    case VarDecl vd when vd.isConst() -> interpreter.loadASTIntoContext(vd, modulePrivateEnv);
                     default -> {
                     }
                 }
             }
 
             for (Node ast : moduleBody) {
-                if (ast instanceof FuncDecl || ast instanceof EnumDecl
-                        || (ast instanceof VarDecl vd && vd.isConst())) {
+                if (ast instanceof FuncDecl || ast instanceof EnumDecl || (ast instanceof VarDecl vd && vd.isConst())) {
                     continue;
                 }
                 interpreter.loadASTIntoContext(ast, modulePrivateEnv);
@@ -394,11 +395,12 @@ public class ImportResolver {
      * {@code import} statement's parallel-resolution/de-dup machinery (that
      * machinery is specific to batching aliased imports of the same entry-point
      * program; dynamic imports happen at arbitrary points during execution and
-     * always need a fresh, independent {@link Namespace} returned to the
-     * caller, so it re-derives one from the shared {@link #astCache} instead of
-     * participating in {@link #moduleLoadFutures}).
+     * always need a fresh, independent {@link Namespace} returned to the caller, so
+     * it re-derives one from the shared {@link #astCache} instead of participating
+     * in {@link #moduleLoadFutures}).
      */
-    public static Namespace resolveDynamicImport(Interpreter interpreter, String rawPath, List<String> selectedSymbolsOrNull) {
+    public static Namespace resolveDynamicImport(Interpreter interpreter, String rawPath,
+            List<String> selectedSymbolsOrNull) {
         Path modulePath = resolveModulePath(rawPath);
         Path previousFile = Flags.inputPath.get();
         try {
@@ -449,18 +451,15 @@ public class ImportResolver {
                         interpreter.registerFunctionModule(fd.getName(), moduleName);
                         interpreter.loadASTIntoContext(fd, modulePrivateEnv);
                     }
-                    case EnumDecl ed ->
-                        interpreter.loadASTIntoContext(ed, modulePrivateEnv);
-                    case VarDecl vd when vd.isConst() ->
-                        interpreter.loadASTIntoContext(vd, modulePrivateEnv);
+                    case EnumDecl ed -> interpreter.loadASTIntoContext(ed, modulePrivateEnv);
+                    case VarDecl vd when vd.isConst() -> interpreter.loadASTIntoContext(vd, modulePrivateEnv);
                     default -> {
                     }
                 }
             }
 
             for (Node ast : moduleBody) {
-                if (ast instanceof FuncDecl || ast instanceof EnumDecl
-                        || (ast instanceof VarDecl vd && vd.isConst())) {
+                if (ast instanceof FuncDecl || ast instanceof EnumDecl || (ast instanceof VarDecl vd && vd.isConst())) {
                     continue;
                 }
                 interpreter.loadASTIntoContext(ast, modulePrivateEnv);
@@ -537,9 +536,7 @@ public class ImportResolver {
         } else {
             Environment temp = new Environment();
             lib.loadLib(temp);
-            Set<String> toLoad = expr.isSelective()
-                    ? new LinkedHashSet<>(expr.getSelectedFunctions())
-                    : temp.keySet();
+            Set<String> toLoad = expr.isSelective() ? new LinkedHashSet<>(expr.getSelectedFunctions()) : temp.keySet();
             for (String name : toLoad) {
                 if (!temp.exists(name)) {
                     throw new RuntimeException("Function '" + name + "' not found in lib '" + libName + "'");
@@ -581,8 +578,7 @@ public class ImportResolver {
                 if (libClassName != null) {
                     Lib lib = loadedNativeLibs.computeIfAbsent(libClassName, k -> {
                         try {
-                            Class<?> cls = Class.forName(libClassName,
-                                    true, ImportResolver.class.getClassLoader());
+                            Class<?> cls = Class.forName(libClassName, true, ImportResolver.class.getClassLoader());
                             return (Lib) cls.getDeclaredConstructor().newInstance();
                         } catch (Exception ex) {
                             throw new NativeLibLoadError(basename, ex);
@@ -609,8 +605,7 @@ public class ImportResolver {
             lib = loadedNativeLibs.computeIfAbsent(libKey, k -> {
                 try {
                     URL jarUrl = jarPath.toUri().toURL();
-                    URLClassLoader loader = new URLClassLoader(
-                            new URL[]{jarUrl},
+                    URLClassLoader loader = new URLClassLoader(new URL[]{jarUrl},
                             ImportResolver.class.getClassLoader());
                     nativeClassLoaders.add(loader);
                     ServiceLoader<Lib> serviceLoader = ServiceLoader.load(Lib.class, loader);

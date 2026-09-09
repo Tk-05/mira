@@ -56,8 +56,8 @@ public class SelectionRangeProvider {
 
     private static Statement directStatementAt(List<Node> body, int cursorLine) {
         for (Node n : body) {
-            if (n instanceof Statement s && s.line > 0 && s.endLine > 0
-                    && cursorLine >= s.line && cursorLine <= s.endLine) {
+            if (n instanceof Statement s && s.line > 0 && s.endLine > 0 && cursorLine >= s.line
+                    && cursorLine <= s.endLine) {
                 return s;
             }
         }

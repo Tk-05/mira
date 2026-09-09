@@ -41,20 +41,18 @@ public class TaskRunner {
             } else {
                 runScript(ctx, task.script());
             }
-            System.out.println(DiagnosticFormatter.formatPass(
-                    "task '" + name + "' finished in " + (System.currentTimeMillis() - start) + " ms"));
+            System.out.println(DiagnosticFormatter
+                    .formatPass("task '" + name + "' finished in " + (System.currentTimeMillis() - start) + " ms"));
         } catch (BuildException e) {
-            System.out.println(DiagnosticFormatter.formatFail(
-                    "task '" + name + "' failed after " + (System.currentTimeMillis() - start) + " ms"));
+            System.out.println(DiagnosticFormatter
+                    .formatFail("task '" + name + "' failed after " + (System.currentTimeMillis() - start) + " ms"));
             throw e;
         }
     }
 
     private static void runCmd(String cmd) {
         boolean isWindows = System.getProperty("os.name", "").toLowerCase().contains("win");
-        ProcessBuilder pb = isWindows
-                ? new ProcessBuilder("cmd.exe", "/c", cmd)
-                : new ProcessBuilder("sh", "-c", cmd);
+        ProcessBuilder pb = isWindows ? new ProcessBuilder("cmd.exe", "/c", cmd) : new ProcessBuilder("sh", "-c", cmd);
         pb.inheritIO();
         try {
             int exitCode = pb.start().waitFor();

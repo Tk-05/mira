@@ -19,12 +19,9 @@ public class RandomLib implements Lib {
 
     private static List<Expression> toMembers(Object arg) {
         return switch (arg) {
-            case ArrayExpression a ->
-                new ArrayList<>(a.getMembers());
-            case ListExpression l ->
-                new ArrayList<>(l.getMembers());
-            default ->
-                throw new RuntimeException("Expected list, got: " + arg.getClass().getSimpleName());
+            case ArrayExpression a -> new ArrayList<>(a.getMembers());
+            case ListExpression l -> new ArrayList<>(l.getMembers());
+            default -> throw new RuntimeException("Expected list, got: " + arg.getClass().getSimpleName());
         };
     }
 
@@ -36,8 +33,7 @@ public class RandomLib implements Lib {
             return NullValue.INSTANCE;
         }));
 
-        environment.define("next", new NativeFunction(0, args
-                -> rng.nextDouble()));
+        environment.define("next", new NativeFunction(0, args -> rng.nextDouble()));
 
         environment.define("nextInt", new NativeFunction(2, "min, max", args -> {
             int min = (int) Double.parseDouble(String.valueOf(args.get(0)));
@@ -51,11 +47,9 @@ public class RandomLib implements Lib {
             return min + rng.nextDouble() * (max - min);
         }));
 
-        environment.define("nextBool", new NativeFunction(0, args
-                -> rng.nextBoolean()));
+        environment.define("nextBool", new NativeFunction(0, args -> rng.nextBoolean()));
 
-        environment.define("nextGaussian", new NativeFunction(0, args
-                -> rng.nextGaussian()));
+        environment.define("nextGaussian", new NativeFunction(0, args -> rng.nextGaussian()));
 
         environment.define("shuffle", new NativeFunction(1, "list", args -> {
             List<Expression> members = toMembers(args.get(0));

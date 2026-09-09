@@ -22,8 +22,7 @@ public class DiagnosticCollectorTest {
 
         List<Diagnostic> diagnostics = DiagnosticCollector.collect(source, mainPath, Map.of());
         Diagnostic unusedImport = diagnostics.stream()
-                .filter(d -> d.getMessage().contains("'ray' is imported but never used"))
-                .findFirst()
+                .filter(d -> d.getMessage().contains("'ray' is imported but never used")).findFirst()
                 .orElseThrow(() -> new AssertionError("expected unused 'ray' import diagnostic, got: " + diagnostics));
 
         int lineLength = "import native \"fixture.jar\" as ray;".length();

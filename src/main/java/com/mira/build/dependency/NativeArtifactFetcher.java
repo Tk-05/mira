@@ -50,8 +50,8 @@ public final class NativeArtifactFetcher {
     }
 
     /**
-     * The path a resolve() call would produce, without fetching anything — used
-     * by "mira deps".
+     * The path a resolve() call would produce, without fetching anything — used by
+     * "mira deps".
      */
     public static Path expectedPath(ProjectConfig.NativeDependency dep) {
         if (dep.sha256() == null) {
@@ -84,18 +84,17 @@ public final class NativeArtifactFetcher {
             return new Resolved(destJar);
         } catch (IOException e) {
             deleteQuietly(tempFile);
-            throw new BuildException("Native dependency '" + depName + "': failed to fetch " + dep.url()
-                    + ": " + e.getMessage());
+            throw new BuildException(
+                    "Native dependency '" + depName + "': failed to fetch " + dep.url() + ": " + e.getMessage());
         }
     }
 
     /**
      * No sha256 means url must be file:// (enforced at mira.toml parse time,
-     * re-checked here for callers that build a NativeDependency directly).
-     * Resolves straight to the source file — no copy, no cache — so every "mira
-     * build" picks up whatever is on disk right now, e.g. after a fresh `mvn
-     * package` of extern/raylib. There's nothing to verify: it's already a
-     * local file.
+     * re-checked here for callers that build a NativeDependency directly). Resolves
+     * straight to the source file — no copy, no cache — so every "mira build" picks
+     * up whatever is on disk right now, e.g. after a fresh `mvn package` of
+     * extern/raylib. There's nothing to verify: it's already a local file.
      */
     private static Resolved resolveUnverifiedFileUrl(String depName, String url) {
         Path source = localFileUrlToPath(depName, url);
@@ -130,26 +129,24 @@ public final class NativeArtifactFetcher {
             try {
                 Files.copy(Paths.get(uri), tempFile, StandardCopyOption.REPLACE_EXISTING);
             } catch (IOException e) {
-                throw new BuildException("Native dependency '" + depName + "': failed to read " + url
-                        + ": " + e.getMessage());
+                throw new BuildException(
+                        "Native dependency '" + depName + "': failed to read " + url + ": " + e.getMessage());
             }
             return tempFile;
         }
 
-        HttpClient client = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(10))
-                .followRedirects(HttpClient.Redirect.NORMAL)
-                .build();
+        HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10))
+                .followRedirects(HttpClient.Redirect.NORMAL).build();
         try {
             HttpRequest request = HttpRequest.newBuilder().uri(uri).GET().build();
             HttpResponse<Path> response = client.send(request, HttpResponse.BodyHandlers.ofFile(tempFile));
             if (response.statusCode() / 100 != 2) {
-                throw new BuildException("Native dependency '" + depName + "': GET " + url
-                        + " returned HTTP " + response.statusCode());
+                throw new BuildException(
+                        "Native dependency '" + depName + "': GET " + url + " returned HTTP " + response.statusCode());
             }
         } catch (IOException | InterruptedException e) {
-            throw new BuildException("Native dependency '" + depName + "': failed to download " + url
-                    + ": " + e.getMessage());
+            throw new BuildException(
+                    "Native dependency '" + depName + "': failed to download " + url + ": " + e.getMessage());
         }
         return tempFile;
     }
@@ -161,7 +158,8 @@ public final class NativeArtifactFetcher {
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException("SHA-256 not available", e);
         }
-        try (InputStream in = Files.newInputStream(file); DigestInputStream digestIn = new DigestInputStream(in, digest)) {
+        try (InputStream in = Files.newInputStream(file);
+                DigestInputStream digestIn = new DigestInputStream(in, digest)) {
             byte[] buffer = new byte[8192];
             while (digestIn.read(buffer) != -1) {
                 // streamed through the digest; contents are discarded
@@ -176,8 +174,8 @@ public final class NativeArtifactFetcher {
             Files.createDirectories(base);
             return Files.createTempFile(base, depName + "-", ".jar");
         } catch (IOException e) {
-            throw new BuildException("Native dependency '" + depName + "': failed to create temp file: "
-                    + e.getMessage());
+            throw new BuildException(
+                    "Native dependency '" + depName + "': failed to create temp file: " + e.getMessage());
         }
     }
 

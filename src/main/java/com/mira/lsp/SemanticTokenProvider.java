@@ -56,8 +56,8 @@ import com.mira.parser.nodes.statement.Statement.While;
 
 public class SemanticTokenProvider {
 
-    public static final List<String> TOKEN_TYPES = List.of(
-            "variable", "parameter", "function", "property", "type", "namespace");
+    public static final List<String> TOKEN_TYPES = List.of("variable", "parameter", "function", "property", "type",
+            "namespace");
     public static final List<String> TOKEN_MODIFIERS = List.of("declaration", "readonly");
 
     private static final int TYPE_VARIABLE = 0;
@@ -94,11 +94,13 @@ public class SemanticTokenProvider {
     private static void walkNode(Node node, List<SemToken> out) {
         if (node instanceof FuncDecl f) {
             if (f.nameColumn > 0) {
-                out.add(new SemToken(f.line - 1, f.nameColumn - 1, f.getName().length(), TYPE_FUNCTION, MOD_DECLARATION));
+                out.add(new SemToken(f.line - 1, f.nameColumn - 1, f.getName().length(), TYPE_FUNCTION,
+                        MOD_DECLARATION));
             }
             for (Parameter p : f.getParameters()) {
                 if (p.column() > 0) {
-                    out.add(new SemToken(f.line - 1, p.column() - 1, p.name().length(), TYPE_PARAMETER, MOD_DECLARATION));
+                    out.add(new SemToken(f.line - 1, p.column() - 1, p.name().length(), TYPE_PARAMETER,
+                            MOD_DECLARATION));
                 }
                 emitTypeToken(p.type(), out);
             }
@@ -122,8 +124,8 @@ public class SemanticTokenProvider {
             List<Integer> cols = vd.getNameColumns();
             for (int i = 0; i < names.size(); i++) {
                 if (cols.get(i) > 0) {
-                    out.add(new SemToken(vd.line - 1, cols.get(i) - 1, names.get(i).length(),
-                            TYPE_VARIABLE, MOD_DECLARATION));
+                    out.add(new SemToken(vd.line - 1, cols.get(i) - 1, names.get(i).length(), TYPE_VARIABLE,
+                            MOD_DECLARATION));
                 }
             }
             if (vd.getInitializer() != null) {
@@ -294,7 +296,8 @@ public class SemanticTokenProvider {
             if (lam.line > 0) {
                 for (Parameter p : lam.getParameters()) {
                     if (p.column() > 0) {
-                        out.add(new SemToken(lam.line - 1, p.column() - 1, p.name().length(), TYPE_PARAMETER, MOD_DECLARATION));
+                        out.add(new SemToken(lam.line - 1, p.column() - 1, p.name().length(), TYPE_PARAMETER,
+                                MOD_DECLARATION));
                     }
                     emitTypeToken(p.type(), out);
                 }
@@ -346,16 +349,16 @@ public class SemanticTokenProvider {
             // Parser.parseNamespaceCallExpression) - the alias itself isn't
             // separately tracked, so only the function name gets a token here.
             if (ns.getLine() > 0 && ns.getColumn() > 0) {
-                out.add(new SemToken(ns.getLine() - 1, ns.getColumn() - 1, ns.getFunctionName().length(),
-                        TYPE_FUNCTION, 0));
+                out.add(new SemToken(ns.getLine() - 1, ns.getColumn() - 1, ns.getFunctionName().length(), TYPE_FUNCTION,
+                        0));
             }
             for (Expression a : ns.getArguments()) {
                 walkExpr(a, out);
             }
         } else if (expr instanceof ImportExpression imp) {
             if (imp.getNamespace() != null && imp.namespaceColumn > 0) {
-                out.add(new SemToken(imp.line - 1, imp.namespaceColumn - 1, imp.getNamespace().length(),
-                        TYPE_NAMESPACE, MOD_DECLARATION));
+                out.add(new SemToken(imp.line - 1, imp.namespaceColumn - 1, imp.getNamespace().length(), TYPE_NAMESPACE,
+                        MOD_DECLARATION));
             }
         }
     }

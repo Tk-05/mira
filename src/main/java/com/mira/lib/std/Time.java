@@ -10,8 +10,7 @@ public class Time implements Lib {
     @Override
     public void loadLib(Environment environment) {
 
-        environment.define("now", new NativeFunction(0, args
-                -> (double) System.currentTimeMillis()));
+        environment.define("now", new NativeFunction(0, args -> (double) System.currentTimeMillis()));
 
         environment.define("elapsed", new NativeFunction(1, "startMs", args -> {
             long start = (long) Double.parseDouble(String.valueOf(args.get(0)));
@@ -47,13 +46,13 @@ public class Time implements Lib {
             return hours + "h " + remMin + "m " + remSec + "s";
         }));
 
-        environment.define("fromSeconds", new NativeFunction(1, "s", args
-                -> Double.parseDouble(String.valueOf(args.get(0))) * 1000));
+        environment.define("fromSeconds",
+                new NativeFunction(1, "s", args -> Double.parseDouble(String.valueOf(args.get(0))) * 1000));
 
-        environment.define("fromMinutes", new NativeFunction(1, "m", args
-                -> Double.parseDouble(String.valueOf(args.get(0))) * 60_000));
+        environment.define("fromMinutes",
+                new NativeFunction(1, "m", args -> Double.parseDouble(String.valueOf(args.get(0))) * 60_000));
 
-        environment.define("fromHours", new NativeFunction(1, "h", args
-                -> Double.parseDouble(String.valueOf(args.get(0))) * 3_600_000));
+        environment.define("fromHours",
+                new NativeFunction(1, "h", args -> Double.parseDouble(String.valueOf(args.get(0))) * 3_600_000));
     }
 }

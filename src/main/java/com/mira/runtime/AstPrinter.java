@@ -74,12 +74,9 @@ public class AstPrinter implements ExprVisitor<String>, StmtVisitor<String> {
 
     private String node(Node n) {
         return switch (n) {
-            case com.mira.parser.nodes.statement.Statement s ->
-                s.accept(this);
-            case Expression e ->
-                e.accept(this);
-            default ->
-                pad() + "<unknown>";
+            case com.mira.parser.nodes.statement.Statement s -> s.accept(this);
+            case Expression e -> e.accept(this);
+            default -> pad() + "<unknown>";
         };
     }
 
@@ -124,82 +121,65 @@ public class AstPrinter implements ExprVisitor<String>, StmtVisitor<String> {
 
     @Override
     public <T> T visitBinaryExpr(BinaryExpression expression) {
-        return (T) (pad() + "Binary [" + expression.getOperator().getLexeme() + "]"
-                + child(expression.getLeft())
+        return (T) (pad() + "Binary [" + expression.getOperator().getLexeme() + "]" + child(expression.getLeft())
                 + child(expression.getRight()));
     }
 
     @Override
     public <T> T visitUnaryExpr(UnaryExpression expression) {
-        return (T) (pad() + "Unary [" + expression.getOperation().getLexeme() + "]"
-                + child(expression.getRight()));
+        return (T) (pad() + "Unary [" + expression.getOperation().getLexeme() + "]" + child(expression.getRight()));
     }
 
     @Override
     public <T> T visitAssignExpression(AssignExpression expression) {
-        return (T) (pad() + "AssignExpr"
-                + child(expression.getReference())
-                + child(expression.getValue()));
+        return (T) (pad() + "AssignExpr" + child(expression.getReference()) + child(expression.getValue()));
     }
 
     @Override
     public <T> T visitTernaryExpr(TernaryExpression expression) {
-        return (T) (pad() + "Ternary [?:]"
-                + child(expression.getCondition())
-                + child(expression.getThenExpr())
+        return (T) (pad() + "Ternary [?:]" + child(expression.getCondition()) + child(expression.getThenExpr())
                 + child(expression.getElseExpr()));
     }
 
     @Override
     public <T> T visitCallExpr(CallExpression expression) {
         return (T) (pad() + "Call [" + expression.getCallee().accept(this).strip() + "]"
-                + body(expression.getArguments().stream()
-                        .map(e -> (Node) e).toList()));
+                + body(expression.getArguments().stream().map(e -> (Node) e).toList()));
     }
 
     @Override
     public <T> T visitNamespaceCallExpr(NamespaceCallExpression expression) {
         return (T) (pad() + "Call [" + expression.getAlias() + "." + expression.getFunctionName() + "]"
-                + body(expression.getArguments().stream()
-                        .map(e -> (Node) e).toList()));
+                + body(expression.getArguments().stream().map(e -> (Node) e).toList()));
     }
 
     @Override
     public <T> T visitMethodCallExpression(MethodCallExpression expression) {
         String op = expression.isOptional() ? "?." : ".";
-        return (T) (pad() + "MethodCall [" + op + expression.getMethod() + "]"
-                + child(expression.getObject())
-                + body(expression.getArguments().stream()
-                        .map(e -> (Node) e).toList()));
+        return (T) (pad() + "MethodCall [" + op + expression.getMethod() + "]" + child(expression.getObject())
+                + body(expression.getArguments().stream().map(e -> (Node) e).toList()));
     }
 
     @Override
     public <T> T visitFieldAccessExpression(FieldAccessExpression expression) {
         String op = expression.isOptional() ? "?." : ".";
-        return (T) (pad() + "FieldAccess [" + op + expression.getField() + "]"
-                + child(expression.getObject()));
+        return (T) (pad() + "FieldAccess [" + op + expression.getField() + "]" + child(expression.getObject()));
     }
 
     @Override
     public <T> T visitAccessExpr(AccessExpression expression) {
-        return (T) (pad() + "Index []"
-                + child(expression.getReference())
-                + body(expression.getIndecies().stream()
-                        .map(e -> (Node) e).toList()));
+        return (T) (pad() + "Index []" + child(expression.getReference())
+                + body(expression.getIndecies().stream().map(e -> (Node) e).toList()));
     }
 
     @Override
     public <T> T visitArrayExpr(ArrayExpression expression) {
-        return (T) (pad() + "Array"
-                + body(expression.getMembers().stream()
-                        .map(e -> (Node) e).toList()));
+        return (T) (pad() + "Array" + body(expression.getMembers().stream().map(e -> (Node) e).toList()));
     }
 
     @Override
     public <T> T visitListExpr(ListExpression expression) {
-        return (T) (pad() + "List"
-                + body(expression.getMembers().stream()
-                        .map(e -> (Node) e).toList()));
+        return (T) (pad() + "List" + body(expression.getMembers().stream().map(e -> (Node) e).toList()));
     }
 
     @Override
@@ -244,8 +224,7 @@ public class AstPrinter implements ExprVisitor<String>, StmtVisitor<String> {
 
     @Override
     public <T> T visitStructInitExpression(StructInitExpression expression) {
-        StringBuilder sb = new StringBuilder(pad() + "StructInit"
-                + child(expression.getTarget()));
+        StringBuilder sb = new StringBuilder(pad() + "StructInit" + child(expression.getTarget()));
         for (Map.Entry<String, Expression> e : expression.getOverrides().entrySet()) {
             depth++;
             sb.append('\n').append(pad()).append(e.getKey()).append(':').append(child(e.getValue()));
@@ -256,9 +235,7 @@ public class AstPrinter implements ExprVisitor<String>, StmtVisitor<String> {
 
     @Override
     public <T> T visitRangeExpression(RangeExpression expression) {
-        return (T) (pad() + "Range"
-                + child(expression.getStart())
-                + child(expression.getEnd())
+        return (T) (pad() + "Range" + child(expression.getStart()) + child(expression.getEnd())
                 + (expression.getStepsize() != null ? child(expression.getStepsize()) : ""));
     }
 
@@ -270,23 +247,19 @@ public class AstPrinter implements ExprVisitor<String>, StmtVisitor<String> {
 
     @Override
     public <T> T visitComplexExpr(ComplexExpression expression) {
-        return (T) (pad() + "Complex"
-                + body(expression.getExpressions().stream()
-                        .map(e -> (Node) e).toList()));
+        return (T) (pad() + "Complex" + body(expression.getExpressions().stream().map(e -> (Node) e).toList()));
     }
 
     @Override
     public String visitVarDecl(VarDecl stmt) {
         String keyword = stmt.isConst() ? "const" : "var";
-        return pad() + "VarDecl [" + keyword + " " + stmt.getName() + "]"
-                + child(stmt.getInitializer());
+        return pad() + "VarDecl [" + keyword + " " + stmt.getName() + "]" + child(stmt.getInitializer());
     }
 
     @Override
     public String visitFuncDecl(FuncDecl stmt) {
-        return pad() + "FuncDecl [" + stmt.getName()
-                + "(" + params(stmt.getParameters(), stmt.getVariadicParam()) + ")]"
-                + body(stmt.getBody());
+        return pad() + "FuncDecl [" + stmt.getName() + "(" + params(stmt.getParameters(), stmt.getVariadicParam())
+                + ")]" + body(stmt.getBody());
     }
 
     @Override
@@ -302,21 +275,17 @@ public class AstPrinter implements ExprVisitor<String>, StmtVisitor<String> {
 
     @Override
     public String visitVarDestructure(VarDestructure stmt) {
-        return pad() + "Destructure [" + String.join(", ", stmt.getNames()) + "]"
-                + child(stmt.getInitializer());
+        return pad() + "Destructure [" + String.join(", ", stmt.getNames()) + "]" + child(stmt.getInitializer());
     }
 
     @Override
     public String visitLock(Lock stmt) {
-        return pad() + "Lock(" + node(stmt.getMutex()) + ")"
-                + body(stmt.getBody());
+        return pad() + "Lock(" + node(stmt.getMutex()) + ")" + body(stmt.getBody());
     }
 
     @Override
     public String visitAssign(Assign stmt) {
-        return pad() + "Assign"
-                + child(stmt.getReference())
-                + child(stmt.getExpression());
+        return pad() + "Assign" + child(stmt.getReference()) + child(stmt.getExpression());
     }
 
     @Override
@@ -370,14 +339,11 @@ public class AstPrinter implements ExprVisitor<String>, StmtVisitor<String> {
     @Override
     public String visitWhile(While stmt) {
         String keyword = stmt.getDoModifier() ? "DoWhile" : "While";
-        return pad() + keyword
-                + child(stmt.getCondition())
-                + body(stmt.getBody());
+        return pad() + keyword + child(stmt.getCondition()) + body(stmt.getBody());
     }
 
     private String printForInLoop(Loop stmt) {
-        return pad() + "ForIn [" + stmt.getIterator().getName() + "]"
-                + child(stmt.getCollection())
+        return pad() + "ForIn [" + stmt.getIterator().getName() + "]" + child(stmt.getCollection())
                 + body(stmt.getBody());
     }
 
@@ -450,8 +416,7 @@ public class AstPrinter implements ExprVisitor<String>, StmtVisitor<String> {
 
     @Override
     public <T> T visitExecBlock(ExecBlock expression) {
-        return (T) (pad() + "ExecBlock [isolated=" + expression.isIsolated() + "]"
-                + body(expression.getBody()));
+        return (T) (pad() + "ExecBlock [isolated=" + expression.isIsolated() + "]" + body(expression.getBody()));
     }
 
     @Override
@@ -469,7 +434,8 @@ public class AstPrinter implements ExprVisitor<String>, StmtVisitor<String> {
         StringBuilder sb = new StringBuilder(pad() + "SwitchExpr\n");
         sb.append(node(expression.getSubject()));
         for (SwitchExpression.SwitchExprCase c : expression.getCases()) {
-            sb.append(pad()).append("Case ").append(node(c.value())).append(" -> ").append(node(c.result())).append("\n");
+            sb.append(pad()).append("Case ").append(node(c.value())).append(" -> ").append(node(c.result()))
+                    .append("\n");
         }
         if (expression.getDefaultExpr() != null) {
             sb.append(pad()).append("Default -> ").append(node(expression.getDefaultExpr())).append("\n");

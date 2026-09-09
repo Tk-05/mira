@@ -174,7 +174,8 @@ public class LexerTest {
     @Test
     void testUnterminatedString() {
         String unterminatedString = "\"Hello World";
-        MultipleLexerErrors ex = assertThrows(MultipleLexerErrors.class, () -> tokenizer.tokenize(unterminatedString, false));
+        MultipleLexerErrors ex = assertThrows(MultipleLexerErrors.class,
+                () -> tokenizer.tokenize(unterminatedString, false));
         assertEquals(1, ex.getErrors().size());
         assertTrue(ex.getErrors().getFirst() instanceof UnterminatedStringError);
     }
@@ -182,7 +183,8 @@ public class LexerTest {
     @Test
     void testUnexpectedSymbol() {
         String unexpectedSymbol = "@";
-        MultipleLexerErrors ex = assertThrows(MultipleLexerErrors.class, () -> tokenizer.tokenize(unexpectedSymbol, false));
+        MultipleLexerErrors ex = assertThrows(MultipleLexerErrors.class,
+                () -> tokenizer.tokenize(unexpectedSymbol, false));
         assertEquals(1, ex.getErrors().size());
         assertTrue(ex.getErrors().getFirst() instanceof UnexpectedCharacterError);
     }

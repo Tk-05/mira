@@ -107,8 +107,7 @@ public final class NativeInterop {
                 return ReflectiveBinder.coerceReturn(method.invoke(null, javaArgs), returnType);
             } catch (InvocationTargetException e) {
                 Throwable cause = e.getCause();
-                throw new RuntimeError.InvalidArgumentError(name,
-                        cause != null ? cause.getMessage() : e.getMessage());
+                throw new RuntimeError.InvalidArgumentError(name, cause != null ? cause.getMessage() : e.getMessage());
             } catch (IllegalAccessException e) {
                 throw new RuntimeError.InvalidArgumentError(name, "method not accessible");
             }
@@ -116,9 +115,9 @@ public final class NativeInterop {
     }
 
     /**
-     * Typed signatures for every declared/auto-scanned member - consumed only
-     * by the build-time manifest generator (never at runtime bind time, and
-     * never by anything that must avoid loading the target classes).
+     * Typed signatures for every declared/auto-scanned member - consumed only by
+     * the build-time manifest generator (never at runtime bind time, and never by
+     * anything that must avoid loading the target classes).
      */
     public static List<ResolvedBinding> describe(ReflectiveLib lib) {
         List<ResolvedBinding> result = new ArrayList<>();
@@ -139,8 +138,8 @@ public final class NativeInterop {
                 }
                 result.add(new ResolvedBinding(entry.getKey(), params, NativeType.fromJavaClass(m.getReturnType())));
             }
-            for (Map.Entry<String, java.lang.reflect.Field> entry
-                    : ReflectiveBinder.selectConstants(target).entrySet()) {
+            for (Map.Entry<String, java.lang.reflect.Field> entry : ReflectiveBinder.selectConstants(target)
+                    .entrySet()) {
                 result.add(new ResolvedBinding(entry.getKey(), List.of(),
                         NativeType.fromJavaClass(entry.getValue().getType())));
             }

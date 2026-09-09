@@ -45,7 +45,8 @@ public class JsonLibTest {
 
     private static ListExpression makeList(String... values) {
         List<com.mira.parser.nodes.expression.Expression> members = new ArrayList<>();
-        for (String v : values) members.add(wrap(v));
+        for (String v : values)
+            members.add(wrap(v));
         return new ListExpression(members);
     }
 
@@ -185,23 +186,19 @@ public class JsonLibTest {
 
     @Test
     void testJsonBuildMultipleKeys() {
-        String result = (String) call("jsonBuild",
-                makeList("name", "version"),
-                makeList("Kotlin", "1.9"));
+        String result = (String) call("jsonBuild", makeList("name", "version"), makeList("Kotlin", "1.9"));
         assertTrue(result.contains("\"name\":\"Kotlin\""));
         assertTrue(result.contains("\"version\":1.9"));
     }
 
     @Test
     void testJsonBuildMismatchedSizesThrows() {
-        assertThrows(RuntimeException.class, () ->
-                call("jsonBuild", makeList("a", "b"), makeList("x")));
+        assertThrows(RuntimeException.class, () -> call("jsonBuild", makeList("a", "b"), makeList("x")));
     }
 
     @Test
     void testJsonBuildNonListThrows() {
-        assertThrows(RuntimeException.class, () ->
-                call("jsonBuild", "notAList", makeList("x")));
+        assertThrows(RuntimeException.class, () -> call("jsonBuild", "notAList", makeList("x")));
     }
 
     @Test

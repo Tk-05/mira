@@ -332,8 +332,8 @@ public class HoverProviderTest {
                 import native "does-not-exist.jar" as ray;
                 """;
         Position pos = new Position(0, 40); // "ray" in "... as ray;"
-        Hover hover = HoverProvider.provide(parse(source), source, pos,
-                java.nio.file.Paths.get("main.mira"), null, Map.of());
+        Hover hover = HoverProvider.provide(parse(source), source, pos, java.nio.file.Paths.get("main.mira"), null,
+                Map.of());
         assertNotNull(hover);
         assertTrue(text(hover).contains("jar not found"));
     }

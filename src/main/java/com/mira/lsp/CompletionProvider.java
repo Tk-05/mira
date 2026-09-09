@@ -54,18 +54,15 @@ import com.mira.utils.ModuleResolver;
 
 public class CompletionProvider {
 
-    private static final List<String> KEYWORDS = List.of(
-            "var", "const", "fn", "return", "if", "else", "while", "for",
-            "in", "break", "continue", "switch", "case", "default", "do",
-            "try", "catch", "finally", "throw", "import", "module", "as",
-            "enum", "async", "await", "typeof", "spawn", "pure", "lock", "true", "false", "null",
-            "exec", "exec isolated", "comptime", "static_assert", "pub", "struct"
-    );
+    private static final List<String> KEYWORDS = List.of("var", "const", "fn", "return", "if", "else", "while", "for",
+            "in", "break", "continue", "switch", "case", "default", "do", "try", "catch", "finally", "throw", "import",
+            "module", "as", "enum", "async", "await", "typeof", "spawn", "pure", "lock", "true", "false", "null",
+            "exec", "exec isolated", "comptime", "static_assert", "pub", "struct");
 
     private static final List<String> GLOBALS = List.copyOf(LibIndex.GLOBAL_NAMES);
 
-    private static final List<String> BUILTIN_TYPE_NAMES = List.of(
-            "Number", "String", "Bool", "List", "Array", "Map", "Object", "Fn", "Null", "Any", "Void");
+    private static final List<String> BUILTIN_TYPE_NAMES = List.of("Number", "String", "Bool", "List", "Array", "Map",
+            "Object", "Fn", "Null", "Any", "Void");
 
     private static final Map<String, List<String>> STDLIB;
     private static final Map<String, String> STDLIB_PARAMS;
@@ -92,11 +89,11 @@ public class CompletionProvider {
     /**
      * Position-aware entry point: when the cursor sits right after
      * {@code receiver.}, resolves {@code receiver} the same way
-     * Hover/Definition/SignatureHelp already do (native-jar alias, module
-     * alias, or a struct/object/enum in scope) and returns ONLY that receiver's
-     * members, as bare names ready to insert - not the whole flat document
-     * list. Falls back to {@link #provide(List, String)} whenever there's no
-     * dot-context or the receiver doesn't resolve to anything completable.
+     * Hover/Definition/SignatureHelp already do (native-jar alias, module alias, or
+     * a struct/object/enum in scope) and returns ONLY that receiver's members, as
+     * bare names ready to insert - not the whole flat document list. Falls back to
+     * {@link #provide(List, String)} whenever there's no dot-context or the
+     * receiver doesn't resolve to anything completable.
      */
     public static List<CompletionItem> provide(List<Node> ast, String documentUri, String content, Position pos,
             Path docPath) {
@@ -131,8 +128,7 @@ public class CompletionProvider {
                 } else if (imp.getKind() == Expression.ImportExpression.ImportKind.MODULE) {
                     Path modPath = ModuleResolver.resolveModulePath(imp.getModule(), docPath);
                     List<CompletionItem> items = new ArrayList<>();
-                    addModuleFunctions(modPath, receiver, imp.isSelective() ? imp.getSelectedFunctions() : null,
-                            items);
+                    addModuleFunctions(modPath, receiver, imp.isSelective() ? imp.getSelectedFunctions() : null, items);
                     return stripPrefix(items, receiver);
                 }
             }
@@ -180,11 +176,10 @@ public class CompletionProvider {
     }
 
     /**
-     * The non-dot-context helpers below
-     * (addNativeCompletions/addModuleFunctions) are shared with the flat
-     * whole-document list and always label items {@code receiver.member} for
-     * that context; a dot-triggered completion needs just the bare member name,
-     * since {@code receiver.} is already typed.
+     * The non-dot-context helpers below (addNativeCompletions/addModuleFunctions)
+     * are shared with the flat whole-document list and always label items
+     * {@code receiver.member} for that context; a dot-triggered completion needs
+     * just the bare member name, since {@code receiver.} is already typed.
      */
     private static List<CompletionItem> stripPrefix(List<CompletionItem> items, String receiver) {
         String prefix = receiver + ".";
@@ -239,8 +234,8 @@ public class CompletionProvider {
                             items.add(fi);
                         }
                         for (FuncDecl m : obj.getMethods()) {
-                            String params = m.getParameters().stream()
-                                    .map(Parameter::name).collect(Collectors.joining(", "));
+                            String params = m.getParameters().stream().map(Parameter::name)
+                                    .collect(Collectors.joining(", "));
                             CompletionItem mi = new CompletionItem(v.getName() + "." + m.getName());
                             mi.setKind(CompletionItemKind.Method);
                             mi.setDetail("fn " + m.getName() + "(" + params + ")");
@@ -249,13 +244,14 @@ public class CompletionProvider {
                     } else if (v.getInitializer() instanceof StructExpression st) {
                         CompletionItem typeItem = new CompletionItem(v.getName());
                         typeItem.setKind(CompletionItemKind.Class);
-                        typeItem.setDetail("struct " + v.getName()
-                                + " — usable as a type, e.g. \"-> " + v.getName() + "\"");
+                        typeItem.setDetail(
+                                "struct " + v.getName() + " — usable as a type, e.g. \"-> " + v.getName() + "\"");
                         items.add(typeItem);
                         addStructMemberItems(v.getName(), st, items);
                     } else if (v.getInitializer() instanceof StructInitExpression si) {
                         String templateName = extractName(si.getTarget());
-                        if (templateName != null && resolveStructTemplate(rootAst, templateName) instanceof StructExpression st) {
+                        if (templateName != null
+                                && resolveStructTemplate(rootAst, templateName) instanceof StructExpression st) {
                             addStructMemberItems(v.getName(), st, items);
                         }
                     }
@@ -265,9 +261,7 @@ public class CompletionProvider {
                     item.setKind(CompletionItemKind.Function);
                     String prefix = f.isPure() ? "pure fn " : "fn ";
                     item.setDetail(prefix + f.getName() + "("
-                            + f.getParameters().stream()
-                                    .map(Parameter::name)
-                                    .collect(Collectors.joining(", ")) + ")");
+                            + f.getParameters().stream().map(Parameter::name).collect(Collectors.joining(", ")) + ")");
                     items.add(item);
                     collectFromNodes(f.getBody(), rootAst, items);
                 }
@@ -316,10 +310,8 @@ public class CompletionProvider {
                     }
                     collectFromNodes(s.getBody(), rootAst, items);
                 }
-                case While s ->
-                    collectFromNodes(s.getBody(), rootAst, items);
-                case Block s ->
-                    collectFromNodes(s.getBody(), rootAst, items);
+                case While s -> collectFromNodes(s.getBody(), rootAst, items);
+                case Block s -> collectFromNodes(s.getBody(), rootAst, items);
                 case Switch s -> {
                     for (Switch.SwitchCase sc : s.getCases()) {
                         collectFromNodes(sc.getBody(), rootAst, items);
@@ -337,8 +329,7 @@ public class CompletionProvider {
                         collectFromNodes(s.getFinallyBody(), rootAst, items);
                     }
                 }
-                case Lock s ->
-                    collectFromNodes(s.getBody(), rootAst, items);
+                case Lock s -> collectFromNodes(s.getBody(), rootAst, items);
                 default -> {
                 }
             }
@@ -353,8 +344,7 @@ public class CompletionProvider {
             items.add(fi);
         }
         for (FuncDecl m : st.getMethods()) {
-            String params = m.getParameters().stream()
-                    .map(Parameter::name).collect(Collectors.joining(", "));
+            String params = m.getParameters().stream().map(Parameter::name).collect(Collectors.joining(", "));
             CompletionItem mi = new CompletionItem(varName + "." + m.getName());
             mi.setKind(CompletionItemKind.Method);
             mi.setDetail("fn " + m.getName() + "(" + params + ") (struct)");
@@ -363,8 +353,7 @@ public class CompletionProvider {
     }
 
     private static String extractName(Expression expr) {
-        if (expr instanceof UnaryExpression u
-                && "$".equals(u.getOperation().getLexeme())
+        if (expr instanceof UnaryExpression u && "$".equals(u.getOperation().getLexeme())
                 && u.getRight() instanceof DumbExpression d) {
             return d.getValue();
         }
@@ -453,9 +442,7 @@ public class CompletionProvider {
                     if (selectedNames != null && !selectedNames.contains(f.getName())) {
                         continue;
                     }
-                    String params = f.getParameters().stream()
-                            .map(Parameter::name)
-                            .collect(Collectors.joining(", "));
+                    String params = f.getParameters().stream().map(Parameter::name).collect(Collectors.joining(", "));
                     if (bare) {
                         CompletionItem item = new CompletionItem(f.getName());
                         item.setKind(CompletionItemKind.Function);
@@ -482,8 +469,8 @@ public class CompletionProvider {
                             items.add(fi);
                         }
                         for (FuncDecl m : obj.getMethods()) {
-                            String params = m.getParameters().stream()
-                                    .map(Parameter::name).collect(Collectors.joining(", "));
+                            String params = m.getParameters().stream().map(Parameter::name)
+                                    .collect(Collectors.joining(", "));
                             CompletionItem mi = new CompletionItem(label + "." + m.getName());
                             mi.setKind(CompletionItemKind.Method);
                             mi.setDetail("fn " + m.getName() + "(" + params + ")");
@@ -499,8 +486,8 @@ public class CompletionProvider {
 
     /**
      * Fast path: builds completions straight from the jar's classloading-free
-     * manifest (see {@link NativeInterfaceManifest}), with real declared types
-     * in the detail text - never loads the native jar's actual Java classes.
+     * manifest (see {@link NativeInterfaceManifest}), with real declared types in
+     * the detail text - never loads the native jar's actual Java classes.
      */
     private static void addNativeCompletionsFromManifest(Map<String, Signature> manifest, String alias,
             List<CompletionItem> items) {
@@ -530,8 +517,7 @@ public class CompletionProvider {
         }
         try {
             URL jarUrl = jarPath.toUri().toURL();
-            URLClassLoader loader = new URLClassLoader(
-                    new URL[]{jarUrl}, CompletionProvider.class.getClassLoader());
+            URLClassLoader loader = new URLClassLoader(new URL[]{jarUrl}, CompletionProvider.class.getClassLoader());
             var found = ServiceLoader.load(Lib.class, loader).findFirst();
             if (found.isEmpty()) {
                 return;

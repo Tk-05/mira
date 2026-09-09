@@ -16,15 +16,18 @@ public class TryCatchTest extends AbstractTryCatchTests {
     private final InterpreterRunner backend = new InterpreterRunner();
 
     @BeforeEach
-    void setup() { backend.reset(); }
+    void setup() {
+        backend.reset();
+    }
 
     @Override
-    protected String runForOutput(String source) { return backend.run(source); }
+    protected String runForOutput(String source) {
+        return backend.run(source);
+    }
 
     @Test
     void throwAtTopLevelPropagates() {
-        ThrowSignal signal = assertThrows(ThrowSignal.class,
-                () -> backend.runAndGetValue("throw error(\"error\");"));
+        ThrowSignal signal = assertThrows(ThrowSignal.class, () -> backend.runAndGetValue("throw error(\"error\");"));
         assertEquals("error", signal.getValue());
     }
 
@@ -45,15 +48,13 @@ public class TryCatchTest extends AbstractTryCatchTests {
 
     @Test
     void catchReceivesNumberValue() {
-        ThrowSignal signal = assertThrows(ThrowSignal.class,
-                () -> backend.runAndGetValue("throw error(42);"));
+        ThrowSignal signal = assertThrows(ThrowSignal.class, () -> backend.runAndGetValue("throw error(42);"));
         assertEquals(42.0, InterpreterRunner.normNum(signal.getValue()));
     }
 
     @Test
     void catchReceivesBooleanValue() {
-        ThrowSignal signal = assertThrows(ThrowSignal.class,
-                () -> backend.runAndGetValue("throw error(true);"));
+        ThrowSignal signal = assertThrows(ThrowSignal.class, () -> backend.runAndGetValue("throw error(true);"));
         assertEquals(Boolean.TRUE, signal.getValue());
     }
 

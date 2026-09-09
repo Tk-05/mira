@@ -60,16 +60,11 @@ public class Log implements Lib {
 
         environment.define("setLevel", new NativeFunction(1, "level", args -> {
             currentLevel = switch (String.valueOf(args.get(0)).toLowerCase()) {
-                case "debug" ->
-                    LEVEL_DEBUG;
-                case "info" ->
-                    LEVEL_INFO;
-                case "warn" ->
-                    LEVEL_WARN;
-                case "error" ->
-                    LEVEL_ERROR;
-                default ->
-                    throw new RuntimeException("log.setLevel: unknown level '" + args.get(0) + "'");
+                case "debug" -> LEVEL_DEBUG;
+                case "info" -> LEVEL_INFO;
+                case "warn" -> LEVEL_WARN;
+                case "error" -> LEVEL_ERROR;
+                default -> throw new RuntimeException("log.setLevel: unknown level '" + args.get(0) + "'");
             };
             return NullValue.INSTANCE;
         }));

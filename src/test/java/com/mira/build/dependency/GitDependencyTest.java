@@ -40,12 +40,8 @@ public class GitDependencyTest {
     }
 
     private void commit(Git git, String msg) throws Exception {
-        git.commit()
-                .setMessage(msg)
-                .setSign(false)
-                .setAuthor("Test", "test@example.com")
-                .setCommitter("Test", "test@example.com")
-                .call();
+        git.commit().setMessage(msg).setSign(false).setAuthor("Test", "test@example.com")
+                .setCommitter("Test", "test@example.com").call();
     }
 
     private void writeUpstreamVersion(Path repoDir, String version) throws Exception {
@@ -58,8 +54,7 @@ public class GitDependencyTest {
     private Path writeConsumerProject(String depSpec) throws Exception {
         Path consumerDir = Files.createDirectory(tmp.resolve("consumer"));
         Files.writeString(consumerDir.resolve("mira.toml"),
-                "[project]\nname = \"app\"\nentry = \"main.mira\"\n"
-                + "[dependencies]\nupstream = " + depSpec + "\n");
+                "[project]\nname = \"app\"\nentry = \"main.mira\"\n" + "[dependencies]\nupstream = " + depSpec + "\n");
         Files.createFile(consumerDir.resolve("main.mira"));
         return consumerDir;
     }
@@ -110,8 +105,7 @@ public class GitDependencyTest {
 
     private void deleteRecursively(Path dir) throws Exception {
         try (var walk = Files.walk(dir)) {
-            walk.sorted((a, b) -> b.getNameCount() - a.getNameCount())
-                    .forEach(p -> p.toFile().delete());
+            walk.sorted((a, b) -> b.getNameCount() - a.getNameCount()).forEach(p -> p.toFile().delete());
         }
     }
 }

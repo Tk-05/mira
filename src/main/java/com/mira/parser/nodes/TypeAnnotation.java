@@ -17,8 +17,8 @@ import java.util.stream.Collectors;
  * annotation ({@code Fn(Number, Number) -> Number}) - {@code name} is still
  * "Fn" in that case, so existing name-based checks keep working unchanged.
  */
-public record TypeAnnotation(String name, boolean nullable, int line, int column,
-        List<TypeAnnotation> paramTypes, TypeAnnotation returnType) {
+public record TypeAnnotation(String name, boolean nullable, int line, int column, List<TypeAnnotation> paramTypes,
+        TypeAnnotation returnType) {
 
     public TypeAnnotation(String name, boolean nullable) {
         this(name, nullable, 0, 0, null, null);

@@ -14,10 +14,14 @@ public class AssignTest extends AbstractAssignTests {
     private final InterpreterRunner backend = new InterpreterRunner();
 
     @BeforeEach
-    void setup() { backend.reset(); }
+    void setup() {
+        backend.reset();
+    }
 
     @Override
-    protected String runForOutput(String source) { return backend.run(source); }
+    protected String runForOutput(String source) {
+        return backend.run(source);
+    }
 
     @Test
     void assignNestedListIndex() {
@@ -30,8 +34,7 @@ public class AssignTest extends AbstractAssignTests {
 
     @Test
     void assignToNonListThrows() {
-        assertThrows(ReferenceIsImmutableError.class,
-                () -> backend.runAndGetValue("var x : 5; x[0] : 10;"));
+        assertThrows(ReferenceIsImmutableError.class, () -> backend.runAndGetValue("var x : 5; x[0] : 10;"));
     }
 
     @Test

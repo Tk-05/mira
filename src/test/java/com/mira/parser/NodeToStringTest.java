@@ -61,8 +61,7 @@ public class NodeToStringTest {
 
     @Test
     void funcDeclWithDefaultAndVariadic() {
-        assertEquals("fn f(a, b : 2, ...rest) {...}",
-                first("fn f(a, b : 2, ...rest) { return 1; }").toString());
+        assertEquals("fn f(a, b : 2, ...rest) {...}", first("fn f(a, b : 2, ...rest) { return 1; }").toString());
     }
 
     @Test
@@ -123,8 +122,7 @@ public class NodeToStringTest {
 
     @Test
     void ifElse() {
-        assertEquals("if (true) {...} else {...}",
-                first("if (true) { print(1); } else { print(2); }").toString());
+        assertEquals("if (true) {...} else {...}", first("if (true) { print(1); } else { print(2); }").toString());
         assertEquals(If.class, first("if (true) { print(1); } else { print(2); }").getClass());
     }
 

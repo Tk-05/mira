@@ -12,10 +12,14 @@ public class CompoundAssignTest extends AbstractCompoundAssignTests {
     private final InterpreterRunner backend = new InterpreterRunner();
 
     @BeforeEach
-    void setup() { backend.reset(); }
+    void setup() {
+        backend.reset();
+    }
 
     @Override
-    protected String runForOutput(String source) { return backend.run(source); }
+    protected String runForOutput(String source) {
+        return backend.run(source);
+    }
 
     @Test
     void addAssignWithVariable() {
@@ -24,7 +28,8 @@ public class CompoundAssignTest extends AbstractCompoundAssignTests {
 
     @Test
     void chainedCompoundAssigns() {
-        assertEquals(24.0, InterpreterRunner.normNum(backend.runAndGetValue("var x : 10; x +: 5; x -: 3; x *: 2; (x);")));
+        assertEquals(24.0,
+                InterpreterRunner.normNum(backend.runAndGetValue("var x : 10; x +: 5; x -: 3; x *: 2; (x);")));
     }
 
     @Test

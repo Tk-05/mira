@@ -27,8 +27,8 @@ public final class DependencyGraphInspector {
     private DependencyGraphInspector() {
     }
 
-    public record DepNode(
-            String name, String kind, String spec, boolean available, String detail, List<DepNode> children) {
+    public record DepNode(String name, String kind, String spec, boolean available, String detail,
+            List<DepNode> children) {
 
     }
 
@@ -50,8 +50,8 @@ public final class DependencyGraphInspector {
         }
     }
 
-    private static DepNode buildSourceNode(String name, ProjectConfig.Dependency dep,
-            Map<String, Lockfile.Entry> lock, Set<String> visiting) {
+    private static DepNode buildSourceNode(String name, ProjectConfig.Dependency dep, Map<String, Lockfile.Entry> lock,
+            Set<String> visiting) {
         return switch (dep) {
             case ProjectConfig.Dependency.PathDependency pathDep ->
                 sourceNode(name, "path", pathDep.path().toString(), pathDep.path(), null, visiting);
@@ -64,14 +64,13 @@ public final class DependencyGraphInspector {
                 Path root = DependencyCache.checkoutDir(gitDep.url(), locked.commit());
                 yield sourceNode(name, "git", spec, root, "locked: " + shortHash(locked.commit()), visiting);
             }
-            case ProjectConfig.Dependency.RegistryDependency regDep ->
-                sourceNode(name, "version", regDep.version(),
-                LocalRegistry.installDir(name, regDep.version()), null, visiting);
+            case ProjectConfig.Dependency.RegistryDependency regDep -> sourceNode(name, "version", regDep.version(),
+                    LocalRegistry.installDir(name, regDep.version()), null, visiting);
         };
     }
 
-    private static DepNode sourceNode(String name, String kind, String spec, Path root,
-            String detailIfAvailable, Set<String> visiting) {
+    private static DepNode sourceNode(String name, String kind, String spec, Path root, String detailIfAvailable,
+            Set<String> visiting) {
         Path manifest = root.resolve("mira.toml");
         if (!Files.isDirectory(root) || !Files.exists(manifest)) {
             String reason = Files.isDirectory(root) ? "no mira.toml" : "not found locally";
@@ -95,9 +94,9 @@ public final class DependencyGraphInspector {
     private static DepNode buildNativeNode(String name, ProjectConfig.NativeDependency dep) {
         Path expected = NativeArtifactFetcher.expectedPath(dep);
         boolean available = Files.exists(expected);
-        String spec = dep.url() + (dep.sha256() != null ? " (sha256 " + shortHash(dep.sha256()) + ")" : " (unverified)");
-        return new DepNode(name, "native", spec, available,
-                available ? null : "missing — run 'mira build'", List.of());
+        String spec = dep.url()
+                + (dep.sha256() != null ? " (sha256 " + shortHash(dep.sha256()) + ")" : " (unverified)");
+        return new DepNode(name, "native", spec, available, available ? null : "missing — run 'mira build'", List.of());
     }
 
     private static String gitRefDescription(ProjectConfig.Dependency.GitDependency dep) {

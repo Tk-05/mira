@@ -53,92 +53,81 @@ public class Internal implements Lib {
 
     @Override
     public void loadLib(Environment environment) {
-        environment.define("print",
-                new NativeFunction(1, args -> {
-                    Object value = args.get(0);
-                    System.out.print(value);
-                    return null;
-                })
-        );
+        environment.define("print", new NativeFunction(1, args -> {
+            Object value = args.get(0);
+            System.out.print(value);
+            return null;
+        }));
 
-        environment.define("println",
-                new NativeFunction(1, args -> {
-                    Object value = args.get(0);
-                    System.out.println(value);
-                    return null;
-                })
-        );
+        environment.define("println", new NativeFunction(1, args -> {
+            Object value = args.get(0);
+            System.out.println(value);
+            return null;
+        }));
 
-        environment.define("scan",
-                new NativeFunction(0, args -> {
-                    try {
-                        String line;
-                        do {
-                            line = stdinQueue.poll(100, TimeUnit.MILLISECONDS);
-                        } while (line == null && !Thread.currentThread().isInterrupted());
-                        return line != null ? line : "";
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                        return "";
-                    }
-                })
-        );
+        environment.define("scan", new NativeFunction(0, args -> {
+            try {
+                String line;
+                do {
+                    line = stdinQueue.poll(100, TimeUnit.MILLISECONDS);
+                } while (line == null && !Thread.currentThread().isInterrupted());
+                return line != null ? line : "";
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return "";
+            }
+        }));
 
-        environment.define("eval",
-                new NativeFunction(1, args -> evalOrExec(args.get(0))));
+        environment.define("eval", new NativeFunction(1, args -> evalOrExec(args.get(0))));
 
-        environment.define("format",
-                new NativeFunction(-1, args -> {
-                    if (args.isEmpty()) {
-                        throw new ArgMismatchError("format", 1, args.size());
-                    }
-                    String pattern = String.valueOf(args.get(0));
-                    Object[] rest = args.subList(1, args.size()).toArray();
-                    try {
-                        return String.format(pattern, rest);
-                    } catch (java.util.IllegalFormatException e) {
-                        throw new InvalidArgumentError("format", e.getMessage());
-                    }
-                }));
+        environment.define("format", new NativeFunction(-1, args -> {
+            if (args.isEmpty()) {
+                throw new ArgMismatchError("format", 1, args.size());
+            }
+            String pattern = String.valueOf(args.get(0));
+            Object[] rest = args.subList(1, args.size()).toArray();
+            try {
+                return String.format(pattern, rest);
+            } catch (java.util.IllegalFormatException e) {
+                throw new InvalidArgumentError("format", e.getMessage());
+            }
+        }));
 
-        environment.define("importDynamic",
-                new NativeFunction(-1, args -> {
-                    if (args.isEmpty() || args.size() > 2) {
-                        throw new ArgMismatchError("importDynamic", 1, args.size());
-                    }
-                    String path = String.valueOf(args.get(0));
-                    List<String> symbols = args.size() == 2 ? extractSymbolList(args.get(1)) : null;
-                    try {
-                        return ImportResolver.resolveDynamicImport(Interpreter.getInstance(), path, symbols);
-                    } catch (MiraError e) {
-                        throw new ThrowSignal("ImportError", e.getMessage());
-                    }
-                }));
+        environment.define("importDynamic", new NativeFunction(-1, args -> {
+            if (args.isEmpty() || args.size() > 2) {
+                throw new ArgMismatchError("importDynamic", 1, args.size());
+            }
+            String path = String.valueOf(args.get(0));
+            List<String> symbols = args.size() == 2 ? extractSymbolList(args.get(1)) : null;
+            try {
+                return ImportResolver.resolveDynamicImport(Interpreter.getInstance(), path, symbols);
+            } catch (MiraError e) {
+                throw new ThrowSignal("ImportError", e.getMessage());
+            }
+        }));
 
-        environment.define("length",
-                new NativeFunction(1, (var args) -> {
-                    Object arg = args.get(0);
+        environment.define("length", new NativeFunction(1, (var args) -> {
+            Object arg = args.get(0);
 
-                    switch (arg) {
-                        case ArrayExpression array -> {
-                            return array.getLength();
-                        }
-                        case String string -> {
-                            return string.length();
-                        }
-                        case ListExpression list -> {
-                            return list.getLength();
-                        }
-                        case NullValue value -> {
-                            throw new InvalidArgumentError("length", "argument must not be null");
-                        }
-                        default -> {
-                            throw new InvalidArgumentError("length",
-                                    "unsupported type '" + arg.getClass().getSimpleName() + "' — expected a string, array, or list");
-                        }
-                    }
-                })
-        );
+            switch (arg) {
+                case ArrayExpression array -> {
+                    return array.getLength();
+                }
+                case String string -> {
+                    return string.length();
+                }
+                case ListExpression list -> {
+                    return list.getLength();
+                }
+                case NullValue value -> {
+                    throw new InvalidArgumentError("length", "argument must not be null");
+                }
+                default -> {
+                    throw new InvalidArgumentError("length", "unsupported type '" + arg.getClass().getSimpleName()
+                            + "' — expected a string, array, or list");
+                }
+            }
+        }));
 
         environment.define("exit", new NativeFunction(1, args -> {
             int code = (int) Double.parseDouble(String.valueOf(args.get(0)));
@@ -152,12 +141,9 @@ public class Internal implements Lib {
             }
             Object condition = args.get(0);
             boolean result = switch (condition) {
-                case Boolean b ->
-                    b;
-                case NullValue n ->
-                    false;
-                case Number n ->
-                    n.doubleValue() != 0;
+                case Boolean b -> b;
+                case NullValue n -> false;
+                case Number n -> n.doubleValue() != 0;
                 case String s -> {
                     if (s.equalsIgnoreCase("true")) {
                         yield true;
@@ -171,8 +157,7 @@ public class Internal implements Lib {
                         yield !s.isEmpty();
                     }
                 }
-                default ->
-                    true;
+                default -> true;
             };
             if (!result) {
                 if (args.size() == 2) {
@@ -186,12 +171,9 @@ public class Internal implements Lib {
         environment.define("toNum", new NativeFunction(1, args -> {
             Object val = args.get(0);
             return switch (val) {
-                case Number n ->
-                    n;
-                case Boolean b ->
-                    b ? 1L : 0L;
-                case NullValue ignored ->
-                    0L;
+                case Number n -> n;
+                case Boolean b -> b ? 1L : 0L;
+                case NullValue ignored -> 0L;
                 case String s -> {
                     try {
                         yield Long.valueOf(s);
@@ -203,22 +185,17 @@ public class Internal implements Lib {
                         throw new TypeConversionError(val);
                     }
                 }
-                default ->
-                    throw new TypeConversionError(val);
+                default -> throw new TypeConversionError(val);
             };
         }));
 
         environment.define("toInt", new NativeFunction(1, args -> {
             Object val = args.get(0);
             return switch (val) {
-                case Long l ->
-                    l;
-                case Number n ->
-                    n.longValue();
-                case Boolean b ->
-                    b ? 1L : 0L;
-                case NullValue ignored ->
-                    0L;
+                case Long l -> l;
+                case Number n -> n.longValue();
+                case Boolean b -> b ? 1L : 0L;
+                case NullValue ignored -> 0L;
                 case String s -> {
                     try {
                         yield Long.parseLong(s.trim());
@@ -230,22 +207,17 @@ public class Internal implements Lib {
                         throw new TypeConversionError(val);
                     }
                 }
-                default ->
-                    throw new TypeConversionError(val);
+                default -> throw new TypeConversionError(val);
             };
         }));
 
         environment.define("toFloat", new NativeFunction(1, args -> {
             Object val = args.get(0);
             return switch (val) {
-                case Double d ->
-                    d;
-                case Number n ->
-                    n.doubleValue();
-                case Boolean b ->
-                    b ? 1.0 : 0.0;
-                case NullValue ignored ->
-                    0.0;
+                case Double d -> d;
+                case Number n -> n.doubleValue();
+                case Boolean b -> b ? 1.0 : 0.0;
+                case NullValue ignored -> 0.0;
                 case String s -> {
                     try {
                         yield Double.parseDouble(s.trim());
@@ -253,8 +225,7 @@ public class Internal implements Lib {
                         throw new TypeConversionError(val);
                     }
                 }
-                default ->
-                    throw new TypeConversionError(val);
+                default -> throw new TypeConversionError(val);
             };
         }));
 
@@ -269,14 +240,10 @@ public class Internal implements Lib {
         environment.define("toBool", new NativeFunction(1, args -> {
             Object val = args.get(0);
             return switch (val) {
-                case Boolean b ->
-                    b;
-                case NullValue ignored ->
-                    false;
-                case null ->
-                    false;
-                case Number n ->
-                    n.doubleValue() != 0;
+                case Boolean b -> b;
+                case NullValue ignored -> false;
+                case null -> false;
+                case Number n -> n.doubleValue() != 0;
                 case String s -> {
                     if (s.equalsIgnoreCase("true")) {
                         yield true;
@@ -290,15 +257,15 @@ public class Internal implements Lib {
                         yield !s.isEmpty();
                     }
                 }
-                default ->
-                    true;
+                default -> true;
             };
         }));
 
         environment.define("chars", new NativeFunction(1, args -> {
             Object val = args.get(0);
             if (!(val instanceof String s)) {
-                throw new InvalidArgumentError("chars", "expected a string, got " + com.mira.compiler.support.CompiledRuntimeSupport.typeofVal(val));
+                throw new InvalidArgumentError("chars",
+                        "expected a string, got " + com.mira.compiler.support.CompiledRuntimeSupport.typeofVal(val));
             }
             List<Expression> members = new java.util.ArrayList<>(s.length());
             for (char c : s.toCharArray()) {
@@ -312,24 +279,20 @@ public class Internal implements Lib {
         environment.define("toList", new NativeFunction(1, args -> {
             Object val = args.get(0);
             return switch (val) {
-                case ListExpression l ->
-                    l;
-                case ArrayExpression a ->
-                    new ListExpression(new java.util.ArrayList<>(a.getMembers()));
-                default ->
-                    throw new InvalidArgumentError("toList", "expected an array or list, got " + com.mira.compiler.support.CompiledRuntimeSupport.typeofVal(val));
+                case ListExpression l -> l;
+                case ArrayExpression a -> new ListExpression(new java.util.ArrayList<>(a.getMembers()));
+                default -> throw new InvalidArgumentError("toList", "expected an array or list, got "
+                        + com.mira.compiler.support.CompiledRuntimeSupport.typeofVal(val));
             };
         }));
 
         environment.define("toArray", new NativeFunction(1, args -> {
             Object val = args.get(0);
             return switch (val) {
-                case ArrayExpression a ->
-                    a;
-                case ListExpression l ->
-                    new ArrayExpression(new java.util.ArrayList<>(l.getMembers()));
-                default ->
-                    throw new InvalidArgumentError("toArray", "expected a list or array, got " + com.mira.compiler.support.CompiledRuntimeSupport.typeofVal(val));
+                case ArrayExpression a -> a;
+                case ListExpression l -> new ArrayExpression(new java.util.ArrayList<>(l.getMembers()));
+                default -> throw new InvalidArgumentError("toArray", "expected a list or array, got "
+                        + com.mira.compiler.support.CompiledRuntimeSupport.typeofVal(val));
             };
         }));
 
@@ -343,9 +306,8 @@ public class Internal implements Lib {
             public Object call(Interpreter interpreter, List<Object> arguments) {
                 Callable callable = (Callable) arguments.get(0);
                 Interpreter forked = interpreter != null ? interpreter.fork() : null;
-                CompletableFuture<Object> future = CompletableFuture.supplyAsync(()
-                        -> callable.call(forked, List.of())
-                );
+                CompletableFuture<Object> future = CompletableFuture
+                        .supplyAsync(() -> callable.call(forked, List.of()));
                 return new Promise(future);
             }
         });
@@ -377,12 +339,10 @@ public class Internal implements Lib {
 
     private static List<String> extractSymbolList(Object arg) {
         List<Expression> members = switch (arg) {
-            case ListExpression l ->
-                l.getMembers();
-            case ArrayExpression a ->
-                a.getMembers();
-            default ->
-                throw new InvalidArgumentError("importDynamic", "expected a list of symbol names as the second argument");
+            case ListExpression l -> l.getMembers();
+            case ArrayExpression a -> a.getMembers();
+            default -> throw new InvalidArgumentError("importDynamic",
+                    "expected a list of symbol names as the second argument");
         };
         Interpreter interpreter = Interpreter.getInstance();
         List<String> names = new java.util.ArrayList<>(members.size());

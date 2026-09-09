@@ -31,10 +31,10 @@ public class SelectionRangeProviderTest {
     private static boolean contains(Range outer, Range inner) {
         boolean startOk = outer.getStart().getLine() < inner.getStart().getLine()
                 || (outer.getStart().getLine() == inner.getStart().getLine()
-                && outer.getStart().getCharacter() <= inner.getStart().getCharacter());
+                        && outer.getStart().getCharacter() <= inner.getStart().getCharacter());
         boolean endOk = outer.getEnd().getLine() > inner.getEnd().getLine()
                 || (outer.getEnd().getLine() == inner.getEnd().getLine()
-                && outer.getEnd().getCharacter() >= inner.getEnd().getCharacter());
+                        && outer.getEnd().getCharacter() >= inner.getEnd().getCharacter());
         return startOk && endOk;
     }
 
@@ -63,8 +63,7 @@ public class SelectionRangeProviderTest {
                 }
                 """;
         // cursor on "x"
-        SelectionRange sr = SelectionRangeProvider.provide(parse(source), source,
-                List.of(new Position(2, 12))).get(0);
+        SelectionRange sr = SelectionRangeProvider.provide(parse(source), source, List.of(new Position(2, 12))).get(0);
         List<Range> chain = flatten(sr);
 
         // word -> var-decl statement -> if-block -> function -> whole document
@@ -72,8 +71,8 @@ public class SelectionRangeProviderTest {
 
         // each level must fully contain the previous (strictly nested, growing outward)
         for (int i = 1; i < chain.size(); i++) {
-            assertTrue(contains(chain.get(i), chain.get(i - 1)),
-                    "level " + i + " (" + chain.get(i) + ") must contain level " + (i - 1) + " (" + chain.get(i - 1) + ")");
+            assertTrue(contains(chain.get(i), chain.get(i - 1)), "level " + i + " (" + chain.get(i)
+                    + ") must contain level " + (i - 1) + " (" + chain.get(i - 1) + ")");
         }
 
         // outermost covers the whole document
@@ -91,8 +90,7 @@ public class SelectionRangeProviderTest {
                 }
                 """;
         // cursor on whitespace at start of the var-decl line
-        SelectionRange sr = SelectionRangeProvider.provide(parse(source), source,
-                List.of(new Position(1, 0))).get(0);
+        SelectionRange sr = SelectionRangeProvider.provide(parse(source), source, List.of(new Position(1, 0))).get(0);
         assertNotNull(sr);
         // no word here, so the innermost level should already be a real range,
         // not a zero-width fallback
@@ -118,8 +116,7 @@ public class SelectionRangeProviderTest {
     void leafStatementIsItsOwnLevelBeforeEnclosingBlock() {
         String source = "if (true) {\n    var x : 1;\n}\n";
         // cursor on "x"
-        SelectionRange sr = SelectionRangeProvider.provide(parse(source), source,
-                List.of(new Position(1, 8))).get(0);
+        SelectionRange sr = SelectionRangeProvider.provide(parse(source), source, List.of(new Position(1, 8))).get(0);
         List<Range> chain = flatten(sr);
 
         // word -> "var x : 1;" statement -> if-block -> whole document
@@ -127,8 +124,8 @@ public class SelectionRangeProviderTest {
         assertEquals(new Range(new Position(1, 0), new Position(1, 14)), chain.get(1),
                 "second level must be the var-decl statement itself, not the enclosing if-block");
         for (int i = 1; i < chain.size(); i++) {
-            assertTrue(contains(chain.get(i), chain.get(i - 1)),
-                    "level " + i + " (" + chain.get(i) + ") must contain level " + (i - 1) + " (" + chain.get(i - 1) + ")");
+            assertTrue(contains(chain.get(i), chain.get(i - 1)), "level " + i + " (" + chain.get(i)
+                    + ") must contain level " + (i - 1) + " (" + chain.get(i - 1) + ")");
         }
     }
 
@@ -139,8 +136,7 @@ public class SelectionRangeProviderTest {
                     return 1;
                 }
                 """;
-        SelectionRange sr = SelectionRangeProvider.provide(parse(source), source,
-                List.of(new Position(1, 11))).get(0);
+        SelectionRange sr = SelectionRangeProvider.provide(parse(source), source, List.of(new Position(1, 11))).get(0);
         List<Range> chain = flatten(sr);
         for (int i = 1; i < chain.size(); i++) {
             assertTrue(!chain.get(i).equals(chain.get(i - 1)),

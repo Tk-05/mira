@@ -44,11 +44,13 @@ public class Function implements Callable {
     private final String variadicParam;
     private final boolean isAsync;
 
-    public Function(Environment environment, List<Node> body, List<Parameter> parameters, int arity, int maxArity, String variadicParam, Environment globalContext) {
+    public Function(Environment environment, List<Node> body, List<Parameter> parameters, int arity, int maxArity,
+            String variadicParam, Environment globalContext) {
         this(environment, body, parameters, arity, maxArity, variadicParam, false, globalContext);
     }
 
-    public Function(Environment environment, List<Node> body, List<Parameter> parameters, int arity, int maxArity, String variadicParam, boolean isAsync, Environment globalContext) {
+    public Function(Environment environment, List<Node> body, List<Parameter> parameters, int arity, int maxArity,
+            String variadicParam, boolean isAsync, Environment globalContext) {
         this.environment = environment;
         this.globalContext = globalContext;
         this.body = body;

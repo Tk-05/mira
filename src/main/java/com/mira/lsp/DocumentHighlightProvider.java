@@ -22,10 +22,8 @@ import com.mira.parser.nodes.Node;
 public class DocumentHighlightProvider {
 
     public static List<DocumentHighlight> provide(List<Node> ast, String content, Position pos, String uri) {
-        List<Location> locations = ReferenceProvider.provide(ast, content, pos, uri,
-                null, null, null, Map.of(), true);
-        return locations.stream()
-                .map(loc -> new DocumentHighlight(loc.getRange(), DocumentHighlightKind.Text))
+        List<Location> locations = ReferenceProvider.provide(ast, content, pos, uri, null, null, null, Map.of(), true);
+        return locations.stream().map(loc -> new DocumentHighlight(loc.getRange(), DocumentHighlightKind.Text))
                 .toList();
     }
 }
