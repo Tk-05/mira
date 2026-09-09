@@ -50,6 +50,8 @@ import org.eclipse.lsp4j.PrepareRenameResult;
 import org.eclipse.lsp4j.Range;
 import org.eclipse.lsp4j.ReferenceParams;
 import org.eclipse.lsp4j.RenameParams;
+import org.eclipse.lsp4j.SelectionRange;
+import org.eclipse.lsp4j.SelectionRangeParams;
 import org.eclipse.lsp4j.SemanticTokens;
 import org.eclipse.lsp4j.SemanticTokensParams;
 import org.eclipse.lsp4j.SemanticTokensRangeParams;
@@ -200,6 +202,15 @@ public class DocumentService implements TextDocumentService {
         List<Either<Command, CodeAction>> actions = CodeActionProvider.provide(params, ast, uri, content,
                 docPath, workspaceIndex, workspaceRoot, documents);
         return CompletableFuture.completedFuture(actions);
+    }
+
+    @Override
+    public CompletableFuture<List<SelectionRange>> selectionRange(SelectionRangeParams params) {
+        String uri = params.getTextDocument().getUri();
+        List<Node> ast = astCache.getOrDefault(uri, List.of());
+        String content = documents.getOrDefault(uri, "");
+        List<SelectionRange> ranges = SelectionRangeProvider.provide(ast, content, params.getPositions());
+        return CompletableFuture.completedFuture(ranges);
     }
 
     @Override

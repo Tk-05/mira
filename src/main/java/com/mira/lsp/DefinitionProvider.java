@@ -378,7 +378,7 @@ public class DefinitionProvider {
      * A lexical scope: the container statement that introduces it (null for
      * top-level) and its body.
      */
-    private record Scope(Node owner, List<Node> body) {
+    record Scope(Node owner, List<Node> body) {
 
     }
 
@@ -408,7 +408,7 @@ public class DefinitionProvider {
      * back to searching each enclosing scope in turn, instead of stopping as
      * soon as there is nothing deeper left to descend into.
      */
-    private static List<Scope> buildScopeChain(List<Node> ast, int cursorLine) {
+    static List<Scope> buildScopeChain(List<Node> ast, int cursorLine) {
         List<Scope> chain = new ArrayList<>();
         Scope current = new Scope(null, ast);
         chain.add(current);
