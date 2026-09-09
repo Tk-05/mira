@@ -61,7 +61,7 @@ public class CompileRunner {
     public long run(List<Node> ast, Map<String, Object> precomputedComptimeConsts,
             java.util.function.LongConsumer afterCompile) throws Exception {
         long compileStart = System.currentTimeMillis();
-        CompileResult result = new Compiler().compile(ast, Flags.fileName, precomputedComptimeConsts);
+        CompileResult result = new Compiler().compile(ast, Flags.fileName.get(), precomputedComptimeConsts);
         long compileMs = System.currentTimeMillis() - compileStart;
 
         Path outDir = Flags.outputDir != null ? Flags.outputDir : Flags.inputPath.get().getParent();
@@ -93,7 +93,7 @@ public class CompileRunner {
     }
 
     private void packageToJar(CompileResult result, Path outDir) throws Exception {
-        String stem = Flags.fileName;
+        String stem = Flags.fileName.get();
         if (stem.endsWith(".mira")) {
             stem = stem.substring(0, stem.length() - 5);
         }
@@ -355,7 +355,7 @@ public class CompileRunner {
         int totalClasses = 1 + result.lambdaClasses().size();
         int totalBytes = result.mainClass().length
                 + result.lambdaClasses().values().stream().mapToInt(b -> b.length).sum();
-        System.out.println("  source : " + Flags.fileName);
+        System.out.println("  source : " + Flags.fileName.get());
         System.out.println("  output : " + outDir.toAbsolutePath());
         System.out.println("  classes: " + totalClasses);
         System.out.println("  size   : " + totalBytes + " bytes");

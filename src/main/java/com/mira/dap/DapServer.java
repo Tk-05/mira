@@ -138,8 +138,8 @@ public class DapServer implements IDebugProtocolServer {
             String source = FileLoader.readFileFromPath(program);
             programPath = Paths.get(program).toAbsolutePath().normalize();
             Flags.inputPath.set(programPath);
-            Flags.fileName = programPath.getFileName().toString();
-            Flags.sourceLines = source.split("\n", -1);
+            Flags.fileName.set(programPath.getFileName().toString());
+            Flags.sourceLines.set(source.split("\n", -1));
             asts = new Parser().parseTokens(new Tokenizer().tokenize(source, false));
         } catch (Exception e) {
             sendOutput("stderr", "Failed to load '" + program + "': " + e.getMessage() + "\n");
@@ -407,7 +407,7 @@ public class DapServer implements IDebugProtocolServer {
         }
         Source src = new Source();
         src.setPath(programPath.toString());
-        src.setName(Flags.fileName);
+        src.setName(Flags.fileName.get());
         src.setSourceReference(0);
         return src;
     }

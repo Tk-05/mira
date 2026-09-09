@@ -52,8 +52,8 @@ public class FileRunner {
             return false;
         }
 
-        Flags.fileName = Flags.inputPath.get().getFileName().toString();
-        Flags.sourceLines = readFile.split("\n", -1);
+        Flags.fileName.set(Flags.inputPath.get().getFileName().toString());
+        Flags.sourceLines.set(readFile.split("\n", -1));
 
         Interpreter interpreter = new Interpreter();
         if (Flags.profile) {

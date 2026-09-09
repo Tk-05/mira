@@ -107,8 +107,8 @@ public class BuildRunner {
             Flags.inputPath.set(testFile);
             try {
                 String source = Files.readString(testFile);
-                Flags.fileName = testFile.getFileName().toString();
-                Flags.sourceLines = source.split("\n", -1);
+                Flags.fileName.set(testFile.getFileName().toString());
+                Flags.sourceLines.set(source.split("\n", -1));
                 List<Token> tokens = new Tokenizer().tokenize(source, false);
                 List<Node> asts = new Parser().parseTokens(tokens);
                 boolean failed = TestRunner.runPrePassCollecting(asts, Flags.args);

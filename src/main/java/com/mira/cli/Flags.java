@@ -24,8 +24,8 @@ public class Flags {
     public static boolean testsDone = false;
     public static boolean printAsts = false;
     public static String[] args = null;
-    public static String fileName = null;
-    public static String[] sourceLines = null;
+    public static final ThreadLocal<String> fileName = new ThreadLocal<>();
+    public static final ThreadLocal<String[]> sourceLines = new ThreadLocal<>();
 
     public static boolean compile = false;
     public static boolean compileAndRun = false;

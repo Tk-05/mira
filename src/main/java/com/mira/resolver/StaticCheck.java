@@ -1447,7 +1447,7 @@ public class StaticCheck {
     }
 
     private static int sourceLineLength(int line) {
-        String[] lines = Flags.sourceLines;
+        String[] lines = Flags.sourceLines.get();
         if (lines == null || line <= 0 || line > lines.length) {
             return 0;
         }
