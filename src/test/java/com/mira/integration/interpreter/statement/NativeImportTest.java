@@ -79,25 +79,25 @@ public class NativeImportTest extends AbstractNativeImportTests {
 
     @Test
     void missingJarThrowsNativeLibNotFoundError() {
-        assertThrows(NativeLibNotFoundError.class, ()
-                -> backend.runAndGetValue("import native \"/nonexistent/path/that/does/not/exist.jar\" as ext;"));
+        assertThrows(NativeLibNotFoundError.class,
+                () -> backend.runAndGetValue("import native \"/nonexistent/path/that/does/not/exist.jar\" as ext;"));
     }
 
     @Test
     void jarWithoutServicesFileThrowsNativeLibNoImplementationError() {
-        assertThrows(NativeLibNoImplementationError.class, ()
-                -> backend.runAndGetValue("import native \"" + escaped(emptyJar) + "\" as ext;"));
+        assertThrows(NativeLibNoImplementationError.class,
+                () -> backend.runAndGetValue("import native \"" + escaped(emptyJar) + "\" as ext;"));
     }
 
     @Test
     void nativeImportWithoutAliasThrowsParserError() {
-        assertThrows(MultipleParserErrors.class, ()
-                -> backend.runAndGetValue("import native \"/some/lib.jar\";"));
+        assertThrows(MultipleParserErrors.class, () -> backend.runAndGetValue("import native \"/some/lib.jar\";"));
     }
 
     @Test
     void validJarLoadsNamespaceAndStringFunctionIsCallable() {
-        Object result = backend.runAndGetValue("import native \"" + escaped(greetJar) + "\" as ext; ext.greet(\"world\");");
+        Object result = backend
+                .runAndGetValue("import native \"" + escaped(greetJar) + "\" as ext; ext.greet(\"world\");");
         assertEquals("hello world", result);
     }
 
@@ -109,15 +109,16 @@ public class NativeImportTest extends AbstractNativeImportTests {
 
     @Test
     void nativeFunctionResultChangesWithDifferentArguments() {
-        Object result = backend.runAndGetValue("import native \"" + escaped(greetJar) + "\" as ext; ext.greet(\"mira\");");
+        Object result = backend
+                .runAndGetValue("import native \"" + escaped(greetJar) + "\" as ext; ext.greet(\"mira\");");
         assertEquals("hello mira", result);
     }
 
     @Test
     void nativeLibIsAccessibleOnlyViaAlias() {
         String path = escaped(greetJar);
-        assertThrows(RuntimeException.class, ()
-                -> backend.runAndGetValue("import native \"" + path + "\" as ext; greet(\"world\");"));
+        assertThrows(RuntimeException.class,
+                () -> backend.runAndGetValue("import native \"" + path + "\" as ext; greet(\"world\");"));
     }
 
     @Test
@@ -146,8 +147,7 @@ public class NativeImportTest extends AbstractNativeImportTests {
         Flags.nativeRoots = java.util.List.of(greetJar.getParent());
         String basename = greetJar.getFileName().toString();
 
-        Object result = backend.runAndGetValue(
-                "import native \"" + basename + "\" as ext; ext.greet(\"world\");");
+        Object result = backend.runAndGetValue("import native \"" + basename + "\" as ext; ext.greet(\"world\");");
 
         assertEquals("hello world", result);
     }
@@ -157,8 +157,8 @@ public class NativeImportTest extends AbstractNativeImportTests {
         Path unrelatedDir = Files.createTempDirectory("mira-unrelated-native-root");
         Flags.nativeRoots = java.util.List.of(unrelatedDir);
 
-        Object result = backend.runAndGetValue(
-                "import native \"" + escaped(greetJar) + "\" as ext; ext.greet(\"world\");");
+        Object result = backend
+                .runAndGetValue("import native \"" + escaped(greetJar) + "\" as ext; ext.greet(\"world\");");
 
         assertEquals("hello world", result);
         Files.deleteIfExists(unrelatedDir);
@@ -169,8 +169,8 @@ public class NativeImportTest extends AbstractNativeImportTests {
         Path unrelatedDir = Files.createTempDirectory("mira-unrelated-native-root-2");
         Flags.nativeRoots = java.util.List.of(unrelatedDir);
 
-        assertThrows(NativeLibNotFoundError.class, ()
-                -> backend.runAndGetValue("import native \"/nonexistent/path/that/does/not/exist.jar\" as ext;"));
+        assertThrows(NativeLibNotFoundError.class,
+                () -> backend.runAndGetValue("import native \"/nonexistent/path/that/does/not/exist.jar\" as ext;"));
         Files.deleteIfExists(unrelatedDir);
     }
 

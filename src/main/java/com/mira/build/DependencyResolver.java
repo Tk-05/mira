@@ -27,9 +27,10 @@ public class DependencyResolver {
     }
 
     /**
-     * @param forceUpdate when true, re-resolves "tag"/"branch"/"version" git
-     * dependencies against the remote instead of reusing the mira.lock pin
-     * (used by a future "mira update" command).
+     * @param forceUpdate
+     *            when true, re-resolves "tag"/"branch"/"version" git dependencies
+     *            against the remote instead of reusing the mira.lock pin (used by a
+     *            future "mira update" command).
      */
     public static Resolution resolve(ProjectConfig config, boolean forceUpdate) {
         Path lockPath = config.projectRoot().resolve("mira.lock");
@@ -58,11 +59,11 @@ public class DependencyResolver {
                 }
                 case ProjectConfig.Dependency.GitDependency gitDep -> {
                     Lockfile.Entry existing = lock.get(name);
-                    GitDependencyFetcher.Resolved resolved
-                            = GitDependencyFetcher.resolve(name, gitDep, existing, forceUpdate);
+                    GitDependencyFetcher.Resolved resolved = GitDependencyFetcher.resolve(name, gitDep, existing,
+                            forceUpdate);
                     depRoot = resolved.localPath();
-                    updatedLock.put(name, new Lockfile.Entry(
-                            name, gitDep.url(), resolved.resolvedRef(), resolved.commitSha()));
+                    updatedLock.put(name,
+                            new Lockfile.Entry(name, gitDep.url(), resolved.resolvedRef(), resolved.commitSha()));
                 }
                 case ProjectConfig.Dependency.RegistryDependency regDep -> {
                     depRoot = LocalRegistry.installDir(name, regDep.version());
@@ -75,21 +76,21 @@ public class DependencyResolver {
             }
             if (Flags.verbose) {
                 String kind = switch (entry.getValue()) {
-                    case ProjectConfig.Dependency.PathDependency pd ->
-                        "path";
-                    case ProjectConfig.Dependency.GitDependency gd ->
-                        "git";
-                    case ProjectConfig.Dependency.RegistryDependency rd ->
-                        "registry";
+                    case ProjectConfig.Dependency.PathDependency pd -> "path";
+                    case ProjectConfig.Dependency.GitDependency gd -> "git";
+                    case ProjectConfig.Dependency.RegistryDependency rd -> "registry";
                 };
-                System.out.println(DiagnosticFormatter.formatInfo(
-                        "dependency '" + name + "': " + kind + " -> " + depRoot));
+                System.out.println(
+                        DiagnosticFormatter.formatInfo("dependency '" + name + "': " + kind + " -> " + depRoot));
             }
             sourceRoots.add(depRoot);
 
-            // Native tables are picked up through the *entire* dependency graph, however deep — unlike
-            // source dependencies (sourceRoots stays one level: no transitive [dependencies] graph is
-            // built), there is no version-unification problem for [native] entries since they're
+            // Native tables are picked up through the *entire* dependency graph, however
+            // deep — unlike
+            // source dependencies (sourceRoots stays one level: no transitive
+            // [dependencies] graph is
+            // built), there is no version-unification problem for [native] entries since
+            // they're
             // content-addressed by sha256, so recursing arbitrarily deep is safe.
             collectNativeTransitively(name, depRoot, nativeRoots, seenNativeShas, visitedProjects);
         }
@@ -101,16 +102,15 @@ public class DependencyResolver {
     }
 
     /**
-     * Walks depRoot's own mira.toml, collecting its [native] table, then
-     * recurses into each of ITS dependencies the same way. Cycle-safe via
-     * visitedProjects. Best-effort: a nested dependency that can't be resolved
-     * (missing directory, not installed, unreachable git remote) is silently
-     * skipped rather than failing the whole build — it's unrelated to the
-     * dependency actually being built, we're only searching for [native] tables
-     * that might be further down the graph. Nested git dependencies found this
-     * way are re-resolved fresh each time (no lockfile pin): a transitive
-     * dependency's ref should be pinned by its own project's mira.lock, not by
-     * whichever downstream project reaches it.
+     * Walks depRoot's own mira.toml, collecting its [native] table, then recurses
+     * into each of ITS dependencies the same way. Cycle-safe via visitedProjects.
+     * Best-effort: a nested dependency that can't be resolved (missing directory,
+     * not installed, unreachable git remote) is silently skipped rather than
+     * failing the whole build — it's unrelated to the dependency actually being
+     * built, we're only searching for [native] tables that might be further down
+     * the graph. Nested git dependencies found this way are re-resolved fresh each
+     * time (no lockfile pin): a transitive dependency's ref should be pinned by its
+     * own project's mira.lock, not by whichever downstream project reaches it.
      */
     private static void collectNativeTransitively(String ownerName, Path depRoot, List<Path> nativeRoots,
             Set<String> seenShas, Set<String> visitedProjects) {
@@ -150,8 +150,8 @@ public class DependencyResolver {
             case ProjectConfig.Dependency.RegistryDependency regDep -> {
                 Path depRoot = LocalRegistry.installDir(name, regDep.version());
                 if (!Files.isDirectory(depRoot)) {
-                    throw new BuildException("Dependency '" + name + "' version '" + regDep.version()
-                            + "' is not installed locally");
+                    throw new BuildException(
+                            "Dependency '" + name + "' version '" + regDep.version() + "' is not installed locally");
                 }
                 yield depRoot;
             }
@@ -162,13 +162,14 @@ public class DependencyResolver {
             List<Path> nativeRoots, Set<String> seenShas) {
         for (Map.Entry<String, ProjectConfig.NativeDependency> e : natives.entrySet()) {
             ProjectConfig.NativeDependency nd = e.getValue();
-            // Dedup only applies when there's an actual hash to compare — an unhashed (file://)
-            // entry has no shared identity with any other unhashed entry, so every one must resolve.
+            // Dedup only applies when there's an actual hash to compare — an unhashed
+            // (file://)
+            // entry has no shared identity with any other unhashed entry, so every one must
+            // resolve.
             if (nd.sha256() != null && !seenShas.add(nd.sha256())) {
                 continue;
             }
-            NativeArtifactFetcher.Resolved resolved
-                    = NativeArtifactFetcher.resolve(ownerName + "." + e.getKey(), nd);
+            NativeArtifactFetcher.Resolved resolved = NativeArtifactFetcher.resolve(ownerName + "." + e.getKey(), nd);
             nativeRoots.add(resolved.jarPath().getParent());
         }
     }

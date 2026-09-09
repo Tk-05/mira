@@ -53,7 +53,6 @@ import com.mira.parser.nodes.statement.Statement.If;
 import com.mira.parser.nodes.statement.Statement.Lock;
 import com.mira.parser.nodes.statement.Statement.Loop;
 import com.mira.parser.nodes.statement.Statement.ModuleDecl;
-import com.mira.parser.nodes.statement.Statement.TypeAliasDecl;
 import com.mira.parser.nodes.statement.Statement.Return;
 import com.mira.parser.nodes.statement.Statement.StaticAssert;
 import com.mira.parser.nodes.statement.Statement.Switch;
@@ -61,6 +60,7 @@ import com.mira.parser.nodes.statement.Statement.SwitchCase;
 import com.mira.parser.nodes.statement.Statement.TestCall;
 import com.mira.parser.nodes.statement.Statement.Throw;
 import com.mira.parser.nodes.statement.Statement.TryCatch;
+import com.mira.parser.nodes.statement.Statement.TypeAliasDecl;
 import com.mira.parser.nodes.statement.Statement.VarDecl;
 import com.mira.parser.nodes.statement.Statement.VarDestructure;
 import com.mira.parser.nodes.statement.Statement.While;
@@ -92,8 +92,7 @@ public class AstFormatter implements ExprVisitor<String>, StmtVisitor<String> {
         }
     }
 
-    private static void extractComments(String source,
-            Map<Integer, List<String>> standalone,
+    private static void extractComments(String source, Map<Integer, List<String>> standalone,
             Map<Integer, String> inline) {
         int i = 0, line = 1;
         while (i < source.length()) {
@@ -214,24 +213,28 @@ public class AstFormatter implements ExprVisitor<String>, StmtVisitor<String> {
             if (i < nodes.size() - 1) {
                 Node next = nodes.get(i + 1);
                 int nextLine = nodeStartLine(next);
-                boolean currIsImport = isImport(node);
-                boolean nextIsImport = isImport(next);
-
-                if (!currIsImport || !nextIsImport) {
-                    sb.append("\n");
-                }
-
                 if (currLine > 0 && nextLine > 0) {
-                    appendComments(sb, nodeEnd + 1, nextLine - 1, "");
+                    int rangeStart = nodeEnd + 1;
+                    int firstCommentLine = Integer.MAX_VALUE;
+                    for (int cl = rangeStart; cl < nextLine; cl++) {
+                        if (!standaloneComments.getOrDefault(cl, List.of()).isEmpty()) {
+                            firstCommentLine = cl;
+                            break;
+                        }
+                    }
+                    if (firstCommentLine < Integer.MAX_VALUE) {
+                        if (firstCommentLine - nodeEnd >= 2) {
+                            sb.append("\n");
+                        }
+                        appendComments(sb, rangeStart, nextLine - 1, "");
+                    } else if (nextLine - nodeEnd >= 2) {
+                        sb.append("\n");
+                    }
                 }
             }
 
         }
         return sb.toString().stripTrailing() + "\n";
-    }
-
-    private boolean isImport(Node node) {
-        return node instanceof ImportExpression;
     }
 
     private String formatNode(Node node) {
@@ -256,12 +259,9 @@ public class AstFormatter implements ExprVisitor<String>, StmtVisitor<String> {
     private String formatImport(ImportExpression imp) {
         StringBuilder sb = new StringBuilder("import ");
         switch (imp.getKind()) {
-            case MODULE ->
-                sb.append("module \"").append(imp.getModule()).append("\"");
-            case NATIVE ->
-                sb.append("native \"").append(imp.getModule()).append("\"");
-            default ->
-                sb.append(imp.getModule());
+            case MODULE -> sb.append("module \"").append(imp.getModule()).append("\"");
+            case NATIVE -> sb.append("native \"").append(imp.getModule()).append("\"");
+            default -> sb.append(imp.getModule());
         }
         if (imp.isSelective() && imp.getSelectedFunctions() != null && !imp.getSelectedFunctions().isEmpty()) {
             sb.append(" {").append(String.join(", ", imp.getSelectedFunctions())).append("}");
@@ -292,8 +292,7 @@ public class AstFormatter implements ExprVisitor<String>, StmtVisitor<String> {
                 appendComments(empty, bodyOpenLine + 1, bodyCloseLine - 1, "");
                 if (!empty.isEmpty()) {
                     indentLevel++;
-                    String indented = empty.toString().lines()
-                            .map(line -> indent() + line)
+                    String indented = empty.toString().lines().map(line -> indent() + line)
                             .collect(Collectors.joining("\n", "", "\n"));
                     indentLevel--;
                     return "{\n" + indented + indent() + "}";
@@ -311,8 +310,7 @@ public class AstFormatter implements ExprVisitor<String>, StmtVisitor<String> {
                 int currEndLine = (node instanceof Statement s && s.endLine > 0) ? s.endLine : currStartLine;
                 if (currStartLine > 0) {
                     // For the first node, use bodyOpenLine as the range start if known.
-                    int rangeStart = prevEndLine >= 0 ? prevEndLine + 1
-                            : (bodyOpenLine >= 0 ? bodyOpenLine + 1 : -1);
+                    int rangeStart = prevEndLine >= 0 ? prevEndLine + 1 : (bodyOpenLine >= 0 ? bodyOpenLine + 1 : -1);
                     if (rangeStart >= 0) {
                         int firstCommentLine = Integer.MAX_VALUE;
                         for (int cl = rangeStart; cl < currStartLine; cl++) {
@@ -359,6 +357,22 @@ public class AstFormatter implements ExprVisitor<String>, StmtVisitor<String> {
                 prevEndLine = currEndLine;
             }
         }
+
+        if (prevEndLine >= 0 && bodyCloseLine > prevEndLine) {
+            int firstCommentLine = Integer.MAX_VALUE;
+            for (int cl = prevEndLine + 1; cl < bodyCloseLine; cl++) {
+                if (!standaloneComments.getOrDefault(cl, List.of()).isEmpty()) {
+                    firstCommentLine = cl;
+                    break;
+                }
+            }
+            if (firstCommentLine < Integer.MAX_VALUE) {
+                if (firstCommentLine - prevEndLine >= 2) {
+                    sb.append("\n");
+                }
+                appendComments(sb, prevEndLine + 1, bodyCloseLine - 1, indent());
+            }
+        }
         indentLevel--;
         sb.append(indent()).append("}");
         return sb.toString();
@@ -375,13 +389,11 @@ public class AstFormatter implements ExprVisitor<String>, StmtVisitor<String> {
     }
 
     private String formatParams(List<Parameter> params, String variadicParam) {
-        List<String> parts = params.stream()
-                .map(p -> {
-                    String typePart = p.type() != null ? " : " + p.type() : "";
-                    String defaultPart = p.hasDefault() ? " : " + formatExpr(p.defaultValue()) : "";
-                    return p.name() + typePart + defaultPart;
-                })
-                .collect(Collectors.toCollection(java.util.ArrayList::new));
+        List<String> parts = params.stream().map(p -> {
+            String typePart = p.type() != null ? " : " + p.type() : "";
+            String defaultPart = p.hasDefault() ? " : " + formatExpr(p.defaultValue()) : "";
+            return p.name() + typePart + defaultPart;
+        }).collect(Collectors.toCollection(java.util.ArrayList::new));
         if (variadicParam != null) {
             parts.add("..." + variadicParam);
         }
@@ -389,9 +401,7 @@ public class AstFormatter implements ExprVisitor<String>, StmtVisitor<String> {
     }
 
     private String formatArgs(List<Expression> args) {
-        return args.stream()
-                .map(this::formatExpr)
-                .collect(Collectors.joining(", "));
+        return args.stream().map(this::formatExpr).collect(Collectors.joining(", "));
     }
 
     private String formatExpr(Expression expr) {
@@ -427,8 +437,8 @@ public class AstFormatter implements ExprVisitor<String>, StmtVisitor<String> {
         if (stmt.isPure()) {
             sb.append("pure ");
         }
-        sb.append("fn ").append(stmt.getName())
-                .append("(").append(formatParams(stmt.getParameters(), stmt.getVariadicParam())).append(") ");
+        sb.append("fn ").append(stmt.getName()).append("(")
+                .append(formatParams(stmt.getParameters(), stmt.getVariadicParam())).append(") ");
         if (stmt.getReturnType() != null) {
             sb.append("-> ").append(stmt.getReturnType()).append(" ");
         }
@@ -485,25 +495,21 @@ public class AstFormatter implements ExprVisitor<String>, StmtVisitor<String> {
         StringBuilder sb = new StringBuilder("for (");
         List<Node> varDecls = stmt.getVarDecls();
         if (!varDecls.isEmpty()) {
-            String decls = varDecls.stream()
-                    .map(n -> {
-                        if (n instanceof VarDecl vd) {
-                            return (vd.isConst() ? "const" : "var") + " " + vd.getName()
-                                    + (vd.getInitializer() != null ? " : " + formatExpr(vd.getInitializer()) : "");
-                        }
-                        return formatNode(n);
-                    })
-                    .collect(Collectors.joining(", "));
+            String decls = varDecls.stream().map(n -> {
+                if (n instanceof VarDecl vd) {
+                    return (vd.isConst() ? "const" : "var") + " " + vd.getName()
+                            + (vd.getInitializer() != null ? " : " + formatExpr(vd.getInitializer()) : "");
+                }
+                return formatNode(n);
+            }).collect(Collectors.joining(", "));
             sb.append(decls);
         }
         sb.append("; ");
         sb.append(stmt.getCondition() != null ? formatExpr(stmt.getCondition()) : "");
         sb.append("; ");
         if (stmt.getPostExpressions() != null && !stmt.getPostExpressions().isEmpty()) {
-            String post = stmt.getPostExpressions().stream()
-                    .map(this::formatNode)
-                    .map(s -> s.endsWith(";") ? s.substring(0, s.length() - 1) : s)
-                    .collect(Collectors.joining(", "));
+            String post = stmt.getPostExpressions().stream().map(this::formatNode)
+                    .map(s -> s.endsWith(";") ? s.substring(0, s.length() - 1) : s).collect(Collectors.joining(", "));
             sb.append(post);
         }
         sb.append(") ");
@@ -515,7 +521,8 @@ public class AstFormatter implements ExprVisitor<String>, StmtVisitor<String> {
         VarDecl iter = stmt.getIterator();
         String iterName = iter.getName();
         if ("_".equals(iterName) && iter.getInitializer() == null) {
-            return "for (" + formatExpr(stmt.getCollection()) + ") " + formatBody(stmt.getBody(), stmt.line, stmt.endLine);
+            return "for (" + formatExpr(stmt.getCollection()) + ") "
+                    + formatBody(stmt.getBody(), stmt.line, stmt.endLine);
         }
         return "for (var " + iterName + " in " + formatExpr(stmt.getCollection()) + ") "
                 + formatBody(stmt.getBody(), stmt.line, stmt.endLine);
@@ -524,7 +531,8 @@ public class AstFormatter implements ExprVisitor<String>, StmtVisitor<String> {
     @Override
     public String visitWhile(While stmt) {
         if (stmt.getDoModifier()) {
-            return "do " + formatBody(stmt.getBody(), stmt.line, stmt.endLine) + " while (" + formatExpr(stmt.getCondition()) + ");";
+            return "do " + formatBody(stmt.getBody(), stmt.line, stmt.endLine) + " while ("
+                    + formatExpr(stmt.getCondition()) + ");";
         }
         return "while (" + formatExpr(stmt.getCondition()) + ") " + formatBody(stmt.getBody(), stmt.line, stmt.endLine);
     }
@@ -654,20 +662,14 @@ public class AstFormatter implements ExprVisitor<String>, StmtVisitor<String> {
     }
 
     private static String formatStringLiteral(String content) {
-        if (content.contains("\n")) {
-            long nonBlankLines = java.util.Arrays.stream(content.split("\n", -1))
-                    .filter(l -> !l.isBlank())
-                    .count();
+        if (content.contains("\n") && !content.contains("\"\"\"") && !content.endsWith("\"")) {
+            long nonBlankLines = java.util.Arrays.stream(content.split("\n", -1)).filter(l -> !l.isBlank()).count();
             if (nonBlankLines >= 2) {
                 return "\"\"\"\n" + content + "\"\"\"";
             }
         }
 
-        String escaped = content
-                .replace("\\", "\\\\")
-                .replace("\"", "\\\"")
-                .replace("\n", "\\n")
-                .replace("\t", "\\t")
+        String escaped = content.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\t", "\\t")
                 .replace("\r", "\\r");
         return "\"" + escaped + "\"";
     }
@@ -691,8 +693,8 @@ public class AstFormatter implements ExprVisitor<String>, StmtVisitor<String> {
         String right = formatExpr(expression.getRight());
         if (expression.getRight() instanceof BinaryExpression rightBin) {
             int rightPrec = Vocabulary.OPERATOR_PRECEDENCE.getOrDefault(rightBin.getOperator().getLexeme(), 0);
-            boolean needsParens = rightPrec < outerPrec
-                    || (rightPrec == outerPrec && (op.equals("-") || op.equals("/") || op.equals("%") || op.equals("\\%")));
+            boolean needsParens = rightPrec < outerPrec || (rightPrec == outerPrec
+                    && (op.equals("-") || op.equals("/") || op.equals("%") || op.equals("\\%")));
             if (needsParens) {
                 right = "(" + right + ")";
             }
@@ -724,9 +726,7 @@ public class AstFormatter implements ExprVisitor<String>, StmtVisitor<String> {
 
     @Override
     public <T> T visitComplexExpr(ComplexExpression expression) {
-        return (T) expression.getExpressions().stream()
-                .map(this::formatExpr)
-                .collect(Collectors.joining(" "));
+        return (T) expression.getExpressions().stream().map(this::formatExpr).collect(Collectors.joining(" "));
     }
 
     @Override
@@ -736,25 +736,19 @@ public class AstFormatter implements ExprVisitor<String>, StmtVisitor<String> {
 
     @Override
     public <T> T visitArrayExpr(ArrayExpression expression) {
-        String members = expression.getMembers().stream()
-                .map(this::formatExpr)
-                .collect(Collectors.joining(", "));
+        String members = expression.getMembers().stream().map(this::formatExpr).collect(Collectors.joining(", "));
         return (T) ("[" + members + "]");
     }
 
     @Override
     public <T> T visitAccessExpr(AccessExpression expression) {
-        String indices = expression.getIndecies().stream()
-                .map(this::formatExpr)
-                .collect(Collectors.joining("]["));
+        String indices = expression.getIndecies().stream().map(this::formatExpr).collect(Collectors.joining("]["));
         return (T) (formatExpr(expression.getReference()) + "[" + indices + "]");
     }
 
     @Override
     public <T> T visitListExpr(ListExpression expression) {
-        String members = expression.getMembers().stream()
-                .map(this::formatExpr)
-                .collect(Collectors.joining(", "));
+        String members = expression.getMembers().stream().map(this::formatExpr).collect(Collectors.joining(", "));
         return (T) ("{" + members + "}");
     }
 
@@ -768,8 +762,8 @@ public class AstFormatter implements ExprVisitor<String>, StmtVisitor<String> {
 
     @Override
     public <T> T visitNamespaceCallExpr(NamespaceCallExpression expression) {
-        return (T) (expression.getAlias() + "." + expression.getFunctionName()
-                + "(" + formatArgs(expression.getArguments()) + ")");
+        return (T) (expression.getAlias() + "." + expression.getFunctionName() + "("
+                + formatArgs(expression.getArguments()) + ")");
     }
 
     @Override
@@ -784,39 +778,24 @@ public class AstFormatter implements ExprVisitor<String>, StmtVisitor<String> {
 
     @Override
     public <T> T visitObjectExpression(ObjectExpression expression) {
-        StringBuilder sb = new StringBuilder("{\n");
-        indentLevel++;
-        for (VarDecl vd : expression.getVarDecls()) {
-            sb.append(indent()).append(visitVarDecl(vd)).append("\n");
-        }
-        for (FuncDecl fd : expression.getMethods()) {
-            sb.append(indent()).append(visitFuncDecl(fd)).append("\n");
-        }
-        indentLevel--;
-        sb.append(indent()).append("}");
-        return (T) sb.toString();
+        return (T) formatBody(literalMembers(expression.getVarDecls(), expression.getMethods()));
     }
 
     @Override
     public <T> T visitStructExpression(StructExpression expression) {
-        StringBuilder sb = new StringBuilder("struct {\n");
-        indentLevel++;
-        for (VarDecl vd : expression.getVarDecls()) {
-            sb.append(indent()).append(visitVarDecl(vd)).append("\n");
-        }
-        for (FuncDecl fd : expression.getMethods()) {
-            sb.append(indent()).append(visitFuncDecl(fd)).append("\n");
-        }
-        indentLevel--;
-        sb.append(indent()).append("}");
-        return (T) sb.toString();
+        return (T) ("struct " + formatBody(literalMembers(expression.getVarDecls(), expression.getMethods())));
+    }
+
+    private List<Node> literalMembers(List<VarDecl> fields, List<FuncDecl> methods) {
+        List<Node> members = new ArrayList<>(fields);
+        members.addAll(methods);
+        return members;
     }
 
     @Override
     public <T> T visitStructInitExpression(StructInitExpression expression) {
         String overrides = expression.getOverrides().entrySet().stream()
-                .map(e -> e.getKey() + " : " + formatExpr(e.getValue()))
-                .collect(Collectors.joining(", "));
+                .map(e -> e.getKey() + " : " + formatExpr(e.getValue())).collect(Collectors.joining(", "));
         return (T) (formatExpr(expression.getTarget()) + "{" + overrides + "}");
     }
 
@@ -829,8 +808,8 @@ public class AstFormatter implements ExprVisitor<String>, StmtVisitor<String> {
     @Override
     public <T> T visitMethodCallExpression(MethodCallExpression expression) {
         String dot = expression.isOptional() ? "?." : ".";
-        return (T) (formatExpr(expression.getObject()) + dot + expression.getMethod()
-                + "(" + formatArgs(expression.getArguments()) + ")");
+        return (T) (formatExpr(expression.getObject()) + dot + expression.getMethod() + "("
+                + formatArgs(expression.getArguments()) + ")");
     }
 
     @Override
@@ -860,9 +839,8 @@ public class AstFormatter implements ExprVisitor<String>, StmtVisitor<String> {
             // dropping the parens here would silently change what re-parses.
             condition = "(" + condition + ")";
         }
-        return (T) (condition
-                + " ? " + formatExpr(expression.getThenExpr())
-                + " : " + formatExpr(expression.getElseExpr()));
+        return (T) (condition + " ? " + formatExpr(expression.getThenExpr()) + " : "
+                + formatExpr(expression.getElseExpr()));
     }
 
     @Override
@@ -881,8 +859,7 @@ public class AstFormatter implements ExprVisitor<String>, StmtVisitor<String> {
         sb.append(formatExpr(expression.getSubject())).append(") {\n");
         indentLevel++;
         for (SwitchExpression.SwitchExprCase sc : expression.getCases()) {
-            sb.append(indent())
-                    .append("case (").append(formatExpr(sc.value())).append(") -> ")
+            sb.append(indent()).append("case (").append(formatExpr(sc.value())).append(") -> ")
                     .append(formatExpr(sc.result())).append("\n");
         }
         if (expression.getDefaultExpr() != null) {

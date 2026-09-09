@@ -21,7 +21,9 @@ public class ImportTest extends AbstractImportTests {
     }
 
     @Override
-    protected String runForOutput(String source) { return backend.run(source); }
+    protected String runForOutput(String source) {
+        return backend.run(source);
+    }
 
     @Test
     void libImportUnknownThrows() {
@@ -93,8 +95,8 @@ public class ImportTest extends AbstractImportTests {
 
     @Test
     void selectiveImportDoesNotLoadOtherFunctions() {
-        assertThrows(RuntimeException.class, () ->
-            backend.runAndGetValue("import string: trim; split(\"a,b\", \",\");"));
+        assertThrows(RuntimeException.class,
+                () -> backend.runAndGetValue("import string: trim; split(\"a,b\", \",\");"));
     }
 
     @Test
@@ -104,8 +106,7 @@ public class ImportTest extends AbstractImportTests {
 
     @Test
     void selectiveImportUnknownFunctionThrows() {
-        assertThrows(RuntimeException.class, () ->
-            backend.runAndGetValue("import string: nonexistent;"));
+        assertThrows(RuntimeException.class, () -> backend.runAndGetValue("import string: nonexistent;"));
     }
 
     @Test

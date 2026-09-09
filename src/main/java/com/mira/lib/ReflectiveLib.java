@@ -8,13 +8,13 @@ import com.mira.runtime.interpreter.Environment;
 
 /**
  * Optional alternative to implementing {@link Lib} by hand: a native library
- * exposes the Java class(es) it wants auto-bound via reflection ({@link
- * #targets()}), plus a small list of {@link #overrides()} for whatever the
- * auto-scan can't safely resolve on its own (ambiguous overloads, struct
+ * exposes the Java class(es) it wants auto-bound via reflection
+ * ({@link #targets()}), plus a small list of {@link #overrides()} for whatever
+ * the auto-scan can't safely resolve on its own (ambiguous overloads, struct
  * constructors, pointer-building glue), and optionally a handful of plain
- * {@link #constants()} with no Java field behind them at all. {@link
- * #loadLib} is provided, delegating to {@link NativeInterop#bind} - a
- * conforming library needs no {@code loadLib} of its own for the common case.
+ * {@link #constants()} with no Java field behind them at all. {@link #loadLib}
+ * is provided, delegating to {@link NativeInterop#bind} - a conforming library
+ * needs no {@code loadLib} of its own for the common case.
  */
 public interface ReflectiveLib extends Lib {
 
@@ -25,8 +25,8 @@ public interface ReflectiveLib extends Lib {
     }
 
     /**
-     * Plain values (not backed by a reflectable static field), defined directly
-     * - unlike {@link #overrides()}, these are never callable.
+     * Plain values (not backed by a reflectable static field), defined directly -
+     * unlike {@link #overrides()}, these are never callable.
      */
     default Map<String, Object> constants() {
         return Map.of();

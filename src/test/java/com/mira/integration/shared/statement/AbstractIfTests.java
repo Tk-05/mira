@@ -9,14 +9,12 @@ public abstract class AbstractIfTests {
 
     @Test
     void trueBranchExecutes() {
-        assertEquals("true", runForOutput(
-                "var x : 5; if (x > 3) { print(true); } else { print(false); }"));
+        assertEquals("true", runForOutput("var x : 5; if (x > 3) { print(true); } else { print(false); }"));
     }
 
     @Test
     void falseBranchExecutes() {
-        assertEquals("false", runForOutput(
-                "var x : 1; if (x > 3) { print(true); } else { print(false); }"));
+        assertEquals("false", runForOutput("var x : 1; if (x > 3) { print(true); } else { print(false); }"));
     }
 
     @Test
@@ -51,20 +49,17 @@ public abstract class AbstractIfTests {
 
     @Test
     void ifWithTrueLiteral() {
-        assertEquals("true", runForOutput(
-                "if(true) { print(true); } else { print(false); }"));
+        assertEquals("true", runForOutput("if(true) { print(true); } else { print(false); }"));
     }
 
     @Test
     void ifWithFalseLiteral() {
-        assertEquals("false", runForOutput(
-                "if(false) { print(true); } else { print(false); }"));
+        assertEquals("false", runForOutput("if(false) { print(true); } else { print(false); }"));
     }
 
     @Test
     void ifWithBooleanVariable() {
-        assertEquals("true", runForOutput(
-                "var x : true; if(x) { print(true); } else { print(false); }"));
+        assertEquals("true", runForOutput("var x : true; if(x) { print(true); } else { print(false); }"));
     }
 
     @Test
@@ -92,20 +87,17 @@ public abstract class AbstractIfTests {
 
     @Test
     void singleStatementTrueBranchNoBraces() {
-        assertEquals("yes", runForOutput(
-                "if (true) print(\"yes\");"));
+        assertEquals("yes", runForOutput("if (true) print(\"yes\");"));
     }
 
     @Test
     void singleStatementFalseBranchSkipped() {
-        assertEquals("no", runForOutput(
-                "var x : false; if (x) print(\"yes\"); else print(\"no\");"));
+        assertEquals("no", runForOutput("var x : false; if (x) print(\"yes\"); else print(\"no\");"));
     }
 
     @Test
     void singleStatementElseNoBraces() {
-        assertEquals("else", runForOutput(
-                "if (false) print(\"then\"); else print(\"else\");"));
+        assertEquals("else", runForOutput("if (false) print(\"then\"); else print(\"else\");"));
     }
 
     @Test

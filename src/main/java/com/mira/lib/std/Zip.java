@@ -35,10 +35,8 @@ public class Zip implements Lib {
 
     private static List<String> toStringList(Object arg) {
         List<Expression> members = switch (arg) {
-            case ListExpression l ->
-                l.getMembers();
-            default ->
-                throw new RuntimeException("Expected list");
+            case ListExpression l -> l.getMembers();
+            default -> throw new RuntimeException("Expected list");
         };
         List<String> out = new ArrayList<>(members.size());
         for (Expression e : members) {

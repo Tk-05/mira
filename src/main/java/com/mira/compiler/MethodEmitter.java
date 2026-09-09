@@ -161,8 +161,7 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
         } else {
             emitGlobals();
             mv.visitLdcInsn(name);
-            mv.visitMethodInsn(INVOKEVIRTUAL, ENV, "get",
-                    "(Ljava/lang/String;)" + OBJ_D, false);
+            mv.visitMethodInsn(INVOKEVIRTUAL, ENV, "get", "(Ljava/lang/String;)" + OBJ_D, false);
         }
     }
 
@@ -181,8 +180,7 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
                     emitGlobals();
                     mv.visitLdcInsn(name);
                     mv.visitVarInsn(ALOAD, tmp);
-                    mv.visitMethodInsn(INVOKEVIRTUAL, ENV, "assign",
-                            "(Ljava/lang/String;" + OBJ_D + ")V", false);
+                    mv.visitMethodInsn(INVOKEVIRTUAL, ENV, "assign", "(Ljava/lang/String;" + OBJ_D + ")V", false);
                 }
             }
         } else {
@@ -192,8 +190,7 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
             mv.visitLdcInsn(name);
             mv.visitVarInsn(ALOAD, tmp);
             String method = isNewDecl ? "define" : "assign";
-            mv.visitMethodInsn(INVOKEVIRTUAL, ENV, method,
-                    "(Ljava/lang/String;" + OBJ_D + ")V", false);
+            mv.visitMethodInsn(INVOKEVIRTUAL, ENV, method, "(Ljava/lang/String;" + OBJ_D + ")V", false);
         }
     }
 
@@ -245,8 +242,8 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
             hmv.visitInsn(AALOAD);
             hmv.visitVarInsn(ASTORE, slot);
         }
-        CompilerContext hCtx = new CompilerContext(ctx.className, hmv, hSlots,
-                ctx.knownFunctions, ctx.lambdaCounter, false, hInstrBytes);
+        CompilerContext hCtx = new CompilerContext(ctx.className, hmv, hSlots, ctx.knownFunctions, ctx.lambdaCounter,
+                false, hInstrBytes);
         hCtx.moduleName = ctx.moduleName;
         hCtx.functionName = ctx.functionName;
         MethodEmitter hme = new MethodEmitter(hCtx, ce);
@@ -267,8 +264,7 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
                 expr.accept(this);
                 mv.visitInsn(POP);
             }
-            case Statement stmt ->
-                stmt.accept(this);
+            case Statement stmt -> stmt.accept(this);
             default -> {
             }
         }
@@ -286,11 +282,10 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
                 mv.visitInsn(ICONST_0);
                 mv.visitMethodInsn(INVOKESTATIC, RT, "wrapBool", "(Z)" + OBJ_D, false);
             }
-            case "null" ->
-                emitNullVal();
+            case "null" -> emitNullVal();
             default -> {
-                if (expression.getTokenType() == TokenType.EXPRESSION
-                        && !val.isEmpty() && Character.isDigit(val.charAt(0))) {
+                if (expression.getTokenType() == TokenType.EXPRESSION && !val.isEmpty()
+                        && Character.isDigit(val.charAt(0))) {
                     emitNumberLiteral(val);
                 } else {
                     mv.visitLdcInsn(val);
@@ -372,54 +367,33 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
                     mv.visitInsn(ICONST_0);
                     mv.visitTypeInsn(ANEWARRAY, OBJ);
                 }
-                mv.visitMethodInsn(INVOKESTATIC, RT, "pipe",
-                        "(" + OBJ_D + OBJ_D + "[" + OBJ_D + ")" + OBJ_D, false);
+                mv.visitMethodInsn(INVOKESTATIC, RT, "pipe", "(" + OBJ_D + OBJ_D + "[" + OBJ_D + ")" + OBJ_D, false);
             }
             default -> {
                 expression.getLeft().accept(this);
                 expression.getRight().accept(this);
                 String rtMethod = switch (op) {
-                    case "+" ->
-                        "add";
-                    case "-" ->
-                        "sub";
-                    case "*" ->
-                        "mul";
-                    case "/" ->
-                        "div";
-                    case "%" ->
-                        "mod";
-                    case "**" ->
-                        "pow";
-                    case "\\%" ->
-                        "floorDiv";
-                    case "==" ->
-                        "eq";
-                    case "!=" ->
-                        "neq";
-                    case "<" ->
-                        "lt";
-                    case ">" ->
-                        "gt";
-                    case "<=" ->
-                        "lte";
-                    case ">=" ->
-                        "gte";
-                    case "&" ->
-                        "bitwiseAnd";
-                    case "|" ->
-                        "bitwiseOr";
-                    case "^" ->
-                        "bitwiseXor";
-                    case "<<" ->
-                        "shiftLeft";
-                    case ">>" ->
-                        "shiftRight";
-                    default ->
-                        throw new RuntimeException("Unknown binary operator: " + op);
+                    case "+" -> "add";
+                    case "-" -> "sub";
+                    case "*" -> "mul";
+                    case "/" -> "div";
+                    case "%" -> "mod";
+                    case "**" -> "pow";
+                    case "\\%" -> "floorDiv";
+                    case "==" -> "eq";
+                    case "!=" -> "neq";
+                    case "<" -> "lt";
+                    case ">" -> "gt";
+                    case "<=" -> "lte";
+                    case ">=" -> "gte";
+                    case "&" -> "bitwiseAnd";
+                    case "|" -> "bitwiseOr";
+                    case "^" -> "bitwiseXor";
+                    case "<<" -> "shiftLeft";
+                    case ">>" -> "shiftRight";
+                    default -> throw new RuntimeException("Unknown binary operator: " + op);
                 };
-                mv.visitMethodInsn(INVOKESTATIC, RT, rtMethod,
-                        "(" + OBJ_D + OBJ_D + ")" + OBJ_D, false);
+                mv.visitMethodInsn(INVOKESTATIC, RT, rtMethod, "(" + OBJ_D + OBJ_D + ")" + OBJ_D, false);
             }
         }
         return null;
@@ -437,8 +411,7 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
                     mv.visitTypeInsn(org.objectweb.asm.Opcodes.CHECKCAST, "java/lang/String");
                     emitGlobals();
                     mv.visitInsn(SWAP);
-                    mv.visitMethodInsn(INVOKEVIRTUAL, ENV, "get",
-                            "(Ljava/lang/String;)" + OBJ_D, false);
+                    mv.visitMethodInsn(INVOKEVIRTUAL, ENV, "get", "(Ljava/lang/String;)" + OBJ_D, false);
                 }
             }
             case "-" -> {
@@ -460,12 +433,9 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
                 expression.getRight().accept(this);
                 mv.visitMethodInsn(INVOKESTATIC, RT, "bitwiseNot", "(" + OBJ_D + ")" + OBJ_D, false);
             }
-            case "++" ->
-                emitIncDec(expression, true);
-            case "--" ->
-                emitIncDec(expression, false);
-            default ->
-                throw new RuntimeException("Unknown unary operator: " + op);
+            case "++" -> emitIncDec(expression, true);
+            case "--" -> emitIncDec(expression, false);
+            default -> throw new RuntimeException("Unknown unary operator: " + op);
         }
         return null;
     }
@@ -492,16 +462,14 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
     private void emitAddOrSubOne(boolean inc) {
         mv.visitLdcInsn(1L);
         mv.visitMethodInsn(INVOKESTATIC, RT, "wrapLong", "(J)" + OBJ_D, false);
-        mv.visitMethodInsn(INVOKESTATIC, RT, inc ? "add" : "sub",
-                "(" + OBJ_D + OBJ_D + ")" + OBJ_D, false);
+        mv.visitMethodInsn(INVOKESTATIC, RT, inc ? "add" : "sub", "(" + OBJ_D + OBJ_D + ")" + OBJ_D, false);
     }
 
     private void emitAccessIncDec(AccessExpression acc, boolean inc) {
         acc.getReference().accept(this);
         for (int k = 0; k < acc.getIndecies().size() - 1; k++) {
             acc.getIndecies().get(k).accept(this);
-            mv.visitMethodInsn(INVOKESTATIC, RT, "arrayGet",
-                    "(" + OBJ_D + OBJ_D + ")" + OBJ_D, false);
+            mv.visitMethodInsn(INVOKESTATIC, RT, "arrayGet", "(" + OBJ_D + OBJ_D + ")" + OBJ_D, false);
         }
         int containerSlot = ctx.slots.allocateTemp();
         mv.visitVarInsn(ASTORE, containerSlot);
@@ -512,8 +480,7 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
 
         mv.visitVarInsn(ALOAD, containerSlot);
         mv.visitVarInsn(ALOAD, indexSlot);
-        mv.visitMethodInsn(INVOKESTATIC, RT, "arrayGet",
-                "(" + OBJ_D + OBJ_D + ")" + OBJ_D, false);
+        mv.visitMethodInsn(INVOKESTATIC, RT, "arrayGet", "(" + OBJ_D + OBJ_D + ")" + OBJ_D, false);
         emitAddOrSubOne(inc);
         int newValueSlot = ctx.slots.allocateTemp();
         mv.visitVarInsn(ASTORE, newValueSlot);
@@ -521,8 +488,7 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
         mv.visitVarInsn(ALOAD, containerSlot);
         mv.visitVarInsn(ALOAD, indexSlot);
         mv.visitVarInsn(ALOAD, newValueSlot);
-        mv.visitMethodInsn(INVOKESTATIC, RT, "arraySet",
-                "(" + OBJ_D + OBJ_D + OBJ_D + ")V", false);
+        mv.visitMethodInsn(INVOKESTATIC, RT, "arraySet", "(" + OBJ_D + OBJ_D + OBJ_D + ")V", false);
 
         mv.visitVarInsn(ALOAD, newValueSlot);
     }
@@ -535,8 +501,7 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
 
         mv.visitVarInsn(ALOAD, objSlot);
         mv.visitLdcInsn(fae.getField());
-        mv.visitMethodInsn(INVOKESTATIC, RT, "fieldGet",
-                "(" + OBJ_D + "Ljava/lang/String;)" + OBJ_D, false);
+        mv.visitMethodInsn(INVOKESTATIC, RT, "fieldGet", "(" + OBJ_D + "Ljava/lang/String;)" + OBJ_D, false);
         emitAddOrSubOne(inc);
         int newValueSlot = ctx.slots.allocateTemp();
         mv.visitVarInsn(ASTORE, newValueSlot);
@@ -544,8 +509,7 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
         mv.visitVarInsn(ALOAD, objSlot);
         mv.visitLdcInsn(fae.getField());
         mv.visitVarInsn(ALOAD, newValueSlot);
-        mv.visitMethodInsn(INVOKESTATIC, RT, "fieldSet",
-                "(" + OBJ_D + "Ljava/lang/String;" + OBJ_D + ")V", false);
+        mv.visitMethodInsn(INVOKESTATIC, RT, "fieldSet", "(" + OBJ_D + "Ljava/lang/String;" + OBJ_D + ")V", false);
 
         mv.visitVarInsn(ALOAD, newValueSlot);
     }
@@ -573,8 +537,7 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
             if (ctx.knownFunctions.contains(name)) {
                 emitTrackedCall(name, line, () -> {
                     emitObjectArray(expression.getArguments());
-                    mv.visitMethodInsn(INVOKESTATIC, ctx.className,
-                            "mira$" + name, ClassEmitter.FN_DESC, false);
+                    mv.visitMethodInsn(INVOKESTATIC, ctx.className, "mira$" + name, ClassEmitter.FN_DESC, false);
                 });
             } else {
                 Integer slot = ctx.slots.slotOf(name);
@@ -582,8 +545,8 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
                     emitTrackedCall(name, line, () -> {
                         mv.visitVarInsn(ALOAD, slot);
                         emitObjectArray(expression.getArguments());
-                        mv.visitMethodInsn(INVOKESTATIC, RT, "dynamicCall",
-                                "(" + OBJ_D + "[" + OBJ_D + ")" + OBJ_D, false);
+                        mv.visitMethodInsn(INVOKESTATIC, RT, "dynamicCall", "(" + OBJ_D + "[" + OBJ_D + ")" + OBJ_D,
+                                false);
                     });
                 } else {
                     emitTrackedCall(name, line, () -> {
@@ -598,19 +561,16 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
         } else {
             emitCalleeObject(callee);
             emitObjectArray(expression.getArguments());
-            mv.visitMethodInsn(INVOKESTATIC, RT, "dynamicCall",
-                    "(" + OBJ_D + "[" + OBJ_D + ")" + OBJ_D, false);
+            mv.visitMethodInsn(INVOKESTATIC, RT, "dynamicCall", "(" + OBJ_D + "[" + OBJ_D + ")" + OBJ_D, false);
         }
         return null;
     }
 
     private void emitTrackedCall(String name, int line, Runnable callEmitter) {
-        Label tryStart = new Label(), tryEnd = new Label(),
-                handler = new Label(), after = new Label();
+        Label tryStart = new Label(), tryEnd = new Label(), handler = new Label(), after = new Label();
         mv.visitLdcInsn(name);
         emitIntConst(line);
-        mv.visitMethodInsn(INVOKESTATIC, RT, "pushCallStack",
-                "(Ljava/lang/String;I)V", false);
+        mv.visitMethodInsn(INVOKESTATIC, RT, "pushCallStack", "(Ljava/lang/String;I)V", false);
         if (com.mira.cli.Flags.profile) {
             mv.visitMethodInsn(INVOKESTATIC, RT, "profilerStart", "()V", false);
         }
@@ -638,8 +598,7 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
             emitIntConst(line);
             mv.visitLdcInsn(ctx.functionName);
             mv.visitLdcInsn(ctx.moduleName);
-            mv.visitMethodInsn(INVOKESTATIC, RT, "profilerLine",
-                    "(ILjava/lang/String;Ljava/lang/String;)V", false);
+            mv.visitMethodInsn(INVOKESTATIC, RT, "profilerLine", "(ILjava/lang/String;Ljava/lang/String;)V", false);
         }
     }
 
@@ -652,8 +611,7 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
             } else {
                 emitGlobals();
                 mv.visitLdcInsn(name);
-                mv.visitMethodInsn(INVOKEVIRTUAL, ENV, "get",
-                        "(Ljava/lang/String;)" + OBJ_D, false);
+                mv.visitMethodInsn(INVOKEVIRTUAL, ENV, "get", "(Ljava/lang/String;)" + OBJ_D, false);
             }
         } else {
             callee.accept(this);
@@ -694,8 +652,8 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
         int[] lInstrBytes = {0};
         ByteCountingMV lmv = new ByteCountingMV(lRawMv, lInstrBytes);
         LocalSlotTable lSlots = new LocalSlotTable(1);
-        CompilerContext lCtx = new CompilerContext(ctx.className, lmv, lSlots,
-                ctx.knownFunctions, ctx.lambdaCounter, false, lInstrBytes);
+        CompilerContext lCtx = new CompilerContext(ctx.className, lmv, lSlots, ctx.knownFunctions, ctx.lambdaCounter,
+                false, lInstrBytes);
         lCtx.moduleName = ctx.moduleName;
         lCtx.functionName = ctx.functionName;
         MethodEmitter lme = new MethodEmitter(lCtx, ce);
@@ -744,8 +702,7 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
             int slot = lSlots.allocate(lambda.getVariadicParam());
             lmv.visitVarInsn(ALOAD, 0);
             emitIntConst(lmv, captureCount + params.size());
-            lmv.visitMethodInsn(INVOKESTATIC, RT, "variadicTail",
-                    "([Ljava/lang/Object;I)Ljava/lang/Object;", false);
+            lmv.visitMethodInsn(INVOKESTATIC, RT, "variadicTail", "([Ljava/lang/Object;I)Ljava/lang/Object;", false);
             lmv.visitVarInsn(ASTORE, slot);
         }
 
@@ -867,8 +824,7 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
         expression.getReference().accept(this);
         for (Expression idx : expression.getIndecies()) {
             idx.accept(this);
-            mv.visitMethodInsn(INVOKESTATIC, RT, "arrayGet",
-                    "(" + OBJ_D + OBJ_D + ")" + OBJ_D, false);
+            mv.visitMethodInsn(INVOKESTATIC, RT, "arrayGet", "(" + OBJ_D + OBJ_D + ")" + OBJ_D, false);
         }
         return null;
     }
@@ -879,8 +835,7 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
         resolveIfStringName();
         mv.visitLdcInsn(expression.getField());
         String method = expression.isOptional() ? "optionalFieldGet" : "fieldGet";
-        mv.visitMethodInsn(INVOKESTATIC, RT, method,
-                "(" + OBJ_D + "Ljava/lang/String;)" + OBJ_D, false);
+        mv.visitMethodInsn(INVOKESTATIC, RT, method, "(" + OBJ_D + "Ljava/lang/String;)" + OBJ_D, false);
         return null;
     }
 
@@ -891,15 +846,13 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
         mv.visitLdcInsn(expression.getMethod());
         emitObjectArray(expression.getArguments());
         String method = expression.isOptional() ? "optionalMethodCall" : "methodCall";
-        mv.visitMethodInsn(INVOKESTATIC, RT, method,
-                "(" + OBJ_D + "Ljava/lang/String;[" + OBJ_D + ")" + OBJ_D, false);
+        mv.visitMethodInsn(INVOKESTATIC, RT, method, "(" + OBJ_D + "Ljava/lang/String;[" + OBJ_D + ")" + OBJ_D, false);
         return null;
     }
 
     private void resolveIfStringName() {
         mv.visitFieldInsn(GETSTATIC, ctx.className, "GLOBALS", ENV_D);
-        mv.visitMethodInsn(INVOKESTATIC, RT, "resolveIfNamespace",
-                "(" + OBJ_D + ENV_D + ")" + OBJ_D, false);
+        mv.visitMethodInsn(INVOKESTATIC, RT, "resolveIfNamespace", "(" + OBJ_D + ENV_D + ")" + OBJ_D, false);
     }
 
     @Override
@@ -915,8 +868,7 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
             // Number inside makeRange).
             mv.visitInsn(ACONST_NULL);
         }
-        mv.visitMethodInsn(INVOKESTATIC, RT, "makeRange",
-                "(" + OBJ_D + OBJ_D + OBJ_D + ")" + OBJ_D, false);
+        mv.visitMethodInsn(INVOKESTATIC, RT, "makeRange", "(" + OBJ_D + OBJ_D + OBJ_D + ")" + OBJ_D, false);
         return null;
     }
 
@@ -936,8 +888,7 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
                 emitNullVal();
             }
             String defineMethod = field.isConst() ? "defineConst" : "define";
-            mv.visitMethodInsn(INVOKEVIRTUAL, ENV, defineMethod,
-                    "(Ljava/lang/String;" + OBJ_D + ")V", false);
+            mv.visitMethodInsn(INVOKEVIRTUAL, ENV, defineMethod, "(Ljava/lang/String;" + OBJ_D + ")V", false);
         }
 
         for (FuncDecl method : expression.getMethods()) {
@@ -951,15 +902,13 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
             mv.visitInsn(DUP);
             emitIntConst(method.getArity());
             mv.visitMethodInsn(INVOKESPECIAL, lClass, "<init>", "(I)V", false);
-            mv.visitMethodInsn(INVOKEVIRTUAL, ENV, "define",
-                    "(Ljava/lang/String;" + OBJ_D + ")V", false);
+            mv.visitMethodInsn(INVOKEVIRTUAL, ENV, "define", "(Ljava/lang/String;" + OBJ_D + ")V", false);
         }
 
         mv.visitVarInsn(ALOAD, objSlot);
         mv.visitLdcInsn("this");
         mv.visitVarInsn(ALOAD, objSlot);
-        mv.visitMethodInsn(INVOKEVIRTUAL, ENV, "define",
-                "(Ljava/lang/String;" + OBJ_D + ")V", false);
+        mv.visitMethodInsn(INVOKEVIRTUAL, ENV, "define", "(Ljava/lang/String;" + OBJ_D + ")V", false);
 
         mv.visitVarInsn(ALOAD, objSlot);
         return null;
@@ -981,8 +930,7 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
                 emitNullVal();
             }
             String defineMethod = field.isConst() ? "defineConst" : "define";
-            mv.visitMethodInsn(INVOKEVIRTUAL, ENV, defineMethod,
-                    "(Ljava/lang/String;" + OBJ_D + ")V", false);
+            mv.visitMethodInsn(INVOKEVIRTUAL, ENV, defineMethod, "(Ljava/lang/String;" + OBJ_D + ")V", false);
         }
 
         for (FuncDecl method : expression.getMethods()) {
@@ -996,13 +944,11 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
             mv.visitInsn(DUP);
             emitIntConst(method.getArity());
             mv.visitMethodInsn(INVOKESPECIAL, lClass, "<init>", "(I)V", false);
-            mv.visitMethodInsn(INVOKEVIRTUAL, ENV, "define",
-                    "(Ljava/lang/String;" + OBJ_D + ")V", false);
+            mv.visitMethodInsn(INVOKEVIRTUAL, ENV, "define", "(Ljava/lang/String;" + OBJ_D + ")V", false);
         }
 
         mv.visitVarInsn(ALOAD, envSlot);
-        mv.visitMethodInsn(INVOKESTATIC, RT, "makeStructTemplate",
-                "(" + ENV_D + ")" + STRUCT_TEMPLATE_D, false);
+        mv.visitMethodInsn(INVOKESTATIC, RT, "makeStructTemplate", "(" + ENV_D + ")" + STRUCT_TEMPLATE_D, false);
         return null;
     }
 
@@ -1040,8 +986,8 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
         MethodVisitor lmv = ce.openFunction(mName);
         lmv.visitCode();
         LocalSlotTable lSlots = new LocalSlotTable(1);
-        CompilerContext lCtx = new CompilerContext(ctx.className, lmv, lSlots,
-                ctx.knownFunctions, ctx.lambdaCounter, false);
+        CompilerContext lCtx = new CompilerContext(ctx.className, lmv, lSlots, ctx.knownFunctions, ctx.lambdaCounter,
+                false);
         lCtx.moduleName = ctx.moduleName;
         lCtx.functionName = ctx.functionName;
         MethodEmitter lme = new MethodEmitter(lCtx, ce);
@@ -1100,8 +1046,7 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
         parts.get(0).accept(this);
         for (int i = 1; i < parts.size(); i++) {
             parts.get(i).accept(this);
-            mv.visitMethodInsn(INVOKESTATIC, RT, "concat",
-                    "(" + OBJ_D + OBJ_D + ")Ljava/lang/String;", false);
+            mv.visitMethodInsn(INVOKESTATIC, RT, "concat", "(" + OBJ_D + OBJ_D + ")Ljava/lang/String;", false);
         }
         return null;
     }
@@ -1119,16 +1064,14 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
     @Override
     public <T> T visitAwaitExpr(AwaitExpression expression) {
         expression.getExpr().accept(this);
-        mv.visitMethodInsn(INVOKESTATIC, RT, "awaitPromise",
-                "(" + OBJ_D + ")" + OBJ_D, false);
+        mv.visitMethodInsn(INVOKESTATIC, RT, "awaitPromise", "(" + OBJ_D + ")" + OBJ_D, false);
         return null;
     }
 
     @Override
     public <T> T visitTypeofExpr(TypeofExpression expression) {
         expression.getExpr().accept(this);
-        mv.visitMethodInsn(INVOKESTATIC, RT, "typeofVal",
-                "(" + OBJ_D + ")" + OBJ_D, false);
+        mv.visitMethodInsn(INVOKESTATIC, RT, "typeofVal", "(" + OBJ_D + ")" + OBJ_D, false);
         return null;
     }
 
@@ -1144,8 +1087,7 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
             Label skip = new Label();
             mv.visitVarInsn(ALOAD, subjSlot);
             c.value().accept(this);
-            mv.visitMethodInsn(INVOKESTATIC, RT, "eq",
-                    "(" + OBJ_D + OBJ_D + ")" + OBJ_D, false);
+            mv.visitMethodInsn(INVOKESTATIC, RT, "eq", "(" + OBJ_D + OBJ_D + ")" + OBJ_D, false);
             emitIsTruthy();
             mv.visitJumpInsn(IFEQ, skip);
             c.result().accept(this);
@@ -1167,8 +1109,7 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
         LambdaExpression synthetic = new LambdaExpression(List.of(), expression.getBody(), null, false);
         synthetic.accept(this);
         emitObjectArray(List.of());
-        mv.visitMethodInsn(INVOKESTATIC, RT, "dynamicCall",
-                "(" + OBJ_D + "[" + OBJ_D + ")" + OBJ_D, false);
+        mv.visitMethodInsn(INVOKESTATIC, RT, "dynamicCall", "(" + OBJ_D + "[" + OBJ_D + ")" + OBJ_D, false);
         return null;
     }
 
@@ -1201,8 +1142,8 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
         int[] lInstrBytes2 = {0};
         ByteCountingMV lmv = new ByteCountingMV(lRawMv2, lInstrBytes2);
         LocalSlotTable lSlots = new LocalSlotTable(1);
-        CompilerContext lCtx = new CompilerContext(ctx.className, lmv, lSlots,
-                ctx.knownFunctions, ctx.lambdaCounter, false, lInstrBytes2);
+        CompilerContext lCtx = new CompilerContext(ctx.className, lmv, lSlots, ctx.knownFunctions, ctx.lambdaCounter,
+                false, lInstrBytes2);
         lCtx.moduleName = ctx.moduleName;
         lCtx.functionName = ctx.functionName;
         MethodEmitter lme = new MethodEmitter(lCtx, ce);
@@ -1278,8 +1219,7 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
             emitRealGlobals();
             mv.visitLdcInsn(stmt.getName());
             mv.visitVarInsn(ALOAD, tmp);
-            mv.visitMethodInsn(INVOKEVIRTUAL, ENV, "defineFunction",
-                    "(Ljava/lang/String;" + OBJ_D + ")V", false);
+            mv.visitMethodInsn(INVOKEVIRTUAL, ENV, "defineFunction", "(Ljava/lang/String;" + OBJ_D + ")V", false);
         } else {
             emitVarStore(stmt.getName(), true);
         }
@@ -1300,39 +1240,34 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
                     emitGlobals();
                     mv.visitLdcInsn(name);
                     assign.getExpression().accept(this);
-                    mv.visitMethodInsn(INVOKEVIRTUAL, ENV, "assign",
-                            "(Ljava/lang/String;" + OBJ_D + ")V", false);
+                    mv.visitMethodInsn(INVOKEVIRTUAL, ENV, "assign", "(Ljava/lang/String;" + OBJ_D + ")V", false);
                 }
             }
             case AccessExpression acc -> {
                 acc.getReference().accept(this);
                 for (int k = 0; k < acc.getIndecies().size() - 1; k++) {
                     acc.getIndecies().get(k).accept(this);
-                    mv.visitMethodInsn(INVOKESTATIC, RT, "arrayGet",
-                            "(" + OBJ_D + OBJ_D + ")" + OBJ_D, false);
+                    mv.visitMethodInsn(INVOKESTATIC, RT, "arrayGet", "(" + OBJ_D + OBJ_D + ")" + OBJ_D, false);
                 }
                 acc.getIndecies().getLast().accept(this);
                 assign.getExpression().accept(this);
-                mv.visitMethodInsn(INVOKESTATIC, RT, "arraySet",
-                        "(" + OBJ_D + OBJ_D + OBJ_D + ")V", false);
+                mv.visitMethodInsn(INVOKESTATIC, RT, "arraySet", "(" + OBJ_D + OBJ_D + OBJ_D + ")V", false);
             }
             case FieldAccessExpression fae -> {
                 fae.getObject().accept(this);
                 mv.visitLdcInsn(fae.getField());
                 assign.getExpression().accept(this);
-                mv.visitMethodInsn(INVOKESTATIC, RT, "fieldSet",
-                        "(" + OBJ_D + "Ljava/lang/String;" + OBJ_D + ")V", false);
+                mv.visitMethodInsn(INVOKESTATIC, RT, "fieldSet", "(" + OBJ_D + "Ljava/lang/String;" + OBJ_D + ")V",
+                        false);
             }
-            default ->
-                throw new RuntimeException("Unsupported assign target: " + assign.getReference());
+            default -> throw new RuntimeException("Unsupported assign target: " + assign.getReference());
         }
         return null;
     }
 
     @Override
     public <T> T visitAssignExpression(AssignExpression e) {
-        if (e.getReference() instanceof UnaryExpression ue
-                && ue.getOperation().getLexeme().equals("$")) {
+        if (e.getReference() instanceof UnaryExpression ue && ue.getOperation().getLexeme().equals("$")) {
             String name = ((DumbExpression) ue.getRight()).getValue();
             Integer slot = ctx.slots.slotOf(name);
             int tmp = ctx.slots.allocateTemp();
@@ -1345,8 +1280,7 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
                 emitGlobals();
                 mv.visitLdcInsn(name);
                 mv.visitVarInsn(ALOAD, tmp);
-                mv.visitMethodInsn(INVOKEVIRTUAL, ENV, "assign",
-                        "(Ljava/lang/String;" + OBJ_D + ")V", false);
+                mv.visitMethodInsn(INVOKEVIRTUAL, ENV, "assign", "(Ljava/lang/String;" + OBJ_D + ")V", false);
             }
             mv.visitVarInsn(ALOAD, tmp);
         }
@@ -1503,8 +1437,7 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
             mv.visitLabel(loopTop);
             mv.visitVarInsn(ALOAD, iterSlot);
             mv.visitVarInsn(ALOAD, endSlot);
-            mv.visitMethodInsn(INVOKESTATIC, RT, "lt",
-                    "(" + OBJ_D + OBJ_D + ")" + OBJ_D, false);
+            mv.visitMethodInsn(INVOKESTATIC, RT, "lt", "(" + OBJ_D + OBJ_D + ")" + OBJ_D, false);
             emitIsTruthy();
             mv.visitJumpInsn(IFEQ, loopEnd);
 
@@ -1515,8 +1448,7 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
             mv.visitLabel(continueLabel);
             mv.visitVarInsn(ALOAD, iterSlot);
             mv.visitVarInsn(ALOAD, stepSlot);
-            mv.visitMethodInsn(INVOKESTATIC, RT, "add",
-                    "(" + OBJ_D + OBJ_D + ")" + OBJ_D, false);
+            mv.visitMethodInsn(INVOKESTATIC, RT, "add", "(" + OBJ_D + OBJ_D + ")" + OBJ_D, false);
             mv.visitVarInsn(ASTORE, iterSlot);
             mv.visitJumpInsn(GOTO, loopTop);
 
@@ -1618,8 +1550,7 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
             Label skip = new Label();
             mv.visitVarInsn(ALOAD, subjSlot);
             sc.getValue().accept(this);
-            mv.visitMethodInsn(INVOKESTATIC, RT, "eq",
-                    "(" + OBJ_D + OBJ_D + ")" + OBJ_D, false);
+            mv.visitMethodInsn(INVOKESTATIC, RT, "eq", "(" + OBJ_D + OBJ_D + ")" + OBJ_D, false);
             emitIsTruthy();
             mv.visitJumpInsn(IFEQ, skip);
             if (extractCases) {
@@ -1708,8 +1639,8 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
             hmv.visitInsn(AALOAD);
             hmv.visitVarInsn(ASTORE, slot);
         }
-        CompilerContext hCtx = new CompilerContext(ctx.className, hmv, hSlots,
-                ctx.knownFunctions, ctx.lambdaCounter, false, hInstrBytes);
+        CompilerContext hCtx = new CompilerContext(ctx.className, hmv, hSlots, ctx.knownFunctions, ctx.lambdaCounter,
+                false, hInstrBytes);
         hCtx.isPartialExtract = true;
         hCtx.moduleName = ctx.moduleName;
         hCtx.functionName = ctx.functionName;
@@ -1727,8 +1658,7 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
     @Override
     public Void visitTryCatch(TryCatch stmt) {
         emitProfilerLine(stmt.line);
-        Label tryStart = new Label(), tryEnd = new Label(),
-                catchStart = new Label(), afterCatch = new Label();
+        Label tryStart = new Label(), tryEnd = new Label(), catchStart = new Label(), afterCatch = new Label();
 
         mv.visitLabel(tryStart);
         ctx.slots.enterScope();
@@ -1736,8 +1666,7 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
         ctx.slots.exitScope();
         mv.visitLabel(tryEnd);
 
-        mv.visitTryCatchBlock(tryStart, tryEnd, catchStart,
-                ClassEmitter.THROW_NAME);
+        mv.visitTryCatchBlock(tryStart, tryEnd, catchStart, ClassEmitter.THROW_NAME);
 
         mv.visitJumpInsn(GOTO, afterCatch);
 
@@ -1750,18 +1679,16 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
             String filter = clause.getTypeFilter();
             if (filter != null) {
                 mv.visitVarInsn(ALOAD, sigSlot);
-                mv.visitMethodInsn(INVOKEVIRTUAL, ClassEmitter.THROW_NAME,
-                        "getExceptionType", "()Ljava/lang/String;", false);
+                mv.visitMethodInsn(INVOKEVIRTUAL, ClassEmitter.THROW_NAME, "getExceptionType", "()Ljava/lang/String;",
+                        false);
                 mv.visitLdcInsn(filter);
-                mv.visitMethodInsn(INVOKEVIRTUAL, "java/lang/Object", "equals",
-                        "(Ljava/lang/Object;)Z", false);
+                mv.visitMethodInsn(INVOKEVIRTUAL, "java/lang/Object", "equals", "(Ljava/lang/Object;)Z", false);
                 mv.visitJumpInsn(IFEQ, nextClause);
             }
             ctx.slots.enterScope();
             if (clause.getParamName() != null) {
                 mv.visitVarInsn(ALOAD, sigSlot);
-                mv.visitMethodInsn(INVOKEVIRTUAL, ClassEmitter.THROW_NAME,
-                        "getValue", "()" + OBJ_D, false);
+                mv.visitMethodInsn(INVOKEVIRTUAL, ClassEmitter.THROW_NAME, "getValue", "()" + OBJ_D, false);
                 int paramSlot = ctx.slots.allocate(clause.getParamName());
                 mv.visitVarInsn(ASTORE, paramSlot);
             }
@@ -1793,8 +1720,7 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
             emitNullVal();
         }
         mv.visitMethodInsn(INVOKESTATIC, RT, "makeThrow",
-                "(Ljava/lang/String;" + OBJ_D + ")"
-                + "Lcom/mira/runtime/functions/ThrowSignal;", false);
+                "(Ljava/lang/String;" + OBJ_D + ")" + "Lcom/mira/runtime/functions/ThrowSignal;", false);
         mv.visitInsn(ATHROW);
         return null;
     }
@@ -1820,16 +1746,14 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
             vals.get(i).accept(this);
             mv.visitInsn(AASTORE);
         }
-        mv.visitMethodInsn(INVOKESTATIC, RT, "makeEnum",
-                "([Ljava/lang/String;[" + OBJ_D + ")" + ENV_D, false);
+        mv.visitMethodInsn(INVOKESTATIC, RT, "makeEnum", "([Ljava/lang/String;[" + OBJ_D + ")" + ENV_D, false);
 
         int enumSlot = ctx.slots.allocate("$$enum");
         mv.visitVarInsn(ASTORE, enumSlot);
         emitGlobals();
         mv.visitLdcInsn(stmt.getIdentifier());
         mv.visitVarInsn(ALOAD, enumSlot);
-        mv.visitMethodInsn(INVOKEVIRTUAL, ENV, "defineConst",
-                "(Ljava/lang/String;" + OBJ_D + ")V", false);
+        mv.visitMethodInsn(INVOKEVIRTUAL, ENV, "defineConst", "(Ljava/lang/String;" + OBJ_D + ")V", false);
         return null;
     }
 
@@ -1844,8 +1768,7 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
             mv.visitVarInsn(ALOAD, collSlot);
             mv.visitLdcInsn((long) i);
             mv.visitMethodInsn(INVOKESTATIC, RT, "wrapLong", "(J)" + OBJ_D, false);
-            mv.visitMethodInsn(INVOKESTATIC, RT, "safeArrayGet",
-                    "(" + OBJ_D + OBJ_D + ")" + OBJ_D, false);
+            mv.visitMethodInsn(INVOKESTATIC, RT, "safeArrayGet", "(" + OBJ_D + OBJ_D + ")" + OBJ_D, false);
             emitVarStore(names.get(i), true);
         }
         return null;

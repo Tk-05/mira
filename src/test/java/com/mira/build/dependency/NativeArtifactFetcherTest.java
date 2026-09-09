@@ -36,8 +36,8 @@ public class NativeArtifactFetcherTest {
         Files.write(source, content);
         String sha = sha256Of(content);
 
-        NativeArtifactFetcher.Resolved resolved = NativeArtifactFetcher.resolve(
-                "dummy", new ProjectConfig.NativeDependency(source.toUri().toString(), sha));
+        NativeArtifactFetcher.Resolved resolved = NativeArtifactFetcher.resolve("dummy",
+                new ProjectConfig.NativeDependency(source.toUri().toString(), sha));
 
         assertEquals(NativeArtifactFetcher.artifactDir(sha).resolve("dummy.jar"), resolved.jarPath());
         assertTrue(Files.exists(resolved.jarPath()));
@@ -51,8 +51,8 @@ public class NativeArtifactFetcherTest {
         Files.write(source, content);
         String wrongSha = "0".repeat(64);
 
-        assertThrows(BuildException.class, () -> NativeArtifactFetcher.resolve(
-                "dummy", new ProjectConfig.NativeDependency(source.toUri().toString(), wrongSha)));
+        assertThrows(BuildException.class, () -> NativeArtifactFetcher.resolve("dummy",
+                new ProjectConfig.NativeDependency(source.toUri().toString(), wrongSha)));
         assertFalse(Files.exists(NativeArtifactFetcher.artifactDir(wrongSha)));
     }
 
@@ -84,10 +84,10 @@ public class NativeArtifactFetcherTest {
         Files.createDirectories(sourceB.getParent());
         Files.write(sourceB, content);
 
-        NativeArtifactFetcher.Resolved resolvedA = NativeArtifactFetcher.resolve(
-                "a", new ProjectConfig.NativeDependency(sourceA.toUri().toString(), sha));
-        NativeArtifactFetcher.Resolved resolvedB = NativeArtifactFetcher.resolve(
-                "b", new ProjectConfig.NativeDependency(sourceB.toUri().toString(), sha));
+        NativeArtifactFetcher.Resolved resolvedA = NativeArtifactFetcher.resolve("a",
+                new ProjectConfig.NativeDependency(sourceA.toUri().toString(), sha));
+        NativeArtifactFetcher.Resolved resolvedB = NativeArtifactFetcher.resolve("b",
+                new ProjectConfig.NativeDependency(sourceB.toUri().toString(), sha));
 
         assertEquals(resolvedA.jarPath(), resolvedB.jarPath());
     }
@@ -96,8 +96,8 @@ public class NativeArtifactFetcherTest {
     void expectedPathMatchesResolvedPathWithoutFetching() throws Exception {
         byte[] content = "expected-path-check".getBytes();
         String sha = sha256Of(content);
-        ProjectConfig.NativeDependency dep
-                = new ProjectConfig.NativeDependency("https://example.com/some/dir/mylib.jar", sha);
+        ProjectConfig.NativeDependency dep = new ProjectConfig.NativeDependency(
+                "https://example.com/some/dir/mylib.jar", sha);
 
         assertEquals(NativeArtifactFetcher.artifactDir(sha).resolve("mylib.jar"),
                 NativeArtifactFetcher.expectedPath(dep));
@@ -131,8 +131,7 @@ public class NativeArtifactFetcherTest {
 
     @Test
     void httpUrlWithoutHashThrows() {
-        ProjectConfig.NativeDependency dep
-                = new ProjectConfig.NativeDependency("https://example.com/raylib.jar", null);
+        ProjectConfig.NativeDependency dep = new ProjectConfig.NativeDependency("https://example.com/raylib.jar", null);
 
         assertThrows(BuildException.class, () -> NativeArtifactFetcher.resolve("dep", dep));
     }

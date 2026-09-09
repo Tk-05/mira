@@ -186,8 +186,8 @@ public class BytesLibTest {
 
     @Test
     void testReadFileMissing() {
-        assertThrows(RuntimeException.class, ()
-                -> fn("readFile").call(interpreter, List.of("/nonexistent/path/file.bin")));
+        assertThrows(RuntimeException.class,
+                () -> fn("readFile").call(interpreter, List.of("/nonexistent/path/file.bin")));
     }
 
     @Test
@@ -213,7 +213,6 @@ public class BytesLibTest {
 
     @Test
     void testGetWrongType() {
-        assertThrows(RuntimeException.class, ()
-                -> fn("get").call(interpreter, List.of("not-bytes", "0")));
+        assertThrows(RuntimeException.class, () -> fn("get").call(interpreter, List.of("not-bytes", "0")));
     }
 }

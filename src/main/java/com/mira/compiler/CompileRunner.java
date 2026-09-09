@@ -43,18 +43,20 @@ public class CompileRunner {
         return run(ast, null);
     }
 
-    /** Returns the bytecode-generation wall time in ms, for callers (e.g. --stats) that want to report it. */
+    /**
+     * Returns the bytecode-generation wall time in ms, for callers (e.g. --stats)
+     * that want to report it.
+     */
     public long run(List<Node> ast, Map<String, Object> precomputedComptimeConsts) throws Exception {
         return run(ast, precomputedComptimeConsts, null);
     }
 
     /**
-     * afterCompile, if given, runs once compilation has finished but before
-     * any in-memory execution (--run) starts - the hook a caller needs to
-     * print something (e.g. --stats output including this compileMs) that
-     * must appear before the compiled program's own output, since --run
-     * executes inline at the end of this same call rather than returning
-     * control to the caller first.
+     * afterCompile, if given, runs once compilation has finished but before any
+     * in-memory execution (--run) starts - the hook a caller needs to print
+     * something (e.g. --stats output including this compileMs) that must appear
+     * before the compiled program's own output, since --run executes inline at the
+     * end of this same call rather than returning control to the caller first.
      */
     public long run(List<Node> ast, Map<String, Object> precomputedComptimeConsts,
             java.util.function.LongConsumer afterCompile) throws Exception {
@@ -62,9 +64,7 @@ public class CompileRunner {
         CompileResult result = new Compiler().compile(ast, Flags.fileName, precomputedComptimeConsts);
         long compileMs = System.currentTimeMillis() - compileStart;
 
-        Path outDir = Flags.outputDir != null
-                ? Flags.outputDir
-                : Flags.inputPath.get().getParent();
+        Path outDir = Flags.outputDir != null ? Flags.outputDir : Flags.inputPath.get().getParent();
 
         if (!Flags.compileAndRun) {
             writeToDisk(result, outDir);
@@ -117,8 +117,8 @@ public class CompileRunner {
         Set<String> written = new HashSet<>();
         Files.createDirectories(jarPath.getParent());
 
-        try (JarOutputStream jos = new JarOutputStream(
-                new BufferedOutputStream(new FileOutputStream(jarPath.toFile())), manifest)) {
+        try (JarOutputStream jos = new JarOutputStream(new BufferedOutputStream(new FileOutputStream(jarPath.toFile())),
+                manifest)) {
 
             written.add("META-INF/MANIFEST.MF");
             written.add("META-INF/");
@@ -137,8 +137,8 @@ public class CompileRunner {
                     JarEntry entry;
                     while ((entry = jis.getNextJarEntry()) != null) {
                         String name = entry.getName();
-                        if (name.equals("META-INF/MANIFEST.MF")
-                                || (name.startsWith("META-INF/") && (name.endsWith(".SF") || name.endsWith(".DSA") || name.endsWith(".RSA")))) {
+                        if (name.equals("META-INF/MANIFEST.MF") || (name.startsWith("META-INF/")
+                                && (name.endsWith(".SF") || name.endsWith(".DSA") || name.endsWith(".RSA")))) {
                             jis.closeEntry();
                             continue;
                         }
@@ -162,8 +162,8 @@ public class CompileRunner {
                 for (Map.Entry<String, String> e : nativeLibClasses.entrySet()) {
                     props.append(e.getKey()).append('=').append(e.getValue()).append('\n');
                 }
-                writeJarEntry(jos, "mira-native-libs.properties",
-                        props.toString().getBytes(StandardCharsets.UTF_8), written);
+                writeJarEntry(jos, "mira-native-libs.properties", props.toString().getBytes(StandardCharsets.UTF_8),
+                        written);
             }
 
             if (Flags.slimJar) {
@@ -231,8 +231,8 @@ public class CompileRunner {
         }
     }
 
-    private static void mergeSlim(JarOutputStream jos, Map<String, byte[]> allEntries,
-            Set<String> written, Set<String> seeds) throws IOException {
+    private static void mergeSlim(JarOutputStream jos, Map<String, byte[]> allEntries, Set<String> written,
+            Set<String> seeds) throws IOException {
         Map<String, byte[]> classUniverse = new HashMap<>();
         for (Map.Entry<String, byte[]> e : allEntries.entrySet()) {
             String name = e.getKey();
@@ -260,8 +260,8 @@ public class CompileRunner {
         }
     }
 
-    private static void writeJarEntry(JarOutputStream jos, String name,
-            byte[] data, Set<String> written) throws IOException {
+    private static void writeJarEntry(JarOutputStream jos, String name, byte[] data, Set<String> written)
+            throws IOException {
         if (!written.add(name)) {
             return;
         }
@@ -270,8 +270,7 @@ public class CompileRunner {
         jos.closeEntry();
     }
 
-    private static void mergeFromJar(JarOutputStream jos, Path sourceJar,
-            Set<String> written) throws IOException {
+    private static void mergeFromJar(JarOutputStream jos, Path sourceJar, Set<String> written) throws IOException {
         try (JarFile jf = new JarFile(sourceJar.toFile())) {
             var entries = jf.entries();
             while (entries.hasMoreElements()) {
@@ -298,8 +297,8 @@ public class CompileRunner {
         }
     }
 
-    private static void mergeFromDirectory(JarOutputStream jos, Path root,
-            Path current, Set<String> written) throws IOException {
+    private static void mergeFromDirectory(JarOutputStream jos, Path root, Path current, Set<String> written)
+            throws IOException {
         try (var stream = Files.list(current)) {
             for (Path child : stream.toList()) {
                 if (Files.isDirectory(child)) {
@@ -361,8 +360,8 @@ public class CompileRunner {
         System.out.println("  classes: " + totalClasses);
         System.out.println("  size   : " + totalBytes + " bytes");
         System.out.println("  time   : " + compileMs + " ms");
-        System.out.println("  run    : java -cp mira-RELEASE.jar" + File.pathSeparator
-                + outDir.toAbsolutePath() + " " + result.className().replace('/', '.'));
+        System.out.println("  run    : java -cp mira-RELEASE.jar" + File.pathSeparator + outDir.toAbsolutePath() + " "
+                + result.className().replace('/', '.'));
     }
 
     private void dumpBytecode(CompileResult result) {

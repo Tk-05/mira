@@ -39,8 +39,8 @@ public class WorkspaceServiceImpl implements WorkspaceService {
     @Override
     public CompletableFuture<Either<List<? extends SymbolInformation>, List<? extends WorkspaceSymbol>>> symbol(
             WorkspaceSymbolParams params) {
-        List<SymbolInformation> result = WorkspaceSymbolProvider.provide(
-                params.getQuery(), workspaceRoot, workspaceIndex, docService.getOpenDocuments());
+        List<SymbolInformation> result = WorkspaceSymbolProvider.provide(params.getQuery(), workspaceRoot,
+                workspaceIndex, docService.getOpenDocuments());
         return CompletableFuture.completedFuture(Either.forLeft(result));
     }
 

@@ -63,7 +63,10 @@ public class TestRunner {
         return results.stream().anyMatch(r -> !r.passed());
     }
 
-    /** Passed/failed counts from the most recently completed run, surviving past {@link #reset()}. */
+    /**
+     * Passed/failed counts from the most recently completed run, surviving past
+     * {@link #reset()}.
+     */
     public static long getLastPassed() {
         return lastPassed;
     }
@@ -83,9 +86,7 @@ public class TestRunner {
     }
 
     public static boolean runPrePassCollecting(List<Node> asts, String[] args) {
-        List<Node> prePassNodes = asts.stream()
-                .filter(n -> isDeclaration(n) || isTestCall(n))
-                .toList();
+        List<Node> prePassNodes = asts.stream().filter(n -> isDeclaration(n) || isTestCall(n)).toList();
 
         try {
             new Interpreter().run(prePassNodes, args, true);
@@ -99,10 +100,7 @@ public class TestRunner {
     }
 
     private static boolean isDeclaration(Node n) {
-        return n instanceof FuncDecl
-                || n instanceof VarDecl
-                || n instanceof EnumDecl
-                || n instanceof ImportExpression
+        return n instanceof FuncDecl || n instanceof VarDecl || n instanceof EnumDecl || n instanceof ImportExpression
                 || n instanceof ModuleDecl;
     }
 

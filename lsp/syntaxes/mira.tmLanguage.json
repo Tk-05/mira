@@ -58,7 +58,7 @@
     },
     "keywords-operator": {
       "name": "keyword.operator.word.mira",
-      "match": "\\b(typeof|await|spawn|eval|assert|static_assert|length|scan|print|println|exit)\\b"
+      "match": "\\b(typeof|await|spawn|eval|assert|static_assert|length|scan|print|println|exit|format|importDynamic|toNum|toInt|toFloat|toStr|toBool|chars|toList|toArray)\\b"
     },
     "constants-language": {
       "name": "constant.language.mira",

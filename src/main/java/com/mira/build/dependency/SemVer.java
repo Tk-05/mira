@@ -27,9 +27,7 @@ public record SemVer(int major, int minor, int patch) implements Comparable<SemV
 
     @Override
     public int compareTo(SemVer other) {
-        return Comparator.comparingInt(SemVer::major)
-                .thenComparingInt(SemVer::minor)
-                .thenComparingInt(SemVer::patch)
+        return Comparator.comparingInt(SemVer::major).thenComparingInt(SemVer::minor).thenComparingInt(SemVer::patch)
                 .compare(this, other);
     }
 
@@ -44,18 +42,17 @@ public record SemVer(int major, int minor, int patch) implements Comparable<SemV
     public static boolean satisfies(SemVer candidate, String constraint) {
         String c = constraint.trim();
         if (c.startsWith("^")) {
-            SemVer base = parse(c.substring(1)).orElseThrow(
-                    () -> new IllegalArgumentException("Invalid version constraint: " + constraint));
+            SemVer base = parse(c.substring(1))
+                    .orElseThrow(() -> new IllegalArgumentException("Invalid version constraint: " + constraint));
             return satisfiesCaret(candidate, base);
         }
         if (c.startsWith("~")) {
-            SemVer base = parse(c.substring(1)).orElseThrow(
-                    () -> new IllegalArgumentException("Invalid version constraint: " + constraint));
-            return candidate.major == base.major && candidate.minor == base.minor
-                    && candidate.compareTo(base) >= 0;
+            SemVer base = parse(c.substring(1))
+                    .orElseThrow(() -> new IllegalArgumentException("Invalid version constraint: " + constraint));
+            return candidate.major == base.major && candidate.minor == base.minor && candidate.compareTo(base) >= 0;
         }
-        SemVer exact = parse(c).orElseThrow(
-                () -> new IllegalArgumentException("Invalid version constraint: " + constraint));
+        SemVer exact = parse(c)
+                .orElseThrow(() -> new IllegalArgumentException("Invalid version constraint: " + constraint));
         return candidate.equals(exact);
     }
 

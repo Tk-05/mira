@@ -1,7 +1,11 @@
 package com.mira.format;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import org.junit.jupiter.api.Test;
+
+import com.mira.lexer.Tokenizer;
+import com.mira.parser.Parser;
 
 public class AstFormatterTest {
 
@@ -259,17 +263,31 @@ public class AstFormatterTest {
     }
 
     @Test
-    void blankLineBetweenFunctions() {
-        String input = """
-                fn a() {}
-                fn b() {}
-                """;
-        String expected = """
+    void blankLineBetweenFunctionsPreservedWhenPresent() {
+        String source = """
                 fn a() {}
 
                 fn b() {}
                 """;
-        assertEquals(expected, fmt(input));
+        assertEquals(source, fmt(source));
+    }
+
+    @Test
+    void adjacentTopLevelStatementsStayAdjacent() {
+        String source = """
+                fn a() {}
+                fn b() {}
+                """;
+        assertEquals(source, fmt(source));
+    }
+
+    @Test
+    void adjacentVarDeclsStayAdjacent() {
+        String source = """
+                var a;
+                var b;
+                """;
+        assertEquals(source, fmt(source));
     }
 
     @Test
@@ -448,6 +466,58 @@ public class AstFormatterTest {
                 fn foo() {
                     // TODO implement
                 }
+                """;
+        assertEquals(source, fmt(source));
+    }
+
+    @Test
+    void trailingCommentBeforeClosingBraceIsPreserved() {
+        String source = """
+                fn foo() {
+                    var x : 1;
+                    print(x);
+                    // trailing note
+                }
+                """;
+        assertEquals(source, fmt(source));
+    }
+
+    @Test
+    void multilineStringEndingInEscapedQuoteDoesNotCorruptOutput() {
+        String source = """
+                fn foo() {
+                    var s : "line1\\nline2 ends with quote\\"";
+                }
+                """;
+        String formatted = fmt(source);
+        assertEquals(source, formatted);
+        assertDoesNotThrow(() -> new Parser().parseTokens(new Tokenizer().tokenize(formatted, false)));
+    }
+
+    @Test
+    void commentBetweenObjectLiteralMembersIsPreserved() {
+        String source = """
+                var obj : {
+                    var x : 1;
+                    // method comment
+                    fn get() {
+                        return x;
+                    }
+                };
+                """;
+        assertEquals(source, fmt(source));
+    }
+
+    @Test
+    void nestedObjectLiteralFieldDoesNotInsertSpuriousBlankLine() {
+        String source = """
+                var wrapper : {
+                    var a : {
+                        var a : 0;
+                        var b : 0;
+                    };
+                    var b : 0;
+                };
                 """;
         assertEquals(source, fmt(source));
     }

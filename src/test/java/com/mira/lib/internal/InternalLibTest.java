@@ -53,7 +53,8 @@ public class InternalLibTest {
     @Test
     void testEvalMultiStatement() {
         if (environment.get("eval") instanceof NativeFunction nativeFunction) {
-            double result = ((Number) nativeFunction.call(interpreter, List.of("var evalX : 10; evalX * 2;"))).doubleValue();
+            double result = ((Number) nativeFunction.call(interpreter, List.of("var evalX : 10; evalX * 2;")))
+                    .doubleValue();
             assertEquals(20.0, result);
         }
     }

@@ -25,9 +25,7 @@ import java.util.Set;
  */
 public final class ClassReachabilityScanner {
 
-    private static final String[] TRACKED_PREFIXES = {
-        "com/mira/", "org/objectweb/asm/", "org/eclipse/lsp4j/"
-    };
+    private static final String[] TRACKED_PREFIXES = {"com/mira/", "org/objectweb/asm/", "org/eclipse/lsp4j/"};
 
     private ClassReachabilityScanner() {
     }
@@ -68,10 +66,10 @@ public final class ClassReachabilityScanner {
     }
 
     /**
-     * Returns the tracked-prefix class names referenced by a class file's
-     * constant pool. Used to seed the reachability scan from classes outside
-     * the Mira distribution itself (e.g. user-compiled @native libraries)
-     * that reference Mira runtime classes such as ReflectiveBinder.
+     * Returns the tracked-prefix class names referenced by a class file's constant
+     * pool. Used to seed the reachability scan from classes outside the Mira
+     * distribution itself (e.g. user-compiled @native libraries) that reference
+     * Mira runtime classes such as ReflectiveBinder.
      */
     public static Set<String> trackedReferences(byte[] classBytes) {
         Set<String> result = new HashSet<>();
@@ -98,24 +96,19 @@ public final class ClassReachabilityScanner {
             while (i < count) {
                 int tag = in.readUnsignedByte();
                 switch (tag) {
-                    case 1 ->
-                        utf8[i] = in.readUTF();
+                    case 1 -> utf8[i] = in.readUTF();
                     case 7 -> {
                         isClass[i] = true;
                         classNameIndex[i] = in.readUnsignedShort();
                     }
-                    case 8, 16, 19, 20 ->
-                        in.skipBytes(2);
-                    case 15 ->
-                        in.skipBytes(3);
-                    case 3, 4, 9, 10, 11, 12, 17, 18 ->
-                        in.skipBytes(4);
+                    case 8, 16, 19, 20 -> in.skipBytes(2);
+                    case 15 -> in.skipBytes(3);
+                    case 3, 4, 9, 10, 11, 12, 17, 18 -> in.skipBytes(4);
                     case 5, 6 -> {
                         in.skipBytes(8);
                         i++;
                     }
-                    default ->
-                        throw new IOException("Unknown constant pool tag: " + tag);
+                    default -> throw new IOException("Unknown constant pool tag: " + tag);
                 }
                 i++;
             }

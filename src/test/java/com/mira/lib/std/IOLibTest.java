@@ -70,8 +70,7 @@ public class IOLibTest {
     @Test
     void writeFileThrowsOnInvalidPath() {
         NativeFunction writeFile = (NativeFunction) environment.get("writeFile");
-        assertThrows(RuntimeException.class, () ->
-                writeFile.call(interpreter, List.of("\0invalid", "content")));
+        assertThrows(RuntimeException.class, () -> writeFile.call(interpreter, List.of("\0invalid", "content")));
     }
 
     @Test

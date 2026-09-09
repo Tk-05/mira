@@ -15,10 +15,14 @@ public class ListExpressionTest extends AbstractListExpressionTests {
     private final InterpreterRunner backend = new InterpreterRunner();
 
     @BeforeEach
-    void setup() { backend.reset(); }
+    void setup() {
+        backend.reset();
+    }
 
     @Override
-    protected String runForOutput(String source) { return backend.run(source); }
+    protected String runForOutput(String source) {
+        return backend.run(source);
+    }
 
     @Test
     void emptyList() {
@@ -27,32 +31,31 @@ public class ListExpressionTest extends AbstractListExpressionTests {
 
     @Test
     void listAccessLastElement() {
-        assertEquals(3.0, InterpreterRunner.normNum(backend.runAndGetValue(
-                "var list : {1, 2, 3}; (list[2]);")));
+        assertEquals(3.0, InterpreterRunner.normNum(backend.runAndGetValue("var list : {1, 2, 3}; (list[2]);")));
     }
 
     @Test
     void nestedListAccess() {
-        assertEquals(3.0, InterpreterRunner.normNum(backend.runAndGetValue(
-                "var list : {{1, 2}, {3, 4}}; (list[1][0]);")));
+        assertEquals(3.0,
+                InterpreterRunner.normNum(backend.runAndGetValue("var list : {{1, 2}, {3, 4}}; (list[1][0]);")));
     }
 
     @Test
     void nestedListAssignment() {
-        assertEquals(99.0, InterpreterRunner.normNum(backend.runAndGetValue(
-                "var list : {{1, 2}, {3, 4}}; list[1][1] : 99; (list[1][1]);")));
+        assertEquals(99.0, InterpreterRunner
+                .normNum(backend.runAndGetValue("var list : {{1, 2}, {3, 4}}; list[1][1] : 99; (list[1][1]);")));
     }
 
     @Test
     void nestedListAssignmentInArray() {
-        assertEquals(99.0, InterpreterRunner.normNum(backend.runAndGetValue(
-                "var list : [{1, 2}, {3, 4}]; list[1][1] : 99; (list[1][1]);")));
+        assertEquals(99.0, InterpreterRunner
+                .normNum(backend.runAndGetValue("var list : [{1, 2}, {3, 4}]; list[1][1] : 99; (list[1][1]);")));
     }
 
     @Test
     void expressionAsIndex() {
-        assertEquals(30.0, InterpreterRunner.normNum(backend.runAndGetValue(
-                "var list : {10, 20, 30}; (list[eval(1+1)]);")));
+        assertEquals(30.0,
+                InterpreterRunner.normNum(backend.runAndGetValue("var list : {10, 20, 30}; (list[eval(1+1)]);")));
     }
 
     @Test

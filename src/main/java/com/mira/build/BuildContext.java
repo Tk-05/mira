@@ -44,8 +44,7 @@ public class BuildContext {
         ProjectConfig.BuildMode mode = modeOverride != null ? modeOverride : bc.mode();
 
         if (config.entry() == null) {
-            throw new BuildException(
-                    "mira.toml: [project] entry is required to build, run, or test this project "
+            throw new BuildException("mira.toml: [project] entry is required to build, run, or test this project "
                     + "(this package has no entry point of its own — e.g. a native-only package like extern/raylib)");
         }
         if (!Files.exists(config.entry())) {
@@ -72,8 +71,7 @@ public class BuildContext {
         if (Flags.packageJar) {
             ProjectConfig.JarBundle jarBundle = jarBundleOverride != null ? jarBundleOverride : bc.jarBundle();
             if (jarBundle == null) {
-                throw new BuildException(
-                        "Build mode 'package' requires jar-bundle to be set "
+                throw new BuildException("Build mode 'package' requires jar-bundle to be set "
                         + "(mira.toml [build] jar-bundle = \"slim\" or \"full\", or pass --slim/--full)");
             }
             Flags.slimJar = jarBundle == ProjectConfig.JarBundle.SLIM;

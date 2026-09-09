@@ -178,9 +178,7 @@ public class Process implements Lib {
 
         environment.define("processInfo", new NativeFunction(1, "pid", args -> {
             long pid = (long) Double.parseDouble(String.valueOf(args.get(0)));
-            return ProcessHandle.of(pid)
-                    .flatMap(ph -> ph.info().command())
-                    .orElse("unknown");
+            return ProcessHandle.of(pid).flatMap(ph -> ph.info().command()).orElse("unknown");
         }));
 
         environment.define("sleep", new NativeFunction(1, "ms", args -> {
@@ -207,8 +205,8 @@ public class Process implements Lib {
                 }
                 closeActiveLogStreamQuietly();
                 activeLogStream = fos;
-                PrintStream tee = new PrintStream(
-                        new TeeOutputStream(originalStderr, fos), true, StandardCharsets.UTF_8);
+                PrintStream tee = new PrintStream(new TeeOutputStream(originalStderr, fos), true,
+                        StandardCharsets.UTF_8);
                 tee.println("\n===== Mira crash log - session started " + LocalDateTime.now() + " =====");
                 System.setErr(tee);
                 crashLogInstalled = true;

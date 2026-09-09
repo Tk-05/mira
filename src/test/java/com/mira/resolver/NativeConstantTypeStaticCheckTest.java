@@ -46,9 +46,7 @@ public class NativeConstantTypeStaticCheckTest {
 
     @AfterAll
     static void cleanup() throws Exception {
-        Files.walk(sourceDir)
-                .sorted(java.util.Comparator.reverseOrder())
-                .forEach(p -> p.toFile().delete());
+        Files.walk(sourceDir).sorted(java.util.Comparator.reverseOrder()).forEach(p -> p.toFile().delete());
     }
 
     @BeforeEach

@@ -62,24 +62,17 @@ public class Debugger {
                 case "exit" -> {
                     return;
                 }
-                case "break" ->
-                    addBreakpoint(input);
-                case "watch" ->
-                    addWatch(input);
-                case "unwatch" ->
-                    removeWatch(input);
-                case "watches" ->
-                    listWatches();
-                case "help" ->
-                    printHelp();
+                case "break" -> addBreakpoint(input);
+                case "watch" -> addWatch(input);
+                case "unwatch" -> removeWatch(input);
+                case "watches" -> listWatches();
+                case "help" -> printHelp();
                 case "run" -> {
                     execute();
                     return;
                 }
-                case "list" ->
-                    listBreakpoints();
-                default ->
-                    System.err.println("Unknown command: '" + input[0] + "'. Type 'help' for help.");
+                case "list" -> listBreakpoints();
+                default -> System.err.println("Unknown command: '" + input[0] + "'. Type 'help' for help.");
             }
         }
     }
@@ -139,28 +132,17 @@ public class Debugger {
                 case "c", "continue" -> {
                     return;
                 }
-                case "break" ->
-                    addBreakpoint(parts);
-                case "print", "view" ->
-                    printVar(parts, env);
-                case "list", "dump" ->
-                    dumpEnv(env);
-                case "stack", "bt" ->
-                    printStack();
-                case "watch" ->
-                    addWatch(parts);
-                case "unwatch" ->
-                    removeWatch(parts);
-                case "watches" ->
-                    listWatches();
-                case "set" ->
-                    setVar(parts, env);
-                case "exit" ->
-                    System.exit(0);
-                case "help" ->
-                    printPauseHelp();
-                default ->
-                    System.err.println("Unknown command: '" + parts[0] + "'");
+                case "break" -> addBreakpoint(parts);
+                case "print", "view" -> printVar(parts, env);
+                case "list", "dump" -> dumpEnv(env);
+                case "stack", "bt" -> printStack();
+                case "watch" -> addWatch(parts);
+                case "unwatch" -> removeWatch(parts);
+                case "watches" -> listWatches();
+                case "set" -> setVar(parts, env);
+                case "exit" -> System.exit(0);
+                case "help" -> printPauseHelp();
+                default -> System.err.println("Unknown command: '" + parts[0] + "'");
             }
         }
     }
@@ -344,34 +326,34 @@ public class Debugger {
 
     private static void printHelp() {
         System.out.println("""
-            Before execution:
-              break <n> [n2 ...]   Set breakpoint(s) at line(s)
-              break fn <name>      Set breakpoint at function start
-              list                 List breakpoints
-              watch <var>          Watch a variable (shown on every pause)
-              unwatch <var>        Remove a watch
-              watches              List all watches
-              run                  Start execution
-              help                 Show this help
-              exit                 Quit
-            """);
+                Before execution:
+                  break <n> [n2 ...]   Set breakpoint(s) at line(s)
+                  break fn <name>      Set breakpoint at function start
+                  list                 List breakpoints
+                  watch <var>          Watch a variable (shown on every pause)
+                  unwatch <var>        Remove a watch
+                  watches              List all watches
+                  run                  Start execution
+                  help                 Show this help
+                  exit                 Quit
+                """);
     }
 
     private static void printPauseHelp() {
         System.out.println("""
-            While paused:
-              s / step             Execute next statement
-              c / continue         Continue to next breakpoint
-              stack / bt           Show call stack
-              break <n>            Add a breakpoint
-              break fn <name>      Add a function breakpoint
-              print <var>          Print variable value
-              dump / list          Dump all variables in scope
-              set <var> <value>    Modify a variable
-              watch <var>          Watch a variable
-              unwatch <var>        Remove a watch
-              watches              List all watches
-              exit                 Terminate program
-            """);
+                While paused:
+                  s / step             Execute next statement
+                  c / continue         Continue to next breakpoint
+                  stack / bt           Show call stack
+                  break <n>            Add a breakpoint
+                  break fn <name>      Add a function breakpoint
+                  print <var>          Print variable value
+                  dump / list          Dump all variables in scope
+                  set <var> <value>    Modify a variable
+                  watch <var>          Watch a variable
+                  unwatch <var>        Remove a watch
+                  watches              List all watches
+                  exit                 Terminate program
+                """);
     }
 }

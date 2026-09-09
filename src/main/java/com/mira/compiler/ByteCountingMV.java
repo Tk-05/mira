@@ -44,8 +44,7 @@ public class ByteCountingMV extends MethodVisitor {
     }
 
     @Override
-    public void visitMethodInsn(int opcode, String owner, String name, String descriptor,
-            boolean isInterface) {
+    public void visitMethodInsn(int opcode, String owner, String name, String descriptor, boolean isInterface) {
         counter[0] += isInterface ? 5 : 3;
         super.visitMethodInsn(opcode, owner, name, descriptor, isInterface);
     }

@@ -9,7 +9,6 @@ public class ThreadLib implements Lib {
 
     @Override
     public void loadLib(Environment environment) {
-        environment.define("newMutex",
-                new NativeFunction(0, args -> new MutexValue()));
+        environment.define("newMutex", new NativeFunction(0, args -> new MutexValue()));
     }
 }

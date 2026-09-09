@@ -30,7 +30,8 @@ public abstract class InterpreterTestBase {
     protected Object runContinued(String source) {
         Tokenizer tokenizer = new Tokenizer();
         Parser parser = new Parser();
-        return normalize(interpreter.runWithoutLoadingNewContext(parser.parseTokens(tokenizer.tokenize(source, false))));
+        return normalize(
+                interpreter.runWithoutLoadingNewContext(parser.parseTokens(tokenizer.tokenize(source, false))));
     }
 
     private static Object normalize(Object value) {

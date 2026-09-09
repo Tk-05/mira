@@ -70,8 +70,7 @@ public final class ModuleResolver {
         return null;
     }
 
-    public static void collectExternalCalls(List<Node> callerAst, Path callerPath,
-            Path targetPath, Set<String> out) {
+    public static void collectExternalCalls(List<Node> callerAst, Path callerPath, Path targetPath, Set<String> out) {
         String alias = findAliasForModule(callerAst, callerPath, targetPath);
         if (alias != null) {
             out.addAll(StaticCheck.collectNamespaceCalls(callerAst, alias));
@@ -85,8 +84,8 @@ public final class ModuleResolver {
     /**
      * Names bound directly (no namespace prefix) into the caller's scope by a
      * selective, non-aliased module import of {@code targetPath} — e.g.
-     * {@code import module "a.mira" {greet};} binds {@code greet} bare, unlike
-     * an aliased import which only exposes {@code alias.greet}.
+     * {@code import module "a.mira" {greet};} binds {@code greet} bare, unlike an
+     * aliased import which only exposes {@code alias.greet}.
      */
     public static Set<String> findDirectBoundNames(List<Node> callerAst, Path callerPath, Path targetPath) {
         for (Node node : callerAst) {

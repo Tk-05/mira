@@ -92,9 +92,7 @@ public class BuildCache {
             } catch (IOException ex) {
                 continue;
             }
-            List<String> imports = e.getValue().stream()
-                    .map(p -> p.toAbsolutePath().normalize().toString())
-                    .toList();
+            List<String> imports = e.getValue().stream().map(p -> p.toAbsolutePath().normalize().toString()).toList();
             entries.put(file.toString(), new CacheEntry(ts, imports));
         }
     }

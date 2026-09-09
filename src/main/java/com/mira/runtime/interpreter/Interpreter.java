@@ -146,12 +146,11 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
     }
 
     /**
-     * Wraps an already-initialized global environment instead of creating a
-     * fresh one - used to bind {@link #getInstance()} to a compiled program's
-     * own static {@code GLOBALS} field (see
-     * {@link #adoptAsActive(Environment)}), so native functions like
-     * {@code eval}/ {@code exec}/{@code importDynamic} operate on the
-     * environment the compiled program can actually see, instead of a
+     * Wraps an already-initialized global environment instead of creating a fresh
+     * one - used to bind {@link #getInstance()} to a compiled program's own static
+     * {@code GLOBALS} field (see {@link #adoptAsActive(Environment)}), so native
+     * functions like {@code eval}/ {@code exec}/{@code importDynamic} operate on
+     * the environment the compiled program can actually see, instead of a
      * disconnected throwaway one.
      */
     public Interpreter(Environment existingGlobalEnvironment) {
@@ -223,9 +222,11 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                     }
                     funcDecl.accept(this);
                 }
-                case EnumDecl enumDecl when !(globalEnvironment.getOrNull(enumDecl.getIdentifier()) instanceof Namespace) ->
+                case EnumDecl enumDecl when !(globalEnvironment
+                        .getOrNull(enumDecl.getIdentifier()) instanceof Namespace) ->
                     enumDecl.accept(this);
-                case VarDecl varDecl when varDecl.isConst() && !(globalEnvironment.getOrNull(varDecl.getName()) instanceof Namespace) ->
+                case VarDecl varDecl when varDecl.isConst()
+                        && !(globalEnvironment.getOrNull(varDecl.getName()) instanceof Namespace) ->
                     varDecl.accept(this);
                 default -> {
                 }
@@ -271,15 +272,11 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             Object lastResult = null;
 
             if (Flags.mainFunction) {
-                int mainArity = asts.stream()
-                        .filter(n -> n instanceof FuncDecl fd && "main".equals(fd.getName()))
-                        .mapToInt(n -> ((FuncDecl) n).getParameters().size())
-                        .findFirst().orElse(0);
+                int mainArity = asts.stream().filter(n -> n instanceof FuncDecl fd && "main".equals(fd.getName()))
+                        .mapToInt(n -> ((FuncDecl) n).getParameters().size()).findFirst().orElse(0);
                 Expression argsTuple = mainArity > 0 ? getArgsTuple(args != null ? args : new String[0]) : null;
-                return (T) new CallExpression(new DumbExpression(
-                        new Token(null, "main", 0, 0)),
-                        argsTuple == null ? List.of() : List.of(argsTuple)).
-                        accept(this);
+                return (T) new CallExpression(new DumbExpression(new Token(null, "main", 0, 0)),
+                        argsTuple == null ? List.of() : List.of(argsTuple)).accept(this);
             } else {
                 globalEnvironment.define("args", getArgsTuple(args));
                 for (Node ast : asts) {
@@ -287,10 +284,8 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                         continue;
                     }
                     lastResult = switch (ast) {
-                        case Expression expression ->
-                            expression.accept(this);
-                        case Statement statement ->
-                            statement.accept(this);
+                        case Expression expression -> expression.accept(this);
+                        case Statement statement -> statement.accept(this);
                         default -> {
                             throw new AssertionError();
                         }
@@ -312,17 +307,16 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             Object lastResult = null;
 
             if (Flags.mainFunction) {
-                return (T) new CallExpression(new DumbExpression(new Token(null, "main", 0, 0)), new ArrayList<>()).accept(this);
+                return (T) new CallExpression(new DumbExpression(new Token(null, "main", 0, 0)), new ArrayList<>())
+                        .accept(this);
             } else {
                 for (Node ast : asts) {
                     if (isHoisted(ast)) {
                         continue;
                     }
                     lastResult = switch (ast) {
-                        case Expression expression ->
-                            expression.accept(this);
-                        case Statement statement ->
-                            statement.accept(this);
+                        case Expression expression -> expression.accept(this);
+                        case Statement statement -> statement.accept(this);
                         default -> {
                             throw new AssertionError();
                         }
@@ -343,7 +337,8 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             Object lastResult = null;
 
             if (Flags.mainFunction) {
-                return (T) new CallExpression(new DumbExpression(new Token(null, "main", 0, 0)), new ArrayList<>()).accept(this);
+                return (T) new CallExpression(new DumbExpression(new Token(null, "main", 0, 0)), new ArrayList<>())
+                        .accept(this);
             } else {
                 List<ImportExpression> imports = new ArrayList<>();
                 for (Node ast : asts) {
@@ -359,10 +354,8 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                         continue;
                     }
                     lastResult = switch (ast) {
-                        case Expression expression ->
-                            expression.accept(this);
-                        case Statement statement ->
-                            statement.accept(this);
+                        case Expression expression -> expression.accept(this);
+                        case Statement statement -> statement.accept(this);
                         default -> {
                             throw new AssertionError();
                         }
@@ -391,12 +384,9 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         }
 
         switch (ast) {
-            case Expression expression ->
-                expression.accept(this);
-            case Statement statement ->
-                statement.accept(this);
-            default ->
-                throw new AssertionError();
+            case Expression expression -> expression.accept(this);
+            case Statement statement -> statement.accept(this);
+            default -> throw new AssertionError();
         }
 
         globalEnvironment = previousGlobal;
@@ -445,36 +435,23 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
     private String typeName(Object val) {
         return switch (val) {
-            case null ->
-                "null";
-            case com.mira.runtime.values.NullValue n ->
-                "null";
-            case Boolean b ->
-                "bool";
-            case Number n ->
-                "number";
-            case String s ->
-                "string";
-            case com.mira.runtime.functions.Promise p ->
-                "promise";
-            case Callable c ->
-                "fn";
-            case ListExpression l ->
-                "list";
-            case ArrayExpression a ->
-                "array";
-            case Expression.MapExpression m ->
-                "map";
-            case Environment e ->
-                "object";
-            default ->
-                val.getClass().getSimpleName();
+            case null -> "null";
+            case com.mira.runtime.values.NullValue n -> "null";
+            case Boolean b -> "bool";
+            case Number n -> "number";
+            case String s -> "string";
+            case com.mira.runtime.functions.Promise p -> "promise";
+            case Callable c -> "fn";
+            case ListExpression l -> "list";
+            case ArrayExpression a -> "array";
+            case Expression.MapExpression m -> "map";
+            case Environment e -> "object";
+            default -> val.getClass().getSimpleName();
         };
     }
 
     private String buildSignature(String name, com.mira.runtime.functions.Function f) {
-        String params = f.getParameters().stream()
-                .map(p -> "$" + p.name())
+        String params = f.getParameters().stream().map(p -> "$" + p.name())
                 .collect(java.util.stream.Collectors.joining(", "));
         return "fn " + name + "(" + params + ")";
     }
@@ -536,8 +513,8 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         if (value.equals("null")) {
             return (T) NullValue.INSTANCE;
         }
-        if (expression.getTokenType() == TokenType.EXPRESSION
-                && !value.isEmpty() && Character.isDigit(value.charAt(0))) {
+        if (expression.getTokenType() == TokenType.EXPRESSION && !value.isEmpty()
+                && Character.isDigit(value.charAt(0))) {
             try {
                 Number parsed = parseNumber(value);
                 expression.setCachedValue(parsed);
@@ -595,12 +572,9 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                     yield String.valueOf(left) + String.valueOf(right);
                 }
             }
-            case "-" ->
-                numericSub(left, right);
-            case "*" ->
-                numericMul(left, right);
-            case "**" ->
-                Math.pow(toNumber(left), toNumber(right));
+            case "-" -> numericSub(left, right);
+            case "*" -> numericMul(left, right);
+            case "**" -> Math.pow(toNumber(left), toNumber(right));
             case "/" -> {
                 double divisor = toNumber(right);
                 yield toNumber(left) / divisor;
@@ -617,31 +591,19 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                 }
                 yield Math.floor(toNumber(left) / toNumber(right));
             }
-            case "&" ->
-                (long) toNumber(left) & (long) toNumber(right);
-            case "|" ->
-                (long) toNumber(left) | (long) toNumber(right);
-            case "^" ->
-                (long) toNumber(left) ^ (long) toNumber(right);
-            case "<<" ->
-                (long) toNumber(left) << (long) toNumber(right);
-            case ">>" ->
-                (long) toNumber(left) >> (long) toNumber(right);
-            case "==" ->
-                evaluateComparison(left, "==", right);
-            case "!=" ->
-                evaluateComparison(left, "!=", right);
-            case "<" ->
-                evaluateComparison(left, "<", right);
-            case ">" ->
-                evaluateComparison(left, ">", right);
-            case "<=" ->
-                evaluateComparison(left, "<=", right);
-            case ">=" ->
-                evaluateComparison(left, ">=", right);
-            default ->
-                throw new UnknownOperatorError(op, typeName(left), typeName(right))
-                        .withLocation(expression.getOperator().getLine(), expression.getOperator().getColumn());
+            case "&" -> (long) toNumber(left) & (long) toNumber(right);
+            case "|" -> (long) toNumber(left) | (long) toNumber(right);
+            case "^" -> (long) toNumber(left) ^ (long) toNumber(right);
+            case "<<" -> (long) toNumber(left) << (long) toNumber(right);
+            case ">>" -> (long) toNumber(left) >> (long) toNumber(right);
+            case "==" -> evaluateComparison(left, "==", right);
+            case "!=" -> evaluateComparison(left, "!=", right);
+            case "<" -> evaluateComparison(left, "<", right);
+            case ">" -> evaluateComparison(left, ">", right);
+            case "<=" -> evaluateComparison(left, "<=", right);
+            case ">=" -> evaluateComparison(left, ">=", right);
+            default -> throw new UnknownOperatorError(op, typeName(left), typeName(right))
+                    .withLocation(expression.getOperator().getLine(), expression.getOperator().getColumn());
         };
     }
 
@@ -673,9 +635,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             }
 
             case "-" -> {
-                Object right = expression.getRight() != null
-                        ? expression.getRight().accept(this)
-                        : null;
+                Object right = expression.getRight() != null ? expression.getRight().accept(this) : null;
 
                 if (right == null) {
                     return (T) "-";
@@ -703,9 +663,8 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                 return (T) Long.valueOf(~(long) toNumber(right));
             }
 
-            default ->
-                throw new UnknownOperatorError(operator)
-                        .withLocation(expression.getOperation().getLine(), expression.getOperation().getColumn());
+            default -> throw new UnknownOperatorError(operator).withLocation(expression.getOperation().getLine(),
+                    expression.getOperation().getColumn());
         }
     }
 
@@ -720,11 +679,12 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             try {
                 numVal = parseNumber(String.valueOf(raw));
             } catch (NumberFormatException e) {
-                String description = target instanceof UnaryExpression varExpr && varExpr.getOperation().getLexeme().equals("$")
-                        ? (String) varExpr.getRight().accept(this)
-                        : target.toString();
-                throw new PostExprNaNError(description)
-                        .withLocation(expression.getOperation().getLine(), expression.getOperation().getColumn());
+                String description = target instanceof UnaryExpression varExpr
+                        && varExpr.getOperation().getLexeme().equals("$")
+                                ? (String) varExpr.getRight().accept(this)
+                                : target.toString();
+                throw new PostExprNaNError(description).withLocation(expression.getOperation().getLine(),
+                        expression.getOperation().getColumn());
             }
         }
         Object newValue = inc ? numericAdd(numVal, 1L) : numericSub(numVal, 1L);
@@ -791,8 +751,8 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         }
 
         if (!(callee instanceof Callable callable)) {
-            throw new NotCallableError(calleeName + " (got: " + typeName(callee) + ")")
-                    .withLocation(calleeLine, calleeCol);
+            throw new NotCallableError(calleeName + " (got: " + typeName(callee) + ")").withLocation(calleeLine,
+                    calleeCol);
         }
 
         List<Object> arguments = new ArrayList<>();
@@ -861,9 +821,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
     @Override
     public <T> T visitNamespaceCallExpr(NamespaceCallExpression expression) {
-        Object namespaceObj = localEnvironment != null
-                ? localEnvironment.getOrNull(expression.getAlias())
-                : null;
+        Object namespaceObj = localEnvironment != null ? localEnvironment.getOrNull(expression.getAlias()) : null;
         if (!(namespaceObj instanceof Namespace)) {
             namespaceObj = globalEnvironment.get(expression.getAlias());
         }
@@ -922,14 +880,8 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
     @Override
     public Void visitFuncDecl(FuncDecl funcDecl) {
         globalEnvironment.defineFunction(funcDecl.getName(),
-                new Function(localEnvironment,
-                        funcDecl.getBody(),
-                        funcDecl.getParameters(),
-                        funcDecl.getArity(),
-                        funcDecl.getMaxArity(),
-                        funcDecl.getVariadicParam(),
-                        funcDecl.isAsync(),
-                        globalEnvironment));
+                new Function(localEnvironment, funcDecl.getBody(), funcDecl.getParameters(), funcDecl.getArity(),
+                        funcDecl.getMaxArity(), funcDecl.getVariadicParam(), funcDecl.isAsync(), globalEnvironment));
 
         if (funcDecl.isPublic()) {
             globalEnvironment.markPublic(funcDecl.getName());
@@ -943,7 +895,8 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         Environment capturedEnv = localEnvironment != null
                 ? localEnvironment.snapshot(globalEnvironment)
                 : globalEnvironment;
-        return (T) new Function(capturedEnv, lambda.getBody(), lambda.getParameters(), lambda.getArity(), lambda.getMaxArity(), lambda.getVariadicParam(), lambda.isAsync(), globalEnvironment);
+        return (T) new Function(capturedEnv, lambda.getBody(), lambda.getParameters(), lambda.getArity(),
+                lambda.getMaxArity(), lambda.getVariadicParam(), lambda.isAsync(), globalEnvironment);
     }
 
     @Override
@@ -1000,12 +953,9 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                 default -> {
                     int i;
                     switch (object) {
-                        case String s ->
-                            i = Integer.parseInt(s);
-                        case Number n ->
-                            i = (int) n.longValue();
-                        default ->
-                            throw new AssertionError();
+                        case String s -> i = Integer.parseInt(s);
+                        case Number n -> i = (int) n.longValue();
+                        default -> throw new AssertionError();
                     }
                     switch (accessedObject) {
                         case ArrayExpression array -> {
@@ -1038,8 +988,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                                 accessedObject = NullValue.INSTANCE;
                             }
                         }
-                        default ->
-                            throw new NotIterableError();
+                        default -> throw new NotIterableError();
                     }
                 }
             }
@@ -1063,8 +1012,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             }
             int faLine = expression.getObject() instanceof UnaryExpression ue ? ue.getOperation().getLine() : -1;
             int faCol = expression.getObject() instanceof UnaryExpression ue2 ? ue2.getOperation().getColumn() : -1;
-            throw new FieldAccessError(expression.getField(), typeName(object))
-                    .withLocation(faLine, faCol);
+            throw new FieldAccessError(expression.getField(), typeName(object)).withLocation(faLine, faCol);
         }
 
         return (T) objectEnv.get(expression.getField());
@@ -1087,8 +1035,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         if (!(objectValue instanceof Environment objectEnv)) {
             int mcLine = expression.getObject() instanceof UnaryExpression ue ? ue.getOperation().getLine() : -1;
             int mcCol = expression.getObject() instanceof UnaryExpression ue2 ? ue2.getOperation().getColumn() : -1;
-            throw new FieldAccessError(expression.getMethod(), typeName(objectValue))
-                    .withLocation(mcLine, mcCol);
+            throw new FieldAccessError(expression.getMethod(), typeName(objectValue)).withLocation(mcLine, mcCol);
         }
 
         Object methodValue = objectEnv.get(expression.getMethod());
@@ -1163,9 +1110,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         Environment objectEnv = new Environment();
 
         for (VarDecl field : expression.getVarDecls()) {
-            Object value = field.getInitializer() != null
-                    ? field.getInitializer().accept(this)
-                    : null;
+            Object value = field.getInitializer() != null ? field.getInitializer().accept(this) : null;
 
             if (field.isConst()) {
                 objectEnv.defineConst(field.getName(), value);
@@ -1175,8 +1120,8 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         }
 
         for (FuncDecl method : expression.getMethods()) {
-            Function fn = new Function(objectEnv, method.getBody(), method.getParameters(),
-                    method.getArity(), method.getMaxArity(), method.getVariadicParam(), globalEnvironment);
+            Function fn = new Function(objectEnv, method.getBody(), method.getParameters(), method.getArity(),
+                    method.getMaxArity(), method.getVariadicParam(), globalEnvironment);
             objectEnv.define(method.getName(), fn);
         }
 
@@ -1192,9 +1137,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         Environment defaults = new Environment();
 
         for (VarDecl field : expression.getVarDecls()) {
-            Object value = field.getInitializer() != null
-                    ? field.getInitializer().accept(this)
-                    : null;
+            Object value = field.getInitializer() != null ? field.getInitializer().accept(this) : null;
 
             if (field.isConst()) {
                 defaults.defineConst(field.getName(), value);
@@ -1204,8 +1147,8 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         }
 
         for (FuncDecl method : expression.getMethods()) {
-            Function fn = new Function(defaults, method.getBody(), method.getParameters(),
-                    method.getArity(), method.getMaxArity(), method.getVariadicParam(), globalEnvironment);
+            Function fn = new Function(defaults, method.getBody(), method.getParameters(), method.getArity(),
+                    method.getMaxArity(), method.getVariadicParam(), globalEnvironment);
             defaults.define(method.getName(), fn);
         }
 
@@ -1222,8 +1165,8 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         Environment instanceEnv = template.getDefaults().copyShallow();
 
         for (FuncDecl method : template.getMethods()) {
-            Function fn = new Function(instanceEnv, method.getBody(), method.getParameters(),
-                    method.getArity(), method.getMaxArity(), method.getVariadicParam(), globalEnvironment);
+            Function fn = new Function(instanceEnv, method.getBody(), method.getParameters(), method.getArity(),
+                    method.getMaxArity(), method.getVariadicParam(), globalEnvironment);
             instanceEnv.forceDefine(method.getName(), fn);
         }
 
@@ -1324,8 +1267,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
     }
 
     private Number parseNumber(String s) {
-        if (s.length() > 1 && s.charAt(0) == '0'
-                && (s.charAt(1) == 'x' || s.charAt(1) == 'X')) {
+        if (s.length() > 1 && s.charAt(0) == '0' && (s.charAt(1) == 'x' || s.charAt(1) == 'X')) {
             return Long.parseLong(s, 2, s.length(), 16);
         }
         if (s.indexOf('.') >= 0 || s.indexOf('e') >= 0 || s.indexOf('E') >= 0) {
@@ -1417,10 +1359,8 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             }
 
             switch (operator) {
-                case "+", "-", "*", "/" ->
-                    builder.append(operator).append(right);
-                default ->
-                    throw new UnknownOperatorError("Unknown operator: " + operator);
+                case "+", "-", "*", "/" -> builder.append(operator).append(right);
+                default -> throw new UnknownOperatorError("Unknown operator: " + operator);
             }
 
             i++;
@@ -1433,30 +1373,20 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         if (leftObj instanceof Number ln && rightObj instanceof Number rn) {
             double l = ln.doubleValue(), r = rn.doubleValue();
             return switch (op) {
-                case "==" ->
-                    l == r;
-                case "!=" ->
-                    l != r;
-                case "<" ->
-                    l < r;
-                case ">" ->
-                    l > r;
-                case "<=" ->
-                    l <= r;
-                case ">=" ->
-                    l >= r;
-                default ->
-                    throw new UnknownOperatorError(op);
+                case "==" -> l == r;
+                case "!=" -> l != r;
+                case "<" -> l < r;
+                case ">" -> l > r;
+                case "<=" -> l <= r;
+                case ">=" -> l >= r;
+                default -> throw new UnknownOperatorError(op);
             };
         }
         if (leftObj instanceof Boolean lb && rightObj instanceof Boolean rb) {
             return switch (op) {
-                case "==" ->
-                    lb.equals(rb);
-                case "!=" ->
-                    !lb.equals(rb);
-                default ->
-                    throw new UnknownOperatorError(op);
+                case "==" -> lb.equals(rb);
+                case "!=" -> !lb.equals(rb);
+                default -> throw new UnknownOperatorError(op);
             };
         }
         String left = String.valueOf(leftObj);
@@ -1465,49 +1395,32 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             double l = Double.parseDouble(left);
             double r = Double.parseDouble(right);
             return switch (op) {
-                case "==" ->
-                    l == r;
-                case "!=" ->
-                    l != r;
-                case "<" ->
-                    l < r;
-                case ">" ->
-                    l > r;
-                case "<=" ->
-                    l <= r;
-                case ">=" ->
-                    l >= r;
-                default ->
-                    throw new UnknownOperatorError(op);
+                case "==" -> l == r;
+                case "!=" -> l != r;
+                case "<" -> l < r;
+                case ">" -> l > r;
+                case "<=" -> l <= r;
+                case ">=" -> l >= r;
+                default -> throw new UnknownOperatorError(op);
             };
         } catch (NumberFormatException e) {
             return switch (op) {
-                case "==" ->
-                    left.equals(right);
-                case "!=" ->
-                    !left.equals(right);
-                case "<" ->
-                    left.compareTo(right) < 0;
-                case ">" ->
-                    left.compareTo(right) > 0;
-                case "<=" ->
-                    left.compareTo(right) <= 0;
-                case ">=" ->
-                    left.compareTo(right) >= 0;
-                default ->
-                    throw new UnknownOperatorError(op);
+                case "==" -> left.equals(right);
+                case "!=" -> !left.equals(right);
+                case "<" -> left.compareTo(right) < 0;
+                case ">" -> left.compareTo(right) > 0;
+                case "<=" -> left.compareTo(right) <= 0;
+                case ">=" -> left.compareTo(right) >= 0;
+                default -> throw new UnknownOperatorError(op);
             };
         }
     }
 
     private boolean resolveBoolean(Object value) {
         return switch (value) {
-            case Boolean b ->
-                b;
-            case NullValue n ->
-                false;
-            case Number n ->
-                n.doubleValue() != 0;
+            case Boolean b -> b;
+            case NullValue n -> false;
+            case Number n -> n.doubleValue() != 0;
             case String s -> {
                 if (s.equals("true")) {
                     yield true;
@@ -1521,8 +1434,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                     throw new AssertionError("Cannot resolve boolean from string: " + s);
                 }
             }
-            default ->
-                throw new AssertionError("Cannot resolve boolean from: " + value.getClass());
+            default -> throw new AssertionError("Cannot resolve boolean from: " + value.getClass());
         };
     }
 
@@ -1575,12 +1487,9 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         notifyDebugger(stmt.line);
         Object value = stmt.getInitializer().accept(this);
         List<Expression> members = switch (value) {
-            case ListExpression l ->
-                l.getMembers();
-            case ArrayExpression a ->
-                a.getMembers();
-            default ->
-                throw new NotIterableError();
+            case ListExpression l -> l.getMembers();
+            case ArrayExpression a -> a.getMembers();
+            default -> throw new NotIterableError();
         };
         Environment env = localEnvironment == null ? globalEnvironment : localEnvironment;
         List<String> names = stmt.getNames();
@@ -1613,8 +1522,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
     public Object visitStaticAssert(StaticAssert stmt) {
         Object condition = stmt.getCondition().accept(this);
         if (!resolveLoopCondition(condition)) {
-            String msg = stmt.getMessage() != null
-                    ? String.valueOf(stmt.getMessage().accept(this)) : null;
+            String msg = stmt.getMessage() != null ? String.valueOf(stmt.getMessage().accept(this)) : null;
             throw new StaticAssertFailedError(msg, stmt.line, stmt.column);
         }
         return null;
@@ -1683,8 +1591,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                 case Number n -> {
                     i = (int) n.longValue();
                 }
-                default ->
-                    throw new AssertionError();
+                default -> throw new AssertionError();
             }
 
             switch (referencedObject) {
@@ -1695,12 +1602,9 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                         throw new IndexOutOfBoundsError(i, size);
                     }
                     referencedObject = switch (members.get(i)) {
-                        case ArrayExpression innerArray ->
-                            innerArray;
-                        case ListExpression innerList ->
-                            innerList;
-                        default ->
-                            throw new ImmutableCollectionError();
+                        case ArrayExpression innerArray -> innerArray;
+                        case ListExpression innerList -> innerList;
+                        default -> throw new ImmutableCollectionError();
                     };
                 }
                 case ListExpression list -> {
@@ -1710,14 +1614,11 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                         throw new IndexOutOfBoundsError(i, size);
                     }
                     referencedObject = switch (members.get(i)) {
-                        case ListExpression innerList ->
-                            innerList;
-                        default ->
-                            throw new ImmutableCollectionError();
+                        case ListExpression innerList -> innerList;
+                        default -> throw new ImmutableCollectionError();
                     };
                 }
-                default ->
-                    throw new AssertionError("Reference is not a type of collection!");
+                default -> throw new AssertionError("Reference is not a type of collection!");
             }
         }
 
@@ -1743,20 +1644,23 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                 switch (referencedObject) {
                     case ArrayExpression array -> {
                         Object lastIdx = accessExpression.getIndecies().getLast().accept(this);
-                        int arrayIdx = lastIdx instanceof Number n ? (int) n.longValue() : Integer.parseInt((String) lastIdx);
+                        int arrayIdx = lastIdx instanceof Number n
+                                ? (int) n.longValue()
+                                : Integer.parseInt((String) lastIdx);
                         array.getMembers().set(arrayIdx, assignment);
                     }
                     case ListExpression list -> {
                         Object lastIdx = accessExpression.getIndecies().getLast().accept(this);
-                        int listIdx = lastIdx instanceof Number n ? (int) n.longValue() : Integer.parseInt((String) lastIdx);
+                        int listIdx = lastIdx instanceof Number n
+                                ? (int) n.longValue()
+                                : Integer.parseInt((String) lastIdx);
                         list.getMembers().set(listIdx, assignment);
                     }
                     case MapExpression map -> {
                         String key = String.valueOf(accessExpression.getIndecies().getLast().accept(this));
                         map.getEntries().put(key, assignment);
                     }
-                    default ->
-                        throw new ImmutableCollectionError();
+                    default -> throw new ImmutableCollectionError();
                 }
             } else {
                 throw new ImmutableCollectionError();
@@ -1766,7 +1670,8 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         }
     }
 
-    private void assignToField(FieldAccessExpression fieldAccessExpression, java.util.function.Supplier<Object> valueSupplier) {
+    private void assignToField(FieldAccessExpression fieldAccessExpression,
+            java.util.function.Supplier<Object> valueSupplier) {
         Object object = fieldAccessExpression.getObject().accept(this);
         if (!(object instanceof Environment objectEnv)) {
             throw new FieldAccessError(fieldAccessExpression.getField());
@@ -1973,8 +1878,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                         }
                     }
                 }
-                default ->
-                    throw new NotIterableError();
+                default -> throw new NotIterableError();
             }
         } catch (BreakSignal breakSignal) {
             return null;
@@ -2090,8 +1994,7 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                     notifyDebugger(expression.line);
                     expression.accept(this);
                 }
-                case Statement statement ->
-                    statement.accept(this);
+                case Statement statement -> statement.accept(this);
                 default -> {
                     throw new AssertionError();
                 }
@@ -2123,12 +2026,9 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
     private boolean resolveLoopCondition(Object condition) {
         return switch (condition) {
-            case Boolean b ->
-                b;
-            case NullValue n ->
-                false;
-            case Number n ->
-                n.doubleValue() != 0;
+            case Boolean b -> b;
+            case NullValue n -> false;
+            case Number n -> n.doubleValue() != 0;
             case String s -> {
                 if (s.equals("true")) {
                     yield true;
@@ -2142,15 +2042,12 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                     throw new AssertionError("Cannot resolve loop condition from string: " + s);
                 }
             }
-            default ->
-                throw new AssertionError("Unexpected condition type: " + condition.getClass());
+            default -> throw new AssertionError("Unexpected condition type: " + condition.getClass());
         };
     }
 
     private boolean isHoisted(Node ast) {
-        return ast instanceof FuncDecl
-                || ast instanceof EnumDecl
-                || (ast instanceof VarDecl vd && vd.isConst())
+        return ast instanceof FuncDecl || ast instanceof EnumDecl || (ast instanceof VarDecl vd && vd.isConst())
                 || ast instanceof ComptimeBlock;
     }
 
@@ -2158,30 +2055,18 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
     public <T> T visitTypeofExpr(TypeofExpression expression) {
         Object val = expression.getExpr().accept(this);
         return (T) switch (val) {
-            case null ->
-                "null";
-            case NullValue n ->
-                "null";
-            case Boolean b ->
-                "bool";
-            case Number n ->
-                "number";
-            case String s ->
-                "string";
-            case Promise p ->
-                "promise";
-            case Callable c ->
-                "fn";
-            case ListExpression l ->
-                "list";
-            case ArrayExpression a ->
-                "array";
-            case MapExpression m ->
-                "map";
-            case Environment e ->
-                "object";
-            default ->
-                "unknown";
+            case null -> "null";
+            case NullValue n -> "null";
+            case Boolean b -> "bool";
+            case Number n -> "number";
+            case String s -> "string";
+            case Promise p -> "promise";
+            case Callable c -> "fn";
+            case ListExpression l -> "list";
+            case ArrayExpression a -> "array";
+            case MapExpression m -> "map";
+            case Environment e -> "object";
+            default -> "unknown";
         };
     }
 

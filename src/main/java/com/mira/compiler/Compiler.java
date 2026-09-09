@@ -44,7 +44,8 @@ import com.mira.runtime.interpreter.ImportResolver;
 
 public class Compiler {
 
-    public record CompileResult(byte[] mainClass, Map<String, byte[]> lambdaClasses, String className, Map<String, byte[]> nativeJars) {
+    public record CompileResult(byte[] mainClass, Map<String, byte[]> lambdaClasses, String className,
+            Map<String, byte[]> nativeJars) {
 
     }
 
@@ -64,13 +65,11 @@ public class Compiler {
             new ComptimeExecutor().execute(ast);
         }
         if (Flags.verbose) {
-            System.out.println(DiagnosticFormatter.formatInfo(
-                    "comptime execution: " + (System.currentTimeMillis() - comptimeStart) + " ms"));
+            System.out.println(DiagnosticFormatter
+                    .formatInfo("comptime execution: " + (System.currentTimeMillis() - comptimeStart) + " ms"));
         }
         String className = toClassName(scriptName);
-        String moduleName = !ast.isEmpty() && ast.get(0) instanceof ModuleDecl md
-                ? md.getModuleName()
-                : "<script>";
+        String moduleName = !ast.isEmpty() && ast.get(0) instanceof ModuleDecl md ? md.getModuleName() : "<script>";
         ClassEmitter ce = new ClassEmitter(className);
         int[] lambdaCounter = {0};
 
@@ -91,9 +90,8 @@ public class Compiler {
         long moduleImportStart = System.currentTimeMillis();
         Map<String, String> compiledModules = compileModuleImports(ast, extras, nativeJars);
         if (Flags.verbose) {
-            System.out.println(DiagnosticFormatter.formatInfo(
-                    "compiled " + compiledModules.size() + " module import(s): "
-                    + (System.currentTimeMillis() - moduleImportStart) + " ms"));
+            System.out.println(DiagnosticFormatter.formatInfo("compiled " + compiledModules.size()
+                    + " module import(s): " + (System.currentTimeMillis() - moduleImportStart) + " ms"));
         }
 
         Path ip = Flags.inputPath.get();
@@ -131,7 +129,8 @@ public class Compiler {
         return new CompileResult(mainBytes, extras, className, nativeJars);
     }
 
-    private Map<String, String> compileModuleImports(List<Node> ast, Map<String, byte[]> extras, Map<String, byte[]> nativeJars) {
+    private Map<String, String> compileModuleImports(List<Node> ast, Map<String, byte[]> extras,
+            Map<String, byte[]> nativeJars) {
         Map<String, String> result = new HashMap<>();
         for (Node node : ast) {
             if (!(node instanceof ImportExpression ie)) {
@@ -151,8 +150,7 @@ public class Compiler {
             }
             try {
                 String source = Files.readString(modulePath);
-                List<Node> moduleAst = new Parser().parseTokens(
-                        new Tokenizer().tokenize(source, false));
+                List<Node> moduleAst = new Parser().parseTokens(new Tokenizer().tokenize(source, false));
 
                 String fileName = modulePath.getFileName().toString();
                 if (moduleAst.isEmpty() || !(moduleAst.getFirst() instanceof ModuleDecl)) {
@@ -161,8 +159,7 @@ public class Compiler {
 
                 Path prev = Flags.inputPath.get();
                 Flags.inputPath.set(modulePath);
-                CompileResult r = new Compiler().compile(moduleAst,
-                        modulePath.getFileName().toString());
+                CompileResult r = new Compiler().compile(moduleAst, modulePath.getFileName().toString());
                 Flags.inputPath.set(prev);
                 extras.put(r.className(), r.mainClass());
                 extras.putAll(r.lambdaClasses());
@@ -182,13 +179,11 @@ public class Compiler {
         mv.visitTypeInsn(NEW, ENV);
         mv.visitInsn(DUP);
         mv.visitInsn(org.objectweb.asm.Opcodes.ACONST_NULL);
-        mv.visitMethodInsn(INVOKESPECIAL, ENV, "<init>",
-                "(L" + ENV + ";)V", false);
+        mv.visitMethodInsn(INVOKESPECIAL, ENV, "<init>", "(L" + ENV + ";)V", false);
         mv.visitFieldInsn(PUTSTATIC, className, "GLOBALS", ENV_D);
 
         mv.visitFieldInsn(org.objectweb.asm.Opcodes.GETSTATIC, className, "GLOBALS", ENV_D);
-        mv.visitMethodInsn(INVOKESTATIC, IMPORT_RESOLVER, "loadInternal",
-                "(" + ENV_D + ")V", false);
+        mv.visitMethodInsn(INVOKESTATIC, IMPORT_RESOLVER, "loadInternal", "(" + ENV_D + ")V", false);
 
         for (Node node : ast) {
             if (node instanceof Expression.ImportExpression ie) {
@@ -205,8 +200,7 @@ public class Compiler {
                     if (!candidate.isAbsolute()) {
                         Path ip = Flags.inputPath.get();
                         if (ip != null) {
-                            moduleArg = ip.toAbsolutePath().getParent()
-                                    .resolve(candidate).normalize().toString();
+                            moduleArg = ip.toAbsolutePath().getParent().resolve(candidate).normalize().toString();
                         }
                     }
                 }
@@ -247,8 +241,7 @@ public class Compiler {
                 mv.visitInsn(DUP);
                 emitIntConst(mv, fd.getArity());
                 mv.visitMethodInsn(INVOKESPECIAL, visibleClass, "<init>", "(I)V", false);
-                mv.visitMethodInsn(INVOKEVIRTUAL, ENV, "define",
-                        "(Ljava/lang/String;" + OBJ_D + ")V", false);
+                mv.visitMethodInsn(INVOKEVIRTUAL, ENV, "define", "(Ljava/lang/String;" + OBJ_D + ")V", false);
             }
         }
 
@@ -260,15 +253,13 @@ public class Compiler {
         mv.visitEnd();
     }
 
-    private void emitMain(ClassEmitter ce, String className,
-            Set<String> knownFunctions, int[] lambdaCounter, List<Node> ast,
-            Map<String, String> compiledModules, String moduleName) {
+    private void emitMain(ClassEmitter ce, String className, Set<String> knownFunctions, int[] lambdaCounter,
+            List<Node> ast, Map<String, String> compiledModules, String moduleName) {
         MethodVisitor mv = ce.openMain();
         mv.visitCode();
 
         LocalSlotTable slots = new LocalSlotTable(1);
-        CompilerContext ctx = new CompilerContext(className, mv, slots,
-                knownFunctions, lambdaCounter, true);
+        CompilerContext ctx = new CompilerContext(className, mv, slots, knownFunctions, lambdaCounter, true);
         ctx.moduleName = moduleName;
         ctx.functionName = "<script>";
         MethodEmitter emitter = new MethodEmitter(ctx, ce);
@@ -297,18 +288,16 @@ public class Compiler {
         }
 
         for (Node node : ast) {
-            if (node instanceof FuncDecl || node instanceof ModuleDecl
-                    || node instanceof Expression.ImportExpression || node instanceof EnumDecl) {
+            if (node instanceof FuncDecl || node instanceof ModuleDecl || node instanceof Expression.ImportExpression
+                    || node instanceof EnumDecl) {
                 continue;
             }
             emitter.emitNode(node);
         }
 
         if (Flags.mainFunction && knownFunctions.contains("main")) {
-            int mainArity = ast.stream()
-                    .filter(n -> n instanceof FuncDecl fd && "main".equals(fd.getName()))
-                    .mapToInt(n -> ((FuncDecl) n).getParameters().size())
-                    .findFirst().orElse(0);
+            int mainArity = ast.stream().filter(n -> n instanceof FuncDecl fd && "main".equals(fd.getName()))
+                    .mapToInt(n -> ((FuncDecl) n).getParameters().size()).findFirst().orElse(0);
 
             if (mainArity > 0) {
                 mv.visitInsn(org.objectweb.asm.Opcodes.ICONST_1);
@@ -331,9 +320,8 @@ public class Compiler {
         mv.visitEnd();
     }
 
-    private void emitTopLevelFunction(ClassEmitter ce, String className,
-            Set<String> knownFunctions, int[] lambdaCounter, FuncDecl fd, Set<String> pureFunctions,
-            String moduleName) {
+    private void emitTopLevelFunction(ClassEmitter ce, String className, Set<String> knownFunctions,
+            int[] lambdaCounter, FuncDecl fd, Set<String> pureFunctions, String moduleName) {
         boolean isPure = pureFunctions.contains(fd.getName()) && !fd.isAsync();
         String implName = isPure ? "mira$" + fd.getName() + "$impl" : "mira$" + fd.getName();
 
@@ -343,8 +331,8 @@ public class Compiler {
         ByteCountingMV mv = new com.mira.compiler.ByteCountingMV(rawMv, instrBytes);
 
         LocalSlotTable slots = new LocalSlotTable(1);
-        CompilerContext ctx = new CompilerContext(className, mv, slots,
-                knownFunctions, lambdaCounter, false, instrBytes);
+        CompilerContext ctx = new CompilerContext(className, mv, slots, knownFunctions, lambdaCounter, false,
+                instrBytes);
         ctx.moduleName = moduleName;
         ctx.functionName = fd.getName();
         MethodEmitter emitter = new MethodEmitter(ctx, ce);
@@ -383,8 +371,7 @@ public class Compiler {
             int slot = slots.allocate(fd.getVariadicParam());
             mv.visitVarInsn(ALOAD, 0);
             emitIntConst(mv, params.size());
-            mv.visitMethodInsn(INVOKESTATIC, RT, "variadicTail",
-                    "([" + OBJ_D + "I)" + OBJ_D, false);
+            mv.visitMethodInsn(INVOKESTATIC, RT, "variadicTail", "([" + OBJ_D + "I)" + OBJ_D, false);
             mv.visitVarInsn(ASTORE, slot);
         }
 
@@ -412,8 +399,8 @@ public class Compiler {
 
         mv.visitFieldInsn(GETSTATIC, className, "CACHE$" + funcName, CACHE_DESC);
         mv.visitVarInsn(ALOAD, 0);
-        mv.visitMethodInsn(INVOKESTATIC, RT, "cacheGet",
-                "(" + CACHE_DESC + "[Ljava/lang/Object;)Ljava/lang/Object;", false);
+        mv.visitMethodInsn(INVOKESTATIC, RT, "cacheGet", "(" + CACHE_DESC + "[Ljava/lang/Object;)Ljava/lang/Object;",
+                false);
         mv.visitVarInsn(ASTORE, 1);
 
         mv.visitVarInsn(ALOAD, 1);
@@ -431,8 +418,8 @@ public class Compiler {
         mv.visitFieldInsn(GETSTATIC, className, "CACHE$" + funcName, CACHE_DESC);
         mv.visitVarInsn(ALOAD, 0);
         mv.visitVarInsn(ALOAD, 2);
-        mv.visitMethodInsn(INVOKESTATIC, RT, "cachePut",
-                "(" + CACHE_DESC + "[Ljava/lang/Object;Ljava/lang/Object;)V", false);
+        mv.visitMethodInsn(INVOKESTATIC, RT, "cachePut", "(" + CACHE_DESC + "[Ljava/lang/Object;Ljava/lang/Object;)V",
+                false);
 
         mv.visitVarInsn(ALOAD, 2);
         mv.visitInsn(ARETURN);

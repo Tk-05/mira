@@ -15,10 +15,14 @@ public class ComplexExpressionTest extends AbstractComplexExpressionTests {
     private final InterpreterRunner backend = new InterpreterRunner();
 
     @BeforeEach
-    void setup() { backend.reset(); }
+    void setup() {
+        backend.reset();
+    }
 
     @Override
-    protected String runForOutput(String source) { return backend.run(source); }
+    protected String runForOutput(String source) {
+        return backend.run(source);
+    }
 
     private static double evalD(String expr) {
         return ((Number) Evaluator.evaluate(expr, false)).doubleValue();

@@ -101,11 +101,11 @@ public class Url implements Lib {
             }
         }));
 
-        environment.define("encode", new NativeFunction(1, "str", args
-                -> URLEncoder.encode(String.valueOf(args.get(0)), StandardCharsets.UTF_8)));
+        environment.define("encode", new NativeFunction(1, "str",
+                args -> URLEncoder.encode(String.valueOf(args.get(0)), StandardCharsets.UTF_8)));
 
-        environment.define("decode", new NativeFunction(1, "str", args
-                -> URLDecoder.decode(String.valueOf(args.get(0)), StandardCharsets.UTF_8)));
+        environment.define("decode", new NativeFunction(1, "str",
+                args -> URLDecoder.decode(String.valueOf(args.get(0)), StandardCharsets.UTF_8)));
 
         environment.define("isValid", new NativeFunction(1, "str", args -> {
             try {

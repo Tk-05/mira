@@ -11,8 +11,7 @@ public class LexerError extends MiraError {
     public static class UnterminatedStringError extends LexerError {
 
         public UnterminatedStringError(int line, int column) {
-            super("E001", "Unterminated string literal", line, column,
-                    "Add a closing '\"' to end the string");
+            super("E001", "Unterminated string literal", line, column, "Add a closing '\"' to end the string");
         }
     }
 

@@ -16,10 +16,14 @@ public class LambdaExpressionTest extends AbstractLambdaExpressionTests {
     private final InterpreterRunner backend = new InterpreterRunner();
 
     @BeforeEach
-    void setup() { backend.reset(); }
+    void setup() {
+        backend.reset();
+    }
 
     @Override
-    protected String runForOutput(String source) { return backend.run(source); }
+    protected String runForOutput(String source) {
+        return backend.run(source);
+    }
 
     @Test
     void lambdaAssignedToVariableIsFunction() {
@@ -63,7 +67,7 @@ public class LambdaExpressionTest extends AbstractLambdaExpressionTests {
 
     @Test
     void constLambda() {
-        assertEquals(4.0, InterpreterRunner.normNum(backend.runAndGetValue(
-                "const square : fn(x) { return (x * x); }; (square(2));")));
+        assertEquals(4.0, InterpreterRunner
+                .normNum(backend.runAndGetValue("const square : fn(x) { return (x * x); }; (square(2));")));
     }
 }

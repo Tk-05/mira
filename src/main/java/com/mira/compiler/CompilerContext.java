@@ -29,13 +29,15 @@ public class CompilerContext {
     public int[] instrBytes = {0};
     public boolean isPartialExtract = false;
 
-    // Compile-time constants embedded into profilerLine(...) calls (see MethodEmitter).
-    // Nested contexts (lambdas, split continuations) inherit these from their parent.
+    // Compile-time constants embedded into profilerLine(...) calls (see
+    // MethodEmitter).
+    // Nested contexts (lambdas, split continuations) inherit these from their
+    // parent.
     public String moduleName = "<script>";
     public String functionName = "<script>";
 
-    public CompilerContext(String className, MethodVisitor mv, LocalSlotTable slots,
-            Set<String> knownFunctions, int[] lambdaCounter, boolean isTopLevel) {
+    public CompilerContext(String className, MethodVisitor mv, LocalSlotTable slots, Set<String> knownFunctions,
+            int[] lambdaCounter, boolean isTopLevel) {
         this.className = className;
         this.mv = mv;
         this.slots = slots;
@@ -44,9 +46,8 @@ public class CompilerContext {
         this.isTopLevel = isTopLevel;
     }
 
-    public CompilerContext(String className, MethodVisitor mv, LocalSlotTable slots,
-            Set<String> knownFunctions, int[] lambdaCounter, boolean isTopLevel,
-            int[] instrBytes) {
+    public CompilerContext(String className, MethodVisitor mv, LocalSlotTable slots, Set<String> knownFunctions,
+            int[] lambdaCounter, boolean isTopLevel, int[] instrBytes) {
         this(className, mv, slots, knownFunctions, lambdaCounter, isTopLevel);
         this.instrBytes = instrBytes;
     }

@@ -50,8 +50,7 @@ public final class AstWalker {
 
     public static void children(Node node, Deque<Node> queue) {
         switch (node) {
-            case FuncDecl s ->
-                queue.addAll(s.getBody());
+            case FuncDecl s -> queue.addAll(s.getBody());
             case VarDecl s -> {
                 if (s.getInitializer() != null) {
                     queue.add(s.getInitializer());
@@ -97,8 +96,7 @@ public final class AstWalker {
                 }
                 queue.addAll(s.getBody());
             }
-            case Block s ->
-                queue.addAll(s.getBody());
+            case Block s -> queue.addAll(s.getBody());
             case Switch s -> {
                 queue.add(s.getSubject());
                 for (Switch.SwitchCase sc : s.getCases()) {
@@ -122,8 +120,7 @@ public final class AstWalker {
                 queue.add(s.getMutex());
                 queue.addAll(s.getBody());
             }
-            case ComptimeBlock s ->
-                queue.addAll(s.getBody());
+            case ComptimeBlock s -> queue.addAll(s.getBody());
             case VarDestructure s -> {
                 if (s.getInitializer() != null) {
                     queue.add(s.getInitializer());
@@ -160,24 +157,19 @@ public final class AstWalker {
                 queue.add(e.getReference());
                 queue.add(e.getValue());
             }
-            case ComplexExpression e ->
-                queue.addAll(e.getExpressions());
+            case ComplexExpression e -> queue.addAll(e.getExpressions());
             case CallExpression e -> {
                 queue.add(e.getCallee());
                 queue.addAll(e.getArguments());
             }
-            case ArrayExpression e ->
-                queue.addAll(e.getMembers());
+            case ArrayExpression e -> queue.addAll(e.getMembers());
             case AccessExpression e -> {
                 queue.add(e.getReference());
                 queue.addAll(e.getIndecies());
             }
-            case ListExpression e ->
-                queue.addAll(e.getMembers());
-            case MapExpression e ->
-                queue.addAll(e.getEntries().values());
-            case NamespaceCallExpression e ->
-                queue.addAll(e.getArguments());
+            case ListExpression e -> queue.addAll(e.getMembers());
+            case MapExpression e -> queue.addAll(e.getEntries().values());
+            case NamespaceCallExpression e -> queue.addAll(e.getArguments());
             case RangeExpression e -> {
                 if (e.getStart() != null) {
                     queue.add(e.getStart());
@@ -189,8 +181,7 @@ public final class AstWalker {
                     queue.add(e.getStepsize());
                 }
             }
-            case FieldAccessExpression e ->
-                queue.add(e.getObject());
+            case FieldAccessExpression e -> queue.add(e.getObject());
             case MethodCallExpression e -> {
                 queue.add(e.getObject());
                 queue.addAll(e.getArguments());
@@ -204,10 +195,8 @@ public final class AstWalker {
                 queue.add(e.getThenExpr());
                 queue.add(e.getElseExpr());
             }
-            case AwaitExpression e ->
-                queue.add(e.getExpr());
-            case TypeofExpression e ->
-                queue.add(e.getExpr());
+            case AwaitExpression e -> queue.add(e.getExpr());
+            case TypeofExpression e -> queue.add(e.getExpr());
             case SwitchExpression e -> {
                 queue.add(e.getSubject());
                 for (SwitchExpression.SwitchExprCase sc : e.getCases()) {
@@ -218,10 +207,8 @@ public final class AstWalker {
                     queue.add(e.getDefaultExpr());
                 }
             }
-            case LambdaExpression e ->
-                queue.addAll(e.getBody());
-            case ExecBlock e ->
-                queue.addAll(e.getBody());
+            case LambdaExpression e -> queue.addAll(e.getBody());
+            case ExecBlock e -> queue.addAll(e.getBody());
             case ThrownException e -> {
                 if (e.getValue() != null) {
                     queue.add(e.getValue());

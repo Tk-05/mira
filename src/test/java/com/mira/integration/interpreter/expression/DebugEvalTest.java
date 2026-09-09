@@ -12,10 +12,14 @@ public class DebugEvalTest extends AbstractDebugEvalTests {
     private final InterpreterRunner backend = new InterpreterRunner();
 
     @BeforeEach
-    void setup() { backend.reset(); }
+    void setup() {
+        backend.reset();
+    }
 
     @Override
-    protected String runForOutput(String source) { return backend.run(source); }
+    protected String runForOutput(String source) {
+        return backend.run(source);
+    }
 
     @Test
     void evalTopLevelValue() {
@@ -24,7 +28,7 @@ public class DebugEvalTest extends AbstractDebugEvalTests {
 
     @Test
     void evalInFunctionValue() {
-        assertEquals(7.0, InterpreterRunner.normNum(backend.runAndGetValue(
-                "fn add(a, b) { return (a + b); } add(3, 4);")));
+        assertEquals(7.0,
+                InterpreterRunner.normNum(backend.runAndGetValue("fn add(a, b) { return (a + b); } add(3, 4);")));
     }
 }

@@ -146,7 +146,8 @@ public class HotReloader {
         return files;
     }
 
-    private void registerDirs(WatchService watchService, Set<Path> files, Map<WatchKey, Path> keyToDir) throws IOException {
+    private void registerDirs(WatchService watchService, Set<Path> files, Map<WatchKey, Path> keyToDir)
+            throws IOException {
         Set<Path> dirs = new HashSet<>();
         for (Path f : files) {
             Path parent = f.getParent();
@@ -155,8 +156,7 @@ public class HotReloader {
             }
         }
         for (Path dir : dirs) {
-            WatchKey key = dir.register(watchService,
-                    StandardWatchEventKinds.ENTRY_MODIFY,
+            WatchKey key = dir.register(watchService, StandardWatchEventKinds.ENTRY_MODIFY,
                     StandardWatchEventKinds.ENTRY_CREATE);
             keyToDir.put(key, dir);
         }

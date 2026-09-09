@@ -26,8 +26,8 @@ public class Term implements Lib {
         environment.define("italic", new NativeFunction(1, "text", args -> ansi(3, String.valueOf(args.get(0)))));
         environment.define("underline", new NativeFunction(1, "text", args -> ansi(4, String.valueOf(args.get(0)))));
 
-        environment.define("stripAnsi", new NativeFunction(1, "text", args
-                -> String.valueOf(args.get(0)).replaceAll("\033\\[[0-9;]*m", "")));
+        environment.define("stripAnsi",
+                new NativeFunction(1, "text", args -> String.valueOf(args.get(0)).replaceAll("\033\\[[0-9;]*m", "")));
 
         environment.define("clear", new NativeFunction(0, args -> "\033[2J\033[H"));
     }

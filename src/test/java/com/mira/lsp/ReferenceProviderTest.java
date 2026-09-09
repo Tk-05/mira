@@ -33,8 +33,8 @@ public class ReferenceProviderTest {
                 """;
         List<Node> ast = parse(source);
         Position pos = new Position(1, 9);
-        List<Location> refs = ReferenceProvider.provide(ast, source, pos, "file:///test.mira",
-                null, new WorkspaceIndex(), null, Map.of(), true);
+        List<Location> refs = ReferenceProvider.provide(ast, source, pos, "file:///test.mira", null,
+                new WorkspaceIndex(), null, Map.of(), true);
         assertEquals(2, refs.size());
     }
 
@@ -50,8 +50,8 @@ public class ReferenceProviderTest {
                 """;
         List<Node> ast = parse(source);
         Position pos = new Position(0, 4);
-        List<Location> refs = ReferenceProvider.provide(ast, source, pos, "file:///test.mira",
-                null, new WorkspaceIndex(), null, Map.of(), true);
+        List<Location> refs = ReferenceProvider.provide(ast, source, pos, "file:///test.mira", null,
+                new WorkspaceIndex(), null, Map.of(), true);
         assertEquals(2, refs.size());
     }
 
@@ -75,8 +75,8 @@ public class ReferenceProviderTest {
         WorkspaceIndex index = new WorkspaceIndex();
         Position pos = new Position(0, 8);
         String libUri = libPath.toUri().toString();
-        List<Location> refs = ReferenceProvider.provide(libAst, Files.readString(libPath), pos, libUri,
-                libPath, index, tempDir, Map.of(), true);
+        List<Location> refs = ReferenceProvider.provide(libAst, Files.readString(libPath), pos, libUri, libPath, index,
+                tempDir, Map.of(), true);
 
         assertEquals(2, refs.size());
         assertTrue(refs.stream().anyMatch(l -> l.getUri().equals(libUri)));
@@ -103,8 +103,8 @@ public class ReferenceProviderTest {
         WorkspaceIndex index = new WorkspaceIndex();
         Position pos = new Position(0, 8);
         String libUri = libPath.toUri().toString();
-        List<Location> refs = ReferenceProvider.provide(libAst, Files.readString(libPath), pos, libUri,
-                libPath, index, tempDir, Map.of(), true);
+        List<Location> refs = ReferenceProvider.provide(libAst, Files.readString(libPath), pos, libUri, libPath, index,
+                tempDir, Map.of(), true);
 
         assertEquals(2, refs.size());
         assertTrue(refs.stream().anyMatch(l -> l.getUri().equals(libUri)));
@@ -125,8 +125,8 @@ public class ReferenceProviderTest {
                 """;
         List<Node> ast = parse(source);
         Position pos = new Position(6, 17); // "size" in "obj.size" (a real field access)
-        List<Location> refs = ReferenceProvider.provide(ast, source, pos, "file:///test.mira",
-                null, new WorkspaceIndex(), null, Map.of(), false);
+        List<Location> refs = ReferenceProvider.provide(ast, source, pos, "file:///test.mira", null,
+                new WorkspaceIndex(), null, Map.of(), false);
         assertEquals(1, refs.size());
         assertEquals(6, refs.get(0).getRange().getStart().getLine());
     }

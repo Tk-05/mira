@@ -91,7 +91,8 @@ public class NetLibTest {
             }
 
             @Override
-            public <T> CompletableFuture<HttpResponse<T>> sendAsync(HttpRequest r, BodyHandler<T> h, PushPromiseHandler<T> p) {
+            public <T> CompletableFuture<HttpResponse<T>> sendAsync(HttpRequest r, BodyHandler<T> h,
+                    PushPromiseHandler<T> p) {
                 throw new UnsupportedOperationException();
             }
 
@@ -163,7 +164,8 @@ public class NetLibTest {
             }
 
             @Override
-            public <T> CompletableFuture<HttpResponse<T>> sendAsync(HttpRequest r, BodyHandler<T> h, PushPromiseHandler<T> p) {
+            public <T> CompletableFuture<HttpResponse<T>> sendAsync(HttpRequest r, BodyHandler<T> h,
+                    PushPromiseHandler<T> p) {
                 throw new UnsupportedOperationException();
             }
 
@@ -275,13 +277,15 @@ public class NetLibTest {
     @Test
     void testPostWithFormContentType() {
         Environment env = setup(mockClient("accepted", 200));
-        assertEquals("accepted", call(env, "httpPost", "http://example.com", "a=1&b=2", "application/x-www-form-urlencoded"));
+        assertEquals("accepted",
+                call(env, "httpPost", "http://example.com", "a=1&b=2", "application/x-www-form-urlencoded"));
     }
 
     @Test
     void testPostThrowsOnIOException() {
         Environment env = setup(failingClient());
-        assertThrows(RuntimeException.class, () -> call(env, "httpPost", "http://example.com", "{}", "application/json"));
+        assertThrows(RuntimeException.class,
+                () -> call(env, "httpPost", "http://example.com", "{}", "application/json"));
     }
 
     @Test
@@ -328,10 +332,8 @@ public class NetLibTest {
 
     @Test
     void testGetHeaderMultipleHeaders() {
-        Environment env = setup(mockClient("ok", 200, Map.of(
-                "content-type", List.of("text/html"),
-                "x-powered-by", List.of("mira")
-        )));
+        Environment env = setup(
+                mockClient("ok", 200, Map.of("content-type", List.of("text/html"), "x-powered-by", List.of("mira"))));
         assertEquals("text/html", call(env, "httpHeader", "http://example.com", "content-type"));
         assertEquals("mira", call(env, "httpHeader", "http://example.com", "x-powered-by"));
     }
@@ -354,7 +356,8 @@ public class NetLibTest {
     @Test
     void testDownloadThrowsOnIOException() {
         Environment env = setup(failingClient());
-        assertThrows(RuntimeException.class, () -> call(env, "httpDownload", "http://example.com/file.txt", "/tmp/mira-test.txt"));
+        assertThrows(RuntimeException.class,
+                () -> call(env, "httpDownload", "http://example.com/file.txt", "/tmp/mira-test.txt"));
     }
 
     @Test

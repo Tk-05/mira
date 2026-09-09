@@ -58,33 +58,25 @@ public class ModuleVisibilityStaticCheckTest {
 
     @Test
     void importingPrivateSymbolProducesE318() {
-        List<MiraError> errors = errorsFor(
-                "import module \"mymod.mira\" {secret};",
-                mainPath());
+        List<MiraError> errors = errorsFor("import module \"mymod.mira\" {secret};", mainPath());
         assertTrue(hasCode(errors, "E318"), "Expected E318 for private symbol import");
     }
 
     @Test
     void importingPrivateSymbolWithAliasProducesE318() {
-        List<MiraError> errors = errorsFor(
-                "import module \"mymod.mira\" {secret} as m;",
-                mainPath());
+        List<MiraError> errors = errorsFor("import module \"mymod.mira\" {secret} as m;", mainPath());
         assertTrue(hasCode(errors, "E318"), "Expected E318 for aliased private symbol import");
     }
 
     @Test
     void importingUnknownSymbolProducesE319() {
-        List<MiraError> errors = errorsFor(
-                "import module \"mymod.mira\" {doesNotExist};",
-                mainPath());
+        List<MiraError> errors = errorsFor("import module \"mymod.mira\" {doesNotExist};", mainPath());
         assertTrue(hasCode(errors, "E319"), "Expected E319 for unknown symbol import");
     }
 
     @Test
     void importingMultipleUnknownSymbolsProducesMultipleE319() {
-        List<MiraError> errors = errorsFor(
-                "import module \"mymod.mira\" {alpha, beta};",
-                mainPath());
+        List<MiraError> errors = errorsFor("import module \"mymod.mira\" {alpha, beta};", mainPath());
         long count = errors.stream().filter(e -> "E319".equals(e.getErrorCode())).count();
         assertTrue(count >= 2, "Expected at least 2 E319 errors for two unknown symbols");
     }
@@ -107,8 +99,8 @@ public class ModuleVisibilityStaticCheckTest {
     @Test
     void nonExistentModuleDoesNotCrashStaticCheck() {
         assertDoesNotThrow(() -> {
-            List<Node> ast = new Parser().parseTokens(
-                    new Tokenizer().tokenize("module Main; import module \"ghost.mira\" {foo};", false));
+            List<Node> ast = new Parser()
+                    .parseTokens(new Tokenizer().tokenize("module Main; import module \"ghost.mira\" {foo};", false));
             new StaticCheck(Set.of(), mainPath()).check(ast);
         });
     }

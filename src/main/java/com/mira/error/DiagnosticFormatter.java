@@ -95,8 +95,8 @@ public final class DiagnosticFormatter {
         String fileName = Flags.fileName != null ? Flags.fileName : "<input>";
 
         if (line > 0) {
-            sb.append(cyan()).append("  --> ").append(reset())
-                    .append(fileName).append(":").append(line).append(":").append(col).append("\n");
+            sb.append(cyan()).append("  --> ").append(reset()).append(fileName).append(":").append(line).append(":")
+                    .append(col).append("\n");
 
             String[] sourceLines = Flags.sourceLines;
             if (sourceLines != null && line <= sourceLines.length) {
@@ -105,8 +105,8 @@ public final class DiagnosticFormatter {
                 if (line >= 2) {
                     String prevLine = sourceLines[line - 2];
                     String prevLabel = String.format("%4d", line - 1);
-                    sb.append(dim()).append(prevLabel).append(" |").append(reset())
-                            .append(" ").append(prevLine).append("\n");
+                    sb.append(dim()).append(prevLabel).append(" |").append(reset()).append(" ").append(prevLine)
+                            .append("\n");
                 } else {
                     sb.append(dim()).append("     |").append(reset()).append("\n");
                 }
@@ -132,9 +132,9 @@ public final class DiagnosticFormatter {
     private static String formatMiraError(MiraError error) {
         StringBuilder sb = new StringBuilder();
 
-        String phaseLabel = error instanceof StaticCheckError ? "static error"
-                : error instanceof RuntimeError ? "runtime error"
-                        : "error";
+        String phaseLabel = error instanceof StaticCheckError
+                ? "static error"
+                : error instanceof RuntimeError ? "runtime error" : "error";
 
         sb.append(red()).append(bold()).append("[").append(phaseLabel).append("]");
         if (error.getErrorCode() != null) {
@@ -146,12 +146,11 @@ public final class DiagnosticFormatter {
         int col = error.getColumn();
 
         String sourceFile = error.getSourceFile();
-        String fileName = sourceFile != null ? sourceFile
-                : (Flags.fileName != null ? Flags.fileName : "<input>");
+        String fileName = sourceFile != null ? sourceFile : (Flags.fileName != null ? Flags.fileName : "<input>");
 
         if (line > 0) {
-            sb.append(cyan()).append("  --> ").append(reset())
-                    .append(fileName).append(":").append(line).append(":").append(col).append("\n");
+            sb.append(cyan()).append("  --> ").append(reset()).append(fileName).append(":").append(line).append(":")
+                    .append(col).append("\n");
 
             String[] sourceLines = Flags.sourceLines;
             if (sourceLines != null && line <= sourceLines.length && sourceFile == null) {
@@ -160,8 +159,8 @@ public final class DiagnosticFormatter {
                 if (line >= 2) {
                     String prevLine = sourceLines[line - 2];
                     String prevLabel = String.format("%4d", line - 1);
-                    sb.append(dim()).append(prevLabel).append(" |").append(reset())
-                            .append(" ").append(prevLine).append("\n");
+                    sb.append(dim()).append(prevLabel).append(" |").append(reset()).append(" ").append(prevLine)
+                            .append("\n");
                 } else {
                     sb.append(dim()).append("     |").append(reset()).append("\n");
                 }
@@ -186,13 +185,12 @@ public final class DiagnosticFormatter {
 
         java.util.List<String> chain = error.getImportChain();
         if (!chain.isEmpty()) {
-            sb.append(cyan()).append("     = ").append(reset())
-                    .append("imported via: ").append(String.join(" → ", chain)).append("\n");
+            sb.append(cyan()).append("     = ").append(reset()).append("imported via: ")
+                    .append(String.join(" → ", chain)).append("\n");
         }
 
         if (error.getHint() != null) {
-            sb.append(cyan()).append("     = ").append(reset())
-                    .append("hint: ").append(error.getHint()).append("\n");
+            sb.append(cyan()).append("     = ").append(reset()).append("hint: ").append(error.getHint()).append("\n");
         }
 
         return sb.toString().stripTrailing();

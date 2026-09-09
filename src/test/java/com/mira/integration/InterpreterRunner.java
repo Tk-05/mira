@@ -41,7 +41,8 @@ public class InterpreterRunner {
         Tokenizer tokenizer = new Tokenizer();
         Parser parser = new Parser();
         Object result = interpreter.run(parser.parseTokens(tokenizer.tokenize(source, false)), false);
-        if (result instanceof Long l) return l.doubleValue();
+        if (result instanceof Long l)
+            return l.doubleValue();
         return result;
     }
 
@@ -49,7 +50,8 @@ public class InterpreterRunner {
         Tokenizer tokenizer = new Tokenizer();
         Parser parser = new Parser();
         Object result = interpreter.runWithoutLoadingNewContext(parser.parseTokens(tokenizer.tokenize(source, false)));
-        if (result instanceof Long l) return l.doubleValue();
+        if (result instanceof Long l)
+            return l.doubleValue();
         return result;
     }
 

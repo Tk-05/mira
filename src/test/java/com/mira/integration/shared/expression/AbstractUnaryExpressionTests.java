@@ -49,12 +49,14 @@ public abstract class AbstractUnaryExpressionTests {
 
     @Test
     void postIncrementObjectFieldMutatesInPlace() {
-        assertEquals("2,2", runForOutput("var obj : { var count : 1; }; print(obj.count++); print(\",\"); print(obj.count);"));
+        assertEquals("2,2",
+                runForOutput("var obj : { var count : 1; }; print(obj.count++); print(\",\"); print(obj.count);"));
     }
 
     @Test
     void postDecrementObjectFieldMutatesInPlace() {
-        assertEquals("1,1", runForOutput("var obj : { var count : 2; }; print(obj.count--); print(\",\"); print(obj.count);"));
+        assertEquals("1,1",
+                runForOutput("var obj : { var count : 2; }; print(obj.count--); print(\",\"); print(obj.count);"));
     }
 
     @Test
@@ -94,12 +96,14 @@ public abstract class AbstractUnaryExpressionTests {
 
     @Test
     void preIncrementObjectFieldMutatesInPlace() {
-        assertEquals("2,2", runForOutput("var obj : { var count : 1; }; print(++obj.count); print(\",\"); print(obj.count);"));
+        assertEquals("2,2",
+                runForOutput("var obj : { var count : 1; }; print(++obj.count); print(\",\"); print(obj.count);"));
     }
 
     @Test
     void preDecrementObjectFieldMutatesInPlace() {
-        assertEquals("1,1", runForOutput("var obj : { var count : 2; }; print(--obj.count); print(\",\"); print(obj.count);"));
+        assertEquals("1,1",
+                runForOutput("var obj : { var count : 2; }; print(--obj.count); print(\",\"); print(obj.count);"));
     }
 
     @Test

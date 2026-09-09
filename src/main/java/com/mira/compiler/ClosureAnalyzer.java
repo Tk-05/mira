@@ -39,21 +39,17 @@ public class ClosureAnalyzer {
 
     private void walkNode(Node node, Deque<Set<String>> scopeStack) {
         switch (node) {
-            case VarDecl vd ->
-                scopeStack.peek().add(vd.getName());
+            case VarDecl vd -> scopeStack.peek().add(vd.getName());
             case FuncDecl fd -> {
                 scopeStack.peek().add(fd.getName());
-                walkFunction(fd.getBody(), fd.getParameters().stream()
-                        .map(p -> p.name()).toList(), scopeStack);
+                walkFunction(fd.getBody(), fd.getParameters().stream().map(p -> p.name()).toList(), scopeStack);
             }
             case LambdaExpression le -> {
-                walkFunction(le.getBody(), le.getParameters().stream()
-                        .map(p -> p.name()).toList(), scopeStack);
+                walkFunction(le.getBody(), le.getParameters().stream().map(p -> p.name()).toList(), scopeStack);
             }
             case Expression expr -> {
             }
-            case Statement stmt ->
-                walkStmt(stmt, scopeStack);
+            case Statement stmt -> walkStmt(stmt, scopeStack);
             default -> {
             }
         }
@@ -93,8 +89,7 @@ public class ClosureAnalyzer {
                     collectExpr(vd.getInitializer(), reads, decls);
                 }
             }
-            case FuncDecl fd ->
-                decls.add(fd.getName());
+            case FuncDecl fd -> decls.add(fd.getName());
             case LambdaExpression le -> {
             }
             case UnaryExpression ue when ue.getOperation().getLexeme().equals("$") -> {
@@ -102,10 +97,8 @@ public class ClosureAnalyzer {
                     reads.add(de.getValue());
                 }
             }
-            case Expression expr ->
-                collectExpr(expr, reads, decls);
-            case Statement stmt ->
-                collectStmt(stmt, reads, decls);
+            case Expression expr -> collectExpr(expr, reads, decls);
+            case Statement stmt -> collectStmt(stmt, reads, decls);
             default -> {
             }
         }
@@ -148,8 +141,7 @@ public class ClosureAnalyzer {
                 }
                 scopeStack.pop();
             }
-            case Statement.While w ->
-                walkBody(w.getBody(), scopeStack);
+            case Statement.While w -> walkBody(w.getBody(), scopeStack);
             default -> {
             }
         }

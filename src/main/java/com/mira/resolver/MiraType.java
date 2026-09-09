@@ -9,8 +9,8 @@ import java.util.stream.Collectors;
  * {@link StaticCheck}, and only ever compared against types the checker itself
  * infers - it has no runtime representation, unlike Mira's actual values.
  */
-public sealed interface MiraType permits MiraType.NamedType, MiraType.NullableType, MiraType.AnyType,
-        MiraType.FunctionType {
+public sealed interface MiraType
+        permits MiraType.NamedType, MiraType.NullableType, MiraType.AnyType, MiraType.FunctionType {
 
     record NamedType(String name) implements MiraType {
 
@@ -45,15 +45,11 @@ public sealed interface MiraType permits MiraType.NamedType, MiraType.NullableTy
 
     static String display(MiraType type) {
         return switch (type) {
-            case NamedType n ->
-                n.name();
-            case NullableType n ->
-                display(n.inner()) + "?";
-            case AnyType ignored ->
-                "Any";
-            case FunctionType f ->
-                "Fn(" + f.params().stream().map(MiraType::display).collect(Collectors.joining(", ")) + ") -> "
-                + display(f.returnType());
+            case NamedType n -> n.name();
+            case NullableType n -> display(n.inner()) + "?";
+            case AnyType ignored -> "Any";
+            case FunctionType f -> "Fn(" + f.params().stream().map(MiraType::display).collect(Collectors.joining(", "))
+                    + ") -> " + display(f.returnType());
         };
     }
 

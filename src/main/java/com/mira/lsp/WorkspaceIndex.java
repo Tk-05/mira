@@ -2,9 +2,12 @@ package com.mira.lsp;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+
+import org.eclipse.lsp4j.SymbolInformation;
 
 import com.mira.lexer.Tokenizer;
 import com.mira.parser.Parser;
@@ -15,6 +18,7 @@ public class WorkspaceIndex {
 
     private final Map<Path, List<Node>> astCache = new ConcurrentHashMap<>();
     private final Map<Path, String> sourceCache = new ConcurrentHashMap<>();
+    private final Map<Path, List<SymbolInformation>> symbolCache = new ConcurrentHashMap<>();
     private volatile List<Path> miraFiles;
     private volatile Path indexedRoot;
 
@@ -26,6 +30,7 @@ public class WorkspaceIndex {
                 List<Node> ast = parse(overlay);
                 astCache.put(path, ast);
                 sourceCache.put(path, overlay);
+                symbolCache.remove(path);
                 return ast;
             }
             return astCache.get(path);
@@ -46,9 +51,19 @@ public class WorkspaceIndex {
         return sourceCache.getOrDefault(path, "");
     }
 
+    public List<SymbolInformation> getSymbols(Path path, Map<String, String> openOverlayByUri) {
+        List<Node> ast = getAst(path, openOverlayByUri);
+        return symbolCache.computeIfAbsent(path, p -> {
+            List<SymbolInformation> out = new ArrayList<>();
+            DocumentSymbolProvider.collectFlat(ast, p.toUri().toString(), sourceCache.getOrDefault(p, ""), out);
+            return out;
+        });
+    }
+
     public void invalidate(Path path) {
         astCache.remove(path);
         sourceCache.remove(path);
+        symbolCache.remove(path);
     }
 
     public List<Path> allMiraFiles(Path workspaceRoot) {

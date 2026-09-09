@@ -1,11 +1,16 @@
 package com.mira.lsp;
 
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.jar.JarEntry;
+import java.util.jar.JarOutputStream;
 
 import org.eclipse.lsp4j.CompletionItem;
+import org.eclipse.lsp4j.Position;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
@@ -60,7 +65,8 @@ public class CompletionProviderTest {
 
         assertTrue(items.stream().anyMatch(i -> i.getLabel().equals("greet")));
         assertFalse(items.stream().anyMatch(i -> i.getLabel().startsWith("null.")));
-        // only the selected function should be suggested, not every public function in the module
+        // only the selected function should be suggested, not every public function in
+        // the module
         assertFalse(items.stream().anyMatch(i -> i.getLabel().equals("other")));
     }
 
@@ -122,5 +128,121 @@ public class CompletionProviderTest {
         assertTrue(items.stream().anyMatch(i -> i.getLabel().equals("point")));
         // the field-access forms should still be offered too, just not exclusively
         assertTrue(items.stream().anyMatch(i -> i.getLabel().equals("point.x")));
+    }
+
+    @Test
+    void dotCompletionOnStructVarSuggestsBareMemberNames() {
+        String source = """
+                var Point : struct { var x; var y; fn dist() { return 0; } };
+                fn main() {
+                    var p : Point{};
+                    return p.x;
+                }
+                """;
+        Position pos = new Position(3, 14); // "x" in "return p.x;"
+        List<CompletionItem> items = CompletionProvider.provide(parse(source), "file:///test.mira", source, pos, null);
+
+        assertTrue(items.stream().anyMatch(i -> i.getLabel().equals("x")));
+        assertTrue(items.stream().anyMatch(i -> i.getLabel().equals("y")));
+        assertTrue(items.stream().anyMatch(i -> i.getLabel().equals("dist")));
+        assertFalse(items.stream().anyMatch(i -> i.getLabel().equals("p.x")));
+        assertFalse(items.stream().anyMatch(i -> i.getLabel().equals("Number")));
+    }
+
+    @Test
+    void dotCompletionOnObjectVarSuggestsBareMemberNames() {
+        String source = """
+                var obj : { var a; fn method() { return 0; } };
+                fn main() {
+                    return obj.a;
+                }
+                """;
+        Position pos = new Position(2, 15); // "a" in "return obj.a;"
+        List<CompletionItem> items = CompletionProvider.provide(parse(source), "file:///test.mira", source, pos, null);
+
+        assertTrue(items.stream().anyMatch(i -> i.getLabel().equals("a")));
+        assertTrue(items.stream().anyMatch(i -> i.getLabel().equals("method")));
+        assertFalse(items.stream().anyMatch(i -> i.getLabel().equals("obj.a")));
+    }
+
+    @Test
+    void dotCompletionOnEnumSuggestsBareMemberNames() {
+        String source = """
+                enum Color { RED, GREEN, BLUE }
+                fn main() {
+                    return Color.RED;
+                }
+                """;
+        Position pos = new Position(2, 18); // "RED" in "Color.RED"
+        List<CompletionItem> items = CompletionProvider.provide(parse(source), "file:///test.mira", source, pos, null);
+
+        assertTrue(items.stream().anyMatch(i -> i.getLabel().equals("RED")));
+        assertTrue(items.stream().anyMatch(i -> i.getLabel().equals("GREEN")));
+        assertTrue(items.stream().anyMatch(i -> i.getLabel().equals("BLUE")));
+        assertFalse(items.stream().anyMatch(i -> i.getLabel().equals("Color.RED")));
+    }
+
+    @Test
+    void dotCompletionOnModuleAliasSuggestsBareFunctionNames(@TempDir Path tempDir) throws IOException {
+        Path libPath = tempDir.resolve("lib.mira");
+        Files.writeString(libPath, """
+                pub fn greet() {
+                    return 1;
+                }
+                """);
+        Path mainPath = tempDir.resolve("main.mira");
+        String source = """
+                import module "lib.mira" as lib;
+                fn main() {
+                    return lib.greet();
+                }
+                """;
+        Files.writeString(mainPath, source);
+
+        Position pos = new Position(2, 16); // "greet" in "lib.greet()"
+        List<CompletionItem> items = CompletionProvider.provide(parse(source), mainPath.toUri().toString(), source, pos,
+                mainPath);
+
+        assertTrue(items.stream().anyMatch(i -> i.getLabel().equals("greet")));
+        assertFalse(items.stream().anyMatch(i -> i.getLabel().equals("lib.greet")));
+    }
+
+    @Test
+    void dotCompletionOnNativeLibAliasSuggestsBareMemberNames(@TempDir Path tempDir) throws Exception {
+        Path jarPath = tempDir.resolve("fixture.jar");
+        try (JarOutputStream jos = new JarOutputStream(new FileOutputStream(jarPath.toFile()))) {
+            jos.putNextEntry(new JarEntry("META-INF/mira/interface.properties"));
+            jos.write("GetWidth=->Number\n".getBytes(StandardCharsets.UTF_8));
+            jos.closeEntry();
+        }
+        Path mainPath = tempDir.resolve("main.mira");
+        String source = """
+                import native "fixture.jar" as ext;
+                fn main() {
+                    return ext.GetWidth();
+                }
+                """;
+        Files.writeString(mainPath, source);
+
+        Position pos = new Position(2, 16); // "GetWidth" in "ext.GetWidth()"
+        List<CompletionItem> items = CompletionProvider.provide(parse(source), mainPath.toUri().toString(), source, pos,
+                mainPath);
+
+        assertTrue(items.stream().anyMatch(i -> i.getLabel().equals("GetWidth")));
+        assertFalse(items.stream().anyMatch(i -> i.getLabel().equals("ext.GetWidth")));
+    }
+
+    @Test
+    void noDotContextStillReturnsWholeDocumentFlatList() {
+        String source = """
+                fn main() {
+                    return 1;
+                }
+                """;
+        Position pos = new Position(1, 12); // inside "return 1;" - not a field access
+        List<CompletionItem> items = CompletionProvider.provide(parse(source), "file:///test.mira", source, pos, null);
+
+        assertTrue(items.stream().anyMatch(i -> i.getLabel().equals("Number")));
+        assertTrue(items.stream().anyMatch(i -> i.getLabel().equals("main")));
     }
 }

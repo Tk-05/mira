@@ -26,8 +26,8 @@ public final class DependencyTreePrinter {
             String status = child.available() ? "✓ available" : "✗ missing";
             String detail = child.detail() != null ? " (" + child.detail() + ")" : "";
 
-            System.out.println(prefix + connector + child.name() + " [" + child.kind() + "] "
-                    + child.spec() + "  " + status + detail);
+            System.out.println(prefix + connector + child.name() + " [" + child.kind() + "] " + child.spec() + "  "
+                    + status + detail);
 
             String childPrefix = prefix + (last ? "   " : "│  ");
             printChildren(child.children(), childPrefix);

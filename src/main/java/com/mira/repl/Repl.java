@@ -109,8 +109,8 @@ public class Repl {
         Flags.fileName = "<console>";
         Flags.sourceLines = normalized.split("\n", -1);
 
-        Object result = interpreter.runWithoutLoadingNewContext(
-                parser.parseTokens(tokenizer.tokenize(normalized, false)));
+        Object result = interpreter
+                .runWithoutLoadingNewContext(parser.parseTokens(tokenizer.tokenize(normalized, false)));
 
         WarningCollector.flush();
 
@@ -185,9 +185,7 @@ public class Repl {
     private static void cmdLoad(String pathStr) {
         Path path = Paths.get(pathStr);
         if (!path.isAbsolute()) {
-            path = Flags.inputPath.get().getParent() != null
-                    ? Flags.inputPath.get().getParent().resolve(path)
-                    : path;
+            path = Flags.inputPath.get().getParent() != null ? Flags.inputPath.get().getParent().resolve(path) : path;
         }
         if (!Files.exists(path)) {
             System.err.println("File not found: " + path);
@@ -201,8 +199,7 @@ public class Repl {
             Flags.fileName = path.getFileName().toString();
             Flags.sourceLines = source.split("\n", -1);
 
-            interpreter.runWithoutLoadingNewContext(
-                    parser.parseTokens(tokenizer.tokenize(source, false)));
+            interpreter.runWithoutLoadingNewContext(parser.parseTokens(tokenizer.tokenize(source, false)));
 
             WarningCollector.flush();
             Flags.inputPath.set(previousPath);
@@ -310,14 +307,10 @@ public class Repl {
                     inString = true;
                     stringChar = c;
                 }
-                case '{' ->
-                    braces++;
-                case '}' ->
-                    braces--;
-                case '(' ->
-                    parens++;
-                case ')' ->
-                    parens--;
+                case '{' -> braces++;
+                case '}' -> braces--;
+                case '(' -> parens++;
+                case ')' -> parens--;
             }
         }
 
@@ -333,13 +326,8 @@ public class Repl {
     }
 
     private static boolean endsWithContinuation(String s) {
-        String[] continuationSuffixes = {
-            "->", "|>", "&&", "||", "??",
-            "+", "-", "*", "/", "%", "**",
-            "==", "!=", "<=", ">=", "<", ">",
-            "&", "|", "^",
-            ","
-        };
+        String[] continuationSuffixes = {"->", "|>", "&&", "||", "??", "+", "-", "*", "/", "%", "**", "==", "!=", "<=",
+                ">=", "<", ">", "&", "|", "^", ","};
         for (String suffix : continuationSuffixes) {
             if (s.endsWith(suffix)) {
                 return true;
@@ -401,8 +389,7 @@ public class Repl {
                 mpe.getErrors().forEach(err -> System.err.println(DiagnosticFormatter.format(err)));
             case com.mira.error.resolver.MultipleStaticCheckErrors mse ->
                 mse.getErrors().forEach(err -> System.err.println(DiagnosticFormatter.format(err)));
-            default ->
-                System.err.println(DiagnosticFormatter.format(e));
+            default -> System.err.println(DiagnosticFormatter.format(e));
         }
         System.err.flush();
     }

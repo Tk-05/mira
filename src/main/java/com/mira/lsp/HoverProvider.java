@@ -39,9 +39,11 @@ public class HoverProvider {
         STDLIB_DOCS.put("replace", "**string.replace(str, old, new)** — Replaces all occurrences of `old` with `new`");
         STDLIB_DOCS.put("upper", "**string.upper(str)** — Returns `str` converted to uppercase");
         STDLIB_DOCS.put("lower", "**string.lower(str)** — Returns `str` converted to lowercase");
-        STDLIB_DOCS.put("startsWith", "**string.startsWith(str, prefix)** — Returns `true` if `str` starts with `prefix`");
+        STDLIB_DOCS.put("startsWith",
+                "**string.startsWith(str, prefix)** — Returns `true` if `str` starts with `prefix`");
         STDLIB_DOCS.put("endsWith", "**string.endsWith(str, suffix)** — Returns `true` if `str` ends with `suffix`");
-        STDLIB_DOCS.put("contains", "**string.contains(str, sub) / collection.contains(col, val)** — Checks if value is present");
+        STDLIB_DOCS.put("contains",
+                "**string.contains(str, sub) / collection.contains(col, val)** — Checks if value is present");
         STDLIB_DOCS.put("repeat", "**string.repeat(str, n)** — Returns `str` repeated `n` times");
         STDLIB_DOCS.put("toNumber", "**string.toNumber(str)** — Parses `str` as a number");
         STDLIB_DOCS.put("padLeft", "**string.padLeft(str, width)** — Left-pads `str` with spaces to `width`");
@@ -77,7 +79,8 @@ public class HoverProvider {
         STDLIB_DOCS.put("max", "**collection.max(col) / math.max(a, b)** — Returns the maximum value");
         STDLIB_DOCS.put("take", "**collection.take(col, n)** — Returns the first `n` elements");
         STDLIB_DOCS.put("drop", "**collection.drop(col, n)** — Returns all elements except the first `n`");
-        STDLIB_DOCS.put("findFirst", "**collection.findFirst(col, fn)** — Returns the first element where `fn(element)` is truthy");
+        STDLIB_DOCS.put("findFirst",
+                "**collection.findFirst(col, fn)** — Returns the first element where `fn(element)` is truthy");
         STDLIB_DOCS.put("chunk", "**collection.chunk(col, size)** — Splits into sub-lists of `size`");
         STDLIB_DOCS.put("groupBy", "**collection.groupBy(col, fn)** — Groups elements into a map by key from `fn`");
         // map
@@ -91,7 +94,8 @@ public class HoverProvider {
         STDLIB_DOCS.put("mapGet", "**map.mapGet(map, key)** — Returns the value for `key`, or null");
         STDLIB_DOCS.put("mapEntries", "**map.mapEntries(map)** — Returns a list of `[key, value]` pairs");
         STDLIB_DOCS.put("mapMerge", "**map.mapMerge(map1, map2)** — Merges two maps; `map2` values overwrite `map1`");
-        STDLIB_DOCS.put("mapFromLists", "**map.mapFromLists(keys, values)** — Creates a map from parallel key/value lists");
+        STDLIB_DOCS.put("mapFromLists",
+                "**map.mapFromLists(keys, values)** — Creates a map from parallel key/value lists");
         // math
         STDLIB_DOCS.put("pow", "**math.pow(base, exp)** — Returns `base` raised to the power of `exp`");
         STDLIB_DOCS.put("abs", "**math.abs(x)** — Returns the absolute value");
@@ -144,8 +148,10 @@ public class HoverProvider {
         // dateTime
         STDLIB_DOCS.put("now", "**dateTime.now()** — Returns the current date/time as an ISO string");
         STDLIB_DOCS.put("timestamp", "**dateTime.timestamp()** — Returns the current Unix timestamp (seconds)");
-        STDLIB_DOCS.put("timestampMs", "**dateTime.timestampMs()** — Returns the current Unix timestamp (milliseconds)");
-        STDLIB_DOCS.put("dateFormat", "**dateTime.dateFormat(date, pattern)** — Formats a date string with the given pattern");
+        STDLIB_DOCS.put("timestampMs",
+                "**dateTime.timestampMs()** — Returns the current Unix timestamp (milliseconds)");
+        STDLIB_DOCS.put("dateFormat",
+                "**dateTime.dateFormat(date, pattern)** — Formats a date string with the given pattern");
         STDLIB_DOCS.put("year", "**dateTime.year()** — Returns the current year");
         STDLIB_DOCS.put("month", "**dateTime.month()** — Returns the current month (1-12)");
         STDLIB_DOCS.put("day", "**dateTime.day()** — Returns the current day of month");
@@ -155,9 +161,11 @@ public class HoverProvider {
         STDLIB_DOCS.put("dayOfWeek", "**dateTime.dayOfWeek()** — Returns the day of week as a string (e.g. MONDAY)");
         STDLIB_DOCS.put("dayOfYear", "**dateTime.dayOfYear()** — Returns the day of year (1-366)");
         STDLIB_DOCS.put("secondsSince", "**dateTime.secondsSince(date)** — Seconds elapsed since `date`");
-        STDLIB_DOCS.put("fromEpoch", "**dateTime.fromEpoch(seconds)** — Converts a Unix timestamp to a date/time string");
+        STDLIB_DOCS.put("fromEpoch",
+                "**dateTime.fromEpoch(seconds)** — Converts a Unix timestamp to a date/time string");
         STDLIB_DOCS.put("addDays", "**dateTime.addDays(date, n)** — Returns a new date string `n` days after `date`");
-        STDLIB_DOCS.put("dateDiff", "**dateTime.dateDiff(date1, date2)** — Returns the number of days between two dates");
+        STDLIB_DOCS.put("dateDiff",
+                "**dateTime.dateDiff(date1, date2)** — Returns the number of days between two dates");
         STDLIB_DOCS.put("isLeapYear", "**dateTime.isLeapYear(year)** — Returns `true` if `year` is a leap year");
         // json
         STDLIB_DOCS.put("jsonGet", "**json.jsonGet(json, key)** — Returns the value for `key` in a JSON object string");
@@ -169,14 +177,18 @@ public class HoverProvider {
         STDLIB_DOCS.put("jsonIndexOf", "**json.jsonIndexOf(list, val)** — Returns the index of `val` in a JSON list");
         STDLIB_DOCS.put("jsonKeys", "**json.jsonKeys(json)** — Returns an array of top-level keys in a JSON object");
         STDLIB_DOCS.put("jsonSize", "**json.jsonSize(json)** — Returns the number of top-level keys/elements");
-        STDLIB_DOCS.put("jsonSet", "**json.jsonSet(json, key, value)** — Sets `key` to `value` in a JSON object string");
+        STDLIB_DOCS.put("jsonSet",
+                "**json.jsonSet(json, key, value)** — Sets `key` to `value` in a JSON object string");
         // process
-        STDLIB_DOCS.put("installCrashLog", "**process.installCrashLog(path)** — Tees this process's stderr (including the crash dump) to an append-mode file, in addition to the console. Returns `false` instead of throwing if the file can't be opened");
-        STDLIB_DOCS.put("uninstallCrashLog", "**process.uninstallCrashLog()** — Restores stderr to what it was before `installCrashLog`. Returns `false` if no crash log is currently installed");
+        STDLIB_DOCS.put("installCrashLog",
+                "**process.installCrashLog(path)** — Tees this process's stderr (including the crash dump) to an append-mode file, in addition to the console. Returns `false` instead of throwing if the file can't be opened");
+        STDLIB_DOCS.put("uninstallCrashLog",
+                "**process.uninstallCrashLog()** — Restores stderr to what it was before `installCrashLog`. Returns `false` if no crash log is currently installed");
         // thread
         STDLIB_DOCS.put("newMutex", "**thread.newMutex()** — Creates a new mutex for use with `lock`");
         // keywords
-        STDLIB_DOCS.put("static_assert", "**static_assert(condition)**  \n**static_assert(condition, message)**\n\nEvaluates `condition` at the point of execution and throws error **E308** if it is falsy. At the top level this runs before user code starts (after `comptime` constants are available), making it a compile-time guard. Inside functions it runs on every call.\n\n```mira\nstatic_assert(SIZE > 0, \"SIZE must be positive\");\n```");
+        STDLIB_DOCS.put("static_assert",
+                "**static_assert(condition)**  \n**static_assert(condition, message)**\n\nEvaluates `condition` at the point of execution and throws error **E308** if it is falsy. At the top level this runs before user code starts (after `comptime` constants are available), making it a compile-time guard. Inside functions it runs on every call.\n\n```mira\nstatic_assert(SIZE > 0, \"SIZE must be positive\");\n```");
         // bytes
         STDLIB_DOCS.put("newBytes", "**bytes.newBytes(size)** — Creates a zero-filled byte array of the given size");
         STDLIB_DOCS.put("fromString", "**bytes.fromString(str)** — Encodes a string to bytes (UTF-8)");
@@ -193,10 +205,16 @@ public class HoverProvider {
     }
 
     public static Hover provide(List<Node> ast, String content, Position pos, Path docPath) {
+        return provide(ast, content, pos, docPath, null, Map.of());
+    }
+
+    public static Hover provide(List<Node> ast, String content, Position pos, Path docPath,
+            WorkspaceIndex workspaceIndex, Map<String, String> openDocumentsByUri) {
         String word = wordAt(content, pos);
         if (word == null || word.isBlank()) {
             return null;
         }
+        int cursorLine = pos.getLine() + 1;
 
         if (isFieldAccess(content, pos)) {
             String objectName = DefinitionProvider.objectBefore(content, pos);
@@ -204,16 +222,27 @@ public class HoverProvider {
             if (nativeHover != null) {
                 return nativeHover;
             }
-            Hover fieldHover = hoverForField(ast, word, objectName, pos.getLine() + 1);
-            if (fieldHover != null) {
-                return fieldHover;
+            Hover moduleHover = hoverForModuleMember(ast, objectName, word, docPath, workspaceIndex,
+                    openDocumentsByUri);
+            if (moduleHover != null) {
+                return moduleHover;
             }
-            return hover("**." + word + "** — field access");
+            return hoverForField(ast, word, objectName, cursorLine);
         }
 
-        Hover found = hoverScoped(ast, word, pos.getLine() + 1);
+        Hover found = hoverScoped(ast, word, cursorLine);
         if (found != null) {
             return found;
+        }
+
+        Hover bareModuleHover = hoverForBareModuleImport(ast, word, docPath, workspaceIndex, openDocumentsByUri);
+        if (bareModuleHover != null) {
+            return bareModuleHover;
+        }
+
+        Hover importAliasHover = hoverForImportAlias(ast, word, docPath);
+        if (importAliasHover != null) {
+            return importAliasHover;
         }
 
         String stdlibDoc = STDLIB_DOCS.get(word);
@@ -233,13 +262,12 @@ public class HoverProvider {
     }
 
     /**
-     * Resolves a plain (non-field) identifier reference at {@code cursorLine}
-     * by walking outward through the chain of lexical scopes actually enclosing
-     * the cursor - innermost first - so an inner declaration correctly shadows
-     * an unrelated same-named declaration elsewhere in the file (e.g. in a
-     * sibling branch, or at the top level), instead of returning whichever
-     * declaration happens to appear first in AST traversal order regardless of
-     * scope.
+     * Resolves a plain (non-field) identifier reference at {@code cursorLine} by
+     * walking outward through the chain of lexical scopes actually enclosing the
+     * cursor - innermost first - so an inner declaration correctly shadows an
+     * unrelated same-named declaration elsewhere in the file (e.g. in a sibling
+     * branch, or at the top level), instead of returning whichever declaration
+     * happens to appear first in AST traversal order regardless of scope.
      */
     private static Hover hoverScoped(List<Node> ast, String name, int cursorLine) {
         for (Scope scope : buildScopeChain(ast, cursorLine)) {
@@ -265,8 +293,8 @@ public class HoverProvider {
 
     private static Scope enclosingChild(Scope scope, int cursorLine) {
         for (Node n : scope.body()) {
-            if (!(n instanceof Statement s) || s.line <= 0 || s.endLine <= 0
-                    || cursorLine < s.line || cursorLine > s.endLine) {
+            if (!(n instanceof Statement s) || s.line <= 0 || s.endLine <= 0 || cursorLine < s.line
+                    || cursorLine > s.endLine) {
                 continue;
             }
             List<Node> child = childBodyAt(n, cursorLine);
@@ -348,6 +376,14 @@ public class HoverProvider {
     }
 
     private static Hover hoverInScopeLevel(Scope scope, String name, int cursorLine) {
+        if (scope.owner() instanceof Statement.FuncDecl f) {
+            for (com.mira.parser.nodes.Parameter p : f.getParameters()) {
+                if (p.name().equals(name)) {
+                    return hover(
+                            "```mira\n" + p.name() + (p.type() != null ? " : " + p.type() : "") + "\n```\n*parameter*");
+                }
+            }
+        }
         if (scope.owner() instanceof Statement.Loop loop) {
             if (loop.isForeach()) {
                 Statement.VarDecl iter = loop.getIterator();
@@ -365,10 +401,10 @@ public class HoverProvider {
     }
 
     /**
-     * Searches only the direct statements of {@code body} (not nested blocks)
-     * for a declaration of {@code name}, preferring the one closest to (and at
-     * or before) {@code cursorLine} - the nearest enclosing declaration -
-     * falling back to the nearest one after it if none precede.
+     * Searches only the direct statements of {@code body} (not nested blocks) for a
+     * declaration of {@code name}, preferring the one closest to (and at or before)
+     * {@code cursorLine} - the nearest enclosing declaration - falling back to the
+     * nearest one after it if none precede.
      */
     private static Hover findDirectHoverInBody(List<Node> body, String name, int cursorLine) {
         Hover before = null;
@@ -390,12 +426,18 @@ public class HoverProvider {
             } else if (n instanceof ComptimeBlock comptime) {
                 for (Node bodyNode : comptime.getBody()) {
                     if (bodyNode instanceof Statement.VarDecl v && v.getName().equals(name)) {
-                        candidate = hover("```mira\ncomptime const " + v.getName()
-                                + "\n```\n*compile-time constant*");
+                        candidate = hover("```mira\ncomptime const " + v.getName() + "\n```\n*compile-time constant*");
                         declLine = v.line;
                         break;
                     }
                 }
+            } else if (n instanceof Statement.EnumDecl ed && ed.getIdentifier().equals(name)) {
+                candidate = hover("```mira\nenum " + ed.getIdentifier() + " { "
+                        + String.join(", ", ed.getValues().keySet()) + " }\n```");
+                declLine = ed.line;
+            } else if (n instanceof Statement.TypeAliasDecl t && t.getName().equals(name)) {
+                candidate = hover("```mira\ntype " + t.getName() + " : " + t.getAliasedType() + "\n```");
+                declLine = t.line;
             }
             if (candidate == null || declLine <= 0) {
                 continue;
@@ -412,8 +454,7 @@ public class HoverProvider {
     }
 
     private static Hover hoverForFuncDeclSelf(Statement.FuncDecl f) {
-        String params = f.getParameters().stream()
-                .map(p -> p.name() + (p.type() != null ? " : " + p.type() : ""))
+        String params = f.getParameters().stream().map(p -> p.name() + (p.type() != null ? " : " + p.type() : ""))
                 .collect(Collectors.joining(", "));
         String prefix = (f.isAsync() ? "async " : "") + (f.isPure() ? "pure " : "");
         String returnPart = f.getReturnType() != null ? " -> " + f.getReturnType() : "";
@@ -424,37 +465,33 @@ public class HoverProvider {
     private static Hover hoverForVarDeclSelf(Statement.VarDecl v) {
         String kind = v.isConst() ? "const" : "var";
         if (v.getInitializer() instanceof com.mira.parser.nodes.expression.Expression.ObjectExpression obj) {
-            StringBuilder sb = new StringBuilder("```mira\n")
-                    .append(kind).append(" ").append(v.getName()).append(" {\n");
+            StringBuilder sb = new StringBuilder("```mira\n").append(kind).append(" ").append(v.getName())
+                    .append(" {\n");
             for (Statement.VarDecl f : obj.getVarDecls()) {
-                sb.append("    ").append(f.isConst() ? "const" : "var")
-                        .append(" ").append(f.getName())
+                sb.append("    ").append(f.isConst() ? "const" : "var").append(" ").append(f.getName())
                         .append(f.getType() != null ? " : " + f.getType() : "").append("\n");
             }
             for (Statement.FuncDecl m : obj.getMethods()) {
                 String params = m.getParameters().stream()
                         .map(p -> p.name() + (p.type() != null ? " : " + p.type() : ""))
                         .collect(Collectors.joining(", "));
-                sb.append("    fn ").append(m.getName())
-                        .append("(").append(params).append(")\n");
+                sb.append("    fn ").append(m.getName()).append("(").append(params).append(")\n");
             }
             sb.append("}\n```");
             return hover(sb.toString());
         }
         if (v.getInitializer() instanceof StructExpression st) {
-            StringBuilder sb = new StringBuilder("```mira\n")
-                    .append(kind).append(" ").append(v.getName()).append(" struct {\n");
+            StringBuilder sb = new StringBuilder("```mira\n").append(kind).append(" ").append(v.getName())
+                    .append(" struct {\n");
             for (Statement.VarDecl f : st.getVarDecls()) {
-                sb.append("    ").append(f.isConst() ? "const" : "var")
-                        .append(" ").append(f.getName())
+                sb.append("    ").append(f.isConst() ? "const" : "var").append(" ").append(f.getName())
                         .append(f.getType() != null ? " : " + f.getType() : "").append("\n");
             }
             for (Statement.FuncDecl m : st.getMethods()) {
                 String params = m.getParameters().stream()
                         .map(p -> p.name() + (p.type() != null ? " : " + p.type() : ""))
                         .collect(Collectors.joining(", "));
-                sb.append("    fn ").append(m.getName())
-                        .append("(").append(params).append(")\n");
+                sb.append("    fn ").append(m.getName()).append("(").append(params).append(")\n");
             }
             sb.append("}\n```");
             return hover(sb.toString());
@@ -478,20 +515,21 @@ public class HoverProvider {
             return false;
         }
         char before = line.charAt(start - 1);
-        if (before == '?') {
-            return true;
-        }
         if (before != '.') {
             return false;
         }
+        // A '.' immediately preceded by another '.' is a range operator
+        // (`<0..10>`), not field access. A '.' preceded by '?' is null-safe
+        // field access (`p?.field`) and IS field access - objectBefore
+        // knows how to look past that '?' for the real receiver name.
         return start < 2 || line.charAt(start - 2) != '.';
     }
 
     /**
-     * Hover for {@code alias.Member} where {@code alias} is a native import -
-     * reads the declared signature straight out of the jar's classloading-free
-     * manifest (see {@link NativeInterfaceManifest}), never loading the jar's
-     * actual Java classes just to show a hover.
+     * Hover for {@code alias.Member} where {@code alias} is a native import - reads
+     * the declared signature straight out of the jar's classloading-free manifest
+     * (see {@link NativeInterfaceManifest}), never loading the jar's actual Java
+     * classes just to show a hover.
      */
     private static Hover hoverForNativeMember(List<Node> ast, String objectName, String member, Path docPath) {
         if (objectName == null || docPath == null) {
@@ -516,6 +554,135 @@ public class HoverProvider {
             return hover("```mira\n" + signature + "\n```\n*native: " + objectName + "*");
         }
         return null;
+    }
+
+    /**
+     * Hover for {@code alias.member} where {@code alias} is a namespaced module
+     * import - mirrors {@code SignatureHelpProvider.resolveMethodParams}'s MODULE
+     * branch: resolve the import, fetch its AST (via the workspace index when
+     * available, otherwise a direct parse), look for a matching top-level function
+     * or var.
+     */
+    private static Hover hoverForModuleMember(List<Node> ast, String objectName, String member, Path docPath,
+            WorkspaceIndex workspaceIndex, Map<String, String> openDocumentsByUri) {
+        if (objectName == null || docPath == null) {
+            return null;
+        }
+        for (Node n : ast) {
+            if (!(n instanceof ImportExpression imp) || imp.getKind() != ImportExpression.ImportKind.MODULE
+                    || !objectName.equals(imp.getNamespace())) {
+                continue;
+            }
+            Path modPath = com.mira.utils.ModuleResolver.resolveModulePath(imp.getModule(), docPath);
+            List<Node> modAst = workspaceIndex != null
+                    ? workspaceIndex.getAst(modPath, openDocumentsByUri)
+                    : parseFile(modPath);
+            Hover found = hoverForTopLevelName(modAst, member);
+            if (found != null) {
+                return found;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Hover for a name brought into scope bare by a selective, non-aliased module
+     * import (e.g. {@code import module "lib.mira" {greet};}) - mirrors
+     * {@code SignatureHelpProvider.resolveDirectBoundFuncParams}.
+     */
+    private static Hover hoverForBareModuleImport(List<Node> ast, String name, Path docPath,
+            WorkspaceIndex workspaceIndex, Map<String, String> openDocumentsByUri) {
+        if (docPath == null) {
+            return null;
+        }
+        for (Node n : ast) {
+            if (!(n instanceof ImportExpression imp) || imp.getKind() != ImportExpression.ImportKind.MODULE) {
+                continue;
+            }
+            if (imp.getNamespace() != null) {
+                continue;
+            }
+            if (imp.isSelective() && !imp.getSelectedFunctions().contains(name)) {
+                continue;
+            }
+            Path modPath = com.mira.utils.ModuleResolver.resolveModulePath(imp.getModule(), docPath);
+            List<Node> modAst = workspaceIndex != null
+                    ? workspaceIndex.getAst(modPath, openDocumentsByUri)
+                    : parseFile(modPath);
+            Hover found = hoverForTopLevelName(modAst, name);
+            if (found != null) {
+                return found;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Hover for the alias/namespace identifier at its own import declaration (e.g.
+     * {@code ray} in {@code import native "raylib.jar" as ray;}) - shows what the
+     * import actually resolves to, since none of the scope-based lookups above ever
+     * see an {@code ImportExpression}.
+     */
+    private static Hover hoverForImportAlias(List<Node> ast, String name, Path docPath) {
+        for (Node n : ast) {
+            if (!(n instanceof ImportExpression imp) || !name.equals(imp.getNamespace())) {
+                continue;
+            }
+            String rawPath = imp.getModule().replace("\"", "");
+            return switch (imp.getKind()) {
+                case NATIVE -> hoverForNativeImportAlias(name, rawPath, docPath);
+                case MODULE -> hoverForModuleImportAlias(name, rawPath, docPath);
+                case STDLIB -> hover("```mira\nimport " + rawPath + " as " + name + "\n```\n*stdlib module*");
+            };
+        }
+        return null;
+    }
+
+    private static Hover hoverForNativeImportAlias(String name, String rawPath, Path docPath) {
+        String sig = "```mira\nimport native \"" + rawPath + "\" as " + name + "\n```\n";
+        if (docPath == null) {
+            return hover(sig + "*native library*");
+        }
+        Path jarPath = NativeLibLocator.locate(rawPath, docPath);
+        if (jarPath == null || !java.nio.file.Files.exists(jarPath)) {
+            return hover(sig + "*native library* — jar not found");
+        }
+        Map<String, Signature> manifest = NativeInterfaceManifest.readFromJar(jarPath);
+        String detail = manifest.isEmpty()
+                ? "*native library* — `" + jarPath + "`"
+                : "*native library* — " + manifest.size() + " member(s) — `" + jarPath + "`";
+        return hover(sig + detail);
+    }
+
+    private static Hover hoverForModuleImportAlias(String name, String rawPath, Path docPath) {
+        String sig = "```mira\nimport module \"" + rawPath + "\" as " + name + "\n```\n";
+        if (docPath == null) {
+            return hover(sig + "*module*");
+        }
+        Path modPath = com.mira.utils.ModuleResolver.resolveModulePath(rawPath, docPath);
+        String suffix = java.nio.file.Files.exists(modPath) ? "" : " — file not found";
+        return hover(sig + "*module* — `" + modPath + "`" + suffix);
+    }
+
+    private static Hover hoverForTopLevelName(List<Node> ast, String name) {
+        for (Node n : ast) {
+            if (n instanceof Statement.FuncDecl f && f.getName().equals(name)) {
+                return hoverForFuncDeclSelf(f);
+            }
+            if (n instanceof Statement.VarDecl v && v.getName().equals(name)) {
+                return hoverForVarDeclSelf(v);
+            }
+        }
+        return null;
+    }
+
+    private static List<Node> parseFile(Path path) {
+        try {
+            String src = java.nio.file.Files.readString(path);
+            return new com.mira.parser.Parser().parseTokens(new com.mira.lexer.Tokenizer().tokenize(src, false));
+        } catch (Exception e) {
+            return List.of();
+        }
     }
 
     private static Hover hoverForField(List<Node> ast, String fieldName, String objectName, int cursorLine) {
@@ -553,8 +720,8 @@ public class HoverProvider {
                             .map(p -> p.name() + (p.type() != null ? " : " + p.type() : ""))
                             .collect(Collectors.joining(", "));
                     String returnPart = m.getReturnType() != null ? " -> " + m.getReturnType() : "";
-                    return hover("```mira\nfn " + m.getName() + "(" + params + ")" + returnPart
-                            + "\n```\n*object method*");
+                    return hover(
+                            "```mira\nfn " + m.getName() + "(" + params + ")" + returnPart + "\n```\n*object method*");
                 }
             }
         }
@@ -572,10 +739,13 @@ public class HoverProvider {
                             .map(p -> p.name() + (p.type() != null ? " : " + p.type() : ""))
                             .collect(Collectors.joining(", "));
                     String returnPart = m.getReturnType() != null ? " -> " + m.getReturnType() : "";
-                    return hover("```mira\nfn " + m.getName() + "(" + params + ")" + returnPart
-                            + "\n```\n*struct method*");
+                    return hover(
+                            "```mira\nfn " + m.getName() + "(" + params + ")" + returnPart + "\n```\n*struct method*");
                 }
             }
+        }
+        if (n instanceof Statement.EnumDecl ed && ed.getValues().containsKey(fieldName)) {
+            return hover("```mira\n" + ed.getIdentifier() + "." + fieldName + "\n```\n*enum value*");
         }
         if (n instanceof Statement.VarDecl vd && vd.getInitializer() != null) {
             return searchNodeForField(vd.getInitializer(), fieldName);

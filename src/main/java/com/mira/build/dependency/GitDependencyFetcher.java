@@ -44,14 +44,14 @@ public final class GitDependencyFetcher {
             Path cached = DependencyCache.checkoutDir(url, lockEntry.commit());
             if (isValidCheckout(cached)) {
                 if (Flags.verbose) {
-                    System.out.println(DiagnosticFormatter.formatInfo(
-                            depName + ": using cached checkout (" + lockEntry.commit() + ")"));
+                    System.out.println(DiagnosticFormatter
+                            .formatInfo(depName + ": using cached checkout (" + lockEntry.commit() + ")"));
                 }
                 return new Resolved(cached, lockEntry.commit(), lockEntry.resolved());
             }
             if (Flags.verbose) {
-                System.out.println(DiagnosticFormatter.formatInfo(
-                        depName + ": fetching " + url + " (commit " + lockEntry.commit() + ")..."));
+                System.out.println(DiagnosticFormatter
+                        .formatInfo(depName + ": fetching " + url + " (commit " + lockEntry.commit() + ")..."));
             }
             Path finalDir = cloneAtRev(depName, url, lockEntry.commit());
             return new Resolved(finalDir, finalDir.getFileName().toString(), lockEntry.resolved());
@@ -59,37 +59,35 @@ public final class GitDependencyFetcher {
 
         if (dep.rev() != null) {
             if (Flags.verbose) {
-                System.out.println(DiagnosticFormatter.formatInfo(
-                        depName + ": fetching " + url + " (rev " + dep.rev() + ")..."));
+                System.out.println(
+                        DiagnosticFormatter.formatInfo(depName + ": fetching " + url + " (rev " + dep.rev() + ")..."));
             }
             Path finalDir = cloneAtRev(depName, url, dep.rev());
             return new Resolved(finalDir, finalDir.getFileName().toString(), dep.rev());
         }
 
-        String refName = dep.tag() != null ? dep.tag()
-                : dep.branch() != null ? dep.branch()
-                : resolveVersionTag(depName, url, dep.version());
+        String refName = dep.tag() != null
+                ? dep.tag()
+                : dep.branch() != null ? dep.branch() : resolveVersionTag(depName, url, dep.version());
 
         if (Flags.verbose) {
-            System.out.println(DiagnosticFormatter.formatInfo(
-                    depName + ": fetching " + url + " (ref '" + refName + "')..."));
+            System.out.println(
+                    DiagnosticFormatter.formatInfo(depName + ": fetching " + url + " (ref '" + refName + "')..."));
         }
 
         Path tempDir = createTempCloneDir(depName);
         String sha;
-        try (Git git = Git.cloneRepository()
-                .setURI(url)
-                .setDirectory(tempDir.toFile())
-                .setBranch(refName)
-                .setDepth(1)
+        try (Git git = Git.cloneRepository().setURI(url).setDirectory(tempDir.toFile()).setBranch(refName).setDepth(1)
                 .call()) {
-            // Resolve HEAD (and close the JGit handles via try-with-resources) before touching the
-            // cache: on Windows, moving/deleting the checkout while JGit still has files open fails.
+            // Resolve HEAD (and close the JGit handles via try-with-resources) before
+            // touching the
+            // cache: on Windows, moving/deleting the checkout while JGit still has files
+            // open fails.
             sha = git.getRepository().resolve("HEAD").getName();
         } catch (GitAPIException | IOException e) {
             deleteQuietly(tempDir);
-            throw new BuildException("Dependency '" + depName + "': failed to fetch " + url
-                    + " (ref '" + refName + "'): " + e.getMessage());
+            throw new BuildException("Dependency '" + depName + "': failed to fetch " + url + " (ref '" + refName
+                    + "'): " + e.getMessage());
         }
         try {
             requireManifest(depName, tempDir);
@@ -98,8 +96,8 @@ public final class GitDependencyFetcher {
             return new Resolved(finalDir, sha, refName);
         } catch (IOException e) {
             deleteQuietly(tempDir);
-            throw new BuildException("Dependency '" + depName + "': failed to fetch " + url
-                    + " (ref '" + refName + "'): " + e.getMessage());
+            throw new BuildException("Dependency '" + depName + "': failed to fetch " + url + " (ref '" + refName
+                    + "'): " + e.getMessage());
         }
     }
 
@@ -108,8 +106,8 @@ public final class GitDependencyFetcher {
         try {
             refs = Git.lsRemoteRepository().setRemote(url).setTags(true).setHeads(false).call();
         } catch (GitAPIException e) {
-            throw new BuildException("Dependency '" + depName + "': failed to list tags for " + url
-                    + ": " + e.getMessage());
+            throw new BuildException(
+                    "Dependency '" + depName + "': failed to list tags for " + url + ": " + e.getMessage());
         }
 
         SemVer best = null;
@@ -130,8 +128,8 @@ public final class GitDependencyFetcher {
             }
         }
         if (bestTag == null) {
-            throw new BuildException("Dependency '" + depName + "': no tag on " + url
-                    + " matches version constraint '" + constraint + "'");
+            throw new BuildException("Dependency '" + depName + "': no tag on " + url + " matches version constraint '"
+                    + constraint + "'");
         }
         return bestTag;
     }
@@ -144,8 +142,8 @@ public final class GitDependencyFetcher {
             sha = git.getRepository().resolve("HEAD").getName();
         } catch (GitAPIException | IOException e) {
             deleteQuietly(tempDir);
-            throw new BuildException("Dependency '" + depName + "': failed to fetch " + url
-                    + " at rev '" + rev + "': " + e.getMessage());
+            throw new BuildException("Dependency '" + depName + "': failed to fetch " + url + " at rev '" + rev + "': "
+                    + e.getMessage());
         }
         try {
             requireManifest(depName, tempDir);
@@ -154,8 +152,8 @@ public final class GitDependencyFetcher {
             return finalDir;
         } catch (IOException e) {
             deleteQuietly(tempDir);
-            throw new BuildException("Dependency '" + depName + "': failed to fetch " + url
-                    + " at rev '" + rev + "': " + e.getMessage());
+            throw new BuildException("Dependency '" + depName + "': failed to fetch " + url + " at rev '" + rev + "': "
+                    + e.getMessage());
         }
     }
 
@@ -176,7 +174,8 @@ public final class GitDependencyFetcher {
             Files.createDirectories(base);
             return Files.createTempDirectory(base, depName + "-");
         } catch (IOException e) {
-            throw new BuildException("Dependency '" + depName + "': failed to create temp directory: " + e.getMessage());
+            throw new BuildException(
+                    "Dependency '" + depName + "': failed to create temp directory: " + e.getMessage());
         }
     }
 

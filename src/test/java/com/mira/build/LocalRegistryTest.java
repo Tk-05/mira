@@ -31,8 +31,7 @@ public class LocalRegistryTest {
     private Path writeConsumerProject(String depSpec) throws Exception {
         Path consumerDir = Files.createDirectory(tmp.resolve("consumer"));
         Files.writeString(consumerDir.resolve("mira.toml"),
-                "[project]\nname = \"app\"\nentry = \"main.mira\"\n"
-                + "[dependencies]\nmylib = " + depSpec + "\n");
+                "[project]\nname = \"app\"\nentry = \"main.mira\"\n" + "[dependencies]\nmylib = " + depSpec + "\n");
         Files.createFile(consumerDir.resolve("main.mira"));
         return consumerDir;
     }

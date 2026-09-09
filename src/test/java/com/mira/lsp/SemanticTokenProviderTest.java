@@ -2,8 +2,11 @@ package com.mira.lsp;
 
 import java.util.List;
 
+import org.eclipse.lsp4j.Position;
+import org.eclipse.lsp4j.Range;
 import org.eclipse.lsp4j.SemanticTokens;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 
@@ -15,6 +18,17 @@ public class SemanticTokenProviderTest {
 
     private static List<Node> parse(String source) {
         return new Parser().parseTokens(new Tokenizer().tokenize(source, false));
+    }
+
+    private static boolean hasTokenOfType(SemanticTokens tokens, String typeName) {
+        int typeIndex = SemanticTokenProvider.TOKEN_TYPES.indexOf(typeName);
+        List<Integer> data = tokens.getData();
+        for (int i = 3; i < data.size(); i += 5) {
+            if (data.get(i) == typeIndex) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Test
@@ -63,5 +77,74 @@ public class SemanticTokenProviderTest {
             }
         }
         assertTrue(hasPropertyToken);
+    }
+
+    @Test
+    void emitsTypeTokenForExplicitVarDeclType() {
+        String source = "var x : Number : 5;\n";
+        SemanticTokens tokens = SemanticTokenProvider.provide(parse(source));
+        assertTrue(hasTokenOfType(tokens, "type"));
+    }
+
+    @Test
+    void emitsTypeTokenForFunctionParameterAndReturnType() {
+        String source = """
+                fn add(a : Number, b : Number) -> Number {
+                    return a + b;
+                }
+                """;
+        SemanticTokens tokens = SemanticTokenProvider.provide(parse(source));
+        assertTrue(hasTokenOfType(tokens, "type"));
+    }
+
+    @Test
+    void emitsTypeTokenForTypeAliasTarget() {
+        String source = "type Id : Number;\n";
+        SemanticTokens tokens = SemanticTokenProvider.provide(parse(source));
+        assertTrue(hasTokenOfType(tokens, "type"));
+    }
+
+    @Test
+    void noTypeTokenWhenNoAnnotationsPresent() {
+        String source = """
+                fn add(a, b) {
+                    return a + b;
+                }
+                """;
+        SemanticTokens tokens = SemanticTokenProvider.provide(parse(source));
+        assertFalse(hasTokenOfType(tokens, "type"));
+    }
+
+    @Test
+    void emitsNamespaceTokenForImportAlias() {
+        String source = "import module \"lib.mira\" as lib;\n";
+        SemanticTokens tokens = SemanticTokenProvider.provide(parse(source));
+        assertTrue(hasTokenOfType(tokens, "namespace"));
+    }
+
+    @Test
+    void emitsFunctionTokenForNamespaceCall() {
+        String source = """
+                import module "lib.mira" as lib;
+                lib.helper();
+                """;
+        SemanticTokens tokens = SemanticTokenProvider.provide(parse(source));
+        assertTrue(hasTokenOfType(tokens, "function"));
+    }
+
+    @Test
+    void rangeFilteredProvideOnlyIncludesTokensWithinRange() {
+        String source = """
+                var a : 1;
+                var b : 2;
+                var c : 3;
+                """;
+        List<Node> ast = parse(source);
+        SemanticTokens full = SemanticTokenProvider.provide(ast);
+        assertEquals(3, full.getData().size() / 5);
+
+        Range onlyMiddleLine = new Range(new Position(1, 0), new Position(1, 99));
+        SemanticTokens ranged = SemanticTokenProvider.provide(ast, onlyMiddleLine);
+        assertEquals(1, ranged.getData().size() / 5);
     }
 }

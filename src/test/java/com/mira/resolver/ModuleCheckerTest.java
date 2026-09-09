@@ -44,8 +44,8 @@ public class ModuleCheckerTest {
                 """);
         Path mainPath = tempDir.resolve("main.mira");
 
-        ModuleChecker.ModuleCheckResult result = checkRoot(
-                "module Main; import module \"broken.mira\" as bm;", mainPath);
+        ModuleChecker.ModuleCheckResult result = checkRoot("module Main; import module \"broken.mira\" as bm;",
+                mainPath);
 
         assertTrue(result.hadErrors(), "A syntax error in an imported module must be reported as a check failure");
         assertFalse(result.modules().containsKey(brokenModule),
@@ -61,8 +61,8 @@ public class ModuleCheckerTest {
                 """);
         Path mainPath = tempDir.resolve("main.mira");
 
-        ModuleChecker.ModuleCheckResult result = checkRoot(
-                "module Main; import module \"valid.mira\" as vm;", mainPath);
+        ModuleChecker.ModuleCheckResult result = checkRoot("module Main; import module \"valid.mira\" as vm;",
+                mainPath);
 
         assertFalse(result.hadErrors(), "A cleanly-parsing imported module must not be reported as an error");
         assertTrue(result.modules().containsKey(validModule), "The valid module should be in the parsed-modules map");

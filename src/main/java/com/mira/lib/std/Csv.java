@@ -64,10 +64,8 @@ public class Csv implements Lib {
 
     private static List<Expression> toMembers(Object arg) {
         return switch (arg) {
-            case ListExpression l ->
-                new ArrayList<>(l.getMembers());
-            default ->
-                throw new RuntimeException("Expected list, got: " + arg.getClass().getSimpleName());
+            case ListExpression l -> new ArrayList<>(l.getMembers());
+            default -> throw new RuntimeException("Expected list, got: " + arg.getClass().getSimpleName());
         };
     }
 
@@ -115,7 +113,8 @@ public class Csv implements Lib {
                         sb.append(',');
                     }
                     String field = cols.get(i) instanceof DumbExpression d
-                            ? String.valueOf(d.getValue()) : String.valueOf(cols.get(i));
+                            ? String.valueOf(d.getValue())
+                            : String.valueOf(cols.get(i));
                     if (field.contains(",") || field.contains("\"") || field.contains("\n")) {
                         sb.append('"').append(field.replace("\"", "\"\"")).append('"');
                     } else {
@@ -147,7 +146,7 @@ public class Csv implements Lib {
             return new ListExpression(result);
         }));
 
-        environment.define("rowCount", new NativeFunction(1, "csvStr", args
-                -> (double) parseCsv(String.valueOf(args.get(0))).size()));
+        environment.define("rowCount",
+                new NativeFunction(1, "csvStr", args -> (double) parseCsv(String.valueOf(args.get(0))).size()));
     }
 }

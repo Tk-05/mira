@@ -7,11 +7,30 @@ import java.util.List;
 import java.util.Map;
 
 import org.eclipse.lsp4j.Diagnostic;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 public class DiagnosticCollectorTest {
+
+    @Test
+    void unusedImportAliasWarningRangeCoversTheWholeLine(@TempDir Path tempDir) throws IOException {
+        Path mainPath = tempDir.resolve("main.mira");
+        String source = "import native \"fixture.jar\" as ray;\n";
+        Files.writeString(mainPath, source);
+
+        List<Diagnostic> diagnostics = DiagnosticCollector.collect(source, mainPath, Map.of());
+        Diagnostic unusedImport = diagnostics.stream()
+                .filter(d -> d.getMessage().contains("'ray' is imported but never used")).findFirst()
+                .orElseThrow(() -> new AssertionError("expected unused 'ray' import diagnostic, got: " + diagnostics));
+
+        int lineLength = "import native \"fixture.jar\" as ray;".length();
+        assertEquals(0, unusedImport.getRange().getStart().getLine());
+        assertEquals(0, unusedImport.getRange().getStart().getCharacter());
+        assertEquals(0, unusedImport.getRange().getEnd().getLine());
+        assertEquals(lineLength, unusedImport.getRange().getEnd().getCharacter());
+    }
 
     @Test
     void functionUsedOnlyViaSelectiveImportIsNotFlaggedAsUnused(@TempDir Path tempDir) throws IOException {

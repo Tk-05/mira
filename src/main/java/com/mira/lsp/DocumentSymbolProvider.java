@@ -38,8 +38,8 @@ public class DocumentSymbolProvider {
     }
 
     private static void flatten(DocumentSymbol ds, String uri, String containerName, List<SymbolInformation> out) {
-        SymbolInformation si = new SymbolInformation(ds.getName(), ds.getKind(),
-                new Location(uri, ds.getRange()), containerName);
+        SymbolInformation si = new SymbolInformation(ds.getName(), ds.getKind(), new Location(uri, ds.getRange()),
+                containerName);
         out.add(si);
         if (ds.getChildren() != null) {
             for (DocumentSymbol child : ds.getChildren()) {
@@ -65,8 +65,8 @@ public class DocumentSymbolProvider {
         } else if (n instanceof VarDestructure vd) {
             List<String> names = vd.getNames();
             for (int i = 0; i < names.size(); i++) {
-                out.add(symbol(names.get(i), SymbolKind.Variable, content,
-                        vd.line, vd.getNameColumns().get(i), vd.line, List.of()));
+                out.add(symbol(names.get(i), SymbolKind.Variable, content, vd.line, vd.getNameColumns().get(i), vd.line,
+                        List.of()));
             }
         } else if (n instanceof EnumDecl ed) {
             out.add(enumSymbol(ed, content));
@@ -139,8 +139,8 @@ public class DocumentSymbolProvider {
         return symbol(ed.getIdentifier(), SymbolKind.Enum, content, ed.line, 0, ed.endLine, children);
     }
 
-    private static DocumentSymbol symbol(String name, SymbolKind kind, String content,
-            int line, int nameColumn, int endLine, List<DocumentSymbol> children) {
+    private static DocumentSymbol symbol(String name, SymbolKind kind, String content, int line, int nameColumn,
+            int endLine, List<DocumentSymbol> children) {
         Range selection = LspPositions.nameRange(content, line, nameColumn, name);
         Range full = LspPositions.fullRange(content, line, endLine, selection);
         DocumentSymbol ds = new DocumentSymbol(name, kind, full, selection);

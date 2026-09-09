@@ -7,7 +7,8 @@ import java.util.Map;
 
 public class LintScope {
 
-    public record VarInfo(int line, int column, boolean isConst, boolean used, boolean isImport, boolean isFunction, boolean isComptime) {
+    public record VarInfo(int line, int column, boolean isConst, boolean used, boolean isImport, boolean isFunction,
+            boolean isComptime) {
 
         public VarInfo(int line, int column, boolean isConst, boolean used) {
             this(line, column, isConst, used, false, false, false);
@@ -42,9 +43,9 @@ public class LintScope {
         }
     }
 
-    public void declareImport(String name, int line) {
+    public void declareImport(String name, int line, int column) {
         if (!scopes.isEmpty()) {
-            scopes.peek().put(name, new VarInfo(line, 0, false, false, true));
+            scopes.peek().put(name, new VarInfo(line, column, false, false, true));
         }
     }
 

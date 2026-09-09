@@ -69,54 +69,32 @@ public class Flags {
                     System.out.println("mira " + Flags.VERSION);
                     System.exit(0);
                 }
-                case "-t", "--tokens" ->
-                    Flags.dumpTokens = true;
-                case "--check-only" ->
-                    Flags.checkOnly = true;
-                case "-m", "--main" ->
-                    Flags.mainFunction = true;
-                case "--imports" ->
-                    Flags.libInfo = true;
-                case "--debug" ->
-                    Flags.debug = true;
-                case "--watch" ->
-                    Flags.hotReload = true;
-                case "--test" ->
-                    Flags.testMode = true;
-                case "--ast" ->
-                    Flags.printAsts = true;
-                case "--compile" ->
-                    Flags.compile = true;
-                case "--run" ->
-                    Flags.compileAndRun = true;
-                case "-b", "--dump-bytecode" ->
-                    Flags.dumpByteCode = true;
+                case "-t", "--tokens" -> Flags.dumpTokens = true;
+                case "--check-only" -> Flags.checkOnly = true;
+                case "-m", "--main" -> Flags.mainFunction = true;
+                case "--imports" -> Flags.libInfo = true;
+                case "--debug" -> Flags.debug = true;
+                case "--watch" -> Flags.hotReload = true;
+                case "--test" -> Flags.testMode = true;
+                case "--ast" -> Flags.printAsts = true;
+                case "--compile" -> Flags.compile = true;
+                case "--run" -> Flags.compileAndRun = true;
+                case "-b", "--dump-bytecode" -> Flags.dumpByteCode = true;
                 case "-o", "--output" -> {
                     Flags.outputDir = Paths.get(args[i + 1]);
                     i++;
                 }
-                case "--package" ->
-                    Flags.packageJar = true;
-                case "--slim" ->
-                    Flags.slimJar = true;
-                case "--full" ->
-                    Flags.slimJar = false;
-                case "--no-check" ->
-                    Flags.noCheck = true;
-                case "--no-warn" ->
-                    Flags.suppressWarnings = true;
-                case "--no-color" ->
-                    Flags.noColor = true;
-                case "-v", "--verbose" ->
-                    Flags.verbose = true;
-                case "--profile" ->
-                    Flags.profile = true;
-                case "--stats" ->
-                    Flags.stats = true;
-                case "--coverage" ->
-                    Flags.coverage = true;
-                case "--strict-types" ->
-                    Flags.strictTypes = true;
+                case "--package" -> Flags.packageJar = true;
+                case "--slim" -> Flags.slimJar = true;
+                case "--full" -> Flags.slimJar = false;
+                case "--no-check" -> Flags.noCheck = true;
+                case "--no-warn" -> Flags.suppressWarnings = true;
+                case "--no-color" -> Flags.noColor = true;
+                case "-v", "--verbose" -> Flags.verbose = true;
+                case "--profile" -> Flags.profile = true;
+                case "--stats" -> Flags.stats = true;
+                case "--coverage" -> Flags.coverage = true;
+                case "--strict-types" -> Flags.strictTypes = true;
                 case "--" -> {
                     Flags.args = Arrays.copyOfRange(args, i + 1, args.length);
                     i = args.length;

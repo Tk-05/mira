@@ -22,34 +22,32 @@ public class IO implements Lib {
 
     @Override
     public void loadLib(Environment environment) {
-        environment.define("readFile",
-                new NativeFunction(1, "path", args -> {
-                    try {
-                        return FileLoader.readFileFromPath(String.valueOf(args.get(0)));
-                    } catch (java.nio.charset.MalformedInputException e) {
-                        try {
-                            return Files.readString(Path.of(String.valueOf(args.get(0))), StandardCharsets.ISO_8859_1);
-                        } catch (IOException e2) {
-                            throw new RuntimeException("readFile failed: " + e2.getMessage());
-                        }
-                    } catch (IOException e) {
-                        throw new RuntimeException("readFile failed: " + e.getMessage());
-                    }
-                }));
+        environment.define("readFile", new NativeFunction(1, "path", args -> {
+            try {
+                return FileLoader.readFileFromPath(String.valueOf(args.get(0)));
+            } catch (java.nio.charset.MalformedInputException e) {
+                try {
+                    return Files.readString(Path.of(String.valueOf(args.get(0))), StandardCharsets.ISO_8859_1);
+                } catch (IOException e2) {
+                    throw new RuntimeException("readFile failed: " + e2.getMessage());
+                }
+            } catch (IOException e) {
+                throw new RuntimeException("readFile failed: " + e.getMessage());
+            }
+        }));
 
-        environment.define("writeFile",
-                new NativeFunction(2, "path, content", args -> {
-                    try {
-                        Path path = Path.of(String.valueOf(args.get(0)));
-                        if (path.getParent() != null) {
-                            Files.createDirectories(path.getParent());
-                        }
-                        Files.writeString(path, String.valueOf(args.get(1)), StandardCharsets.UTF_8);
-                        return null;
-                    } catch (IOException e) {
-                        throw new RuntimeException("writeFile failed: " + e.getMessage());
-                    }
-                }));
+        environment.define("writeFile", new NativeFunction(2, "path, content", args -> {
+            try {
+                Path path = Path.of(String.valueOf(args.get(0)));
+                if (path.getParent() != null) {
+                    Files.createDirectories(path.getParent());
+                }
+                Files.writeString(path, String.valueOf(args.get(1)), StandardCharsets.UTF_8);
+                return null;
+            } catch (IOException e) {
+                throw new RuntimeException("writeFile failed: " + e.getMessage());
+            }
+        }));
 
         environment.define("fileExists",
                 new NativeFunction(1, "path", args -> Files.exists(Path.of(String.valueOf(args.get(0))))));
@@ -57,78 +55,70 @@ public class IO implements Lib {
         environment.define("isDir",
                 new NativeFunction(1, "path", args -> Files.isDirectory(Path.of(String.valueOf(args.get(0))))));
 
-        environment.define("appendFile",
-                new NativeFunction(2, "path, content", args -> {
-                    try {
-                        Path path = Path.of(String.valueOf(args.get(0)));
-                        if (path.getParent() != null) {
-                            Files.createDirectories(path.getParent());
-                        }
-                        Files.writeString(path, String.valueOf(args.get(1)),
-                                StandardCharsets.UTF_8,
-                                StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-                        return null;
-                    } catch (IOException e) {
-                        throw new RuntimeException("appendFile failed: " + e.getMessage());
-                    }
-                }));
+        environment.define("appendFile", new NativeFunction(2, "path, content", args -> {
+            try {
+                Path path = Path.of(String.valueOf(args.get(0)));
+                if (path.getParent() != null) {
+                    Files.createDirectories(path.getParent());
+                }
+                Files.writeString(path, String.valueOf(args.get(1)), StandardCharsets.UTF_8, StandardOpenOption.CREATE,
+                        StandardOpenOption.APPEND);
+                return null;
+            } catch (IOException e) {
+                throw new RuntimeException("appendFile failed: " + e.getMessage());
+            }
+        }));
 
-        environment.define("listDir",
-                new NativeFunction(1, "path", args -> {
-                    try {
-                        Path dir = Path.of(String.valueOf(args.get(0)));
-                        List<Expression> members = new ArrayList<>();
-                        try (var stream = Files.list(dir)) {
-                            stream.map(p -> p.getFileName().toString())
-                                    .forEach(name -> members.add(
-                                    new DumbExpression(new Token(TokenType.EXPRESSION, name, 0, 0))));
-                        }
-                        return new ListExpression(members);
-                    } catch (IOException e) {
-                        throw new RuntimeException("listDir failed: " + e.getMessage());
-                    }
-                }));
+        environment.define("listDir", new NativeFunction(1, "path", args -> {
+            try {
+                Path dir = Path.of(String.valueOf(args.get(0)));
+                List<Expression> members = new ArrayList<>();
+                try (var stream = Files.list(dir)) {
+                    stream.map(p -> p.getFileName().toString()).forEach(
+                            name -> members.add(new DumbExpression(new Token(TokenType.EXPRESSION, name, 0, 0))));
+                }
+                return new ListExpression(members);
+            } catch (IOException e) {
+                throw new RuntimeException("listDir failed: " + e.getMessage());
+            }
+        }));
 
-        environment.define("mkdir",
-                new NativeFunction(1, "path", args -> {
-                    try {
-                        Files.createDirectories(Path.of(String.valueOf(args.get(0))));
-                        return null;
-                    } catch (IOException e) {
-                        throw new RuntimeException("mkdir failed: " + e.getMessage());
-                    }
-                }));
+        environment.define("mkdir", new NativeFunction(1, "path", args -> {
+            try {
+                Files.createDirectories(Path.of(String.valueOf(args.get(0))));
+                return null;
+            } catch (IOException e) {
+                throw new RuntimeException("mkdir failed: " + e.getMessage());
+            }
+        }));
 
-        environment.define("deleteFile",
-                new NativeFunction(1, "path", args -> {
-                    try {
-                        Files.deleteIfExists(Path.of(String.valueOf(args.get(0))));
-                        return null;
-                    } catch (IOException e) {
-                        throw new RuntimeException("deleteFile failed: " + e.getMessage());
-                    }
-                }));
+        environment.define("deleteFile", new NativeFunction(1, "path", args -> {
+            try {
+                Files.deleteIfExists(Path.of(String.valueOf(args.get(0))));
+                return null;
+            } catch (IOException e) {
+                throw new RuntimeException("deleteFile failed: " + e.getMessage());
+            }
+        }));
 
-        environment.define("deleteDir",
-                new NativeFunction(1, "path", args -> {
-                    try {
-                        Path root = Path.of(String.valueOf(args.get(0)));
-                        if (!Files.exists(root)) {
-                            return null;
+        environment.define("deleteDir", new NativeFunction(1, "path", args -> {
+            try {
+                Path root = Path.of(String.valueOf(args.get(0)));
+                if (!Files.exists(root)) {
+                    return null;
+                }
+                try (var stream = Files.walk(root)) {
+                    stream.sorted(java.util.Comparator.reverseOrder()).forEach(p -> {
+                        try {
+                            Files.deleteIfExists(p);
+                        } catch (IOException ignored) {
                         }
-                        try (var stream = Files.walk(root)) {
-                            stream.sorted(java.util.Comparator.reverseOrder())
-                                    .forEach(p -> {
-                                        try {
-                                            Files.deleteIfExists(p);
-                                        } catch (IOException ignored) {
-                                        }
-                                    });
-                        }
-                        return null;
-                    } catch (IOException e) {
-                        throw new RuntimeException("deleteDir failed: " + e.getMessage());
-                    }
-                }));
+                    });
+                }
+                return null;
+            } catch (IOException e) {
+                throw new RuntimeException("deleteDir failed: " + e.getMessage());
+            }
+        }));
     }
 }

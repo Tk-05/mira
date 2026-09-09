@@ -80,13 +80,11 @@ public final class CoverageTracker {
      * A file's module identity, derived exactly the way
      * {@code Interpreter.loadGlobalContext} derives it (the first statement's
      * {@code module <name>;} declaration, or {@code "<script>"} if absent) - so
-     * this always matches the key {@code recordLine} received at runtime for
-     * that same file.
+     * this always matches the key {@code recordLine} received at runtime for that
+     * same file.
      */
     public static String moduleNameOf(List<Node> ast) {
-        return !ast.isEmpty() && ast.get(0) instanceof ModuleDecl moduleDecl
-                ? moduleDecl.getModuleName()
-                : "<script>";
+        return !ast.isEmpty() && ast.get(0) instanceof ModuleDecl moduleDecl ? moduleDecl.getModuleName() : "<script>";
     }
 
     public static void printReport(PrintStream out, List<FileEntry> files) {
@@ -112,15 +110,13 @@ public final class CoverageTracker {
         out.println("Files: " + coverages.size());
         for (FileCoverage fc : coverages) {
             double pct = fc.executable().isEmpty() ? 100.0 : (100.0 * fc.covered().size() / fc.executable().size());
-            out.printf("  %-20s %d/%d lines (%.1f%%)%n",
-                    fc.label(), fc.covered().size(), fc.executable().size(), pct);
+            out.printf("  %-20s %d/%d lines (%.1f%%)%n", fc.label(), fc.covered().size(), fc.executable().size(), pct);
         }
         out.println();
         double totalPct = totalExecutable == 0 ? 100.0 : (100.0 * totalCovered / totalExecutable);
         out.printf("Totals: %d/%d lines covered (%.1f%%)%n", totalCovered, totalExecutable, totalPct);
 
-        List<FileCoverage> withGaps = coverages.stream()
-                .filter(fc -> fc.covered().size() < fc.executable().size())
+        List<FileCoverage> withGaps = coverages.stream().filter(fc -> fc.covered().size() < fc.executable().size())
                 .toList();
         if (!withGaps.isEmpty()) {
             out.println();
@@ -136,15 +132,14 @@ public final class CoverageTracker {
     }
 
     /**
-     * Distinct lines that could ever be reported to {@link #recordLine},
-     * mirroring {@code Interpreter.runBody}'s own traversal: every node sitting
-     * directly in a body list counts (whether a {@code Statement} or a bare
-     * expression-statement like a call - both get their own
-     * {@code notifyDebugger} call at runtime), and container nodes
-     * (if/loop/switch/try/lambda/...) recurse into their nested body lists the
-     * same way. Plain expression operands (call arguments, binary operator
-     * sides, etc.) are deliberately NOT counted individually - the interpreter
-     * never tracks them as separate "lines", only the
+     * Distinct lines that could ever be reported to {@link #recordLine}, mirroring
+     * {@code Interpreter.runBody}'s own traversal: every node sitting directly in a
+     * body list counts (whether a {@code Statement} or a bare expression-statement
+     * like a call - both get their own {@code notifyDebugger} call at runtime), and
+     * container nodes (if/loop/switch/try/lambda/...) recurse into their nested
+     * body lists the same way. Plain expression operands (call arguments, binary
+     * operator sides, etc.) are deliberately NOT counted individually - the
+     * interpreter never tracks them as separate "lines", only the
      * statement/expression-statement that contains them.
      */
     private static Set<Integer> executableLines(List<Node> ast) {
@@ -161,31 +156,24 @@ public final class CoverageTracker {
 
     private static void collectFromBodyNode(Node n, Set<Integer> out) {
         int line = switch (n) {
-            case Statement s ->
-                s.line;
-            case Expression e ->
-                e.line;
-            default ->
-                0;
+            case Statement s -> s.line;
+            case Expression e -> e.line;
+            default -> 0;
         };
         if (line > 0) {
             out.add(line);
         }
         switch (n) {
-            case FuncDecl f ->
-                collectBodyLines(f.getBody(), out);
+            case FuncDecl f -> collectBodyLines(f.getBody(), out);
             case If s -> {
                 collectBodyLines(s.getThenBody(), out);
                 if (s.getElseBody() != null) {
                     collectBodyLines(s.getElseBody(), out);
                 }
             }
-            case Loop s ->
-                collectBodyLines(s.getBody(), out);
-            case While s ->
-                collectBodyLines(s.getBody(), out);
-            case Block s ->
-                collectBodyLines(s.getBody(), out);
+            case Loop s -> collectBodyLines(s.getBody(), out);
+            case While s -> collectBodyLines(s.getBody(), out);
+            case Block s -> collectBodyLines(s.getBody(), out);
             case Switch s -> {
                 for (Switch.SwitchCase sc : s.getCases()) {
                     collectBodyLines(sc.getBody(), out);
@@ -203,25 +191,20 @@ public final class CoverageTracker {
                     collectBodyLines(s.getFinallyBody(), out);
                 }
             }
-            case Lock s ->
-                collectBodyLines(s.getBody(), out);
-            case ComptimeBlock s ->
-                collectBodyLines(s.getBody(), out);
-            case LambdaExpression e ->
-                collectBodyLines(e.getBody(), out);
-            case ExecBlock e ->
-                collectBodyLines(e.getBody(), out);
-            default ->
-                findNestedLambdas(n, out);
+            case Lock s -> collectBodyLines(s.getBody(), out);
+            case ComptimeBlock s -> collectBodyLines(s.getBody(), out);
+            case LambdaExpression e -> collectBodyLines(e.getBody(), out);
+            case ExecBlock e -> collectBodyLines(e.getBody(), out);
+            default -> findNestedLambdas(n, out);
         }
     }
 
     /**
-     * Hunts for {@code LambdaExpression}s buried anywhere inside an operand
-     * tree (e.g. a callback passed as a call argument, like
-     * {@code test("x", fn() {...})}'s second argument). The lambda's own line
-     * isn't separately tracked, but its body is a fresh set of
-     * statement-position lines that get tracked once it's invoked.
+     * Hunts for {@code LambdaExpression}s buried anywhere inside an operand tree
+     * (e.g. a callback passed as a call argument, like {@code test("x", fn()
+     * {...})}'s second argument). The lambda's own line isn't separately tracked,
+     * but its body is a fresh set of statement-position lines that get tracked once
+     * it's invoked.
      */
     private static void findNestedLambdas(Node n, Set<Integer> out) {
         Deque<Node> queue = new ArrayDeque<>();

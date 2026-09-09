@@ -86,8 +86,7 @@ public final class ReflectiveBinder {
 
     private static Method pickWinner(List<Method> overloads) {
         return overloads.stream()
-                .max(Comparator.comparingInt(ReflectiveBinder::methodScore)
-                        .thenComparingInt(Method::getParameterCount))
+                .max(Comparator.comparingInt(ReflectiveBinder::methodScore).thenComparingInt(Method::getParameterCount))
                 .orElseThrow();
     }
 
@@ -132,8 +131,7 @@ public final class ReflectiveBinder {
                 return coerceReturn(method.invoke(null, javaArgs), returnType);
             } catch (InvocationTargetException e) {
                 Throwable cause = e.getCause();
-                throw new RuntimeError.InvalidArgumentError(name,
-                        cause != null ? cause.getMessage() : e.getMessage());
+                throw new RuntimeError.InvalidArgumentError(name, cause != null ? cause.getMessage() : e.getMessage());
             } catch (IllegalAccessException e) {
                 throw new RuntimeError.InvalidArgumentError(name, "method not accessible");
             }

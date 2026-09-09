@@ -45,10 +45,9 @@ public final class NativeInterfaceManifest {
 
     /**
      * Reads a native jar's manifest, caching by (path, mtime) - shared by the
-     * static checker and every LSP feature (hover, signature help, completion)
-     * that wants a native lib's declared signatures without ever loading its
-     * actual Java classes. Returns an empty map if the jar has no manifest, or
-     * can't be read.
+     * static checker and every LSP feature (hover, signature help, completion) that
+     * wants a native lib's declared signatures without ever loading its actual Java
+     * classes. Returns an empty map if the jar has no manifest, or can't be read.
      */
     public static Map<String, Signature> readFromJar(Path jarPath) {
         try {

@@ -67,16 +67,17 @@ final class StructMemberChecks {
         int fallbackColumn = varRef != null ? varRef.getColumn() + varRef.getValue().length() + 1 : 0;
         if (method == null) {
             if (!e.isOptional() && !memberExists(literalBase, methodName)) {
-                String objectName = varRef != null ? varRef.getValue()
+                String objectName = varRef != null
+                        ? varRef.getValue()
                         : literalBase instanceof StructExpression ? "struct" : "object";
-                owner.errors.add(new UndefinedObjectFieldStaticError(
-                        methodName, objectName, fallbackLine, fallbackColumn));
+                owner.errors
+                        .add(new UndefinedObjectFieldStaticError(methodName, objectName, fallbackLine, fallbackColumn));
             }
             return;
         }
         if (!e.getArguments().isEmpty()) {
-            owner.checkArgumentTypes(methodName, method.getParameters(), e.getArguments(),
-                    fallbackLine, fallbackColumn);
+            owner.checkArgumentTypes(methodName, method.getParameters(), e.getArguments(), fallbackLine,
+                    fallbackColumn);
         }
     }
 
@@ -88,8 +89,8 @@ final class StructMemberChecks {
             rootRef = extractVarRef(fae.getObject());
         }
         if (rootRef != null && owner.scope.isDeclared(rootRef.getValue()) && owner.scope.isConst(rootRef.getValue())) {
-            owner.errors.add(new ImmutableCollectionStaticError(
-                    rootRef.getValue(), rootRef.getLine(), rootRef.getColumn()));
+            owner.errors.add(
+                    new ImmutableCollectionStaticError(rootRef.getValue(), rootRef.getLine(), rootRef.getColumn()));
         }
         if (reference instanceof FieldAccessExpression fae) {
             checkFieldAssignmentType(fae, rhsValue);
@@ -101,11 +102,10 @@ final class StructMemberChecks {
         String field = fae.getField();
         com.mira.parser.nodes.statement.Statement.VarDecl fieldDecl;
         if (literalBase instanceof StructExpression structExpr) {
-            fieldDecl = structExpr.getVarDecls().stream()
-                    .filter(v -> field.equals(v.getName())).findFirst().orElse(null);
+            fieldDecl = structExpr.getVarDecls().stream().filter(v -> field.equals(v.getName())).findFirst()
+                    .orElse(null);
         } else if (literalBase instanceof ObjectExpression objExpr) {
-            fieldDecl = objExpr.getVarDecls().stream()
-                    .filter(v -> field.equals(v.getName())).findFirst().orElse(null);
+            fieldDecl = objExpr.getVarDecls().stream().filter(v -> field.equals(v.getName())).findFirst().orElse(null);
         } else {
             return;
         }
@@ -118,17 +118,16 @@ final class StructMemberChecks {
         int line = varRef != null ? varRef.getLine() : fae.getObject().line;
         int column = expressionColumn(rhsValue, varRef != null ? varRef.getColumn() : 0);
         int span = expressionSpan(rhsValue, field.length());
-        owner.checkAssignable(rhsValue, expected, (exp, actual) -> owner.errors.add(
-                new StructFieldTypeMismatchError(field, fieldOwner, exp, actual, line, column, span)));
+        owner.checkAssignable(rhsValue, expected, (exp, actual) -> owner.errors
+                .add(new StructFieldTypeMismatchError(field, fieldOwner, exp, actual, line, column, span)));
     }
 
     void checkCallParamFieldAccesses(FuncDecl fn, List<Expression> args) {
         walkFuncWithParamTypes(fn, args, Map.of(), new HashSet<>(), 0, 0);
     }
 
-    void walkFuncWithParamTypes(FuncDecl fn, List<Expression> args,
-            Map<String, Node> callerParamTypes, Set<String> visited,
-            int callSiteLine, int callSiteCol) {
+    void walkFuncWithParamTypes(FuncDecl fn, List<Expression> args, Map<String, Node> callerParamTypes,
+            Set<String> visited, int callSiteLine, int callSiteCol) {
         if (visited.contains(fn.getName())) {
             return;
         }
@@ -173,8 +172,7 @@ final class StructMemberChecks {
                             }
                         }
                         case StructExpression structExpr -> {
-                            boolean exists = structExpr.getVarDecls().stream()
-                                    .anyMatch(v -> field.equals(v.getName()))
+                            boolean exists = structExpr.getVarDecls().stream().anyMatch(v -> field.equals(v.getName()))
                                     || structExpr.getMethods().stream().anyMatch(m -> field.equals(m.getName()));
                             if (!exists) {
                                 owner.errors.add(
@@ -182,10 +180,11 @@ final class StructMemberChecks {
                             }
                         }
                         default -> {
-                            String typeName = type instanceof ListExpression ? "list"
-                                    : type instanceof ArrayExpression ? "array"
-                                            : type instanceof MapExpression ? "map"
-                                                    : "non-object value";
+                            String typeName = type instanceof ListExpression
+                                    ? "list"
+                                    : type instanceof ArrayExpression
+                                            ? "array"
+                                            : type instanceof MapExpression ? "map" : "non-object value";
                             owner.errors.add(new FieldAccessOnNonObjectError(field, typeName, errLine, errCol));
                         }
                     }
@@ -198,22 +197,22 @@ final class StructMemberChecks {
                     if ((type instanceof ObjectExpression || type instanceof StructExpression)
                             && !memberExists(type, mce.getMethod())) {
                         int errLine = callSiteLine > 0 ? callSiteLine : varRef.getLine();
-                        int errCol = callSiteLine > 0 ? callSiteCol
+                        int errCol = callSiteLine > 0
+                                ? callSiteCol
                                 : varRef.getColumn() + varRef.getValue().length() + 1;
-                        owner.errors.add(new UndefinedObjectFieldStaticError(
-                                mce.getMethod(), varRef.getValue(), errLine, errCol));
+                        owner.errors.add(new UndefinedObjectFieldStaticError(mce.getMethod(), varRef.getValue(),
+                                errLine, errCol));
                     }
                 }
                 queue.add(mce.getObject());
                 queue.addAll(mce.getArguments());
             } else {
-                if (n instanceof CallExpression ce
-                        && ce.getCallee() instanceof DumbExpression callee
+                if (n instanceof CallExpression ce && ce.getCallee() instanceof DumbExpression callee
                         && isIdentifier(callee)) {
                     FuncDecl calledFn = owner.userFuncDecls.get(callee.getValue());
                     if (calledFn != null && !ce.getArguments().isEmpty()) {
-                        walkFuncWithParamTypes(calledFn, ce.getArguments(), paramTypes, nextVisited,
-                                callSiteLine, callSiteCol);
+                        walkFuncWithParamTypes(calledFn, ce.getArguments(), paramTypes, nextVisited, callSiteLine,
+                                callSiteCol);
                     }
                 }
                 addChildrenNoFunctions(n, queue);

@@ -1,10 +1,5 @@
 package com.mira.lexer.token;
 
 public enum TokenType {
-    EXPRESSION,
-    DELIMITER,
-    KEYWORD,
-    EOF,
-    OPERATION,
-    STRING_LITERAL
+    EXPRESSION, DELIMITER, KEYWORD, EOF, OPERATION, STRING_LITERAL
 }

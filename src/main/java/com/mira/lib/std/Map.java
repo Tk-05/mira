@@ -67,7 +67,8 @@ public class Map implements Lib {
             if (value instanceof Expression expr) {
                 map.getEntries().put(key, expr);
             } else {
-                map.getEntries().put(key, new DumbExpression(new Token(TokenType.EXPRESSION, String.valueOf(value), 0, 0)));
+                map.getEntries().put(key,
+                        new DumbExpression(new Token(TokenType.EXPRESSION, String.valueOf(value), 0, 0)));
             }
             return map;
         }));
@@ -115,12 +116,9 @@ public class Map implements Lib {
 
     private static java.util.List<Expression> toList(Object arg) {
         return switch (arg) {
-            case com.mira.parser.nodes.expression.Expression.ArrayExpression a ->
-                new ArrayList<>(a.getMembers());
-            case ListExpression l ->
-                new ArrayList<>(l.getMembers());
-            default ->
-                throw new RuntimeException("Expected array or list, got: " + arg.getClass().getSimpleName());
+            case com.mira.parser.nodes.expression.Expression.ArrayExpression a -> new ArrayList<>(a.getMembers());
+            case ListExpression l -> new ArrayList<>(l.getMembers());
+            default -> throw new RuntimeException("Expected array or list, got: " + arg.getClass().getSimpleName());
         };
     }
 }

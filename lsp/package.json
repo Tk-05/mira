@@ -98,12 +98,14 @@
     "@types/node": "latest",
     "@types/vscode": "^1.100.0",
     "@vscode/vsce": "latest",
+    "prettier": "latest",
     "typescript": "latest"
   },
   "scripts": {
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
-    "package": "vsce package",
-    "build": "tsc -p ./ && vsce package"
+    "format": "prettier --write \"src/**/*.ts\"",
+    "package": "vsce package -o mira-language.vsix",
+    "build": "npm run format && tsc -p ./ && vsce package -o mira-language.vsix"
   }
 }

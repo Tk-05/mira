@@ -49,8 +49,7 @@ public abstract class Statement implements Node {
         @Override
         public String toString() {
             String keyword = isConst ? "const" : "var";
-            return (isPublic ? "pub " : "") + keyword + " " + name
-                    + (type != null ? " : " + type : "")
+            return (isPublic ? "pub " : "") + keyword + " " + name + (type != null ? " : " + type : "")
                     + (initializer != null ? " : " + initializer : "") + ";";
         }
 
@@ -87,23 +86,22 @@ public abstract class Statement implements Node {
         public int nameColumn = 0;
         public TypeAnnotation returnType;
 
-        public FuncDecl(String name, List<Parameter> parameters,
-                List<Node> body, String variadicParam) {
+        public FuncDecl(String name, List<Parameter> parameters, List<Node> body, String variadicParam) {
             this(name, parameters, body, variadicParam, false, false, false);
         }
 
-        public FuncDecl(String name, List<Parameter> parameters,
-                List<Node> body, String variadicParam, boolean isAsync) {
+        public FuncDecl(String name, List<Parameter> parameters, List<Node> body, String variadicParam,
+                boolean isAsync) {
             this(name, parameters, body, variadicParam, isAsync, false, false);
         }
 
-        public FuncDecl(String name, List<Parameter> parameters,
-                List<Node> body, String variadicParam, boolean isAsync, boolean isPure) {
+        public FuncDecl(String name, List<Parameter> parameters, List<Node> body, String variadicParam, boolean isAsync,
+                boolean isPure) {
             this(name, parameters, body, variadicParam, isAsync, isPure, false);
         }
 
-        public FuncDecl(String name, List<Parameter> parameters,
-                List<Node> body, String variadicParam, boolean isAsync, boolean isPure, boolean isPublic) {
+        public FuncDecl(String name, List<Parameter> parameters, List<Node> body, String variadicParam, boolean isAsync,
+                boolean isPure, boolean isPublic) {
             this.name = name;
             this.parameters = parameters;
             this.body = body;
@@ -296,8 +294,8 @@ public abstract class Statement implements Node {
         private final Expression collection;
         private final List<Node> body;
 
-        private Loop(List<Node> varDecls, Expression condition, List<Node> postExpressions,
-                VarDecl iterator, Expression collection, List<Node> body) {
+        private Loop(List<Node> varDecls, Expression condition, List<Node> postExpressions, VarDecl iterator,
+                Expression collection, List<Node> body) {
             this.varDecls = varDecls;
             this.condition = condition;
             this.postExpressions = postExpressions;
@@ -306,8 +304,8 @@ public abstract class Statement implements Node {
             this.body = body;
         }
 
-        public static Loop cStyle(List<Node> varDecls, Expression condition,
-                List<Node> postExpressions, List<Node> body) {
+        public static Loop cStyle(List<Node> varDecls, Expression condition, List<Node> postExpressions,
+                List<Node> body) {
             return new Loop(varDecls, condition, postExpressions, null, null, body);
         }
 
@@ -375,9 +373,7 @@ public abstract class Statement implements Node {
 
         @Override
         public String toString() {
-            return doModifier
-                    ? "do {...} while (" + condition + ");"
-                    : "while (" + condition + ") {...}";
+            return doModifier ? "do {...} while (" + condition + ");" : "while (" + condition + ") {...}";
         }
 
         public Expression getCondition() {
@@ -676,8 +672,7 @@ public abstract class Statement implements Node {
 
         @Override
         public String toString() {
-            return (isPublic ? "pub " : "") + "enum " + identifier
-                    + " {" + String.join(", ", values.keySet()) + "}";
+            return (isPublic ? "pub " : "") + "enum " + identifier + " {" + String.join(", ", values.keySet()) + "}";
         }
 
         public Map<String, Expression> getValues() {
@@ -739,8 +734,8 @@ public abstract class Statement implements Node {
         }
 
         /**
-         * Column of each name in {@link #getNames()}, in the same order; all on
-         * this statement's own {@link #line}.
+         * Column of each name in {@link #getNames()}, in the same order; all on this
+         * statement's own {@link #line}.
          */
         public List<Integer> getNameColumns() {
             return nameColumns;
