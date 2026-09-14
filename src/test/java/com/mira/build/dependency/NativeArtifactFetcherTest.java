@@ -1,5 +1,6 @@
 package com.mira.build.dependency;
 
+import java.net.InetSocketAddress;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.MessageDigest;
@@ -14,6 +15,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import com.mira.build.BuildException;
 import com.mira.build.ProjectConfig;
+import com.sun.net.httpserver.HttpServer;
 
 /**
  * Uses file:// URLs against a small local fixture file (not a real jar's worth
@@ -130,10 +132,50 @@ public class NativeArtifactFetcherTest {
     }
 
     @Test
-    void httpUrlWithoutHashThrows() {
-        ProjectConfig.NativeDependency dep = new ProjectConfig.NativeDependency("https://example.com/raylib.jar", null);
+    void httpUrlWithoutHashDownloadsAndCachesByUrlNotContent() throws Exception {
+        byte[] content = "http-fixture-bytes".getBytes();
+        HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/lib.jar", exchange -> {
+            exchange.sendResponseHeaders(200, content.length);
+            exchange.getResponseBody().write(content);
+            exchange.close();
+        });
+        server.start();
+        try {
+            String url = "http://127.0.0.1:" + server.getAddress().getPort() + "/lib.jar";
+            ProjectConfig.NativeDependency dep = new ProjectConfig.NativeDependency(url, null);
 
-        assertThrows(BuildException.class, () -> NativeArtifactFetcher.resolve("dep", dep));
+            NativeArtifactFetcher.Resolved resolved = NativeArtifactFetcher.resolve("httpdep", dep);
+
+            assertEquals("http-fixture-bytes", Files.readString(resolved.jarPath()));
+            assertEquals(NativeArtifactFetcher.expectedPath(dep), resolved.jarPath());
+            // cache key is derived from the URL string itself, not the downloaded content
+            String urlSha = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(url.getBytes()));
+            assertEquals(NativeArtifactFetcher.artifactDir(urlSha).resolve("lib.jar"), resolved.jarPath());
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
+    void secondHttpResolveWithoutHashIsCacheHitAndDoesNotNeedTheServer() throws Exception {
+        byte[] content = "cached-http-bytes".getBytes();
+        HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/lib2.jar", exchange -> {
+            exchange.sendResponseHeaders(200, content.length);
+            exchange.getResponseBody().write(content);
+            exchange.close();
+        });
+        server.start();
+        String url = "http://127.0.0.1:" + server.getAddress().getPort() + "/lib2.jar";
+        ProjectConfig.NativeDependency dep = new ProjectConfig.NativeDependency(url, null);
+        NativeArtifactFetcher.Resolved first = NativeArtifactFetcher.resolve("httpdep2", dep);
+        server.stop(0);
+
+        NativeArtifactFetcher.Resolved second = NativeArtifactFetcher.resolve("httpdep2", dep);
+
+        assertEquals(first.jarPath(), second.jarPath());
+        assertEquals("cached-http-bytes", Files.readString(second.jarPath()));
     }
 
     @Test
