@@ -22,6 +22,8 @@ public class Help {
               mira task <name> [--profile] [--stats]            Run the task named <name>
               mira install [--project <dir>]                    Install the project into the local registry
               mira deps [--project <dir>]                       Print the dependency tree
+              mira update [--project <dir>]                     Re-resolve tag/branch/version git dependencies
+                                                                 against the remote, ignoring mira.lock pins
 
             `--project <dir>` (short: `-C <dir>`) works with every project command above,
             so you don't need to `cd` into the project first. `-v`/`--verbose` works

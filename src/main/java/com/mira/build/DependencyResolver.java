@@ -26,12 +26,6 @@ public class DependencyResolver {
         return resolve(config, false);
     }
 
-    /**
-     * @param forceUpdate
-     *            when true, re-resolves "tag"/"branch"/"version" git dependencies
-     *            against the remote instead of reusing the mira.lock pin (used by a
-     *            future "mira update" command).
-     */
     public static Resolution resolve(ProjectConfig config, boolean forceUpdate) {
         Path lockPath = config.projectRoot().resolve("mira.lock");
         Map<String, Lockfile.Entry> lock = Lockfile.read(lockPath);
@@ -152,6 +146,12 @@ public class DependencyResolver {
 
     private static void runNativePreBuildHooks(String ownerName, ProjectConfig config) {
         if (config.nativeDependencies().isEmpty()) {
+            return;
+        }
+
+        boolean anyMissing = config.nativeDependencies().values().stream()
+                .anyMatch(nd -> !Files.exists(NativeArtifactFetcher.expectedPath(nd, config.projectRoot())));
+        if (!anyMissing) {
             return;
         }
         for (String taskName : config.build().preBuild()) {

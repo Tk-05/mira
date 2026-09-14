@@ -83,6 +83,26 @@ public class Commands {
         System.out.println("Installed " + config.name() + " " + config.version() + " -> " + dest);
     }
 
+    public static void update(String[] args) {
+        update(args, projectDir(args));
+    }
+
+    static void update(String[] args, Path workDir) {
+        applyCommonOptions(args);
+        ProjectConfig config = ProjectLoader.find(workDir).orElseThrow(() -> new BuildException("""
+                No mira.toml found in current directory or any parent.
+                Run 'mira init' to create a new project."""));
+        if (config.dependencies().isEmpty()) {
+            System.out.println(DiagnosticFormatter.formatInfo("no dependencies declared in mira.toml"));
+            return;
+        }
+        // forceUpdate re-resolves "tag"/"branch"/"version" git dependencies against
+        // the remote instead of reusing the mira.lock pin - a "rev"-pinned dependency
+        // re-fetches the same fixed commit either way, since a rev never moves.
+        DependencyResolver.resolve(config, true);
+        System.out.println(DiagnosticFormatter.formatInfo("updated dependencies for " + config.name()));
+    }
+
     public static void deps(String[] args) {
         deps(args, projectDir(args));
     }
