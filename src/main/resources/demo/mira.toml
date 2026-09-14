@@ -1,0 +1,10 @@
+[project]
+name    = "mira-demo"
+version = "0.1.0"
+entry   = "Debug.mira"
+
+[build]
+main = true
+
+[dependencies]
+raylib = { git = "https://github.com/Tk-05/mira-raylib.git", branch = "main" }

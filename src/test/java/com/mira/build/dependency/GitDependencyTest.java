@@ -10,6 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import com.mira.build.Commands;
 import com.mira.build.DependencyResolver;
 import com.mira.build.ProjectConfig;
 import com.mira.build.ProjectLoader;
@@ -101,6 +102,39 @@ public class GitDependencyTest {
         List<Path> secondRoots = DependencyResolver.resolve(cfg).sourceRoots();
         assertEquals(firstRoots, secondRoots);
         assertTrue(Files.exists(secondRoots.get(0).resolve("mira.toml")));
+    }
+
+    @Test
+    void updateForcesReResolutionOfBranchDependencyPickingUpNewCommits() throws Exception {
+        Path repoDir = Files.createDirectory(tmp.resolve("upstream"));
+        String branch;
+        try (Git git = Git.init().setDirectory(repoDir.toFile()).call()) {
+            writeUpstreamVersion(repoDir, "1.0.0");
+            git.add().addFilepattern(".").call();
+            commit(git, "1.0.0");
+            branch = git.getRepository().getBranch();
+
+            Path consumerDir = writeConsumerProject(
+                    "{ git = \"" + repoDir.toUri().toString() + "\", branch = \"" + branch + "\" }");
+            ProjectConfig cfg = ProjectLoader.load(consumerDir.resolve("mira.toml"));
+
+            List<Path> firstRoots = DependencyResolver.resolve(cfg).sourceRoots();
+            assertTrue(Files.readString(firstRoots.get(0).resolve("mira.toml")).contains("version = \"1.0.0\""));
+
+            writeUpstreamVersion(repoDir, "2.0.0");
+            git.add().addFilepattern(".").call();
+            commit(git, "2.0.0");
+
+            List<Path> cachedRoots = DependencyResolver.resolve(cfg).sourceRoots();
+            assertTrue(Files.readString(cachedRoots.get(0).resolve("mira.toml")).contains("version = \"1.0.0\""),
+                    "a plain resolve should stay pinned via mira.lock");
+
+            Commands.update(new String[]{"update", "--project", consumerDir.toString()});
+
+            List<Path> updatedRoots = DependencyResolver.resolve(cfg).sourceRoots();
+            assertTrue(Files.readString(updatedRoots.get(0).resolve("mira.toml")).contains("version = \"2.0.0\""),
+                    "mira update should re-resolve the branch and pick up the new commit");
+        }
     }
 
     private void deleteRecursively(Path dir) throws Exception {

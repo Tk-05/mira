@@ -246,10 +246,13 @@ public class ProjectConfigTest {
     }
 
     @Test
-    void nativeDependencyMissingSha256Throws() {
+    void nativeDependencyHttpUrlWithoutSha256IsAllowed() {
         Map<String, Object> map = Map.of("project", section("entry", "main.mira"), "native",
                 Map.of("raylib", section("url", "https://example.com/raylib.jar")));
-        assertThrows(BuildException.class, () -> ProjectConfig.fromMap(map, root));
+        ProjectConfig cfg = ProjectConfig.fromMap(map, root);
+        ProjectConfig.NativeDependency dep = cfg.nativeDependencies().get("raylib");
+        assertNotNull(dep);
+        assertNull(dep.sha256());
     }
 
     @Test

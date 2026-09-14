@@ -6,6 +6,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -19,18 +20,22 @@ import java.util.Locale;
 
 import com.mira.build.BuildException;
 import com.mira.build.ProjectConfig;
+import com.mira.error.DiagnosticFormatter;
 
 /**
  * Fetches a native JVM jar (declared via {@code [native.name] = { url, sha256
- * }} in mira.toml) into a shared, content-addressed cache. Unlike
- * {@link GitDependencyFetcher}, there is no lockfile pin: the declared sha256
- * already fully determines the cache path, so a cache hit is verification by
- * construction and there is nothing "mutable" to re-resolve (no forceUpdate
- * parameter).
+ * }} in mira.toml) into a shared cache. Unlike {@link GitDependencyFetcher},
+ * there is no lockfile pin - when sha256 is declared, it already fully
+ * determines the cache path, so a cache hit is verification by construction and
+ * there is nothing "mutable" to re-resolve (no forceUpdate parameter).
  *
- * Exception: a {@code file://} URL may omit sha256 entirely, since there's no
- * integrity concern fetching a file already on the local machine — see
- * {@link #resolveUnverifiedFileUrl}.
+ * sha256 is optional (see {@link ProjectConfig.NativeDependency}): a
+ * {@code file://} URL always resolves straight to the source file, live, with
+ * no cache and nothing to verify (see {@link #resolveUnverifiedFileUrl}); an
+ * http(s):// URL without sha256 is still cached, just keyed by the URL itself
+ * rather than by content, and never checked against anything (see
+ * {@link #resolveUnverifiedRemoteUrl}) - trading integrity verification for not
+ * having to pre-compute a hash just to declare the dependency.
  */
 public final class NativeArtifactFetcher {
 
@@ -45,39 +50,47 @@ public final class NativeArtifactFetcher {
         return DependencyCache.root().resolve("native");
     }
 
-    public static Path artifactDir(String sha256) {
-        return root().resolve(sha256.toLowerCase(Locale.ROOT));
+    public static Path artifactDir(String key) {
+        return root().resolve(key.toLowerCase(Locale.ROOT));
     }
 
     /**
      * The path a resolve() call would produce, without fetching anything — used by
      * "mira deps".
      */
-    public static Path expectedPath(ProjectConfig.NativeDependency dep) {
-        if (dep.sha256() == null) {
-            return localFileUrlToPath("(unknown)", dep.url());
+    public static Path expectedPath(ProjectConfig.NativeDependency dep, Path projectRoot) {
+        if (dep.sha256() != null) {
+            return artifactDir(dep.sha256()).resolve(basenameFromUrl(dep.url()));
         }
-        return artifactDir(dep.sha256()).resolve(basenameFromUrl(dep.url()));
+        if (isFileUrl(dep.url())) {
+            return resolveFileUrlPath(dep.url(), projectRoot);
+        }
+        return artifactDir(urlCacheKey(dep.url())).resolve(basenameFromUrl(dep.url()));
     }
 
-    public static Resolved resolve(String depName, ProjectConfig.NativeDependency dep) {
-        if (dep.sha256() == null) {
-            return resolveUnverifiedFileUrl(depName, dep.url());
+    public static Resolved resolve(String depName, ProjectConfig.NativeDependency dep, Path projectRoot) {
+        if (dep.sha256() != null) {
+            return resolveVerified(depName, dep.url(), dep.sha256().toLowerCase(Locale.ROOT), projectRoot);
         }
+        if (isFileUrl(dep.url())) {
+            return resolveUnverifiedFileUrl(depName, dep.url(), projectRoot);
+        }
+        return resolveUnverifiedRemoteUrl(depName, dep.url());
+    }
 
-        String sha256 = dep.sha256().toLowerCase(Locale.ROOT);
-        Path destJar = artifactDir(sha256).resolve(basenameFromUrl(dep.url()));
-
+    private static Resolved resolveVerified(String depName, String url, String sha256, Path projectRoot) {
+        Path destJar = artifactDir(sha256).resolve(basenameFromUrl(url));
         if (Files.exists(destJar)) {
             return new Resolved(destJar);
         }
 
-        Path tempFile = download(depName, dep.url());
+        System.out.println(DiagnosticFormatter.formatInfo(depName + ": fetching " + url + "..."));
+        Path tempFile = download(depName, url, projectRoot);
         try {
             String actual = sha256Hex(tempFile);
             if (!actual.equalsIgnoreCase(sha256)) {
                 deleteQuietly(tempFile);
-                throw new BuildException("Native dependency '" + depName + "': sha256 mismatch for " + dep.url()
+                throw new BuildException("Native dependency '" + depName + "': sha256 mismatch for " + url
                         + " (expected " + sha256 + ", got " + actual + ")");
             }
             moveIntoCache(tempFile, destJar);
@@ -85,32 +98,51 @@ public final class NativeArtifactFetcher {
         } catch (IOException e) {
             deleteQuietly(tempFile);
             throw new BuildException(
-                    "Native dependency '" + depName + "': failed to fetch " + dep.url() + ": " + e.getMessage());
+                    "Native dependency '" + depName + "': failed to fetch " + url + ": " + e.getMessage());
         }
     }
 
-    /**
-     * No sha256 means url must be file:// (enforced at mira.toml parse time,
-     * re-checked here for callers that build a NativeDependency directly). Resolves
-     * straight to the source file — no copy, no cache — so every "mira build" picks
-     * up whatever is on disk right now, e.g. after a fresh `mvn package` of
-     * extern/raylib. There's nothing to verify: it's already a local file.
-     */
-    private static Resolved resolveUnverifiedFileUrl(String depName, String url) {
-        Path source = localFileUrlToPath(depName, url);
+    private static Resolved resolveUnverifiedRemoteUrl(String depName, String url) {
+        Path destJar = artifactDir(urlCacheKey(url)).resolve(basenameFromUrl(url));
+        if (Files.exists(destJar)) {
+            return new Resolved(destJar);
+        }
+
+        System.out.println(DiagnosticFormatter.formatInfo(depName + ": fetching " + url + "..."));
+        Path tempFile = download(depName, url, null);
+        try {
+            moveIntoCache(tempFile, destJar);
+            return new Resolved(destJar);
+        } catch (IOException e) {
+            deleteQuietly(tempFile);
+            throw new BuildException(
+                    "Native dependency '" + depName + "': failed to fetch " + url + ": " + e.getMessage());
+        }
+    }
+
+    private static Resolved resolveUnverifiedFileUrl(String depName, String url, Path projectRoot) {
+        Path source = resolveFileUrlPath(url, projectRoot);
         if (!Files.exists(source)) {
             throw new BuildException("Native dependency '" + depName + "': file not found: " + source);
         }
         return new Resolved(source);
     }
 
-    private static Path localFileUrlToPath(String depName, String url) {
-        URI uri = URI.create(url);
-        if (!"file".equalsIgnoreCase(uri.getScheme())) {
-            throw new BuildException("Native dependency '" + depName
-                    + "': sha256 is required unless url is a file:// URL (got " + url + ")");
+    private static boolean isFileUrl(String url) {
+        return "file".equalsIgnoreCase(URI.create(url).getScheme());
+    }
+
+    private static Path resolveFileUrlPath(String url, Path projectRoot) {
+        Path literal = Paths.get(URI.create(url));
+        if (projectRoot == null || Files.exists(literal)) {
+            return literal;
         }
-        return Paths.get(uri);
+        Path relative = literal.getRoot() != null ? literal.getRoot().relativize(literal) : literal;
+        return projectRoot.resolve(relative).normalize();
+    }
+
+    private static String urlCacheKey(String url) {
+        return sha256Hex(url.getBytes(StandardCharsets.UTF_8));
     }
 
     private static String basenameFromUrl(String url) {
@@ -122,12 +154,12 @@ public final class NativeArtifactFetcher {
         return basename;
     }
 
-    private static Path download(String depName, String url) {
+    private static Path download(String depName, String url, Path projectRoot) {
         URI uri = URI.create(url);
         Path tempFile = createTempStagingFile(depName);
         if ("file".equalsIgnoreCase(uri.getScheme())) {
             try {
-                Files.copy(Paths.get(uri), tempFile, StandardCopyOption.REPLACE_EXISTING);
+                Files.copy(resolveFileUrlPath(url, projectRoot), tempFile, StandardCopyOption.REPLACE_EXISTING);
             } catch (IOException e) {
                 throw new BuildException(
                         "Native dependency '" + depName + "': failed to read " + url + ": " + e.getMessage());
@@ -166,6 +198,14 @@ public final class NativeArtifactFetcher {
             }
         }
         return HexFormat.of().formatHex(digest.digest());
+    }
+
+    private static String sha256Hex(byte[] data) {
+        try {
+            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(data));
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 not available", e);
+        }
     }
 
     private static Path createTempStagingFile(String depName) {

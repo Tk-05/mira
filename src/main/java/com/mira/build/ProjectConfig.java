@@ -62,15 +62,17 @@ public record ProjectConfig(String name, String version, Path entry, String desc
 
     /**
      * A [native.name] entry: a JVM jar (implementing com.mira.lib.Lib), fetched
-     * from `url` and verified against `sha256`, resolvable at runtime via a bare
-     * `import native "<basename of url>"`. Content-addressed by sha256 — unlike git
-     * dependencies, nothing here is a mutable ref, so no lockfile pin is needed.
+     * from `url` and, if `sha256` is given, verified against it - resolvable at
+     * runtime via a bare `import native "<basename of url>"`. Content-addressed by
+     * sha256 when present — unlike git dependencies, nothing here is a mutable ref,
+     * so no lockfile pin is needed.
      *
-     * sha256 may be null only when url is a file:// URL: there's no integrity
-     * concern fetching a file already on the local machine, and skipping the hash
-     * means a local build (e.g. of extern/raylib) is picked up live on every
-     * resolve instead of being cached/pinned to whatever content existed the first
-     * time it was resolved. http(s):// URLs always require sha256.
+     * sha256 is optional for any URL scheme: a file:// URL is always picked up live
+     * from disk (no integrity concern, it's already local); an http(s):// URL
+     * without sha256 is still cached (keyed by the URL itself instead of by
+     * content) but not verified against anything - a deliberate tradeoff that
+     * trades integrity checking for not having to pre-compute a hash just to
+     * declare a dependency. Prefer setting sha256 when you can.
      */
     public record NativeDependency(String url, String sha256) {
 
@@ -195,11 +197,6 @@ public record ProjectConfig(String name, String version, Path entry, String desc
             String sha256 = (String) ndMap.get("sha256");
             if (ndUrl == null) {
                 throw new BuildException("Native dependency '" + ndName + "' must specify a 'url'");
-            }
-            boolean isFileUrl = "file".equalsIgnoreCase(java.net.URI.create(ndUrl).getScheme());
-            if (sha256 == null && !isFileUrl) {
-                throw new BuildException(
-                        "Native dependency '" + ndName + "': 'sha256' is required unless 'url' is a file:// URL");
             }
             if (sha256 != null && !sha256.matches("(?i)[0-9a-f]{64}")) {
                 throw new BuildException("Native dependency '" + ndName
