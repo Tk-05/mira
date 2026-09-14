@@ -46,7 +46,7 @@ public final class DependencyGraphInspector {
             out.add(buildSourceNode(e.getKey(), e.getValue(), lock, visiting));
         }
         for (Map.Entry<String, ProjectConfig.NativeDependency> e : config.nativeDependencies().entrySet()) {
-            out.add(buildNativeNode(e.getKey(), e.getValue()));
+            out.add(buildNativeNode(e.getKey(), e.getValue(), config.projectRoot()));
         }
     }
 
@@ -91,8 +91,8 @@ public final class DependencyGraphInspector {
         }
     }
 
-    private static DepNode buildNativeNode(String name, ProjectConfig.NativeDependency dep) {
-        Path expected = NativeArtifactFetcher.expectedPath(dep);
+    private static DepNode buildNativeNode(String name, ProjectConfig.NativeDependency dep, Path projectRoot) {
+        Path expected = NativeArtifactFetcher.expectedPath(dep, projectRoot);
         boolean available = Files.exists(expected);
         String spec = dep.url()
                 + (dep.sha256() != null ? " (sha256 " + shortHash(dep.sha256()) + ")" : " (unverified)");

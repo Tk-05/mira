@@ -1,6 +1,6 @@
 module Fractals;
 
-import native "../../../../extern/raylib/target/raylib.jar" as ray;
+import native "raylib.jar" as ray;
 import math as m;
 import collection as c;
 import thread as thread;

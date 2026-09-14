@@ -42,7 +42,8 @@ public class DependencyResolver {
         Set<String> visitedProjects = new LinkedHashSet<>();
         visitedProjects.add(canonicalKey(config.projectRoot()));
 
-        resolveNativeTable(config.name(), config.nativeDependencies(), nativeRoots, seenNativeShas);
+        resolveNativeTable(config.name(), config.nativeDependencies(), config.projectRoot(), nativeRoots,
+                seenNativeShas);
 
         for (Map.Entry<String, ProjectConfig.Dependency> entry : config.dependencies().entrySet()) {
             String name = entry.getKey();
@@ -101,17 +102,6 @@ public class DependencyResolver {
         return new Resolution(sourceRoots, nativeRoots);
     }
 
-    /**
-     * Walks depRoot's own mira.toml, collecting its [native] table, then recurses
-     * into each of ITS dependencies the same way. Cycle-safe via visitedProjects.
-     * Best-effort: a nested dependency that can't be resolved (missing directory,
-     * not installed, unreachable git remote) is silently skipped rather than
-     * failing the whole build — it's unrelated to the dependency actually being
-     * built, we're only searching for [native] tables that might be further down
-     * the graph. Nested git dependencies found this way are re-resolved fresh each
-     * time (no lockfile pin): a transitive dependency's ref should be pinned by its
-     * own project's mira.lock, not by whichever downstream project reaches it.
-     */
     private static void collectNativeTransitively(String ownerName, Path depRoot, List<Path> nativeRoots,
             Set<String> seenShas, Set<String> visitedProjects) {
         Path depToml = depRoot.resolve("mira.toml");
@@ -123,7 +113,7 @@ public class DependencyResolver {
         }
 
         ProjectConfig depConfig = ProjectLoader.load(depToml);
-        resolveNativeTable(ownerName, depConfig.nativeDependencies(), nativeRoots, seenShas);
+        resolveNativeTable(ownerName, depConfig.nativeDependencies(), depConfig.projectRoot(), nativeRoots, seenShas);
 
         for (Map.Entry<String, ProjectConfig.Dependency> nested : depConfig.dependencies().entrySet()) {
             Path nestedRoot;
@@ -159,7 +149,7 @@ public class DependencyResolver {
     }
 
     private static void resolveNativeTable(String ownerName, Map<String, ProjectConfig.NativeDependency> natives,
-            List<Path> nativeRoots, Set<String> seenShas) {
+            Path projectRoot, List<Path> nativeRoots, Set<String> seenShas) {
         for (Map.Entry<String, ProjectConfig.NativeDependency> e : natives.entrySet()) {
             ProjectConfig.NativeDependency nd = e.getValue();
             // Dedup only applies when there's an actual hash to compare — an unhashed
@@ -169,7 +159,8 @@ public class DependencyResolver {
             if (nd.sha256() != null && !seenShas.add(nd.sha256())) {
                 continue;
             }
-            NativeArtifactFetcher.Resolved resolved = NativeArtifactFetcher.resolve(ownerName + "." + e.getKey(), nd);
+            NativeArtifactFetcher.Resolved resolved = NativeArtifactFetcher.resolve(ownerName + "." + e.getKey(), nd,
+                    projectRoot);
             nativeRoots.add(resolved.jarPath().getParent());
         }
     }

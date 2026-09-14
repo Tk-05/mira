@@ -45,7 +45,7 @@ public class BuildContext {
 
         if (config.entry() == null) {
             throw new BuildException("mira.toml: [project] entry is required to build, run, or test this project "
-                    + "(this package has no entry point of its own — e.g. a native-only package like extern/raylib)");
+                    + "(this package has no entry point of its own — e.g. a library");
         }
         if (!Files.exists(config.entry())) {
             throw new BuildException("mira.toml: [project] entry file does not exist: " + config.entry());

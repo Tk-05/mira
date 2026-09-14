@@ -20,7 +20,9 @@ import com.sun.net.httpserver.HttpServer;
 /**
  * Uses file:// URLs against a small local fixture file (not a real jar's worth
  * of bytes — content doesn't matter for these tests, only that it hashes and
- * round-trips correctly).
+ * round-trips correctly). projectRoot is passed as {@code tmp} throughout,
+ * except in the tests specifically exercising relative-file-url resolution,
+ * where it's the thing under test.
  */
 public class NativeArtifactFetcherTest {
 
@@ -39,7 +41,7 @@ public class NativeArtifactFetcherTest {
         String sha = sha256Of(content);
 
         NativeArtifactFetcher.Resolved resolved = NativeArtifactFetcher.resolve("dummy",
-                new ProjectConfig.NativeDependency(source.toUri().toString(), sha));
+                new ProjectConfig.NativeDependency(source.toUri().toString(), sha), tmp);
 
         assertEquals(NativeArtifactFetcher.artifactDir(sha).resolve("dummy.jar"), resolved.jarPath());
         assertTrue(Files.exists(resolved.jarPath()));
@@ -54,7 +56,7 @@ public class NativeArtifactFetcherTest {
         String wrongSha = "0".repeat(64);
 
         assertThrows(BuildException.class, () -> NativeArtifactFetcher.resolve("dummy",
-                new ProjectConfig.NativeDependency(source.toUri().toString(), wrongSha)));
+                new ProjectConfig.NativeDependency(source.toUri().toString(), wrongSha), tmp));
         assertFalse(Files.exists(NativeArtifactFetcher.artifactDir(wrongSha)));
     }
 
@@ -66,10 +68,10 @@ public class NativeArtifactFetcherTest {
         String sha = sha256Of(content);
         ProjectConfig.NativeDependency dep = new ProjectConfig.NativeDependency(source.toUri().toString(), sha);
 
-        NativeArtifactFetcher.Resolved first = NativeArtifactFetcher.resolve("dummy2", dep);
+        NativeArtifactFetcher.Resolved first = NativeArtifactFetcher.resolve("dummy2", dep, tmp);
         Files.delete(source);
 
-        NativeArtifactFetcher.Resolved second = NativeArtifactFetcher.resolve("dummy2", dep);
+        NativeArtifactFetcher.Resolved second = NativeArtifactFetcher.resolve("dummy2", dep, tmp);
         assertEquals(first.jarPath(), second.jarPath());
         assertTrue(Files.exists(second.jarPath()));
     }
@@ -87,9 +89,9 @@ public class NativeArtifactFetcherTest {
         Files.write(sourceB, content);
 
         NativeArtifactFetcher.Resolved resolvedA = NativeArtifactFetcher.resolve("a",
-                new ProjectConfig.NativeDependency(sourceA.toUri().toString(), sha));
+                new ProjectConfig.NativeDependency(sourceA.toUri().toString(), sha), tmp);
         NativeArtifactFetcher.Resolved resolvedB = NativeArtifactFetcher.resolve("b",
-                new ProjectConfig.NativeDependency(sourceB.toUri().toString(), sha));
+                new ProjectConfig.NativeDependency(sourceB.toUri().toString(), sha), tmp);
 
         assertEquals(resolvedA.jarPath(), resolvedB.jarPath());
     }
@@ -102,7 +104,7 @@ public class NativeArtifactFetcherTest {
                 "https://example.com/some/dir/mylib.jar", sha);
 
         assertEquals(NativeArtifactFetcher.artifactDir(sha).resolve("mylib.jar"),
-                NativeArtifactFetcher.expectedPath(dep));
+                NativeArtifactFetcher.expectedPath(dep, tmp));
     }
 
     @Test
@@ -111,7 +113,7 @@ public class NativeArtifactFetcherTest {
         Files.writeString(source, "live-content-v1");
         ProjectConfig.NativeDependency dep = new ProjectConfig.NativeDependency(source.toUri().toString(), null);
 
-        NativeArtifactFetcher.Resolved resolved = NativeArtifactFetcher.resolve("unverified", dep);
+        NativeArtifactFetcher.Resolved resolved = NativeArtifactFetcher.resolve("unverified", dep, tmp);
 
         assertEquals(source, resolved.jarPath());
         assertFalse(resolved.jarPath().startsWith(NativeArtifactFetcher.root()),
@@ -124,9 +126,9 @@ public class NativeArtifactFetcherTest {
         Files.writeString(source, "version-1");
         ProjectConfig.NativeDependency dep = new ProjectConfig.NativeDependency(source.toUri().toString(), null);
 
-        NativeArtifactFetcher.resolve("live", dep);
+        NativeArtifactFetcher.resolve("live", dep, tmp);
         Files.writeString(source, "version-2");
-        NativeArtifactFetcher.Resolved second = NativeArtifactFetcher.resolve("live", dep);
+        NativeArtifactFetcher.Resolved second = NativeArtifactFetcher.resolve("live", dep, tmp);
 
         assertEquals("version-2", Files.readString(second.jarPath()));
     }
@@ -145,10 +147,10 @@ public class NativeArtifactFetcherTest {
             String url = "http://127.0.0.1:" + server.getAddress().getPort() + "/lib.jar";
             ProjectConfig.NativeDependency dep = new ProjectConfig.NativeDependency(url, null);
 
-            NativeArtifactFetcher.Resolved resolved = NativeArtifactFetcher.resolve("httpdep", dep);
+            NativeArtifactFetcher.Resolved resolved = NativeArtifactFetcher.resolve("httpdep", dep, tmp);
 
             assertEquals("http-fixture-bytes", Files.readString(resolved.jarPath()));
-            assertEquals(NativeArtifactFetcher.expectedPath(dep), resolved.jarPath());
+            assertEquals(NativeArtifactFetcher.expectedPath(dep, tmp), resolved.jarPath());
             // cache key is derived from the URL string itself, not the downloaded content
             String urlSha = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(url.getBytes()));
             assertEquals(NativeArtifactFetcher.artifactDir(urlSha).resolve("lib.jar"), resolved.jarPath());
@@ -169,10 +171,10 @@ public class NativeArtifactFetcherTest {
         server.start();
         String url = "http://127.0.0.1:" + server.getAddress().getPort() + "/lib2.jar";
         ProjectConfig.NativeDependency dep = new ProjectConfig.NativeDependency(url, null);
-        NativeArtifactFetcher.Resolved first = NativeArtifactFetcher.resolve("httpdep2", dep);
+        NativeArtifactFetcher.Resolved first = NativeArtifactFetcher.resolve("httpdep2", dep, tmp);
         server.stop(0);
 
-        NativeArtifactFetcher.Resolved second = NativeArtifactFetcher.resolve("httpdep2", dep);
+        NativeArtifactFetcher.Resolved second = NativeArtifactFetcher.resolve("httpdep2", dep, tmp);
 
         assertEquals(first.jarPath(), second.jarPath());
         assertEquals("cached-http-bytes", Files.readString(second.jarPath()));
@@ -183,7 +185,7 @@ public class NativeArtifactFetcherTest {
         Path missing = tmp.resolve("does-not-exist.jar");
         ProjectConfig.NativeDependency dep = new ProjectConfig.NativeDependency(missing.toUri().toString(), null);
 
-        assertThrows(BuildException.class, () -> NativeArtifactFetcher.resolve("dep", dep));
+        assertThrows(BuildException.class, () -> NativeArtifactFetcher.resolve("dep", dep, tmp));
     }
 
     @Test
@@ -192,6 +194,46 @@ public class NativeArtifactFetcherTest {
         Files.writeString(source, "x");
         ProjectConfig.NativeDependency dep = new ProjectConfig.NativeDependency(source.toUri().toString(), null);
 
-        assertEquals(source, NativeArtifactFetcher.expectedPath(dep));
+        assertEquals(source, NativeArtifactFetcher.expectedPath(dep, tmp));
+    }
+
+    /**
+     * The mira-raylib convention: a native jar's own mira.toml points at its own
+     * build output with a driveless {@code file:///target/x.jar} URL, meant to be
+     * read relative to wherever that project ends up (e.g. after a git-dependency
+     * clone) rather than as a literal OS-root path.
+     */
+    @Test
+    void relativeFileUrlResolvesAgainstProjectRoot() throws Exception {
+        Path projectRoot = tmp.resolve("cloned-dep");
+        Files.createDirectories(projectRoot.resolve("target"));
+        Files.writeString(projectRoot.resolve("target").resolve("raylib.jar"), "relative-native-jar");
+        ProjectConfig.NativeDependency dep = new ProjectConfig.NativeDependency("file:///target/raylib.jar", null);
+
+        NativeArtifactFetcher.Resolved resolved = NativeArtifactFetcher.resolve("raylib", dep, projectRoot);
+
+        assertEquals(projectRoot.resolve("target").resolve("raylib.jar"), resolved.jarPath());
+        assertEquals("relative-native-jar", Files.readString(resolved.jarPath()));
+        assertEquals(resolved.jarPath(), NativeArtifactFetcher.expectedPath(dep, projectRoot));
+    }
+
+    @Test
+    void relativeFileUrlWithoutProjectRootThrows() {
+        ProjectConfig.NativeDependency dep = new ProjectConfig.NativeDependency("file:///target/raylib.jar", null);
+
+        assertThrows(BuildException.class, () -> NativeArtifactFetcher.resolve("raylib", dep, null));
+    }
+
+    @Test
+    void absoluteFileUrlIgnoresProjectRoot() throws Exception {
+        Path source = tmp.resolve("absolute.jar");
+        Files.writeString(source, "abs-content");
+        ProjectConfig.NativeDependency dep = new ProjectConfig.NativeDependency(source.toUri().toString(), null);
+        Path unrelatedRoot = tmp.resolve("unrelated");
+        Files.createDirectories(unrelatedRoot);
+
+        NativeArtifactFetcher.Resolved resolved = NativeArtifactFetcher.resolve("abs", dep, unrelatedRoot);
+
+        assertEquals(source, resolved.jarPath());
     }
 }

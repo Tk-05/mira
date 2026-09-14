@@ -54,36 +54,36 @@ public final class NativeArtifactFetcher {
     }
 
     /**
-     * The path a resolve() call would produce, without fetching anything — used
-     * by "mira deps".
+     * The path a resolve() call would produce, without fetching anything — used by
+     * "mira deps".
      */
-    public static Path expectedPath(ProjectConfig.NativeDependency dep) {
+    public static Path expectedPath(ProjectConfig.NativeDependency dep, Path projectRoot) {
         if (dep.sha256() != null) {
             return artifactDir(dep.sha256()).resolve(basenameFromUrl(dep.url()));
         }
         if (isFileUrl(dep.url())) {
-            return Paths.get(URI.create(dep.url()));
+            return resolveFileUrlPath(dep.url(), projectRoot);
         }
         return artifactDir(urlCacheKey(dep.url())).resolve(basenameFromUrl(dep.url()));
     }
 
-    public static Resolved resolve(String depName, ProjectConfig.NativeDependency dep) {
+    public static Resolved resolve(String depName, ProjectConfig.NativeDependency dep, Path projectRoot) {
         if (dep.sha256() != null) {
-            return resolveVerified(depName, dep.url(), dep.sha256().toLowerCase(Locale.ROOT));
+            return resolveVerified(depName, dep.url(), dep.sha256().toLowerCase(Locale.ROOT), projectRoot);
         }
         if (isFileUrl(dep.url())) {
-            return resolveUnverifiedFileUrl(depName, dep.url());
+            return resolveUnverifiedFileUrl(depName, dep.url(), projectRoot);
         }
         return resolveUnverifiedRemoteUrl(depName, dep.url());
     }
 
-    private static Resolved resolveVerified(String depName, String url, String sha256) {
+    private static Resolved resolveVerified(String depName, String url, String sha256, Path projectRoot) {
         Path destJar = artifactDir(sha256).resolve(basenameFromUrl(url));
         if (Files.exists(destJar)) {
             return new Resolved(destJar);
         }
 
-        Path tempFile = download(depName, url);
+        Path tempFile = download(depName, url, projectRoot);
         try {
             String actual = sha256Hex(tempFile);
             if (!actual.equalsIgnoreCase(sha256)) {
@@ -106,7 +106,7 @@ public final class NativeArtifactFetcher {
             return new Resolved(destJar);
         }
 
-        Path tempFile = download(depName, url);
+        Path tempFile = download(depName, url, null);
         try {
             moveIntoCache(tempFile, destJar);
             return new Resolved(destJar);
@@ -117,8 +117,8 @@ public final class NativeArtifactFetcher {
         }
     }
 
-    private static Resolved resolveUnverifiedFileUrl(String depName, String url) {
-        Path source = Paths.get(URI.create(url));
+    private static Resolved resolveUnverifiedFileUrl(String depName, String url, Path projectRoot) {
+        Path source = resolveFileUrlPath(url, projectRoot);
         if (!Files.exists(source)) {
             throw new BuildException("Native dependency '" + depName + "': file not found: " + source);
         }
@@ -127,6 +127,20 @@ public final class NativeArtifactFetcher {
 
     private static boolean isFileUrl(String url) {
         return "file".equalsIgnoreCase(URI.create(url).getScheme());
+    }
+
+    private static Path resolveFileUrlPath(String url, Path projectRoot) {
+        Path path = Paths.get(URI.create(url));
+        if (path.isAbsolute()) {
+            return path;
+        }
+        if (projectRoot == null) {
+            throw new BuildException("Native dependency url '" + url
+                    + "' is relative but no project root is available to resolve it against");
+        }
+
+        Path relative = path.getRoot() != null ? path.getRoot().relativize(path) : path;
+        return projectRoot.resolve(relative).normalize();
     }
 
     private static String urlCacheKey(String url) {
@@ -142,12 +156,12 @@ public final class NativeArtifactFetcher {
         return basename;
     }
 
-    private static Path download(String depName, String url) {
+    private static Path download(String depName, String url, Path projectRoot) {
         URI uri = URI.create(url);
         Path tempFile = createTempStagingFile(depName);
         if ("file".equalsIgnoreCase(uri.getScheme())) {
             try {
-                Files.copy(Paths.get(uri), tempFile, StandardCopyOption.REPLACE_EXISTING);
+                Files.copy(resolveFileUrlPath(url, projectRoot), tempFile, StandardCopyOption.REPLACE_EXISTING);
             } catch (IOException e) {
                 throw new BuildException(
                         "Native dependency '" + depName + "': failed to read " + url + ": " + e.getMessage());
@@ -178,7 +192,8 @@ public final class NativeArtifactFetcher {
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException("SHA-256 not available", e);
         }
-        try (InputStream in = Files.newInputStream(file); DigestInputStream digestIn = new DigestInputStream(in, digest)) {
+        try (InputStream in = Files.newInputStream(file);
+                DigestInputStream digestIn = new DigestInputStream(in, digest)) {
             byte[] buffer = new byte[8192];
             while (digestIn.read(buffer) != -1) {
                 // streamed through the digest; contents are discarded
