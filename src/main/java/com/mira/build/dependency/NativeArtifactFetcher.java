@@ -55,8 +55,8 @@ public final class NativeArtifactFetcher {
     }
 
     /**
-     * The path a resolve() call would produce, without fetching anything — used by
-     * "mira deps".
+     * The path a resolve() call would produce, without fetching anything — used
+     * by "mira deps".
      */
     public static Path expectedPath(ProjectConfig.NativeDependency dep, Path projectRoot) {
         if (dep.sha256() != null) {
@@ -133,16 +133,11 @@ public final class NativeArtifactFetcher {
     }
 
     private static Path resolveFileUrlPath(String url, Path projectRoot) {
-        Path path = Paths.get(URI.create(url));
-        if (path.isAbsolute()) {
-            return path;
+        Path literal = Paths.get(URI.create(url));
+        if (projectRoot == null || Files.exists(literal)) {
+            return literal;
         }
-        if (projectRoot == null) {
-            throw new BuildException("Native dependency url '" + url
-                    + "' is relative but no project root is available to resolve it against");
-        }
-
-        Path relative = path.getRoot() != null ? path.getRoot().relativize(path) : path;
+        Path relative = literal.getRoot() != null ? literal.getRoot().relativize(literal) : literal;
         return projectRoot.resolve(relative).normalize();
     }
 
@@ -195,8 +190,7 @@ public final class NativeArtifactFetcher {
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException("SHA-256 not available", e);
         }
-        try (InputStream in = Files.newInputStream(file);
-                DigestInputStream digestIn = new DigestInputStream(in, digest)) {
+        try (InputStream in = Files.newInputStream(file); DigestInputStream digestIn = new DigestInputStream(in, digest)) {
             byte[] buffer = new byte[8192];
             while (digestIn.read(buffer) != -1) {
                 // streamed through the digest; contents are discarded
