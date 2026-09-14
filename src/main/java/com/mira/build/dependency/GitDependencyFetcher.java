@@ -49,19 +49,15 @@ public final class GitDependencyFetcher {
                 }
                 return new Resolved(cached, lockEntry.commit(), lockEntry.resolved());
             }
-            if (Flags.verbose) {
-                System.out.println(DiagnosticFormatter
-                        .formatInfo(depName + ": fetching " + url + " (commit " + lockEntry.commit() + ")..."));
-            }
+            System.out.println(DiagnosticFormatter.formatInfo(depName + ": fetching " + url + " (commit "
+                    + lockEntry.commit() + ")... (cached checkout missing or invalid)"));
             Path finalDir = cloneAtRev(depName, url, lockEntry.commit());
             return new Resolved(finalDir, finalDir.getFileName().toString(), lockEntry.resolved());
         }
 
         if (dep.rev() != null) {
-            if (Flags.verbose) {
-                System.out.println(
-                        DiagnosticFormatter.formatInfo(depName + ": fetching " + url + " (rev " + dep.rev() + ")..."));
-            }
+            System.out.println(
+                    DiagnosticFormatter.formatInfo(depName + ": fetching " + url + " (rev " + dep.rev() + ")..."));
             Path finalDir = cloneAtRev(depName, url, dep.rev());
             return new Resolved(finalDir, finalDir.getFileName().toString(), dep.rev());
         }
@@ -70,10 +66,8 @@ public final class GitDependencyFetcher {
                 ? dep.tag()
                 : dep.branch() != null ? dep.branch() : resolveVersionTag(depName, url, dep.version());
 
-        if (Flags.verbose) {
-            System.out.println(
-                    DiagnosticFormatter.formatInfo(depName + ": fetching " + url + " (ref '" + refName + "')..."));
-        }
+        System.out
+                .println(DiagnosticFormatter.formatInfo(depName + ": fetching " + url + " (ref '" + refName + "')..."));
 
         Path tempDir = createTempCloneDir(depName);
         String sha;

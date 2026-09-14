@@ -20,6 +20,7 @@ import java.util.Locale;
 
 import com.mira.build.BuildException;
 import com.mira.build.ProjectConfig;
+import com.mira.error.DiagnosticFormatter;
 
 /**
  * Fetches a native JVM jar (declared via {@code [native.name] = { url, sha256
@@ -54,8 +55,8 @@ public final class NativeArtifactFetcher {
     }
 
     /**
-     * The path a resolve() call would produce, without fetching anything — used by
-     * "mira deps".
+     * The path a resolve() call would produce, without fetching anything — used
+     * by "mira deps".
      */
     public static Path expectedPath(ProjectConfig.NativeDependency dep, Path projectRoot) {
         if (dep.sha256() != null) {
@@ -83,6 +84,7 @@ public final class NativeArtifactFetcher {
             return new Resolved(destJar);
         }
 
+        System.out.println(DiagnosticFormatter.formatInfo(depName + ": fetching " + url + "..."));
         Path tempFile = download(depName, url, projectRoot);
         try {
             String actual = sha256Hex(tempFile);
@@ -106,6 +108,7 @@ public final class NativeArtifactFetcher {
             return new Resolved(destJar);
         }
 
+        System.out.println(DiagnosticFormatter.formatInfo(depName + ": fetching " + url + "..."));
         Path tempFile = download(depName, url, null);
         try {
             moveIntoCache(tempFile, destJar);
@@ -192,8 +195,7 @@ public final class NativeArtifactFetcher {
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException("SHA-256 not available", e);
         }
-        try (InputStream in = Files.newInputStream(file);
-                DigestInputStream digestIn = new DigestInputStream(in, digest)) {
+        try (InputStream in = Files.newInputStream(file); DigestInputStream digestIn = new DigestInputStream(in, digest)) {
             byte[] buffer = new byte[8192];
             while (digestIn.read(buffer) != -1) {
                 // streamed through the digest; contents are discarded
