@@ -55,8 +55,8 @@ public final class NativeArtifactFetcher {
     }
 
     /**
-     * The path a resolve() call would produce, without fetching anything — used
-     * by "mira deps".
+     * The path a resolve() call would produce, without fetching anything — used by
+     * "mira deps".
      */
     public static Path expectedPath(ProjectConfig.NativeDependency dep, Path projectRoot) {
         if (dep.sha256() != null) {
@@ -190,7 +190,8 @@ public final class NativeArtifactFetcher {
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException("SHA-256 not available", e);
         }
-        try (InputStream in = Files.newInputStream(file); DigestInputStream digestIn = new DigestInputStream(in, digest)) {
+        try (InputStream in = Files.newInputStream(file);
+                DigestInputStream digestIn = new DigestInputStream(in, digest)) {
             byte[] buffer = new byte[8192];
             while (digestIn.read(buffer) != -1) {
                 // streamed through the digest; contents are discarded
