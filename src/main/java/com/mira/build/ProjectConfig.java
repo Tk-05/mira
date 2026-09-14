@@ -37,20 +37,19 @@ public record ProjectConfig(String name, String version, Path entry, String desc
         }
 
         /**
-         * Exactly one of tag/branch/rev/version is set, chosen by whichever
-         * field was present in mira.toml. version is a semver constraint (e.g.
-         * "^1.2.0") matched against the repo's tags at resolve time.
+         * Exactly one of tag/branch/rev/version is set, chosen by whichever field was
+         * present in mira.toml. version is a semver constraint (e.g. "^1.2.0") matched
+         * against the repo's tags at resolve time.
          */
         record GitDependency(String url, String tag, String branch, String rev, String version) implements Dependency {
 
         }
 
         /**
-         * Resolved from the local install cache
-         * (~/.mira/packages/local/&lt;dependency name&gt;/&lt;version&gt;)
-         * populated by running "mira install" inside the dependency's own
-         * project directory — the local equivalent of Maven's "mvn install"
-         * into ~/.m2/repository. No path or git URL needed.
+         * Resolved from the local install cache (~/.mira/packages/local/&lt;dependency
+         * name&gt;/&lt;version&gt;) populated by running "mira install" inside the
+         * dependency's own project directory — the local equivalent of Maven's "mvn
+         * install" into ~/.m2/repository. No path or git URL needed.
          */
         record RegistryDependency(String version) implements Dependency {
 
@@ -64,13 +63,13 @@ public record ProjectConfig(String name, String version, Path entry, String desc
     /**
      * A [native.name] entry: a JVM jar (implementing com.mira.lib.Lib), fetched
      * from `url` and, if `sha256` is given, verified against it - resolvable at
-     * runtime via a bare `import native "<basename of url>"`. Content-addressed
-     * by sha256 when present — unlike git dependencies, nothing here is a
-     * mutable ref, so no lockfile pin is needed.
+     * runtime via a bare `import native "<basename of url>"`. Content-addressed by
+     * sha256 when present — unlike git dependencies, nothing here is a mutable ref,
+     * so no lockfile pin is needed.
      *
-     * sha256 is optional for any URL scheme: a file:// URL is always picked up
-     * live from disk (no integrity concern, it's already local); an http(s)://
-     * URL without sha256 is still cached (keyed by the URL itself instead of by
+     * sha256 is optional for any URL scheme: a file:// URL is always picked up live
+     * from disk (no integrity concern, it's already local); an http(s):// URL
+     * without sha256 is still cached (keyed by the URL itself instead of by
      * content) but not verified against anything - a deliberate tradeoff that
      * trades integrity checking for not having to pre-compute a hash just to
      * declare a dependency. Prefer setting sha256 when you can.
@@ -254,23 +253,17 @@ public record ProjectConfig(String name, String version, Path entry, String desc
 
     private static BuildMode parseMode(String s) {
         return switch (s) {
-            case "compile" ->
-                BuildMode.COMPILE;
-            case "package" ->
-                BuildMode.PACKAGE;
-            default ->
-                BuildMode.INTERPRET;
+            case "compile" -> BuildMode.COMPILE;
+            case "package" -> BuildMode.PACKAGE;
+            default -> BuildMode.INTERPRET;
         };
     }
 
     private static JarBundle parseJarBundle(String s) {
         return switch (s) {
-            case "slim" ->
-                JarBundle.SLIM;
-            case "full" ->
-                JarBundle.FULL;
-            default ->
-                throw new BuildException("mira.toml: unknown jar-bundle '" + s + "'. Expected: slim, full");
+            case "slim" -> JarBundle.SLIM;
+            case "full" -> JarBundle.FULL;
+            default -> throw new BuildException("mira.toml: unknown jar-bundle '" + s + "'. Expected: slim, full");
         };
     }
 

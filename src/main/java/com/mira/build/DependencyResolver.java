@@ -42,6 +42,7 @@ public class DependencyResolver {
         Set<String> visitedProjects = new LinkedHashSet<>();
         visitedProjects.add(canonicalKey(config.projectRoot()));
 
+        runNativePreBuildHooks(config.name(), config);
         resolveNativeTable(config.name(), config.nativeDependencies(), config.projectRoot(), nativeRoots,
                 seenNativeShas);
 
@@ -113,6 +114,7 @@ public class DependencyResolver {
         }
 
         ProjectConfig depConfig = ProjectLoader.load(depToml);
+        runNativePreBuildHooks(ownerName, depConfig);
         resolveNativeTable(ownerName, depConfig.nativeDependencies(), depConfig.projectRoot(), nativeRoots, seenShas);
 
         for (Map.Entry<String, ProjectConfig.Dependency> nested : depConfig.dependencies().entrySet()) {
@@ -148,14 +150,27 @@ public class DependencyResolver {
         };
     }
 
+    private static void runNativePreBuildHooks(String ownerName, ProjectConfig config) {
+        if (config.nativeDependencies().isEmpty()) {
+            return;
+        }
+        for (String taskName : config.build().preBuild()) {
+            TaskConfig task = config.tasks().get(taskName);
+            if (task == null || !task.isCmd()) {
+                continue;
+            }
+            if (Flags.verbose) {
+                System.out.println(DiagnosticFormatter
+                        .formatInfo(ownerName + ": running pre-build task '" + taskName + "' for [native]..."));
+            }
+            TaskRunner.runCmd(config.projectRoot(), task.cmd());
+        }
+    }
+
     private static void resolveNativeTable(String ownerName, Map<String, ProjectConfig.NativeDependency> natives,
             Path projectRoot, List<Path> nativeRoots, Set<String> seenShas) {
         for (Map.Entry<String, ProjectConfig.NativeDependency> e : natives.entrySet()) {
             ProjectConfig.NativeDependency nd = e.getValue();
-            // Dedup only applies when there's an actual hash to compare — an unhashed
-            // (file://)
-            // entry has no shared identity with any other unhashed entry, so every one must
-            // resolve.
             if (nd.sha256() != null && !seenShas.add(nd.sha256())) {
                 continue;
             }

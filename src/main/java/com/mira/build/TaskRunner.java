@@ -1,6 +1,7 @@
 package com.mira.build;
 
 import java.io.IOException;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -37,7 +38,7 @@ public class TaskRunner {
 
         try {
             if (task.isCmd()) {
-                runCmd(task.cmd());
+                runCmd(config.projectRoot(), task.cmd());
             } else {
                 runScript(ctx, task.script());
             }
@@ -50,9 +51,10 @@ public class TaskRunner {
         }
     }
 
-    private static void runCmd(String cmd) {
+    static void runCmd(Path dir, String cmd) {
         boolean isWindows = System.getProperty("os.name", "").toLowerCase().contains("win");
         ProcessBuilder pb = isWindows ? new ProcessBuilder("cmd.exe", "/c", cmd) : new ProcessBuilder("sh", "-c", cmd);
+        pb.directory(dir.toFile());
         pb.inheritIO();
         try {
             int exitCode = pb.start().waitFor();
