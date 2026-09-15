@@ -52,12 +52,6 @@ final class StaticCheckSupport {
     private StaticCheckSupport() {
     }
 
-    // Type-checking (gradual: only ever consulted/enforced when an explicit
-    // annotation is present somewhere in the comparison - unannotated code
-    // is never newly rejected).
-    static final Set<String> BUILTIN_TYPE_NAMES = Set.of("Number", "String", "Bool", "List", "Array", "Map", "Object",
-            "Fn", "Null", "Any", "Void");
-
     static final Set<String> STRING_UNSAFE_OPERATORS = Set.of("-", "*", "%", "\\%", "**", "&", "|", "^", "<<", ">>");
 
     static final Set<String> ARITHMETIC_TYPE_CHECKED_OPERATORS = Set.of("+", "-", "*", "/", "%", "\\%", "**");
@@ -82,7 +76,6 @@ final class StaticCheckSupport {
 
     }
 
-    @SuppressWarnings("unchecked")
     static void addChildren(Node node, Deque<Node> queue) {
         switch (node) {
             case FuncDecl s -> queue.addAll(s.getBody());

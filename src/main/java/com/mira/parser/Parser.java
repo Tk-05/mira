@@ -66,6 +66,7 @@ import com.mira.parser.nodes.statement.Statement.VarDecl;
 import com.mira.parser.nodes.statement.Statement.VarDestructure;
 import com.mira.parser.nodes.statement.Statement.While;
 import com.mira.vocabulary.Vocabulary;
+import static com.mira.vocabulary.Vocabulary.BUILTIN_TYPE_NAMES;
 
 public class Parser {
 
@@ -83,9 +84,6 @@ public class Parser {
      * identically without a "$" sigil to mark plain variables.
      */
     private final java.util.Set<String> knownAliases = new java.util.HashSet<>();
-
-    private static final java.util.Set<String> BUILTIN_TYPE_NAMES = java.util.Set.of("Number", "String", "Bool", "List",
-            "Array", "Map", "Object", "Fn", "Null", "Any", "Void");
 
     /**
      * Type/enum/struct-template names declared so far in this parse. Needed to

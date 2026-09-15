@@ -51,18 +51,12 @@ import com.mira.runtime.functions.Callable;
 import com.mira.runtime.functions.NativeFunction;
 import com.mira.runtime.interpreter.Environment;
 import com.mira.utils.ModuleResolver;
+import static com.mira.vocabulary.Vocabulary.BUILTIN_TYPE_NAMES;
+import static com.mira.vocabulary.Vocabulary.KEYWORDS;
 
 public class CompletionProvider {
 
-    private static final List<String> KEYWORDS = List.of("var", "const", "fn", "return", "if", "else", "while", "for",
-            "in", "break", "continue", "switch", "case", "default", "do", "try", "catch", "finally", "throw", "import",
-            "module", "as", "enum", "async", "await", "typeof", "spawn", "pure", "lock", "true", "false", "null",
-            "exec", "exec isolated", "comptime", "static_assert", "pub", "struct");
-
     private static final List<String> GLOBALS = List.copyOf(LibIndex.GLOBAL_NAMES);
-
-    private static final List<String> BUILTIN_TYPE_NAMES = List.of("Number", "String", "Bool", "List", "Array", "Map",
-            "Object", "Fn", "Null", "Any", "Void");
 
     private static final Map<String, List<String>> STDLIB;
     private static final Map<String, String> STDLIB_PARAMS;

@@ -105,7 +105,6 @@ import com.mira.parser.nodes.statement.Statement.VarDestructure;
 import com.mira.parser.nodes.statement.Statement.While;
 import com.mira.resolver.LintScope.VarInfo;
 import static com.mira.resolver.StaticCheckSupport.ARITHMETIC_TYPE_CHECKED_OPERATORS;
-import static com.mira.resolver.StaticCheckSupport.BUILTIN_TYPE_NAMES;
 import static com.mira.resolver.StaticCheckSupport.COMPARISON_TYPE_CHECKED_OPERATORS;
 import com.mira.resolver.StaticCheckSupport.NarrowSave;
 import com.mira.resolver.StaticCheckSupport.NullCheckNarrowing;
@@ -133,6 +132,7 @@ import static com.mira.resolver.StaticCheckSupport.resolveModuleFile;
 import static com.mira.resolver.StaticCheckSupport.sameNamedType;
 import static com.mira.resolver.StaticCheckSupport.spanOf;
 import com.mira.runtime.interpreter.Interpreter;
+import static com.mira.vocabulary.Vocabulary.BUILTIN_TYPE_NAMES;
 import com.mira.warning.WarningCollector;
 import com.mira.warning.WarningLevel;
 
