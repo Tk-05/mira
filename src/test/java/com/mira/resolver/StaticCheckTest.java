@@ -88,12 +88,12 @@ public class StaticCheckTest {
 
     @Test
     void breakInsideLoopIsValid() {
-        assertClean("for(var i in <0..5>) { break; }");
+        assertClean("for(var i in 0..5) { break; }");
     }
 
     @Test
     void continueInsideLoopIsValid() {
-        assertClean("for(var i in <0..5>) { continue; }");
+        assertClean("for(var i in 0..5) { continue; }");
     }
 
     @Test
@@ -333,17 +333,6 @@ public class StaticCheckTest {
     @Test
     void varArrayIndexAssignIsValid() {
         assertClean("var arr : [1, 2, 3]; arr[0] : 9;");
-    }
-
-    @Test
-    void rangeStepZeroViaVarProducesE313() {
-        List<MiraError> errors = errorsFor("var step : 0; for(var i in <1..10, step>) { }");
-        assertTrue(hasCode(errors, "E313"));
-    }
-
-    @Test
-    void rangeStepNonZeroVarIsValid() {
-        assertClean("var step : 2; for(var i in <1..10, step>) { }");
     }
 
     @Test

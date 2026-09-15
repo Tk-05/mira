@@ -177,9 +177,6 @@ public final class AstWalker {
                 if (e.getEnd() != null) {
                     queue.add(e.getEnd());
                 }
-                if (e.getStepsize() != null) {
-                    queue.add(e.getStepsize());
-                }
             }
             case FieldAccessExpression e -> queue.add(e.getObject());
             case MethodCallExpression e -> {

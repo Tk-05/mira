@@ -356,6 +356,10 @@ public class Parser {
         return parseAssignmentExpression();
     }
 
+    // Set while parsing the end operand of a range, so a second '..' at the same
+    // level (e.g. "a..b..c") is rejected instead of silently nesting ranges.
+    private boolean parsingRangeEnd = false;
+
     private Expression parsePratt(int minBP) {
         Expression left = parsePrimary();
 
@@ -372,6 +376,23 @@ public class Parser {
                 matchLexeme(":");
                 Expression elseExpr = parseTernaryBranch();
                 left = new TernaryExpression(left, thenExpr, elseExpr);
+                break;
+            }
+
+            if (opToken.getLexeme().equals("..") && opToken.getTokenType() != TokenType.STRING_LITERAL) {
+                if (minBP > 0 || parsingRangeEnd) {
+                    break;
+                }
+                consume();
+                boolean previouslyParsingRangeEnd = parsingRangeEnd;
+                parsingRangeEnd = true;
+                Expression end;
+                try {
+                    end = parsePratt(0);
+                } finally {
+                    parsingRangeEnd = previouslyParsingRangeEnd;
+                }
+                left = new RangeExpression(left, end);
                 break;
             }
 
@@ -407,10 +428,7 @@ public class Parser {
         Token current = peek();
         Expression expr;
 
-        if (current.getLexeme().equals("<") && current.getTokenType() != TokenType.STRING_LITERAL) {
-            expr = parseRangeExpression();
-
-        } else if ((current.getLexeme().equals("++") || current.getLexeme().equals("--"))
+        if ((current.getLexeme().equals("++") || current.getLexeme().equals("--"))
                 && current.getTokenType() != TokenType.STRING_LITERAL) {
             Token op = consume();
             expr = new UnaryExpression(op, parsePrimary(), true);
@@ -788,38 +806,6 @@ public class Parser {
         }
         matchLexeme("}");
         return new MapExpression(entries);
-    }
-
-    private Expression parseRangeExpression() {
-        matchLexeme("<");
-        Expression start = parseRangeOperand();
-        matchLexeme("..");
-        Expression end = parseRangeOperand();
-
-        Expression stepsize = null;
-        if (peek().getLexeme().equals(",")) {
-            consume();
-            stepsize = parseRangeOperand();
-        }
-
-        matchLexeme(">");
-        return new RangeExpression(start, end, stepsize);
-    }
-
-    // Precedence of '<'/'>'/'<='/'>=' (see Vocabulary.OPERATOR_PRECEDENCE) — used
-    // as the
-    // Pratt parser's minBP for range operands so a bare '>' is never consumed as
-    // "greater
-    // than" and is left for parseRangeExpression() to match as the closing bracket
-    // instead.
-    // Comparison/logical/pipe operators (precedence <= this) are therefore not
-    // usable
-    // directly inside a range operand; everything tighter (+ - * / % \% ** << >>)
-    // is.
-    private static final int RANGE_OPERAND_MIN_BP = 7;
-
-    private Expression parseRangeOperand() {
-        return parsePratt(RANGE_OPERAND_MIN_BP);
     }
 
     private Expression parseLambdaExpression(boolean isAsync) {
@@ -1539,18 +1525,22 @@ public class Parser {
         requireNotIncomplete(kwToken, "(init; condition; post) { body }");
         matchLexeme("(");
 
-        if (peek().getLexeme().equals("<")) {
-            Expression range = parseRangeExpression();
+        if (!peek().getLexeme().equals("var") && !peek().getLexeme().equals(";") && !peek().getLexeme().equals(")")) {
+            Token startToken = peek();
+            Expression collection = parseExpression();
+            if (!(collection instanceof RangeExpression)) {
+                throw new UnexpectedToken(startToken, "Expected a range expression, e.g. 'for (0..5) { ... }'");
+            }
             matchLexeme(")");
             List<Node> body = parseBody();
-            return Loop.foreachStyle(new VarDecl("_", null, false), range, body);
+            return Loop.foreachStyle(new VarDecl("_", null, false), collection, body);
         }
 
         if (peek().getLexeme().equals("var") && peekOffset(2).getLexeme().equals("in")) {
             VarDecl iterator = (VarDecl) parseVarDecl(false).getFirst();
             matchLexeme("in");
 
-            Expression collection = peek().getLexeme().equals("<") ? parseRangeExpression() : parseExpression();
+            Expression collection = parseExpression();
 
             matchLexeme(")");
 

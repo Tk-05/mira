@@ -525,7 +525,7 @@ public class ParserTest {
     @Test
     void parseForInRange() {
         String forStmt = """
-                for(var i in <0..5>) {}
+                for(var i in 0..5) {}
                 """;
         List<Node> ast = parser.parseTokens(tokenizer.tokenize(forStmt, false));
         assertEquals(1, ast.size());

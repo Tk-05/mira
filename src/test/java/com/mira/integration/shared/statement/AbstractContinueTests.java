@@ -37,7 +37,7 @@ public abstract class AbstractContinueTests {
     void continueInsideForeachRange() {
         assertEquals("20", runForOutput("""
                 var sum : 0;
-                for(var i in <0..10>) {
+                for(var i in 0..10) {
                     if((i % 2) != 0) { continue; }
                     sum : (sum + i);
                 }

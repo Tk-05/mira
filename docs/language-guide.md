@@ -579,12 +579,11 @@ Maps are mutable. An empty map is created with `newMap()` from the `map` library
 
 ### Range
 
-Used in loops, exclusive end:
+Used in loops, exclusive end, always steps by 1:
 
 ```
-<0..5>              // 0, 1, 2, 3, 4
-<0..length(x)>
-<0..10, 2>          // 0, 2, 4, 6, 8  (with step)
+0..5                 // 0, 1, 2, 3, 4
+0..length(x)
 ```
 
 ---
@@ -663,7 +662,7 @@ for (<range>) {
 Iterates over the range without binding the value to a variable. Useful when only the number of iterations matters:
 
 ```
-for (<0..10>) {
+for (0..10) {
     println("hello");
 }
 ```

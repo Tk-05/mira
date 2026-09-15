@@ -37,7 +37,7 @@ public class ProfilerTest extends InterpreterTestBase {
                     return x;
                 }
 
-                for (var i in <0..5>) {
+                for (var i in 0..5) {
                     noisy(i);
                 }
                 """);

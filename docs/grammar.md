@@ -101,7 +101,7 @@ HexDigitOrSep ::= HexDigit | ( '_' HexDigit )
   to `5.0`. The tokenizer consumes a `.` after a digit run unless the next
   character is _also_ a `.` (which means it's actually the start of the `..`
   range separator or `...` variadic marker, not a decimal point — this is
-  what keeps `<0..5>` from being corrupted into `NUMBER "0."` + `DELIMITER "."`
+  what keeps `0..5` from being corrupted into `NUMBER "0."` + `DELIMITER "."`
   - `NUMBER "5"`).
 - `.5` is not a valid literal at all (a leading `.` never starts a number).
 - No binary/octal literals, no numeric type suffixes (`1L`, `1.0f`).
@@ -200,10 +200,6 @@ Notes:
   wherever a value is expected, exactly like C — see
   [Context-Sensitive Rules](#context-sensitive-rules).
 - `->` is used for both arrow-lambdas and switch-arm arrows.
-- `<` and `>` double as the delimiters of range-literal syntax
-  (`<start..end>`) in the few contexts that accept a range — they are not
-  separate tokens from the comparison operators; the reuse is purely
-  positional/contextual.
 
 ### Delimiters
 
@@ -211,8 +207,8 @@ Notes:
 (   )   {   }   ;   ,   [   ]   .   ..   ...
 ```
 
-`..` is the range separator (only meaningful inside `<...>` range syntax);
-`...` marks a variadic parameter.
+`..` is the range operator (`start..end`, see [Range](#range)); `...` marks a
+variadic parameter.
 
 ---
 
@@ -252,6 +248,12 @@ Ternary `? :` binds **looser** than everything in the table — it's checked
 before precedence climbing, only fires when nothing tighter claimed the
 tokens first, and is right-associative for chained ternaries
 (`a ? b : c ? d : e` reads as `a ? b : (c ? d : e)`).
+
+The range operator `..` (see [Range](#range)) binds looser than every entry
+in the table too, same as ternary — `1 - 1..2 * 3` reads as `(1 - 1)..(2 * 3)`.
+It is checked only when nothing tighter has already claimed the tokens, and
+does not chain: `a..b..c` is a syntax error rather than a nested range,
+so parenthesize the second range if that's what's meant.
 
 Compound-assign operators (`+:`, `-:`, …) never participate in expression
 precedence at all — they only appear as the terminator of an
@@ -442,9 +444,12 @@ ForInit ::= 'var' IDENT ':' Expression { ',' 'var' IDENT ':' Expression }
 - The third form iterates: `IDENT` is bound to each element of a list, array,
   string, or range in turn. There is no separate `foreach` keyword — this is
   the only spelling for iteration-style loops.
-- The second form (`for (<range>)`) is sugar for the third form with an
+- The second form (`for (Range)`) is sugar for the third form with an
   anonymous, unbound iterator — useful when only the number of iterations
-  matters, not the value.
+  matters, not the value. Unlike the third form, the expression here must be
+  a [range](#range) — the parser tells the two forms apart by trying to parse
+  an expression when the next token is neither `var`, `;`, nor `)`, then
+  rejecting it if it didn't turn out to be a range.
 - `ForInit`'s comma-chaining requires each subsequent segment to start with
   its own `var` — this is what lets multiple declarations share one `for`
   header without colliding with a plain `VarDecl`'s own (different) comma
@@ -457,8 +462,8 @@ ForInit ::= 'var' IDENT ':' Expression { ',' 'var' IDENT ':' Expression }
 
 ```mira
 for (var i : 0, var j : 10; i < 10; i++) { ... }
-for (<0..10,2>) { ... }
-for (var i in <0..5>) { ... }
+for (0..10) { ... }
+for (var i in 0..5) { ... }
 for (var i in arr) { ... }
 ```
 
@@ -786,25 +791,23 @@ field/index-chain assignment target is [statement](#assign)-only.
 ### Range
 
 ```
-Range ::= '<' RangeOperand '..' RangeOperand [ ',' RangeOperand ] '>'
+Range ::= Expression '..' Expression
 ```
 
-Usable as a general expression anywhere (`var r : <0..5>;`, `print(<1..10,2>);`),
-in addition to the `for (<...>)` and `for (var x in <...>)` forms. The
-optional third item is the step.
+Usable as a general expression anywhere (`var r : 0..5;`, `print(1..10);`),
+in addition to the `for (Range)` and `for (var x in Range)` forms. Always
+exclusive of `end` (`0..5` produces `0, 1, 2, 3, 4`) and always steps by 1 —
+there is no step syntax; iterate with a classic `for` loop instead if a
+different step is needed.
 
-`RangeOperand` is precedence-climbed like any other expression, but with a
-deliberate restriction: comparison/logical/pipe operators (`< > <= >= == !=
-&& || |> ??`, precedence ≤ 7 — see [precedence](#operator-precedence)) are
-**not** usable directly inside a range operand, so that a bare `>` is never
-mistaken for "greater than" instead of the range's own closing bracket.
-Arithmetic and bitwise-shift operators (`+ - * / % \% ** << >>`, precedence
-8+) work normally and respect their usual precedence, e.g. `2+3*4` inside an
-operand evaluates as `2+(3*4)=14`, not left-to-right.
+`..` is not in the binary-operator [precedence table](#operator-precedence)
+— it binds looser than everything in it (same tier as ternary `? :`), so
+`1-1..2*3` reads as `(1-1)..(2*3)`, and it doesn't chain (`a..b..c` is a
+syntax error, not a nested range).
 
 ```mira
-for (var i in <0..10,2>) { ... }
-var r : <2*3..20>;
+for (var i in 0..10) { ... }
+var r : 2*3..20;
 ```
 
 ### `await` / `typeof`
@@ -973,15 +976,15 @@ A forward scan (tracking paren-nesting depth) checks whether the matching `)`
 is immediately followed by `->`. If so, it's an [arrow lambda](#lambda);
 otherwise it's a parenthesized grouped expression.
 
-### `<` at primary position always means "range"
+### `..` always means "range"
 
-`<` is an ordinary (binary-only) comparison operator when it appears after an
-existing expression, reached via the precedence-climbing parser. But a `<`
-encountered at _primary_ position (starting a new expression — no left-hand
-side yet) is unambiguous, since `<` is never a valid prefix/unary operator:
-the parser always treats it as the start of a [range literal](#range). This
-is what makes ranges work as a general expression, not just inside
-`for` headers.
+`<` and `>` are ordinary comparison operators everywhere — they carry no
+special meaning for ranges. `..` is recognized directly inside the
+precedence-climbing loop, the same way ternary `?` is: once an operand has
+been parsed, a `..` token (only at the outermost precedence level — see
+[precedence](#operator-precedence)) always starts a [range](#range). This is
+what makes ranges work as a general expression, not just inside `for`
+headers.
 
 ### Keyword strictness differs by context
 

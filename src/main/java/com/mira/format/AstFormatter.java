@@ -770,10 +770,7 @@ public class AstFormatter implements ExprVisitor<String>, StmtVisitor<String> {
     public <T> T visitRangeExpression(RangeExpression expression) {
         String start = formatExpr(expression.getStart());
         String end = formatExpr(expression.getEnd());
-        if (expression.getStepsize() != null) {
-            return (T) ("<" + start + ".." + end + ", " + formatExpr(expression.getStepsize()) + ">");
-        }
-        return (T) ("<" + start + ".." + end + ">");
+        return (T) (start + ".." + end);
     }
 
     @Override

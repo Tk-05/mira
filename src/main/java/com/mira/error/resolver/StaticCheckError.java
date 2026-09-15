@@ -110,13 +110,6 @@ public class StaticCheckError extends MiraError {
         }
     }
 
-    public static class RangeStepZeroStaticError extends StaticCheckError {
-
-        public RangeStepZeroStaticError(int line, int column) {
-            super("E313", "Range step cannot be zero", line, column, 1, "Use a non-zero step value, e.g. '<0..10, 2>'");
-        }
-    }
-
     public static class ReturnOutsideFunctionError extends StaticCheckError {
 
         public ReturnOutsideFunctionError(int line, int column) {

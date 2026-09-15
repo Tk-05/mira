@@ -11,7 +11,7 @@ public abstract class AbstractRangeExpressionTests {
     void rangeIteratesCorrectly() {
         assertEquals("10", runForOutput("""
                 var sum : 0;
-                for(var i in <0..5>) { sum : (sum + i); }
+                for(var i in 0..5) { sum : (sum + i); }
                 print(sum);
                 """));
     }
@@ -20,7 +20,7 @@ public abstract class AbstractRangeExpressionTests {
     void rangeCountElements() {
         assertEquals("5", runForOutput("""
                 var count : 0;
-                for(var i in <0..5>) { count : (count + 1); }
+                for(var i in 0..5) { count : (count + 1); }
                 print(count);
                 """));
     }
@@ -28,20 +28,20 @@ public abstract class AbstractRangeExpressionTests {
     @Test
     void rangeAsGeneralExpression() {
         assertEquals("{0, 1, 2, 3, 4}", runForOutput("""
-                var r : <0..5>;
+                var r : 0..5;
                 print(r);
                 """));
     }
 
     @Test
     void rangeAsGeneralExpressionPassedDirectly() {
-        assertEquals("{0, 1, 2}", runForOutput("print(<0..3>);"));
+        assertEquals("{0, 1, 2}", runForOutput("print(0..3);"));
     }
 
     @Test
     void rangeOperandsRespectPrecedence() {
         assertEquals("{0, 1, 2, 3, 4, 5}", runForOutput("""
-                var r : <1-1..2*3>;
+                var r : 1-1..2*3;
                 print(r);
                 """));
     }

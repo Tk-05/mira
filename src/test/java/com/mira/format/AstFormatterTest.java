@@ -103,7 +103,7 @@ public class AstFormatterTest {
     void forRangeSugarRoundTrips() {
         String source = """
                 fn test() {
-                    for (<0..5>) {
+                    for (0..5) {
                         print(1);
                     }
                 }
@@ -115,7 +115,7 @@ public class AstFormatterTest {
     void forVarInRangeSugarRoundTrips() {
         String source = """
                 fn test() {
-                    for (var i in <0..5>) {
+                    for (var i in 0..5) {
                         print(1);
                     }
                 }

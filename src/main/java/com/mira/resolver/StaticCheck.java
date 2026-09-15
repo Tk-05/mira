@@ -29,7 +29,6 @@ import com.mira.error.resolver.StaticCheckError.NotIterableStaticError;
 import com.mira.error.resolver.StaticCheckError.PostExprNaNStaticError;
 import com.mira.error.resolver.StaticCheckError.PrivateAccessError;
 import com.mira.error.resolver.StaticCheckError.PrivateImportError;
-import com.mira.error.resolver.StaticCheckError.RangeStepZeroStaticError;
 import com.mira.error.resolver.StaticCheckError.ReturnOutsideFunctionError;
 import com.mira.error.resolver.StaticCheckError.ReturnTypeMismatchError;
 import com.mira.error.resolver.StaticCheckError.StaticAssertFailedError;
@@ -810,18 +809,6 @@ public class StaticCheck {
                 }
                 if (e.getEnd() != null) {
                     resolveExpr(e.getEnd());
-                }
-                if (e.getStepsize() != null) {
-                    resolveExpr(e.getStepsize());
-                    if (isZeroLiteral(e.getStepsize())) {
-                        DumbExpression d = (DumbExpression) e.getStepsize();
-                        errors.add(new RangeStepZeroStaticError(d.getLine(), d.getColumn()));
-                    } else {
-                        DumbExpression varD = extractVarRef(e.getStepsize());
-                        if (varD != null && isZeroLiteral(varLiteralTypes.get(varD.getValue()))) {
-                            errors.add(new RangeStepZeroStaticError(varD.getLine(), varD.getColumn()));
-                        }
-                    }
                 }
             }
             case ImportExpression e -> preDeclareImport(e);

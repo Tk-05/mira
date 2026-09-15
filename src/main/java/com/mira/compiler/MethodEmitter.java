@@ -7,7 +7,6 @@ import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
 import static org.objectweb.asm.Opcodes.AALOAD;
 import static org.objectweb.asm.Opcodes.AASTORE;
-import static org.objectweb.asm.Opcodes.ACONST_NULL;
 import static org.objectweb.asm.Opcodes.ALOAD;
 import static org.objectweb.asm.Opcodes.ANEWARRAY;
 import static org.objectweb.asm.Opcodes.ARETURN;
@@ -859,16 +858,7 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
     public <T> T visitRangeExpression(RangeExpression expression) {
         expression.getStart().accept(this);
         expression.getEnd().accept(this);
-        if (expression.getStepsize() != null) {
-            expression.getStepsize().accept(this);
-        } else {
-            // CompiledRuntimeSupport.makeRange checks for a real Java null here (meaning
-            // "no stepsize was written"), not Mira's NullValue — so this must NOT be
-            // emitNullVal() (which pushes NullValue.INSTANCE and would fail the cast to
-            // Number inside makeRange).
-            mv.visitInsn(ACONST_NULL);
-        }
-        mv.visitMethodInsn(INVOKESTATIC, RT, "makeRange", "(" + OBJ_D + OBJ_D + OBJ_D + ")" + OBJ_D, false);
+        mv.visitMethodInsn(INVOKESTATIC, RT, "makeRange", "(" + OBJ_D + OBJ_D + ")" + OBJ_D, false);
         return null;
     }
 
@@ -1423,14 +1413,9 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
             range.getEnd().accept(this);
             int endSlot = ctx.slots.allocate("$$end$" + iterName);
             mv.visitVarInsn(ASTORE, endSlot);
-            Object stepVal = range.getStepsize();
             int stepSlot = ctx.slots.allocate("$$step$" + iterName);
-            if (stepVal != null) {
-                ((Expression) stepVal).accept(this);
-            } else {
-                mv.visitLdcInsn(1L);
-                mv.visitMethodInsn(INVOKESTATIC, RT, "wrapLong", "(J)" + OBJ_D, false);
-            }
+            mv.visitLdcInsn(1L);
+            mv.visitMethodInsn(INVOKESTATIC, RT, "wrapLong", "(J)" + OBJ_D, false);
             mv.visitVarInsn(ASTORE, stepSlot);
 
             Label loopTop = new Label();
