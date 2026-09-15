@@ -92,10 +92,10 @@ fn main() {
     var y;
     var dir : direction.EAST;
     var label : switch (dir) {
-        case (direction.NORTH) -> "N"
-        case (direction.SOUTH) -> "S"
-        case (direction.EAST) -> "E"
-        case (direction.WEST) -> "W"
+        case direction.NORTH -> "N"
+        case direction.SOUTH -> "S"
+        case direction.EAST -> "E"
+        case direction.WEST -> "W"
     };
 
     println(label);
@@ -110,7 +110,7 @@ fn main() {
     i **: 2;
 
     switch (i) {
-        case (1) {
+        case 1 {
             println(i);
         }
         default {
@@ -225,8 +225,8 @@ fn main() {
         print("It's " + temps[idx] + " on " + timestamp + "\n");
 
         return switch (ret) {
-            case (69) -> ret
-            case (2) -> 2
+            case 69 -> ret
+            case 2 -> 2
             default -> 0
         };
 

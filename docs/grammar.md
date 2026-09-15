@@ -513,8 +513,8 @@ SwitchArm ::= '->' ArrowBody | Block
 
 ```mira
 switch (status) {
-    case (200) -> "OK";
-    case (404) { throw NotFound("missing"); }
+    case 200 -> "OK";
+    case 404 { throw NotFound("missing"); }
     default -> "unknown";
 }
 ```

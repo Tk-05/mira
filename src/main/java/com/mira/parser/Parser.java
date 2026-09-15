@@ -76,6 +76,7 @@ public class Parser {
     private int lastClosingBraceLine = 0;
     private final List<MiraError> errors = new ArrayList<>();
     private Token lastConsumed = null;
+    private boolean suppressBraceAccess = false;
 
     /**
      * Bareword names bound by "import ... as alias" seen so far in this parse.
@@ -604,13 +605,13 @@ public class Parser {
     }
 
     private Expression maybeParseAccess(Expression base) {
-        if (peek().getLexeme().equals("{") && peek().getTokenType() != TokenType.STRING_LITERAL
-                && (peekOffset(1).getLexeme().equals("}")
-                        || (isVariableNameToken(peekOffset(1)) && peekOffset(2).getLexeme().equals(":")))) {
+        boolean atBrace = peek().getLexeme().equals("{") && peek().getTokenType() != TokenType.STRING_LITERAL;
+        if (atBrace && !suppressBraceAccess && (peekOffset(1).getLexeme().equals("}")
+                || (isVariableNameToken(peekOffset(1)) && peekOffset(2).getLexeme().equals(":")))) {
             return parseStructInit(base);
         }
-        if (peek().getLexeme().equals("[") && peek().getTokenType() != TokenType.STRING_LITERAL
-                || peek().getLexeme().equals("{") && peek().getTokenType() != TokenType.STRING_LITERAL) {
+        if ((peek().getLexeme().equals("[") && peek().getTokenType() != TokenType.STRING_LITERAL)
+                || (atBrace && !suppressBraceAccess)) {
             return parseAccessExpression(base);
         }
         return base;
@@ -1803,6 +1804,16 @@ public class Parser {
         return parsePratt(0);
     }
 
+    private Expression parseSwitchCaseValue() {
+        boolean saved = suppressBraceAccess;
+        suppressBraceAccess = true;
+        try {
+            return parseExpression();
+        } finally {
+            suppressBraceAccess = saved;
+        }
+    }
+
     private Expression parseSwitchExpression() {
         matchLexeme("(");
         Expression subject = parseExpression();
@@ -1816,9 +1827,7 @@ public class Parser {
             switch (peek().getLexeme()) {
                 case "case" -> {
                     matchLexeme("case");
-                    matchLexeme("(");
-                    Expression value = parseExpression();
-                    matchLexeme(")");
+                    Expression value = parseSwitchCaseValue();
                     matchLexeme("->");
                     skipWhitespaceTokens();
                     Expression result = parsePratt(0);
@@ -1853,9 +1862,7 @@ public class Parser {
             switch (peek().getLexeme()) {
                 case "case" -> {
                     matchLexeme("case");
-                    matchLexeme("(");
-                    Expression value = parseExpression();
-                    matchLexeme(")");
+                    Expression value = parseSwitchCaseValue();
                     List<Node> body = new ArrayList<>();
                     if (peek().getLexeme().equals("->")) {
                         matchLexeme("->");
@@ -1889,10 +1896,6 @@ public class Parser {
 
         lastClosingBraceLine = matchLexeme("}").getLine();
         return new Switch(subject, cases, defaultBody);
-    }
-
-    private Node parseEnumDecl() {
-        return parseEnumDecl(false);
     }
 
     private Node parseEnumDecl(boolean isPublic) {

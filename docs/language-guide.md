@@ -675,10 +675,10 @@ Compares an expression against a list of `case` values. Only the first matching 
 
 ```
 switch (<expression>) {
-    case (<value>) {
+    case <value> {
         <body>
     }
-    case (<value>) {
+    case <value> {
         <body>
     }
     default {
@@ -691,8 +691,8 @@ switch (<expression>) {
 
 ```
 switch (<expression>) {
-    case (<value>) -> <statement>
-    case (<value>) -> <statement>
+    case <value> -> <statement>
+    case <value> -> <statement>
     default -> <statement>
 }
 ```
@@ -702,8 +702,8 @@ Example:
 ```
 var x : 2;
 switch (x) {
-    case (1) -> print("one\n")
-    case (2) -> print("two\n")
+    case 1 -> print("one\n")
+    case 2 -> print("two\n")
     default  -> print("other\n")
 }
 ```
@@ -717,8 +717,8 @@ enum Color { RED, GREEN, BLUE }
 var c : Color : Color.RED;
 
 switch (c) {
-    case (Color.RED)   -> print("r\n")
-    case (Color.GREEN) -> print("g\n")
+    case Color.RED   -> print("r\n")
+    case Color.GREEN -> print("g\n")
     // warning: Switch over enum 'Color' is not exhaustive - missing: BLUE
 }
 ```
@@ -731,8 +731,8 @@ Add a `default`, or a `case` for every member, to silence it.
 
 ```
 switch (<expression>) {
-    case (<value>) -> <expression>
-    case (<value>) -> <expression>
+    case <value> -> <expression>
+    case <value> -> <expression>
     default -> <expression>
 }
 ```
@@ -744,8 +744,8 @@ Example as a return value:
 ```
 fn describe(n) {
     return switch(n) {
-        case (1) -> "one"
-        case (2) -> "two"
+        case 1 -> "one"
+        case 2 -> "two"
         default  -> "other"
     };
 }
@@ -758,8 +758,8 @@ Example as a variable initializer:
 
 ```
 var label : switch(code) {
-    case (200) -> "ok"
-    case (404) -> "not found"
+    case 200 -> "ok"
+    case 404 -> "not found"
     default    -> "error"
 };
 ```
@@ -769,10 +769,10 @@ Usage with enums:
 ```
 var dir : Direction.EAST;
 var label : switch(dir) {
-    case (Direction.NORTH) -> "N"
-    case (Direction.SOUTH) -> "S"
-    case (Direction.EAST)  -> "E"
-    case (Direction.WEST)  -> "W"
+    case Direction.NORTH -> "N"
+    case Direction.SOUTH -> "S"
+    case Direction.EAST  -> "E"
+    case Direction.WEST  -> "W"
 };
 ```
 
@@ -1198,8 +1198,8 @@ typeof x == "number" ? "yes" : "no";   // "yes"
 
 ```
 var result : switch(typeof x) {
-    case("number") -> "it's a number"
-    case("string") -> "it's a string"
+    case "number" -> "it's a number"
+    case "string" -> "it's a string"
     default        -> "something else"
 };
 ```
@@ -1767,8 +1767,8 @@ Usage with `switch`:
 ```
 var code : Status.NOT_FOUND;
 switch (code) {
-    case (200) -> print("ok\n")
-    case (404) -> print("not found\n")
+    case 200 -> print("ok\n")
+    case 404 -> print("not found\n")
     default    -> print("error\n")
 }
 ```
@@ -1777,8 +1777,8 @@ Or as a switch expression:
 
 ```
 var message : switch(code) {
-    case (200) -> "ok"
-    case (404) -> "not found"
+    case 200 -> "ok"
+    case 404 -> "not found"
     default    -> "error"
 };
 ```

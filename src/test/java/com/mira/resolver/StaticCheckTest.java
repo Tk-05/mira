@@ -1278,20 +1278,20 @@ public class StaticCheckTest {
     @Test
     void switchCaseResultMismatchAgainstDeclaredTypeIsE324() {
         List<MiraError> errors = errorsFor(
-                "var n : Number : 1; " + "var c : Number : switch(n) { case(1) -> \"one\" default -> 2 };");
+                "var n : Number : 1; " + "var c : Number : switch(n) { case 1 -> \"one\" default -> 2 };");
         assertTrue(hasCode(errors, "E324"));
     }
 
     @Test
     void switchCaseResultsMatchingDeclaredTypeIsClean() {
-        assertClean("var n : Number : 1; " + "var c : Number : switch(n) { case(1) -> 1 default -> 2 };");
+        assertClean("var n : Number : 1; " + "var c : Number : switch(n) { case 1 -> 1 default -> 2 };");
     }
 
     @Test
     void nonExhaustiveSwitchStatementOverEnumWarns() {
         WarningCollector.clear();
         assertClean("enum Color { RED, GREEN, BLUE } var c : Color : Color.RED; "
-                + "switch (c) { case (Color.RED) { println(1); } case (Color.GREEN) { println(2); } }");
+                + "switch (c) { case Color.RED { println(1); } case Color.GREEN { println(2); } }");
         assertTrue(WarningCollector.getWarnings().stream()
                 .anyMatch(w -> w.message().contains("not exhaustive") && w.message().contains("BLUE")));
         WarningCollector.clear();
@@ -1301,7 +1301,7 @@ public class StaticCheckTest {
     void exhaustiveSwitchStatementOverEnumIsClean() {
         WarningCollector.clear();
         assertClean("enum Color { RED, GREEN } var c : Color : Color.RED; "
-                + "switch (c) { case (Color.RED) { println(1); } case (Color.GREEN) { println(2); } }");
+                + "switch (c) { case Color.RED { println(1); } case Color.GREEN { println(2); } }");
         assertTrue(WarningCollector.getWarnings().stream().noneMatch(w -> w.message().contains("not exhaustive")));
         WarningCollector.clear();
     }
@@ -1310,7 +1310,7 @@ public class StaticCheckTest {
     void nonExhaustiveSwitchStatementWithDefaultIsUnaffected() {
         WarningCollector.clear();
         assertClean("enum Color { RED, GREEN, BLUE } var c : Color : Color.RED; "
-                + "switch (c) { case (Color.RED) { println(1); } default { println(2); } }");
+                + "switch (c) { case Color.RED { println(1); } default { println(2); } }");
         assertTrue(WarningCollector.getWarnings().stream().noneMatch(w -> w.message().contains("not exhaustive")));
         WarningCollector.clear();
     }
@@ -1318,7 +1318,7 @@ public class StaticCheckTest {
     @Test
     void nonExhaustiveSwitchOverNonEnumIsUnaffected() {
         WarningCollector.clear();
-        assertClean("var n : Number : 1; switch (n) { case (1) { println(1); } }");
+        assertClean("var n : Number : 1; switch (n) { case 1 { println(1); } }");
         assertTrue(WarningCollector.getWarnings().stream().noneMatch(w -> w.message().contains("not exhaustive")));
         WarningCollector.clear();
     }
@@ -1327,7 +1327,7 @@ public class StaticCheckTest {
     void nonExhaustiveSwitchExpressionOverEnumWarns() {
         WarningCollector.clear();
         assertClean("enum Color { RED, GREEN, BLUE } var c : Color : Color.RED; "
-                + "var label : String : switch (c) { case (Color.RED) -> \"r\" case (Color.GREEN) -> \"g\" };");
+                + "var label : String : switch (c) { case Color.RED -> \"r\" case Color.GREEN -> \"g\" };");
         assertTrue(WarningCollector.getWarnings().stream()
                 .anyMatch(w -> w.message().contains("not exhaustive") && w.message().contains("BLUE")));
         WarningCollector.clear();
@@ -1502,7 +1502,7 @@ public class StaticCheckTest {
     @Test
     void callingVariableReassignedViaSwitchWithAgreeingBranchesIsE332() {
         List<MiraError> errors = errorsFor(
-                "var a : () -> 0; var n : Number : 1; " + "a : switch(n) { case(1) -> 1 default -> 2 }; a();");
+                "var a : () -> 0; var n : Number : 1; " + "a : switch(n) { case 1 -> 1 default -> 2 }; a();");
         assertTrue(hasCode(errors, "E332"));
     }
 

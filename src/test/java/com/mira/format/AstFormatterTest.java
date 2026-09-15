@@ -128,7 +128,7 @@ public class AstFormatterTest {
         String source = """
                 fn test(x) {
                     switch (x) {
-                        case (1) {
+                        case 1 {
                             return 1;
                         }
                         default {

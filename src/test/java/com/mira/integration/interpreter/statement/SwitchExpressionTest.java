@@ -24,7 +24,7 @@ public class SwitchExpressionTest extends AbstractSwitchExpressionTests {
 
     @Test
     void noMatchNoDefaultReturnsNull() {
-        assertNull(backend.runAndGetValue("switch(5) { case(1) -> 1 }"));
+        assertNull(backend.runAndGetValue("switch(5) { case 1 -> 1 }"));
     }
 
     @Test
@@ -32,8 +32,8 @@ public class SwitchExpressionTest extends AbstractSwitchExpressionTests {
         assertEquals(10.0, InterpreterRunner.normNum(backend.runAndGetValue("""
                 fn classify(n) {
                     return switch(n) {
-                        case(1) -> 10
-                        case(2) -> 20
+                        case 1 -> 10
+                        case 2 -> 20
                         default -> 0
                     };
                 }
@@ -46,8 +46,8 @@ public class SwitchExpressionTest extends AbstractSwitchExpressionTests {
         assertEquals(0.0, InterpreterRunner.normNum(backend.runAndGetValue("""
                 fn classify(n) {
                     return switch(n) {
-                        case(1) -> 10
-                        case(2) -> 20
+                        case 1 -> 10
+                        case 2 -> 20
                         default -> 0
                     };
                 }
@@ -60,7 +60,7 @@ public class SwitchExpressionTest extends AbstractSwitchExpressionTests {
         assertEquals(6.0, InterpreterRunner.normNum(backend.runAndGetValue("""
                 var x : 3;
                 (switch(x) {
-                    case(3) -> eval(x * 2)
+                    case 3 -> eval(x * 2)
                     default -> 0
                 });
                 """)));
@@ -71,7 +71,7 @@ public class SwitchExpressionTest extends AbstractSwitchExpressionTests {
         backend.runAndGetValue("""
                 var result : 0;
                 switch(5) {
-                    case(1) -> result : 1;
+                    case 1 -> result : 1;
                     default -> result : 99;
                 }
                 """);
