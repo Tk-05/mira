@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
 
+import com.mira.cli.Flags;
 import com.mira.error.MiraError;
 import com.mira.error.parser.MultipleParserErrors;
 import com.mira.error.parser.ParserError;
@@ -1267,8 +1268,8 @@ public class Parser {
         return peekOffset(baseOffset + 2).getLexeme().equals("?") ? baseOffset + 3 : baseOffset + 2;
     }
 
-    private boolean isTypeOnlyDeclarationAheadOf(int baseOffset, String... terminators) {
-        int next = spanAheadOfType(baseOffset, this::isKnownTypeName);
+    private boolean isTypeOnlyDeclarationAheadOf(int baseOffset, Predicate<Token> isType, String... terminators) {
+        int next = spanAheadOfType(baseOffset, isType);
         if (next < 0) {
             return false;
         }
@@ -1282,11 +1283,15 @@ public class Parser {
     }
 
     private boolean isTypeOnlyParameterAhead() {
-        return isTypeOnlyDeclarationAheadOf(0, ",", ")");
+        return isTypeOnlyDeclarationAheadOf(0, this::isKnownTypeName, ",", ")");
+    }
+
+    private boolean isTypeOnlyVarDeclAheadOf(int baseOffset, String... terminators) {
+        return isTypeOnlyDeclarationAheadOf(baseOffset, this::isUnambiguousTypeName, terminators);
     }
 
     private boolean isTypedForeachIteratorAhead() {
-        return isTypeOnlyDeclarationAheadOf(2, "in");
+        return isTypeOnlyVarDeclAheadOf(2, "in");
     }
 
     private boolean looksLikeTypeName(Token token) {
@@ -1308,6 +1313,17 @@ public class Parser {
         // follows (builtins and user types alike), which a default-value
         // bareword never does.
         return Character.isUpperCase(lex.charAt(0));
+    }
+
+    private boolean isUnambiguousTypeName(Token token) {
+        if (!looksLikeTypeName(token)) {
+            return false;
+        }
+        String lex = token.getLexeme();
+        if (declaredTypeNames.contains(lex)) {
+            return true;
+        }
+        return Flags.strictTypes && Character.isUpperCase(lex.charAt(0));
     }
 
     private List<Node> parseVarDecl(boolean isConst) {
@@ -1345,8 +1361,7 @@ public class Parser {
                 type = parseTypeExpression();
                 matchLexeme(":");
                 initializer = parseExpression();
-            } else if (!isConst && peek().getLexeme().equals(":")
-                    && isTypeOnlyDeclarationAheadOf(0, ";", ",", ")", "in")) {
+            } else if (!isConst && peek().getLexeme().equals(":") && isTypeOnlyVarDeclAheadOf(0, ";", ",", ")", "in")) {
                 consume();
                 type = parseTypeExpression();
             } else if (peek().getLexeme().equals(":")) {
