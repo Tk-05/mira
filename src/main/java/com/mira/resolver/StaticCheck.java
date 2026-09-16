@@ -23,6 +23,7 @@ import com.mira.error.resolver.StaticCheckError.ContinueOutsideLoopError;
 import com.mira.error.resolver.StaticCheckError.DuplicateDeclarationError;
 import com.mira.error.resolver.StaticCheckError.FieldAccessOnNonObjectError;
 import com.mira.error.resolver.StaticCheckError.LiteralNotCallableError;
+import com.mira.error.resolver.StaticCheckError.LoopIteratorReassignmentError;
 import com.mira.error.resolver.StaticCheckError.MissingModuleDeclarationError;
 import com.mira.error.resolver.StaticCheckError.MissingTypeAnnotationError;
 import com.mira.error.resolver.StaticCheckError.NotIterableStaticError;
@@ -744,6 +745,8 @@ public class StaticCheck {
                         errors.add(new UndeclaredVariableError(name, d.getLine(), d.getColumn()));
                     } else if (scope.isConst(name)) {
                         errors.add(new ConstReassignmentError(name, d.getLine(), d.getColumn()));
+                    } else if (scope.isLoopIterator(name)) {
+                        errors.add(new LoopIteratorReassignmentError(name, d.getLine(), d.getColumn()));
                     } else {
                         scope.markUsed(name);
                         if (loopDepth == 0 && functionDepth == 0 && branchDepth == 0) {
@@ -1068,6 +1071,8 @@ public class StaticCheck {
                 errors.add(new UndeclaredVariableError(name, d.getLine(), d.getColumn()));
             } else if (scope.isConst(name)) {
                 errors.add(new ConstReassignmentError(name, d.getLine(), d.getColumn()));
+            } else if (scope.isLoopIterator(name)) {
+                errors.add(new LoopIteratorReassignmentError(name, d.getLine(), d.getColumn()));
             } else {
                 scope.markUsed(name);
                 if (loopDepth == 0 && functionDepth == 0 && branchDepth == 0) {
@@ -1180,7 +1185,7 @@ public class StaticCheck {
         scope.push();
         loopDepth++;
         VarDecl iter = stmt.getIterator();
-        scope.declare(iter.getName(), iter.line > 0 ? iter.line : stmt.line, iter.nameColumn, false);
+        scope.declareLoopIterator(iter.getName(), iter.line > 0 ? iter.line : stmt.line, iter.nameColumn);
         resolveBody(stmt.getBody());
         loopDepth--;
         popScope();

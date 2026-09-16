@@ -181,6 +181,23 @@ public class StaticCheckTest {
     }
 
     @Test
+    void foreachIteratorReassignmentIsRejected() {
+        List<MiraError> errors = errorsFor("for (var i in 0..10) { i : 0; }");
+        assertTrue(hasCode(errors, "E333"));
+    }
+
+    @Test
+    void foreachIteratorCompoundReassignmentIsRejected() {
+        List<MiraError> errors = errorsFor("for (var i in 0..10) { i +: 1; }");
+        assertTrue(hasCode(errors, "E333"));
+    }
+
+    @Test
+    void classicForLoopCounterReassignmentIsValid() {
+        assertClean("for (var i : 0; i < 10; i +: 1) { i : i + 1; }");
+    }
+
+    @Test
     void breakOutsideLoop() {
         List<MiraError> errors = errorsFor("break;");
         assertTrue(hasCode(errors, "E305"));

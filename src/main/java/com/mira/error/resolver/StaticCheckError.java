@@ -282,4 +282,13 @@ public class StaticCheckError extends MiraError {
                     "Only functions and lambdas can be called with '()', or declare '" + name + "' as type 'Fn'");
         }
     }
+
+    public static class LoopIteratorReassignmentError extends StaticCheckError {
+
+        public LoopIteratorReassignmentError(String name, int line, int column) {
+            super("E333", "Cannot reassign loop iterator '" + name + "'", line, column, name.length(),
+                    "'" + name + "' is set automatically at the start of each iteration - introduce a separate "
+                            + "variable inside the body if you need to change it");
+        }
+    }
 }
