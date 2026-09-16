@@ -68,4 +68,26 @@ public abstract class AbstractForeachTests {
                 print(last);
                 """));
     }
+
+    @Test
+    void foreachWithTypedIterator() {
+        assertEquals("10", runForOutput("""
+                var total : 0;
+                for(var i : Number in 0..5) {
+                    total : (total + i);
+                }
+                print(total);
+                """));
+    }
+
+    @Test
+    void foreachWithNullableTypedIterator() {
+        assertEquals("6", runForOutput("""
+                var sum : 0;
+                for(var i : Number? in {1, 2, 3}) {
+                    sum : (sum + i);
+                }
+                print(sum);
+                """));
+    }
 }

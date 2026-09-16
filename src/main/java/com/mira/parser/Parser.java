@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Predicate;
 
 import com.mira.error.MiraError;
 import com.mira.error.parser.MultipleParserErrors;
@@ -1230,33 +1231,17 @@ public class Parser {
         return new TypeAnnotation(name, nullable, nameToken.getLine(), nameToken.getColumn(), paramTypes, returnType);
     }
 
-    /**
-     * True when positioned at a ':' that introduces a type annotation ahead of a
-     * value/default, i.e. the pattern ": TypeName[?] :" - a second ':' confirms the
-     * first clause was a type, not an initializer/default expression. Only
-     * bare-identifier-shaped tokens (not numbers, strings, keywords) are considered
-     * - anything else falls through to today's ordinary single-':'
-     * initializer/default parsing untouched.
-     */
     private boolean isTypedDeclarationAhead() {
-        int next = spanAheadOfType(this::looksLikeTypeName);
+        int next = spanAheadOfType(0, this::looksLikeTypeName);
         if (next < 0) {
             return false;
         }
         return peekOffset(next).getLexeme().equals(":");
     }
 
-    /**
-     * Offset of the first token past the type expression starting at peekOffset(1)
-     * - a plain "TypeName[?]" (checked with {@code isType}), or a function type
-     * "Fn(...)[-> ReturnType][?]" (matched structurally via paren depth, so nested
-     * parens/Fn types inside the param list are fine; a function-typed return type
-     * of a function type is not, but that's a rare enough shape to accept as a
-     * known gap). -1 if peekOffset(1) isn't type-shaped at all.
-     */
-    private int spanAheadOfType(java.util.function.Predicate<Token> isType) {
-        if ("Fn".equals(peekOffset(1).getLexeme()) && "(".equals(peekOffset(2).getLexeme())) {
-            int i = 3;
+    private int spanAheadOfType(int baseOffset, Predicate<Token> isType) {
+        if ("Fn".equals(peekOffset(baseOffset + 1).getLexeme()) && "(".equals(peekOffset(baseOffset + 2).getLexeme())) {
+            int i = baseOffset + 3;
             int depth = 1;
             while (depth > 0 && peekOffset(i).getTokenType() != TokenType.EOF) {
                 String lex = peekOffset(i).getLexeme();
@@ -1275,32 +1260,33 @@ public class Parser {
             }
             return i;
         }
-        Token typeToken = peekOffset(1);
+        Token typeToken = peekOffset(baseOffset + 1);
         if (!isType.test(typeToken)) {
             return -1;
         }
-        return peekOffset(2).getLexeme().equals("?") ? 3 : 2;
+        return peekOffset(baseOffset + 2).getLexeme().equals("?") ? baseOffset + 3 : baseOffset + 2;
     }
 
-    /**
-     * True when positioned at a ':' that introduces a type with no default value in
-     * parameter position specifically - the pattern ": TypeName[?]" immediately
-     * followed by ',' or ')'. Parameters (unlike var decls) need this second
-     * heuristic because "typed, no default" is the common case there, and there's
-     * no second ':' available to disambiguate it with - unlike
-     * isTypedDeclarationAhead, a bareword here is genuinely ambiguous with an
-     * untyped default value expression (e.g. "offset : base"), so this requires
-     * typeToken to be a name actually declared as a type (enum, struct template,
-     * type alias, or builtin), not just identifier- shaped, to avoid misreading
-     * "default value base" as "type base".
-     */
-    private boolean isTypeOnlyParameterAhead() {
-        int next = spanAheadOfType(this::isKnownTypeName);
+    private boolean isTypeOnlyDeclarationAheadOf(int baseOffset, String... terminators) {
+        int next = spanAheadOfType(baseOffset, this::isKnownTypeName);
         if (next < 0) {
             return false;
         }
         String after = peekOffset(next).getLexeme();
-        return after.equals(",") || after.equals(")");
+        for (String terminator : terminators) {
+            if (after.equals(terminator)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean isTypeOnlyParameterAhead() {
+        return isTypeOnlyDeclarationAheadOf(0, ",", ")");
+    }
+
+    private boolean isTypedForeachIteratorAhead() {
+        return isTypeOnlyDeclarationAheadOf(2, "in");
     }
 
     private boolean looksLikeTypeName(Token token) {
@@ -1359,6 +1345,10 @@ public class Parser {
                 type = parseTypeExpression();
                 matchLexeme(":");
                 initializer = parseExpression();
+            } else if (!isConst && peek().getLexeme().equals(":")
+                    && isTypeOnlyDeclarationAheadOf(0, ";", ",", ")", "in")) {
+                consume();
+                type = parseTypeExpression();
             } else if (peek().getLexeme().equals(":")) {
                 consume();
                 initializer = parseExpression();
@@ -1537,7 +1527,8 @@ public class Parser {
             return Loop.foreachStyle(new VarDecl("_", null, false), collection, body);
         }
 
-        if (peek().getLexeme().equals("var") && peekOffset(2).getLexeme().equals("in")) {
+        if (peek().getLexeme().equals("var")
+                && (peekOffset(2).getLexeme().equals("in") || isTypedForeachIteratorAhead())) {
             VarDecl iterator = (VarDecl) parseVarDecl(false).getFirst();
             matchLexeme("in");
 
