@@ -29,11 +29,9 @@ public class EnumTest {
 
     @Test
     void enumPassedToFunctionWithKnownStructArgIsClean() {
-        // The key scenario: enum field access exists alongside struct-param-checking
-        // function call
         assertClean(
                 "enum direction { NORTH, EAST } " + "var point : struct { var x; var y; }; " + "var origin : point{}; "
-                + "fn hello(name) { println(name.x); } " + "hello(origin); " + "var dir : direction.EAST;");
+                        + "fn hello(name) { println(name.x); } " + "hello(origin); " + "var dir : direction.EAST;");
     }
 
     @Test

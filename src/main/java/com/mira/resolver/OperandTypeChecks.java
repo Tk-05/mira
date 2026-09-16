@@ -1,29 +1,29 @@
 package com.mira.resolver;
 
-import static com.mira.resolver.StaticCheckSupport.ARITHMETIC_TYPE_CHECKED_OPERATORS;
-import static com.mira.resolver.StaticCheckSupport.isIdentifier;
-import static com.mira.resolver.StaticCheckSupport.isNumberType;
-import static com.mira.resolver.StaticCheckSupport.isStringType;
-import static com.mira.resolver.StaticCheckSupport.sameNamedType;
-
 import com.mira.error.resolver.StaticCheckError.BinaryOperatorTypeMismatchError;
 import com.mira.error.resolver.StaticCheckError.UnaryOperatorTypeMismatchError;
 import com.mira.error.resolver.StaticCheckError.VariableNotCallableError;
 import com.mira.lexer.token.Token;
 import com.mira.lexer.token.TokenType;
 import com.mira.parser.nodes.Node;
+import com.mira.parser.nodes.TypeAnnotation;
 import com.mira.parser.nodes.expression.Expression.BinaryExpression;
 import com.mira.parser.nodes.expression.Expression.CallExpression;
 import com.mira.parser.nodes.expression.Expression.DumbExpression;
 import com.mira.parser.nodes.expression.Expression.UnaryExpression;
 import com.mira.parser.nodes.statement.Statement.FuncDecl;
+import static com.mira.resolver.StaticCheckSupport.ARITHMETIC_TYPE_CHECKED_OPERATORS;
 import com.mira.resolver.StaticCheckSupport.OperandTypes;
+import static com.mira.resolver.StaticCheckSupport.isIdentifier;
+import static com.mira.resolver.StaticCheckSupport.isNumberType;
+import static com.mira.resolver.StaticCheckSupport.isStringType;
+import static com.mira.resolver.StaticCheckSupport.sameNamedType;
 
 /**
  * Binary/unary/comparison operand-type checks and the bareword-callable check
- * (`checkVariableCallable`), which shares {@code inferMiraType}-based inference
+ * (`checkVariableCallable`), which shares {@code inferType}-based inference
  * with the operand checks below it. Delegates back to {@link StaticCheck} for
- * the type-inference/resolution machinery (`inferMiraType`,
+ * the type-inference/resolution machinery (`inferType`,
  * `resolveTypeAnnotation`) and its shared state (`declaredVarTypes`,
  * `userFuncDecls`, `errors`) - those stay centralized there since nearly every
  * other check in the file also depends on them.
@@ -46,16 +46,15 @@ final class OperandTypeChecks {
      * worth comparing.
      */
     private OperandTypes resolveGatedOperandTypes(Node left, Node right) {
-        MiraType leftExplicit = inferExplicitlyTypedOperand(left);
-        MiraType rightExplicit = inferExplicitlyTypedOperand(right);
+        TypeAnnotation leftExplicit = inferExplicitlyTypedOperand(left);
+        TypeAnnotation rightExplicit = inferExplicitlyTypedOperand(right);
         if (leftExplicit == null && rightExplicit == null) {
             return null;
         }
-        MiraType leftType = leftExplicit != null ? leftExplicit : owner.inferMiraType(left);
-        MiraType rightType = rightExplicit != null ? rightExplicit : owner.inferMiraType(right);
-        if (leftType == null || rightType == null || leftType instanceof MiraType.AnyType
-                || rightType instanceof MiraType.AnyType || leftType instanceof MiraType.NullableType
-                || rightType instanceof MiraType.NullableType) {
+        TypeAnnotation leftType = leftExplicit != null ? leftExplicit : owner.inferType(left);
+        TypeAnnotation rightType = rightExplicit != null ? rightExplicit : owner.inferType(right);
+        if (leftType == null || rightType == null || "Any".equals(leftType.name()) || "Any".equals(rightType.name())
+                || leftType.nullable() || rightType.nullable()) {
             return null;
         }
         return new OperandTypes(leftType, rightType);
@@ -78,8 +77,8 @@ final class OperandTypeChecks {
                         && !isStringType(types.right())
                 : !isNumberType(types.left()) || !isNumberType(types.right());
         if (mismatch) {
-            owner.errors.add(new BinaryOperatorTypeMismatchError(op, MiraType.display(types.left()),
-                    MiraType.display(types.right()), e.getOperator().getLine(), e.getOperator().getColumn()));
+            owner.errors.add(new BinaryOperatorTypeMismatchError(op, types.left().toString(), types.right().toString(),
+                    e.getOperator().getLine(), e.getOperator().getColumn()));
         }
     }
 
@@ -88,15 +87,14 @@ final class OperandTypeChecks {
         if (types == null || sameNamedType(types.left(), types.right())) {
             return;
         }
-        owner.errors
-                .add(new BinaryOperatorTypeMismatchError(e.getOperator().getLexeme(), MiraType.display(types.left()),
-                        MiraType.display(types.right()), e.getOperator().getLine(), e.getOperator().getColumn()));
+        owner.errors.add(new BinaryOperatorTypeMismatchError(e.getOperator().getLexeme(), types.left().toString(),
+                types.right().toString(), e.getOperator().getLine(), e.getOperator().getColumn()));
     }
 
     /**
      * Builds the same synthetic "$" unary wrapper the parser itself builds for a
      * bareword variable read (see {@code Parser.wrapAsVariableRef}) - lets
-     * name-only-callee checks reuse $-ref-shaped inference (inferMiraType,
+     * name-only-callee checks reuse $-ref-shaped inference (inferType,
      * checkVariableCallable) without duplicating it.
      */
     UnaryExpression asDollarRef(DumbExpression nameExpr) {
@@ -105,31 +103,31 @@ final class OperandTypeChecks {
     }
 
     void checkVariableCallable(UnaryExpression dollarRef, DumbExpression nameExpr) {
-        MiraType type = owner.inferMiraType(dollarRef);
-        if (type == null || type instanceof MiraType.AnyType || type instanceof MiraType.NullableType) {
+        TypeAnnotation type = owner.inferType(dollarRef);
+        if (type == null || "Any".equals(type.name()) || type.nullable()) {
             return;
         }
-        if (type instanceof MiraType.FunctionType || type instanceof MiraType.NamedType n && "Fn".equals(n.name())) {
+        if (type.isFunctionType() || "Fn".equals(type.name())) {
             return;
         }
-        owner.errors.add(new VariableNotCallableError(nameExpr.getValue(), MiraType.display(type), nameExpr.getLine(),
+        owner.errors.add(new VariableNotCallableError(nameExpr.getValue(), type.toString(), nameExpr.getLine(),
                 nameExpr.getColumn()));
     }
 
     void checkUnaryOperandType(UnaryExpression e) {
-        MiraType type = inferExplicitlyTypedOperand(e.getRight());
+        TypeAnnotation type = inferExplicitlyTypedOperand(e.getRight());
         if (type == null || isNumberType(type)) {
             return;
         }
-        owner.errors.add(new UnaryOperatorTypeMismatchError(e.getOperation().getLexeme(), MiraType.display(type),
+        owner.errors.add(new UnaryOperatorTypeMismatchError(e.getOperation().getLexeme(), type.toString(),
                 e.getOperation().getLine(), e.getOperation().getColumn()));
     }
 
     /**
-     * Explicit-annotation-only variant of inferMiraType, used to gate
+     * Explicit-annotation-only variant of inferType, used to gate
      * resolveGatedOperandTypes/checkUnaryOperandType.
      */
-    private MiraType inferExplicitlyTypedOperand(Node expr) {
+    private TypeAnnotation inferExplicitlyTypedOperand(Node expr) {
         if (expr instanceof UnaryExpression u && "$".equals(u.getOperation().getLexeme())
                 && u.getRight() instanceof DumbExpression d && isIdentifier(d)) {
             return owner.declaredVarTypes.get(d.getValue());

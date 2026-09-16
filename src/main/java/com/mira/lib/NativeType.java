@@ -3,10 +3,11 @@ package com.mira.lib;
 /**
  * Mira's built-in type vocabulary, mirrored standalone here so a
  * {@link ReflectiveLib} can declare argument/return types without pulling in
- * the resolver's {@code MiraType} (which lives in a different layer and has no
- * reason to know about native interop). {@link #miraTypeName()} matches the
- * resolver's built-in type names exactly, so the static checker can resolve a
- * declared native signature the same way it resolves any other type annotation.
+ * the resolver's own resolved-type model (which lives in a different layer and
+ * has no reason to know about native interop). {@link #miraTypeName()} matches
+ * the resolver's built-in type names exactly, so the static checker can resolve
+ * a declared native signature the same way it resolves any other type
+ * annotation.
  */
 public enum NativeType {
     NUMBER, STRING, BOOL, LIST, ARRAY, MAP, OBJECT, VOID, ANY;

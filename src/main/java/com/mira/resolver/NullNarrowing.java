@@ -1,19 +1,20 @@
 package com.mira.resolver;
 
-import static com.mira.resolver.StaticCheckSupport.NO_NARROWING;
-import static com.mira.resolver.StaticCheckSupport.alwaysReturns;
-import static com.mira.resolver.StaticCheckSupport.nullCheckVarName;
-import static com.mira.resolver.StaticCheckSupport.union;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import com.mira.parser.nodes.TypeAnnotation;
 import com.mira.parser.nodes.expression.Expression;
 import com.mira.parser.nodes.expression.Expression.BinaryExpression;
 import com.mira.parser.nodes.statement.Statement.If;
+import static com.mira.resolver.StaticCheckSupport.NO_NARROWING;
 import com.mira.resolver.StaticCheckSupport.NarrowSave;
 import com.mira.resolver.StaticCheckSupport.NullCheckNarrowing;
+import static com.mira.resolver.StaticCheckSupport.alwaysReturns;
+import static com.mira.resolver.StaticCheckSupport.nullCheckVarName;
+import static com.mira.resolver.StaticCheckSupport.union;
+import static com.mira.resolver.StaticCheckSupport.withoutNullable;
 
 /**
  * `x != null`/`x == null` narrowing (basic, guard-clause, `&&`/`||`
@@ -23,9 +24,9 @@ import com.mira.resolver.StaticCheckSupport.NullCheckNarrowing;
  */
 final class NullNarrowing {
 
-    private final Map<String, MiraType> declaredVarTypes;
+    private final Map<String, TypeAnnotation> declaredVarTypes;
 
-    NullNarrowing(Map<String, MiraType> declaredVarTypes) {
+    NullNarrowing(Map<String, TypeAnnotation> declaredVarTypes) {
         this.declaredVarTypes = declaredVarTypes;
     }
 
@@ -70,9 +71,9 @@ final class NullNarrowing {
     List<NarrowSave> apply(List<String> varNames) {
         List<NarrowSave> saves = new ArrayList<>();
         for (String varName : varNames) {
-            MiraType current = declaredVarTypes.get(varName);
-            if (current instanceof MiraType.NullableType nt) {
-                declaredVarTypes.put(varName, nt.inner());
+            TypeAnnotation current = declaredVarTypes.get(varName);
+            if (current != null && current.nullable()) {
+                declaredVarTypes.put(varName, withoutNullable(current));
                 saves.add(new NarrowSave(varName, current));
             }
         }

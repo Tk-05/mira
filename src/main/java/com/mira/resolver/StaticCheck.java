@@ -103,10 +103,19 @@ import com.mira.parser.nodes.statement.Statement.VarDecl;
 import com.mira.parser.nodes.statement.Statement.VarDestructure;
 import com.mira.parser.nodes.statement.Statement.While;
 import com.mira.resolver.LintScope.VarInfo;
+import static com.mira.resolver.StaticCheckSupport.ANY;
 import static com.mira.resolver.StaticCheckSupport.ARITHMETIC_TYPE_CHECKED_OPERATORS;
+import static com.mira.resolver.StaticCheckSupport.ARRAY;
+import static com.mira.resolver.StaticCheckSupport.BOOL;
 import static com.mira.resolver.StaticCheckSupport.COMPARISON_TYPE_CHECKED_OPERATORS;
+import static com.mira.resolver.StaticCheckSupport.LIST;
+import static com.mira.resolver.StaticCheckSupport.MAP;
 import com.mira.resolver.StaticCheckSupport.NarrowSave;
+import static com.mira.resolver.StaticCheckSupport.NULL;
 import com.mira.resolver.StaticCheckSupport.NullCheckNarrowing;
+import static com.mira.resolver.StaticCheckSupport.NUMBER;
+import static com.mira.resolver.StaticCheckSupport.OBJECT;
+import static com.mira.resolver.StaticCheckSupport.STRING;
 import static com.mira.resolver.StaticCheckSupport.STRING_UNSAFE_OPERATORS;
 import static com.mira.resolver.StaticCheckSupport.addChildren;
 import static com.mira.resolver.StaticCheckSupport.alwaysReturns;
@@ -114,7 +123,9 @@ import static com.mira.resolver.StaticCheckSupport.columnOf;
 import static com.mira.resolver.StaticCheckSupport.expressionColumn;
 import static com.mira.resolver.StaticCheckSupport.expressionSpan;
 import static com.mira.resolver.StaticCheckSupport.extractVarRef;
+import static com.mira.resolver.StaticCheckSupport.functionType;
 import static com.mira.resolver.StaticCheckSupport.hasAnyReturn;
+import static com.mira.resolver.StaticCheckSupport.isAssignable;
 import static com.mira.resolver.StaticCheckSupport.isBareReturn;
 import static com.mira.resolver.StaticCheckSupport.isIdentifier;
 import static com.mira.resolver.StaticCheckSupport.isInvertedLiteral;
@@ -124,9 +135,12 @@ import static com.mira.resolver.StaticCheckSupport.isNonNumericLiteral;
 import static com.mira.resolver.StaticCheckSupport.isNonStringLiteral;
 import static com.mira.resolver.StaticCheckSupport.isStringLiteral;
 import static com.mira.resolver.StaticCheckSupport.isStringType;
+import static com.mira.resolver.StaticCheckSupport.isVoid;
 import static com.mira.resolver.StaticCheckSupport.isZeroLiteral;
 import static com.mira.resolver.StaticCheckSupport.lineOf;
 import static com.mira.resolver.StaticCheckSupport.memberExists;
+import static com.mira.resolver.StaticCheckSupport.namedType;
+import static com.mira.resolver.StaticCheckSupport.nullableOf;
 import static com.mira.resolver.StaticCheckSupport.resolveModuleFile;
 import static com.mira.resolver.StaticCheckSupport.sameNamedType;
 import static com.mira.resolver.StaticCheckSupport.spanOf;
@@ -167,12 +181,12 @@ public class StaticCheck {
     // Type-checking (gradual: only ever consulted/enforced when an explicit
     // annotation is present somewhere in the comparison - unannotated code
     // is never newly rejected).
-    private final Map<String, MiraType> typeAliases = new HashMap<>();
+    private final Map<String, TypeAnnotation> typeAliases = new HashMap<>();
 
     // Explicit, declared types only - unlike varLiteralTypes (inferred literal
     // shapes), these persist across reassignment/loops/branches: an explicit
     // annotation is a standing contract, not a best-effort guess.
-    final Map<String, MiraType> declaredVarTypes = new HashMap<>();
+    final Map<String, TypeAnnotation> declaredVarTypes = new HashMap<>();
 
     // A broader, best-effort type inference cache alongside varLiteralTypes:
     // consulted only when there's no declared type AND no known literal-node
@@ -181,12 +195,12 @@ public class StaticCheck {
     // explicit return type) without disturbing any of varLiteralTypes' own
     // Node-based consumers (isZeroLiteral, structTemplateNames, etc.). Same
     // "put if determinable, else remove" drop-on-reassignment discipline.
-    private final Map<String, MiraType> varInferredTypes = new HashMap<>();
+    private final Map<String, TypeAnnotation> varInferredTypes = new HashMap<>();
 
     // A struct literal carries no name of its own - only the var that declares
     // it as a template does (`var point : struct {...};`). Populated in lockstep
     // with varLiteralTypes wherever a StructExpression is registered as a named
-    // template, so inferMiraType can report a struct instance's real nominal
+    // template, so inferType can report a struct instance's real nominal
     // type instead of collapsing every struct/object alike to plain `Object`.
     private final Map<StructExpression, String> structTemplateNames = new java.util.IdentityHashMap<>();
 
@@ -319,11 +333,10 @@ public class StaticCheck {
                     if (typeAliases.containsKey(t.getName()) || BUILTIN_TYPE_NAMES.contains(t.getName())) {
                         errors.add(new DuplicateDeclarationError(t.getName(), t.line, 0));
                     } else {
-                        MiraType aliased = resolveNamedType(t.getAliasedType().name(), t.getAliasedType().line(),
+                        TypeAnnotation aliased = resolveNamedType(t.getAliasedType().name(), t.getAliasedType().line(),
                                 t.getAliasedType().column());
                         if (aliased != null) {
-                            typeAliases.put(t.getName(),
-                                    t.getAliasedType().nullable() ? new MiraType.NullableType(aliased) : aliased);
+                            typeAliases.put(t.getName(), t.getAliasedType().nullable() ? nullableOf(aliased) : aliased);
                         }
                     }
                 }
@@ -369,25 +382,24 @@ public class StaticCheck {
                 }
                 FuncDecl enclosing = functionStack.peek();
                 if (enclosing != null && enclosing.getReturnType() != null) {
-                    MiraType expected = resolveTypeAnnotation(enclosing.getReturnType());
+                    TypeAnnotation expected = resolveTypeAnnotation(enclosing.getReturnType());
                     boolean bare = isBareReturn(stmt.getValue());
                     if (!bare) {
-                        if (MiraType.isVoid(expected)) {
+                        if (isVoid(expected)) {
                             // any value at all is wrong for Void, regardless of its
                             // type - unlike ordinary mismatches this doesn't need the
                             // value's type to be inferable, so it bypasses checkAssignable's
                             // "skip if unknown" behavior
-                            MiraType actual = inferMiraType(stmt.getValue());
+                            TypeAnnotation actual = inferType(stmt.getValue());
                             errors.add(new ReturnTypeMismatchError(enclosing.getName(), "Void",
-                                    actual != null ? MiraType.display(actual) : "a value", stmt.line, stmt.column));
+                                    actual != null ? actual.toString() : "a value", stmt.line, stmt.column));
                         } else {
                             checkAssignable(stmt.getValue(), expected,
                                     (exp, actual) -> errors.add(new ReturnTypeMismatchError(enclosing.getName(), exp,
                                             actual, stmt.line, stmt.column)));
                         }
-                    } else if (expected != null && !MiraType.isVoid(expected)
-                            && !MiraType.isAssignable(MiraType.NULL, expected)) {
-                        errors.add(new ReturnTypeMismatchError(enclosing.getName(), MiraType.display(expected), "Null",
+                    } else if (expected != null && !isVoid(expected) && !isAssignable(NULL, expected)) {
+                        errors.add(new ReturnTypeMismatchError(enclosing.getName(), expected.toString(), "Null",
                                 stmt.line, stmt.column));
                     }
                 }
@@ -632,7 +644,7 @@ public class StaticCheck {
                 e.getVarDecls().stream().filter(v -> v.getInitializer() != null).forEach(v -> {
                     resolveExpr(v.getInitializer());
                     if (v.getType() != null) {
-                        MiraType expected = resolveTypeAnnotation(v.getType());
+                        TypeAnnotation expected = resolveTypeAnnotation(v.getType());
                         checkAssignable(v.getInitializer(), expected, (exp, act) -> errors.add(
                                 new TypeMismatchError(v.getName(), exp, act, v.getInitializer().line, v.nameColumn)));
                     }
@@ -666,7 +678,7 @@ public class StaticCheck {
                 e.getVarDecls().stream().filter(v -> v.getInitializer() != null).forEach(v -> {
                     resolveExpr(v.getInitializer());
                     if (v.getType() != null) {
-                        MiraType expected = resolveTypeAnnotation(v.getType());
+                        TypeAnnotation expected = resolveTypeAnnotation(v.getType());
                         checkAssignable(v.getInitializer(), expected, (exp, act) -> errors.add(
                                 new TypeMismatchError(v.getName(), exp, act, v.getInitializer().line, v.nameColumn)));
                     }
@@ -713,7 +725,7 @@ public class StaticCheck {
                             errors.add(
                                     new UndefinedObjectFieldStaticError(key, templateName, entry.getValue().line, 0));
                         } else if (field != null && field.getType() != null) {
-                            MiraType expected = resolveTypeAnnotation(field.getType());
+                            TypeAnnotation expected = resolveTypeAnnotation(field.getType());
                             Expression overrideValue = entry.getValue();
                             int column = expressionColumn(overrideValue, varRef != null ? varRef.getColumn() : 0);
                             int span = expressionSpan(overrideValue, key.length());
@@ -744,7 +756,7 @@ public class StaticCheck {
                                 trackInferredType(name, e.getValue());
                             }
                         }
-                        MiraType declared = declaredVarTypes.get(name);
+                        TypeAnnotation declared = declaredVarTypes.get(name);
                         if (declared != null) {
                             checkAssignable(e.getValue(), declared, (expected, actual) -> errors
                                     .add(new TypeMismatchError(name, expected, actual, d.getLine(), d.getColumn())));
@@ -880,7 +892,8 @@ public class StaticCheck {
                             if (tracked instanceof LambdaExpression lambda) {
                                 checkArgumentTypes(name, lambda.getParameters(), expr.getArguments(), callee.getLine(),
                                         callee.getColumn());
-                            } else if (declaredVarTypes.get(name) instanceof MiraType.FunctionType fnType) {
+                            } else if (declaredVarTypes.get(name) instanceof TypeAnnotation fnType
+                                    && fnType.isFunctionType()) {
                                 checkArgumentTypesAgainstFunctionType(name, fnType, expr.getArguments(),
                                         callee.getLine(), callee.getColumn());
                             }
@@ -927,7 +940,7 @@ public class StaticCheck {
             trackInferredType(stmt.getName(), stmt.getInitializer());
         }
         if (stmt.getType() != null) {
-            MiraType declared = resolveTypeAnnotation(stmt.getType());
+            TypeAnnotation declared = resolveTypeAnnotation(stmt.getType());
             if (declared != null) {
                 declaredVarTypes.put(stmt.getName(), declared);
                 if (stmt.getInitializer() != null) {
@@ -1007,12 +1020,12 @@ public class StaticCheck {
         // function - save so it can be restored on exit, since unlike varLiteralTypes
         // (best-effort, freely dropped) declaredVarTypes drives hard errors and must
         // not leak across unrelated functions that happen to share a parameter name.
-        Map<String, MiraType> savedParamTypes = new HashMap<>();
+        Map<String, TypeAnnotation> savedParamTypes = new HashMap<>();
         Set<String> typedParams = new HashSet<>();
         stmt.getParameters().forEach(p -> {
             scope.declare(p.name(), stmt.line, p.column(), false);
             if (p.type() != null) {
-                MiraType paramType = resolveTypeAnnotation(p.type());
+                TypeAnnotation paramType = resolveTypeAnnotation(p.type());
                 if (paramType != null) {
                     typedParams.add(p.name());
                     savedParamTypes.put(p.name(), declaredVarTypes.get(p.name()));
@@ -1033,7 +1046,7 @@ public class StaticCheck {
         functionDepth--;
         functionStack.pop();
         typedParams.forEach(name -> {
-            MiraType prior = savedParamTypes.get(name);
+            TypeAnnotation prior = savedParamTypes.get(name);
             if (prior != null) {
                 declaredVarTypes.put(name, prior);
             } else {
@@ -1067,7 +1080,7 @@ public class StaticCheck {
                         trackInferredType(name, stmt.getExpression());
                     }
                 }
-                MiraType declared = declaredVarTypes.get(name);
+                TypeAnnotation declared = declaredVarTypes.get(name);
                 if (declared != null) {
                     checkAssignable(stmt.getExpression(), declared, (expected, actual) -> errors
                             .add(new TypeMismatchError(name, expected, actual, d.getLine(), d.getColumn())));
@@ -1091,24 +1104,22 @@ public class StaticCheck {
      * (concatenation) - "x +: \"oops\"" with x : Number silently produces a String,
      * with nothing to catch it.
      */
-    private void checkCompoundAssignResultType(Assign stmt, MiraType declared, String name, int line, int column) {
+    private void checkCompoundAssignResultType(Assign stmt, TypeAnnotation declared, String name, int line,
+            int column) {
         if (!(stmt.getExpression() instanceof BinaryExpression be) || be.getLeft() != stmt.getReference()) {
             return;
         }
         if (!ARITHMETIC_TYPE_CHECKED_OPERATORS.contains(be.getOperator().getLexeme())) {
             return;
         }
-        MiraType rightType = inferMiraType(be.getRight());
-        if (rightType == null || rightType instanceof MiraType.AnyType) {
+        TypeAnnotation rightType = inferType(be.getRight());
+        if (rightType == null || "Any".equals(rightType.name())) {
             return;
         }
         boolean isPlus = "+".equals(be.getOperator().getLexeme());
-        MiraType resultType = isPlus && (isStringType(declared) || isStringType(rightType))
-                ? MiraType.STRING
-                : MiraType.NUMBER;
-        if (!MiraType.isAssignable(resultType, declared)) {
-            errors.add(new TypeMismatchError(name, MiraType.display(declared), MiraType.display(resultType), line,
-                    column));
+        TypeAnnotation resultType = isPlus && (isStringType(declared) || isStringType(rightType)) ? STRING : NUMBER;
+        if (!isAssignable(resultType, declared)) {
+            errors.add(new TypeMismatchError(name, declared.toString(), resultType.toString(), line, column));
         }
     }
 
@@ -1208,11 +1219,11 @@ public class StaticCheck {
         if (hasDefault) {
             return;
         }
-        MiraType subjectType = inferMiraType(subject);
-        if (!(subjectType instanceof MiraType.NamedType nt)) {
+        TypeAnnotation subjectType = inferType(subject);
+        if (subjectType == null || subjectType.isFunctionType()) {
             return;
         }
-        EnumDecl enumDecl = userEnumDecls.get(nt.name());
+        EnumDecl enumDecl = userEnumDecls.get(subjectType.name());
         if (enumDecl == null) {
             return;
         }
@@ -1225,9 +1236,8 @@ public class StaticCheck {
         if (!missing.isEmpty()) {
             List<String> sorted = new ArrayList<>(missing);
             java.util.Collections.sort(sorted);
-            WarningCollector.emit(WarningLevel.WARNING,
-                    "Switch over enum '" + nt.name() + "' is not exhaustive - missing: " + String.join(", ", sorted),
-                    line, column);
+            WarningCollector.emit(WarningLevel.WARNING, "Switch over enum '" + subjectType.name()
+                    + "' is not exhaustive - missing: " + String.join(", ", sorted), line, column);
         }
     }
 
@@ -1453,7 +1463,7 @@ public class StaticCheck {
     }
 
     private void trackInferredType(String name, Node valueExpr) {
-        MiraType inferred = inferMiraType(valueExpr);
+        TypeAnnotation inferred = inferType(valueExpr);
         if (inferred != null) {
             varInferredTypes.put(name, inferred);
         } else {
@@ -1499,13 +1509,13 @@ public class StaticCheck {
      */
     private Node agreeingLiteralType(List<Node> branches) {
         Node first = null;
-        MiraType firstType = null;
+        TypeAnnotation firstType = null;
         for (Node branch : branches) {
             Node lit = resolveRhsLiteralType(branch);
             if (lit == null) {
                 return null;
             }
-            MiraType type = literalNodeToType(lit);
+            TypeAnnotation type = literalNodeToType(lit);
             if (type == null) {
                 return null;
             }
@@ -1534,52 +1544,54 @@ public class StaticCheck {
     //
     // Gradual by construction: every check below only fires when an explicit
     // annotation is present on at least one side of the comparison, and
-    // inferMiraType() returns null (meaning "unknown, don't check") far more
+    // inferType() returns null (meaning "unknown, don't check") far more
     // often than it returns a concrete type - unannotated code is never
     // newly rejected.
     /**
-     * Resolves a parsed TypeAnnotation into a MiraType, reporting
-     * UnknownTypeNameError for bad names.
+     * Resolves a parsed {@link TypeAnnotation} into its resolved form - alias names
+     * expanded, source position dropped - reporting UnknownTypeNameError for bad
+     * names. See {@link StaticCheckSupport}'s type constants/helpers (ANY, NUMBER,
+     * isAssignable, etc.) for what "resolved" means downstream.
      */
-    MiraType resolveTypeAnnotation(TypeAnnotation ann) {
+    TypeAnnotation resolveTypeAnnotation(TypeAnnotation ann) {
         if (ann == null) {
             return null;
         }
-        MiraType base = ann.isFunctionType()
+        TypeAnnotation base = ann.isFunctionType()
                 ? resolveFunctionTypeAnnotation(ann)
                 : resolveNamedType(ann.name(), ann.line(), ann.column());
         if (base == null) {
             return null;
         }
-        return ann.nullable() ? new MiraType.NullableType(base) : base;
+        return ann.nullable() ? nullableOf(base) : base;
     }
 
-    private MiraType.FunctionType functionTypeOf(List<Parameter> params, TypeAnnotation returnTypeAnn) {
-        List<MiraType> paramTypes = new ArrayList<>();
+    private TypeAnnotation functionTypeOf(List<Parameter> params, TypeAnnotation returnTypeAnn) {
+        List<TypeAnnotation> paramTypes = new ArrayList<>();
         for (Parameter p : params) {
-            MiraType pt = p.type() != null ? resolveTypeAnnotation(p.type()) : null;
-            paramTypes.add(pt != null ? pt : MiraType.ANY);
+            TypeAnnotation pt = p.type() != null ? resolveTypeAnnotation(p.type()) : null;
+            paramTypes.add(pt != null ? pt : ANY);
         }
-        MiraType returnType = returnTypeAnn != null ? resolveTypeAnnotation(returnTypeAnn) : null;
-        return new MiraType.FunctionType(paramTypes, returnType != null ? returnType : MiraType.ANY);
+        TypeAnnotation returnType = returnTypeAnn != null ? resolveTypeAnnotation(returnTypeAnn) : null;
+        return functionType(paramTypes, returnType != null ? returnType : ANY);
     }
 
-    private MiraType resolveFunctionTypeAnnotation(TypeAnnotation ann) {
-        List<MiraType> params = new ArrayList<>();
+    private TypeAnnotation resolveFunctionTypeAnnotation(TypeAnnotation ann) {
+        List<TypeAnnotation> params = new ArrayList<>();
         for (TypeAnnotation p : ann.paramTypes()) {
-            MiraType resolved = resolveTypeAnnotation(p);
-            params.add(resolved != null ? resolved : MiraType.ANY);
+            TypeAnnotation resolved = resolveTypeAnnotation(p);
+            params.add(resolved != null ? resolved : ANY);
         }
-        MiraType returnType = ann.returnType() != null ? resolveTypeAnnotation(ann.returnType()) : MiraType.ANY;
-        return new MiraType.FunctionType(params, returnType != null ? returnType : MiraType.ANY);
+        TypeAnnotation returnType = ann.returnType() != null ? resolveTypeAnnotation(ann.returnType()) : ANY;
+        return functionType(params, returnType != null ? returnType : ANY);
     }
 
-    private MiraType resolveNamedType(String name, int line, int column) {
+    private TypeAnnotation resolveNamedType(String name, int line, int column) {
         if ("Any".equals(name)) {
-            return MiraType.ANY;
+            return ANY;
         }
         if (BUILTIN_TYPE_NAMES.contains(name)) {
-            return new MiraType.NamedType(name);
+            return namedType(name);
         }
         if (typeAliases.containsKey(name)) {
             return typeAliases.get(name);
@@ -1589,24 +1601,24 @@ public class StaticCheck {
             // opaque nominal type for now (no deeper checking against it yet -
             // that's struct nominal typing, a later milestone), rather than
             // flagged as unknown.
-            return new MiraType.NamedType(name);
+            return namedType(name);
         }
         errors.add(new UnknownTypeNameError(name, line, column));
         return null;
     }
 
     /**
-     * Infers the MiraType of an expression, when there's enough information to be
-     * confident - a variable with a declared type, a literal, a struct init, or a
-     * call to a function with a declared return type. Returns null (meaning
+     * Infers the TypeAnnotation of an expression, when there's enough information
+     * to be confident - a variable with a declared type, a literal, a struct init,
+     * or a call to a function with a declared return type. Returns null (meaning
      * "unknown, skip the check") for anything else, notably binary/ unary
      * expressions and calls to unannotated functions - guessing wrong there would
      * produce a false positive, which gradual typing must never do.
      */
-    MiraType inferMiraType(Node expr) {
+    TypeAnnotation inferType(Node expr) {
         if (expr instanceof UnaryExpression u && "$".equals(u.getOperation().getLexeme())
                 && u.getRight() instanceof DumbExpression d && isIdentifier(d)) {
-            MiraType declared = declaredVarTypes.get(d.getValue());
+            TypeAnnotation declared = declaredVarTypes.get(d.getValue());
             if (declared != null) {
                 return declared;
             }
@@ -1614,7 +1626,7 @@ public class StaticCheck {
             if (inferredLiteral != null) {
                 return literalNodeToType(inferredLiteral);
             }
-            MiraType inferred = varInferredTypes.get(d.getValue());
+            TypeAnnotation inferred = varInferredTypes.get(d.getValue());
             if (inferred != null) {
                 return inferred;
             }
@@ -1631,7 +1643,7 @@ public class StaticCheck {
             // Resolves to the specific struct template's nominal name when known
             // (e.g. NamedType("point") for `$point{...}`), falling back to the
             // generic structural Object only if the template can't be traced.
-            return templateLiteral instanceof StructExpression ? literalNodeToType(templateLiteral) : MiraType.OBJECT;
+            return templateLiteral instanceof StructExpression ? literalNodeToType(templateLiteral) : OBJECT;
         }
         if (expr instanceof CallExpression call && call.getCallee() instanceof DumbExpression callee
                 && isIdentifier(callee)) {
@@ -1672,7 +1684,7 @@ public class StaticCheck {
             if (fieldObject instanceof DumbExpression obj && isIdentifier(obj)) {
                 EnumDecl enumDecl = userEnumDecls.get(obj.getValue());
                 if (enumDecl != null && enumDecl.getValues().containsKey(fae.getField())) {
-                    return new MiraType.NamedType(enumDecl.getIdentifier());
+                    return namedType(enumDecl.getIdentifier());
                 }
                 Map<String, Signature> nativeSigs = nativeNamespaceSignatures.get(obj.getValue());
                 Signature sig = nativeSigs != null ? nativeSigs.get(fae.getField()) : null;
@@ -1686,18 +1698,18 @@ public class StaticCheck {
     }
 
     /**
-     * Maps one of isKnownLiteral()'s recognized literal shapes to a MiraType, or
-     * null if not a literal.
+     * Maps one of isKnownLiteral()'s recognized literal shapes to a TypeAnnotation,
+     * or null if not a literal.
      */
-    private MiraType literalNodeToType(Node n) {
+    private TypeAnnotation literalNodeToType(Node n) {
         return switch (n) {
-            case ListExpression ignored -> MiraType.LIST;
-            case ArrayExpression ignored -> MiraType.ARRAY;
-            case MapExpression ignored -> MiraType.MAP;
-            case ObjectExpression ignored -> MiraType.OBJECT;
+            case ListExpression ignored -> LIST;
+            case ArrayExpression ignored -> ARRAY;
+            case MapExpression ignored -> MAP;
+            case ObjectExpression ignored -> OBJECT;
             case StructExpression st -> {
                 String name = structTemplateNames.get(st);
-                yield name != null ? new MiraType.NamedType(name) : MiraType.OBJECT;
+                yield name != null ? namedType(name) : OBJECT;
             }
             case DumbExpression d ->
                 // covers plain literal tokens (numbers, true/false/null,
@@ -1708,41 +1720,42 @@ public class StaticCheck {
                 // literal, not "unknown" the way an actual $-reference is
                 literalTokenType(d);
             case UnaryExpression u when isInvertedLiteral(u) ->
-                "!".equals(u.getOperation().getLexeme()) ? MiraType.BOOL : MiraType.NUMBER;
+                "!".equals(u.getOperation().getLexeme()) ? BOOL : NUMBER;
             case LambdaExpression lambda -> functionTypeOf(lambda.getParameters(), null);
             default -> null;
         };
     }
 
-    private MiraType literalTokenType(DumbExpression d) {
+    private TypeAnnotation literalTokenType(DumbExpression d) {
         if (d.getTokenType() == TokenType.STRING_LITERAL) {
-            return MiraType.STRING;
+            return STRING;
         }
         String value = d.getValue();
         if ("true".equals(value) || "false".equals(value)) {
-            return MiraType.BOOL;
+            return BOOL;
         }
         if ("null".equals(value)) {
-            return MiraType.NULL;
+            return NULL;
         }
         if (!value.isEmpty() && Character.isDigit(value.charAt(0))) {
-            return MiraType.NUMBER;
+            return NUMBER;
         }
         // A bareword (missing '$') - Mira treats this as a string literal at runtime.
-        return MiraType.STRING;
+        return STRING;
     }
 
     /**
      * Checks a value's inferred type against an expected type, adding the given
      * error if it's a definite mismatch.
      */
-    void checkAssignable(Node valueExpr, MiraType expected, java.util.function.BiConsumer<String, String> onMismatch) {
+    void checkAssignable(Node valueExpr, TypeAnnotation expected,
+            java.util.function.BiConsumer<String, String> onMismatch) {
         if (expected == null) {
             return;
         }
         // a ternary/switch has no type of its own - check each branch against the
         // same expected type individually, rather than trying to first infer one
-        // combined type for the whole expression (inferMiraType has no case for
+        // combined type for the whole expression (inferType has no case for
         // either shape, so without this every branch was silently unchecked)
         if (valueExpr instanceof TernaryExpression te) {
             NullCheckNarrowing narrowing = nullNarrowing.detect(te.getCondition());
@@ -1763,9 +1776,9 @@ public class StaticCheck {
             }
             return;
         }
-        MiraType actual = inferMiraType(valueExpr);
-        if (actual != null && !MiraType.isAssignable(actual, expected)) {
-            onMismatch.accept(MiraType.display(expected), MiraType.display(actual));
+        TypeAnnotation actual = inferType(valueExpr);
+        if (actual != null && !isAssignable(actual, expected)) {
+            onMismatch.accept(expected.toString(), actual.toString());
         }
     }
 
@@ -1800,7 +1813,7 @@ public class StaticCheck {
                 continue;
             }
             Expression argNode = args.get(i);
-            MiraType expected = resolveTypeAnnotation(param.type());
+            TypeAnnotation expected = resolveTypeAnnotation(param.type());
             // point at the specific argument when it has a real position
             // (a literal or a $-reference), otherwise fall back to the call
             // site itself - either way a genuine token position, never a
@@ -1813,15 +1826,15 @@ public class StaticCheck {
         }
     }
 
-    private void checkArgumentTypesAgainstFunctionType(String callableName, MiraType.FunctionType fnType,
+    private void checkArgumentTypesAgainstFunctionType(String callableName, TypeAnnotation fnType,
             List<Expression> args, int fallbackLine, int fallbackColumn) {
-        int expected = fnType.params().size();
+        int expected = fnType.paramTypes().size();
         if (args.size() != expected) {
             errors.add(new ArityMismatchError(callableName, expected, args.size(), fallbackLine, fallbackColumn));
             return;
         }
         for (int i = 0; i < expected; i++) {
-            MiraType expectedType = fnType.params().get(i);
+            TypeAnnotation expectedType = fnType.paramTypes().get(i);
             Expression argNode = args.get(i);
             int line = argNode.line > 0 ? argNode.line : fallbackLine;
             int column = expressionColumn(argNode, fallbackColumn);
@@ -1847,7 +1860,7 @@ public class StaticCheck {
             return;
         }
         for (int i = 0; i < expected; i++) {
-            MiraType expectedType = resolveNamedType(paramTypes.get(i), e.getLine(), e.getColumn());
+            TypeAnnotation expectedType = resolveNamedType(paramTypes.get(i), e.getLine(), e.getColumn());
             Expression argNode = e.getArguments().get(i);
             int line = argNode.line > 0 ? argNode.line : e.getLine();
             int column = expressionColumn(argNode, e.getColumn());
@@ -1858,7 +1871,7 @@ public class StaticCheck {
         }
     }
 
-    private void checkParamDefaultValue(Parameter p, MiraType paramType) {
+    private void checkParamDefaultValue(Parameter p, TypeAnnotation paramType) {
         if (paramType == null || !p.hasDefault()) {
             return;
         }

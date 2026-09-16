@@ -13,6 +13,7 @@ import com.mira.error.resolver.StaticCheckError.ImmutableCollectionStaticError;
 import com.mira.error.resolver.StaticCheckError.StructFieldTypeMismatchError;
 import com.mira.error.resolver.StaticCheckError.UndefinedObjectFieldStaticError;
 import com.mira.parser.nodes.Node;
+import com.mira.parser.nodes.TypeAnnotation;
 import com.mira.parser.nodes.expression.Expression;
 import com.mira.parser.nodes.expression.Expression.AccessExpression;
 import com.mira.parser.nodes.expression.Expression.ArrayExpression;
@@ -112,7 +113,7 @@ final class StructMemberChecks {
         if (fieldDecl == null || fieldDecl.getType() == null) {
             return;
         }
-        MiraType expected = owner.resolveTypeAnnotation(fieldDecl.getType());
+        TypeAnnotation expected = owner.resolveTypeAnnotation(fieldDecl.getType());
         DumbExpression varRef = extractVarRef(fae.getObject());
         String fieldOwner = varRef != null ? varRef.getValue() : "object";
         int line = varRef != null ? varRef.getLine() : fae.getObject().line;
