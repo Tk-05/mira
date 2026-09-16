@@ -111,7 +111,11 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
     }
 
     private void emitGlobals() {
-        if (ctx.objectEnvSlot >= 0) {
+        // Inside an isolated exec block, name resolution must skip straight to
+        // the real global environment - never `this` - exactly like the
+        // interpreter's isolated exec parents its block Environment directly on
+        // globalEnvironment (see Interpreter.visitExecBlock).
+        if (ctx.objectEnvSlot >= 0 && !ctx.slots.isIsolated()) {
             mv.visitVarInsn(ALOAD, ctx.objectEnvSlot);
         } else {
             mv.visitFieldInsn(GETSTATIC, ctx.className, "GLOBALS", ENV_D);
@@ -1096,10 +1100,31 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
 
     @Override
     public <T> T visitExecBlock(ExecBlock expression) {
-        LambdaExpression synthetic = new LambdaExpression(List.of(), expression.getBody(), null, false);
-        synthetic.accept(this);
-        emitObjectArray(List.of());
-        mv.visitMethodInsn(INVOKESTATIC, RT, "dynamicCall", "(" + OBJ_D + "[" + OBJ_D + ")" + OBJ_D, false);
+        if (expression.isIsolated()) {
+            ctx.slots.enterIsolatedScope();
+        } else {
+            ctx.slots.enterScope();
+        }
+        ctx.blockDepth++;
+
+        int resultSlot = ctx.slots.allocateTemp();
+        Label end = new Label();
+        ctx.execStack.push(new CompilerContext.ExecFrame(end, resultSlot));
+
+        emitBody(expression.getBody());
+        // Fell through without a `return` - the block's value is null.
+        emitNullVal();
+        mv.visitVarInsn(ASTORE, resultSlot);
+        mv.visitLabel(end);
+        mv.visitVarInsn(ALOAD, resultSlot);
+
+        ctx.execStack.pop();
+        ctx.blockDepth--;
+        if (expression.isIsolated()) {
+            ctx.slots.exitIsolatedScope();
+        } else {
+            ctx.slots.exitScope();
+        }
         return null;
     }
 
@@ -1285,7 +1310,15 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
         } else {
             emitNullVal();
         }
-        if (ctx.isTopLevel) {
+        if (!ctx.execStack.isEmpty()) {
+            // A return inside an exec block only ever produces that block's own
+            // value - it never exits the enclosing function/method, regardless
+            // of whether that happens to be the top level, a partial-extract
+            // helper, or an ordinary method (see MethodEmitter.visitExecBlock).
+            CompilerContext.ExecFrame frame = ctx.execStack.peek();
+            mv.visitVarInsn(ASTORE, frame.resultSlot());
+            mv.visitJumpInsn(GOTO, frame.end());
+        } else if (ctx.isTopLevel) {
             String sig = "com/mira/runtime/functions/ReturnSignal";
             int tmpSlot = ctx.slots.allocateTemp();
             mv.visitVarInsn(ASTORE, tmpSlot);

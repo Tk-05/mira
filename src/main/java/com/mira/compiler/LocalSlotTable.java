@@ -12,6 +12,8 @@ public class LocalSlotTable {
     private int nextSlot;
     private final Deque<Map<String, Integer>> scopeStack = new ArrayDeque<>();
 
+    private final Deque<Integer> isolationFloors = new ArrayDeque<>();
+
     public LocalSlotTable(int startSlot) {
         this.nextSlot = startSlot;
         scopeStack.push(new LinkedHashMap<>());
@@ -27,6 +29,24 @@ public class LocalSlotTable {
         }
     }
 
+    public void enterIsolatedScope() {
+        isolationFloors.push(scopeStack.size());
+        enterScope();
+    }
+
+    public void exitIsolatedScope() {
+        exitScope();
+        isolationFloors.pop();
+    }
+
+    public boolean isIsolated() {
+        return !isolationFloors.isEmpty();
+    }
+
+    private int visibleScopeCount() {
+        return isolationFloors.isEmpty() ? scopeStack.size() : scopeStack.size() - isolationFloors.peek();
+    }
+
     public int allocate(String name) {
         int slot = nextSlot++;
         scopeStack.peek().put(name, slot);
@@ -34,11 +54,17 @@ public class LocalSlotTable {
     }
 
     public Integer slotOf(String name) {
+        int visible = visibleScopeCount();
+        int i = 0;
         for (Map<String, Integer> scope : scopeStack) {
+            if (i >= visible) {
+                break;
+            }
             Integer slot = scope.get(name);
             if (slot != null) {
                 return slot;
             }
+            i++;
         }
         return null;
     }
@@ -52,13 +78,19 @@ public class LocalSlotTable {
     }
 
     public List<String> getCaptureList() {
+        int visible = visibleScopeCount();
         List<Map.Entry<String, Integer>> all = new ArrayList<>();
+        int i = 0;
         for (Map<String, Integer> scope : scopeStack) {
+            if (i >= visible) {
+                break;
+            }
             for (Map.Entry<String, Integer> e : scope.entrySet()) {
                 if (!e.getKey().startsWith("$$")) {
                     all.add(e);
                 }
             }
+            i++;
         }
         all.sort(Map.Entry.comparingByValue());
         return all.stream().map(Map.Entry::getKey).toList();

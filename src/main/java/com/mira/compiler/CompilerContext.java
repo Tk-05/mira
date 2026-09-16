@@ -21,6 +21,11 @@ public class CompilerContext {
     public final Deque<Label> breakStack = new ArrayDeque<>();
     public final Deque<Label> continueStack = new ArrayDeque<>();
 
+    public final Deque<ExecFrame> execStack = new ArrayDeque<>();
+
+    public record ExecFrame(Label end, int resultSlot) {
+    }
+
     public final boolean isTopLevel;
 
     public int objectEnvSlot = -1;
