@@ -31,4 +31,21 @@ public abstract class AbstractMethodCallExpressionTests {
                 print(obj.x);
                 """));
     }
+
+    @Test
+    void nativeMethodCallOnStringLiteral() {
+        assertEquals("HELLO", runForOutput("""
+                import string;
+                print("hello".upper());
+                """));
+    }
+
+    @Test
+    void nativeMethodCallOnStringVariableWithArgument() {
+        assertEquals("he", runForOutput("""
+                import string;
+                var s : String : "hello";
+                print(s.substr(0, 2));
+                """));
+    }
 }

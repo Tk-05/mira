@@ -36,6 +36,8 @@ import com.mira.lexer.Tokenizer;
 import com.mira.lexer.token.Token;
 import com.mira.lib.Lib;
 import com.mira.lib.LibIndex;
+import com.mira.lib.NativeMethodProvider;
+import com.mira.lib.NativeMethodRegistry;
 import com.mira.lib.internal.Internal;
 import com.mira.parser.Parser;
 import com.mira.parser.nodes.Node;
@@ -46,6 +48,7 @@ import com.mira.parser.nodes.statement.Statement.EnumDecl;
 import com.mira.parser.nodes.statement.Statement.FuncDecl;
 import com.mira.parser.nodes.statement.Statement.ModuleDecl;
 import com.mira.parser.nodes.statement.Statement.VarDecl;
+import com.mira.runtime.functions.Callable;
 
 public class ImportResolver {
 
@@ -556,6 +559,15 @@ public class ImportResolver {
             for (String name : toLoad) {
                 environment.define(name, temp.get(name));
                 globalLibNames.put(name, libName);
+            }
+            if (lib instanceof NativeMethodProvider provider) {
+                provider.nativeMethods().forEach((type, methodNames) -> {
+                    for (String name : methodNames) {
+                        if (toLoad.contains(name) && temp.get(name) instanceof Callable callable) {
+                            NativeMethodRegistry.INSTANCE.register(type, name, callable);
+                        }
+                    }
+                });
             }
         }
     }

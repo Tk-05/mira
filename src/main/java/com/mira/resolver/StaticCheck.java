@@ -50,6 +50,7 @@ import com.mira.lib.LibIndex;
 import com.mira.lib.NativeInterfaceManifest;
 import com.mira.lib.NativeInterfaceManifest.Signature;
 import com.mira.lib.NativeLibLocator;
+import com.mira.lib.NativeType;
 import com.mira.parser.Parser;
 import com.mira.parser.nodes.Node;
 import com.mira.parser.nodes.Parameter;
@@ -111,10 +112,10 @@ import static com.mira.resolver.StaticCheckSupport.BOOL;
 import static com.mira.resolver.StaticCheckSupport.COMPARISON_TYPE_CHECKED_OPERATORS;
 import static com.mira.resolver.StaticCheckSupport.LIST;
 import static com.mira.resolver.StaticCheckSupport.MAP;
-import com.mira.resolver.StaticCheckSupport.NarrowSave;
 import static com.mira.resolver.StaticCheckSupport.NULL;
-import com.mira.resolver.StaticCheckSupport.NullCheckNarrowing;
 import static com.mira.resolver.StaticCheckSupport.NUMBER;
+import com.mira.resolver.StaticCheckSupport.NarrowSave;
+import com.mira.resolver.StaticCheckSupport.NullCheckNarrowing;
 import static com.mira.resolver.StaticCheckSupport.OBJECT;
 import static com.mira.resolver.StaticCheckSupport.STRING;
 import static com.mira.resolver.StaticCheckSupport.STRING_UNSAFE_OPERATORS;
@@ -171,8 +172,16 @@ public class StaticCheck {
     // classloading-free ReflectiveLib manifest (see NativeInterfaceManifest) -
     // lets namespace calls into a native lib be argument-type-checked the same
     // way as a call to a declared Mira function, without ever loading the
-    // native jar's actual Java classes during a check/LSP pass.
+    // native jar's actual Java classes during a check/LSP pass.^
+
     private final Map<String, Map<String, Signature>> nativeNamespaceSignatures = new HashMap<>();
+    // Native methods (e.g. "foo".upper()) made known by an unaliased stdlib
+    // import, keyed by the receiver's NativeType and then by method name to
+    // its arity - lets StructMemberChecks validate a method call on a
+    // known-native-typed expression the same way it already validates one on
+    // a struct/object literal.
+
+    final Map<NativeType, Map<String, Integer>> knownNativeMethods = new HashMap<>();
     private final Map<String, Node> varLiteralTypes = new HashMap<>();
     final Map<String, FuncDecl> userFuncDecls = new HashMap<>();
     private final Map<String, EnumDecl> userEnumDecls = new HashMap<>();
@@ -1306,6 +1315,10 @@ public class StaticCheck {
                 if (arity >= 0) {
                     knownArities.put(name, new int[]{arity, arity});
                 }
+            });
+            LibIndex.getNativeMethods(libName).forEach((type, methods) -> {
+                Map<String, Integer> arities = knownNativeMethods.computeIfAbsent(type, ignored -> new HashMap<>());
+                methods.forEach((name, callable) -> arities.put(name, callable.getArity()));
             });
         }
     }

@@ -291,4 +291,12 @@ public class StaticCheckError extends MiraError {
                             + "variable inside the body if you need to change it");
         }
     }
+
+    public static class UnknownNativeMethodError extends StaticCheckError {
+
+        public UnknownNativeMethodError(String method, String typeName, int line, int column) {
+            super("E334", "'" + typeName + "' has no method '" + method + "'", line, column, method.length(),
+                    "Check the spelling, or make sure the lib that defines it is imported");
+        }
+    }
 }

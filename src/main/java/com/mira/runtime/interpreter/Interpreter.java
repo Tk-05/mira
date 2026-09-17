@@ -28,6 +28,8 @@ import com.mira.error.runtime.RuntimeError.UnknownOperatorError;
 import com.mira.error.runtime.RuntimeError.UnknownStructFieldError;
 import com.mira.lexer.token.Token;
 import com.mira.lexer.token.TokenType;
+import com.mira.lib.NativeMethodRegistry;
+import com.mira.lib.NativeType;
 import com.mira.parser.nodes.Node;
 import com.mira.parser.nodes.expression.Expression;
 import com.mira.parser.nodes.expression.Expression.AccessExpression;
@@ -1000,11 +1002,6 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
     public <T> T visitFieldAccessExpression(FieldAccessExpression expression) {
         Object object = expression.getObject().accept(this);
 
-        if (object instanceof String name) {
-            Object fromLocal = localEnvironment != null ? localEnvironment.getOrNull(name) : null;
-            object = fromLocal != null ? fromLocal : globalEnvironment.get(name);
-        }
-
         if (!(object instanceof Environment objectEnv)) {
             if (expression.isOptional()) {
                 return (T) NullValue.INSTANCE;
@@ -1021,39 +1018,49 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
     public <T> T visitMethodCallExpression(MethodCallExpression expression) {
         Object objectValue = expression.getObject().accept(this);
 
-        if (objectValue instanceof String name) {
-            objectValue = localEnvironment != null && localEnvironment.existsInChain(name)
-                    ? localEnvironment.get(name)
-                    : globalEnvironment.get(name);
-        }
-
         if (expression.isOptional() && (objectValue == null || objectValue instanceof NullValue)) {
             return (T) NullValue.INSTANCE;
         }
 
-        if (!(objectValue instanceof Environment objectEnv)) {
-            int mcLine = expression.getObject() instanceof UnaryExpression ue ? ue.getOperation().getLine() : -1;
-            int mcCol = expression.getObject() instanceof UnaryExpression ue2 ? ue2.getOperation().getColumn() : -1;
-            throw new FieldAccessError(expression.getMethod(), typeName(objectValue)).withLocation(mcLine, mcCol);
-        }
-
-        Object methodValue = objectEnv.get(expression.getMethod());
-        if (!(methodValue instanceof Callable callable)) {
-            throw new NotCallableError(expression.getMethod());
+        Callable callable;
+        boolean nativeReceiver = false;
+        if (objectValue instanceof Environment objectEnv) {
+            Object methodValue = objectEnv.get(expression.getMethod());
+            if (!(methodValue instanceof Callable c)) {
+                throw new NotCallableError(expression.getMethod());
+            }
+            callable = c;
+        } else {
+            NativeType nativeType = NativeType.fromRuntimeValue(objectValue);
+            callable = nativeType != null
+                    ? NativeMethodRegistry.INSTANCE.lookup(nativeType, expression.getMethod())
+                    : null;
+            if (callable == null) {
+                int mcLine = expression.getObject() instanceof UnaryExpression ue ? ue.getOperation().getLine() : -1;
+                int mcCol = expression.getObject() instanceof UnaryExpression ue2 ? ue2.getOperation().getColumn() : -1;
+                throw new FieldAccessError(expression.getMethod(), typeName(objectValue)).withLocation(mcLine, mcCol);
+            }
+            nativeReceiver = true;
         }
 
         List<Object> arguments = new ArrayList<>();
+        if (nativeReceiver) {
+            arguments.add(objectValue);
+        }
         for (Expression arg : expression.getArguments()) {
             arguments.add(arg.accept(this));
         }
 
+        int implicitReceiver = nativeReceiver ? 1 : 0;
         if (callable instanceof Function f) {
             int min = f.getArity(), max = f.getMaxArity();
             if (arguments.size() < min || (max != -1 && arguments.size() > max)) {
-                throw new ArgMismatchError(expression.getMethod(), min, arguments.size());
+                throw new ArgMismatchError(expression.getMethod(), min - implicitReceiver,
+                        arguments.size() - implicitReceiver);
             }
         } else if (callable.getArity() != -1 && arguments.size() != callable.getArity()) {
-            throw new ArgMismatchError(expression.getMethod(), callable.getArity(), arguments.size());
+            throw new ArgMismatchError(expression.getMethod(), callable.getArity() - implicitReceiver,
+                    arguments.size() - implicitReceiver);
         }
 
         if (!profiler.enabled) {

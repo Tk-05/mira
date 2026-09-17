@@ -2,17 +2,28 @@ package com.mira.lib.std;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import com.mira.lexer.token.Token;
 import com.mira.lexer.token.TokenType;
 import com.mira.lib.Lib;
+import com.mira.lib.NativeMethodProvider;
+import com.mira.lib.NativeType;
 import com.mira.parser.nodes.expression.Expression;
 import com.mira.parser.nodes.expression.Expression.DumbExpression;
 import com.mira.parser.nodes.expression.Expression.ListExpression;
 import com.mira.runtime.functions.NativeFunction;
 import com.mira.runtime.interpreter.Environment;
 
-public class Strings implements Lib {
+public class Strings implements Lib, NativeMethodProvider {
+
+    @Override
+    public Map<NativeType, List<String>> nativeMethods() {
+        return Map.of(NativeType.STRING,
+                List.of("charAt", "indexOf", "trim", "split", "substr", "strEqual", "replace", "upper", "lower",
+                        "startsWith", "endsWith", "contains", "repeat", "toNumber", "padLeft", "padRight",
+                        "isNumeric"));
+    }
 
     @Override
     public void loadLib(Environment environment) {

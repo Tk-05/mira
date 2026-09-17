@@ -108,6 +108,26 @@ public final class LibIndex {
         return env.getDefinedNames();
     }
 
+    public static Map<NativeType, Map<String, Callable>> getNativeMethods(String libName) {
+        Lib lib = STDLIB_LIBS.get(libName);
+        if (!(lib instanceof NativeMethodProvider provider)) {
+            return Map.of();
+        }
+        Environment env = new Environment();
+        lib.loadLib(env);
+        Map<NativeType, Map<String, Callable>> result = new HashMap<>();
+        provider.nativeMethods().forEach((type, names) -> {
+            Map<String, Callable> forType = new HashMap<>();
+            for (String name : names) {
+                if (env.getOrNull(name) instanceof Callable c) {
+                    forType.put(name, c);
+                }
+            }
+            result.put(type, forType);
+        });
+        return result;
+    }
+
     public static Map<String, Integer> getFunctionArities(String libName) {
         Lib lib = STDLIB_LIBS.get(libName);
         if (lib == null) {
