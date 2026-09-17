@@ -4,7 +4,9 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Predicate;
 
+import com.mira.cli.Flags;
 import com.mira.error.MiraError;
 import com.mira.error.parser.MultipleParserErrors;
 import com.mira.error.parser.ParserError;
@@ -66,6 +68,7 @@ import com.mira.parser.nodes.statement.Statement.VarDecl;
 import com.mira.parser.nodes.statement.Statement.VarDestructure;
 import com.mira.parser.nodes.statement.Statement.While;
 import com.mira.vocabulary.Vocabulary;
+import static com.mira.vocabulary.Vocabulary.BUILTIN_TYPE_NAMES;
 
 public class Parser {
 
@@ -75,6 +78,7 @@ public class Parser {
     private int lastClosingBraceLine = 0;
     private final List<MiraError> errors = new ArrayList<>();
     private Token lastConsumed = null;
+    private boolean suppressBraceAccess = false;
 
     /**
      * Bareword names bound by "import ... as alias" seen so far in this parse.
@@ -83,9 +87,6 @@ public class Parser {
      * identically without a "$" sigil to mark plain variables.
      */
     private final java.util.Set<String> knownAliases = new java.util.HashSet<>();
-
-    private static final java.util.Set<String> BUILTIN_TYPE_NAMES = java.util.Set.of("Number", "String", "Bool", "List",
-            "Array", "Map", "Object", "Fn", "Null", "Any", "Void");
 
     /**
      * Type/enum/struct-template names declared so far in this parse. Needed to
@@ -358,6 +359,10 @@ public class Parser {
         return parseAssignmentExpression();
     }
 
+    // Set while parsing the end operand of a range, so a second '..' at the same
+    // level (e.g. "a..b..c") is rejected instead of silently nesting ranges.
+    private boolean parsingRangeEnd = false;
+
     private Expression parsePratt(int minBP) {
         Expression left = parsePrimary();
 
@@ -374,6 +379,23 @@ public class Parser {
                 matchLexeme(":");
                 Expression elseExpr = parseTernaryBranch();
                 left = new TernaryExpression(left, thenExpr, elseExpr);
+                break;
+            }
+
+            if (opToken.getLexeme().equals("..") && opToken.getTokenType() != TokenType.STRING_LITERAL) {
+                if (minBP > 0 || parsingRangeEnd) {
+                    break;
+                }
+                consume();
+                boolean previouslyParsingRangeEnd = parsingRangeEnd;
+                parsingRangeEnd = true;
+                Expression end;
+                try {
+                    end = parsePratt(0);
+                } finally {
+                    parsingRangeEnd = previouslyParsingRangeEnd;
+                }
+                left = new RangeExpression(left, end);
                 break;
             }
 
@@ -409,10 +431,7 @@ public class Parser {
         Token current = peek();
         Expression expr;
 
-        if (current.getLexeme().equals("<") && current.getTokenType() != TokenType.STRING_LITERAL) {
-            expr = parseRangeExpression();
-
-        } else if ((current.getLexeme().equals("++") || current.getLexeme().equals("--"))
+        if ((current.getLexeme().equals("++") || current.getLexeme().equals("--"))
                 && current.getTokenType() != TokenType.STRING_LITERAL) {
             Token op = consume();
             expr = new UnaryExpression(op, parsePrimary(), true);
@@ -588,13 +607,13 @@ public class Parser {
     }
 
     private Expression maybeParseAccess(Expression base) {
-        if (peek().getLexeme().equals("{") && peek().getTokenType() != TokenType.STRING_LITERAL
-                && (peekOffset(1).getLexeme().equals("}")
-                        || (isVariableNameToken(peekOffset(1)) && peekOffset(2).getLexeme().equals(":")))) {
+        boolean atBrace = peek().getLexeme().equals("{") && peek().getTokenType() != TokenType.STRING_LITERAL;
+        if (atBrace && !suppressBraceAccess && (peekOffset(1).getLexeme().equals("}")
+                || (isVariableNameToken(peekOffset(1)) && peekOffset(2).getLexeme().equals(":")))) {
             return parseStructInit(base);
         }
-        if (peek().getLexeme().equals("[") && peek().getTokenType() != TokenType.STRING_LITERAL
-                || peek().getLexeme().equals("{") && peek().getTokenType() != TokenType.STRING_LITERAL) {
+        if ((peek().getLexeme().equals("[") && peek().getTokenType() != TokenType.STRING_LITERAL)
+                || (atBrace && !suppressBraceAccess)) {
             return parseAccessExpression(base);
         }
         return base;
@@ -790,38 +809,6 @@ public class Parser {
         }
         matchLexeme("}");
         return new MapExpression(entries);
-    }
-
-    private Expression parseRangeExpression() {
-        matchLexeme("<");
-        Expression start = parseRangeOperand();
-        matchLexeme("..");
-        Expression end = parseRangeOperand();
-
-        Expression stepsize = null;
-        if (peek().getLexeme().equals(",")) {
-            consume();
-            stepsize = parseRangeOperand();
-        }
-
-        matchLexeme(">");
-        return new RangeExpression(start, end, stepsize);
-    }
-
-    // Precedence of '<'/'>'/'<='/'>=' (see Vocabulary.OPERATOR_PRECEDENCE) — used
-    // as the
-    // Pratt parser's minBP for range operands so a bare '>' is never consumed as
-    // "greater
-    // than" and is left for parseRangeExpression() to match as the closing bracket
-    // instead.
-    // Comparison/logical/pipe operators (precedence <= this) are therefore not
-    // usable
-    // directly inside a range operand; everything tighter (+ - * / % \% ** << >>)
-    // is.
-    private static final int RANGE_OPERAND_MIN_BP = 7;
-
-    private Expression parseRangeOperand() {
-        return parsePratt(RANGE_OPERAND_MIN_BP);
     }
 
     private Expression parseLambdaExpression(boolean isAsync) {
@@ -1245,33 +1232,17 @@ public class Parser {
         return new TypeAnnotation(name, nullable, nameToken.getLine(), nameToken.getColumn(), paramTypes, returnType);
     }
 
-    /**
-     * True when positioned at a ':' that introduces a type annotation ahead of a
-     * value/default, i.e. the pattern ": TypeName[?] :" - a second ':' confirms the
-     * first clause was a type, not an initializer/default expression. Only
-     * bare-identifier-shaped tokens (not numbers, strings, keywords) are considered
-     * - anything else falls through to today's ordinary single-':'
-     * initializer/default parsing untouched.
-     */
     private boolean isTypedDeclarationAhead() {
-        int next = spanAheadOfType(this::looksLikeTypeName);
+        int next = spanAheadOfType(0, this::looksLikeTypeName);
         if (next < 0) {
             return false;
         }
         return peekOffset(next).getLexeme().equals(":");
     }
 
-    /**
-     * Offset of the first token past the type expression starting at peekOffset(1)
-     * - a plain "TypeName[?]" (checked with {@code isType}), or a function type
-     * "Fn(...)[-> ReturnType][?]" (matched structurally via paren depth, so nested
-     * parens/Fn types inside the param list are fine; a function-typed return type
-     * of a function type is not, but that's a rare enough shape to accept as a
-     * known gap). -1 if peekOffset(1) isn't type-shaped at all.
-     */
-    private int spanAheadOfType(java.util.function.Predicate<Token> isType) {
-        if ("Fn".equals(peekOffset(1).getLexeme()) && "(".equals(peekOffset(2).getLexeme())) {
-            int i = 3;
+    private int spanAheadOfType(int baseOffset, Predicate<Token> isType) {
+        if ("Fn".equals(peekOffset(baseOffset + 1).getLexeme()) && "(".equals(peekOffset(baseOffset + 2).getLexeme())) {
+            int i = baseOffset + 3;
             int depth = 1;
             while (depth > 0 && peekOffset(i).getTokenType() != TokenType.EOF) {
                 String lex = peekOffset(i).getLexeme();
@@ -1290,32 +1261,37 @@ public class Parser {
             }
             return i;
         }
-        Token typeToken = peekOffset(1);
+        Token typeToken = peekOffset(baseOffset + 1);
         if (!isType.test(typeToken)) {
             return -1;
         }
-        return peekOffset(2).getLexeme().equals("?") ? 3 : 2;
+        return peekOffset(baseOffset + 2).getLexeme().equals("?") ? baseOffset + 3 : baseOffset + 2;
     }
 
-    /**
-     * True when positioned at a ':' that introduces a type with no default value in
-     * parameter position specifically - the pattern ": TypeName[?]" immediately
-     * followed by ',' or ')'. Parameters (unlike var decls) need this second
-     * heuristic because "typed, no default" is the common case there, and there's
-     * no second ':' available to disambiguate it with - unlike
-     * isTypedDeclarationAhead, a bareword here is genuinely ambiguous with an
-     * untyped default value expression (e.g. "offset : base"), so this requires
-     * typeToken to be a name actually declared as a type (enum, struct template,
-     * type alias, or builtin), not just identifier- shaped, to avoid misreading
-     * "default value base" as "type base".
-     */
-    private boolean isTypeOnlyParameterAhead() {
-        int next = spanAheadOfType(this::isKnownTypeName);
+    private boolean isTypeOnlyDeclarationAheadOf(int baseOffset, Predicate<Token> isType, String... terminators) {
+        int next = spanAheadOfType(baseOffset, isType);
         if (next < 0) {
             return false;
         }
         String after = peekOffset(next).getLexeme();
-        return after.equals(",") || after.equals(")");
+        for (String terminator : terminators) {
+            if (after.equals(terminator)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean isTypeOnlyParameterAhead() {
+        return isTypeOnlyDeclarationAheadOf(0, this::isKnownTypeName, ",", ")");
+    }
+
+    private boolean isTypeOnlyVarDeclAheadOf(int baseOffset, String... terminators) {
+        return isTypeOnlyDeclarationAheadOf(baseOffset, this::isUnambiguousTypeName, terminators);
+    }
+
+    private boolean isTypedForeachIteratorAhead() {
+        return isTypeOnlyVarDeclAheadOf(2, "in");
     }
 
     private boolean looksLikeTypeName(Token token) {
@@ -1337,6 +1313,17 @@ public class Parser {
         // follows (builtins and user types alike), which a default-value
         // bareword never does.
         return Character.isUpperCase(lex.charAt(0));
+    }
+
+    private boolean isUnambiguousTypeName(Token token) {
+        if (!looksLikeTypeName(token)) {
+            return false;
+        }
+        String lex = token.getLexeme();
+        if (declaredTypeNames.contains(lex)) {
+            return true;
+        }
+        return Flags.strictTypes && Character.isUpperCase(lex.charAt(0));
     }
 
     private List<Node> parseVarDecl(boolean isConst) {
@@ -1374,6 +1361,9 @@ public class Parser {
                 type = parseTypeExpression();
                 matchLexeme(":");
                 initializer = parseExpression();
+            } else if (!isConst && peek().getLexeme().equals(":") && isTypeOnlyVarDeclAheadOf(0, ";", ",", ")", "in")) {
+                consume();
+                type = parseTypeExpression();
             } else if (peek().getLexeme().equals(":")) {
                 consume();
                 initializer = parseExpression();
@@ -1541,18 +1531,23 @@ public class Parser {
         requireNotIncomplete(kwToken, "(init; condition; post) { body }");
         matchLexeme("(");
 
-        if (peek().getLexeme().equals("<")) {
-            Expression range = parseRangeExpression();
+        if (!peek().getLexeme().equals("var") && !peek().getLexeme().equals(";") && !peek().getLexeme().equals(")")) {
+            Token startToken = peek();
+            Expression collection = parseExpression();
+            if (!(collection instanceof RangeExpression)) {
+                throw new UnexpectedToken(startToken, "Expected a range expression, e.g. 'for (0..5) { ... }'");
+            }
             matchLexeme(")");
             List<Node> body = parseBody();
-            return Loop.foreachStyle(new VarDecl("_", null, false), range, body);
+            return Loop.foreachStyle(new VarDecl("_", null, false), collection, body);
         }
 
-        if (peek().getLexeme().equals("var") && peekOffset(2).getLexeme().equals("in")) {
+        if (peek().getLexeme().equals("var")
+                && (peekOffset(2).getLexeme().equals("in") || isTypedForeachIteratorAhead())) {
             VarDecl iterator = (VarDecl) parseVarDecl(false).getFirst();
             matchLexeme("in");
 
-            Expression collection = peek().getLexeme().equals("<") ? parseRangeExpression() : parseExpression();
+            Expression collection = parseExpression();
 
             matchLexeme(")");
 
@@ -1815,6 +1810,16 @@ public class Parser {
         return parsePratt(0);
     }
 
+    private Expression parseSwitchCaseValue() {
+        boolean saved = suppressBraceAccess;
+        suppressBraceAccess = true;
+        try {
+            return parseExpression();
+        } finally {
+            suppressBraceAccess = saved;
+        }
+    }
+
     private Expression parseSwitchExpression() {
         matchLexeme("(");
         Expression subject = parseExpression();
@@ -1828,9 +1833,7 @@ public class Parser {
             switch (peek().getLexeme()) {
                 case "case" -> {
                     matchLexeme("case");
-                    matchLexeme("(");
-                    Expression value = parseExpression();
-                    matchLexeme(")");
+                    Expression value = parseSwitchCaseValue();
                     matchLexeme("->");
                     skipWhitespaceTokens();
                     Expression result = parsePratt(0);
@@ -1865,9 +1868,7 @@ public class Parser {
             switch (peek().getLexeme()) {
                 case "case" -> {
                     matchLexeme("case");
-                    matchLexeme("(");
-                    Expression value = parseExpression();
-                    matchLexeme(")");
+                    Expression value = parseSwitchCaseValue();
                     List<Node> body = new ArrayList<>();
                     if (peek().getLexeme().equals("->")) {
                         matchLexeme("->");
@@ -1901,10 +1902,6 @@ public class Parser {
 
         lastClosingBraceLine = matchLexeme("}").getLine();
         return new Switch(subject, cases, defaultBody);
-    }
-
-    private Node parseEnumDecl() {
-        return parseEnumDecl(false);
     }
 
     private Node parseEnumDecl(boolean isPublic) {

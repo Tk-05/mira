@@ -454,12 +454,10 @@ public class LexerTest {
 
     @Test
     void testTrailingDotDoesNotSwallowRangeSeparator() {
-        List<Token> tokens = tokenizer.tokenize("<0..5>", false);
-        assertEquals("<", tokens.get(0).getLexeme());
-        assertEquals("0", tokens.get(1).getLexeme());
-        assertEquals("..", tokens.get(2).getLexeme());
-        assertEquals("5", tokens.get(3).getLexeme());
-        assertEquals(">", tokens.get(4).getLexeme());
+        List<Token> tokens = tokenizer.tokenize("0..5", false);
+        assertEquals("0", tokens.get(0).getLexeme());
+        assertEquals("..", tokens.get(1).getLexeme());
+        assertEquals("5", tokens.get(2).getLexeme());
     }
 
     @Test

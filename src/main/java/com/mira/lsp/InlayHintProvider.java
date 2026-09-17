@@ -24,22 +24,7 @@ import com.mira.parser.nodes.expression.Expression.ObjectExpression;
 import com.mira.parser.nodes.expression.Expression.StructExpression;
 import com.mira.parser.nodes.expression.Expression.UnaryExpression;
 import com.mira.parser.nodes.statement.Statement.VarDecl;
-import com.mira.resolver.MiraType;
 
-/**
- * Inferred-type hints for {@code var}/{@code const} declarations that have no
- * explicit type annotation, e.g. {@code var x : 5;} ->
- * {@code var x: Number : 5;} rendered inline. Only ever infers from the
- * initializer's own direct literal shape (number/string/bool/null tokens,
- * array/list/map/object/struct literals, lambdas, and a negated/inverted
- * numeric or boolean literal) - mirroring
- * {@code StaticCheck.literalNodeToType}'s philosophy of never chasing a
- * variable/call/field reference to guess a type, since a wrong guess shown
- * inline is worse than no hint at all. Deliberately reimplemented here rather
- * than reusing StaticCheck's own (instance-stateful, whole-program) inference,
- * which needs a full checker pass this lightweight provider has no reason to
- * run.
- */
 public class InlayHintProvider {
 
     public static List<InlayHint> provide(List<Node> ast, String content, Range range) {
@@ -66,27 +51,27 @@ public class InlayHintProvider {
         if (lspLine < range.getStart().getLine() || lspLine > range.getEnd().getLine()) {
             return;
         }
-        MiraType type = inferLiteralType(vd.getInitializer());
+        String type = inferLiteralType(vd.getInitializer());
         if (type == null) {
             return;
         }
         Position pos = LspPositions.nameRange(content, vd.line, vd.nameColumn, vd.getName()).getEnd();
-        InlayHint hint = new InlayHint(pos, Either.forLeft(": " + MiraType.display(type)));
+        InlayHint hint = new InlayHint(pos, Either.forLeft(": " + type));
         hint.setKind(InlayHintKind.Type);
         hint.setPaddingLeft(true);
         hints.add(hint);
     }
 
-    private static MiraType inferLiteralType(Expression expr) {
+    private static String inferLiteralType(Expression expr) {
         return switch (expr) {
-            case ListExpression ignored -> MiraType.LIST;
-            case ArrayExpression ignored -> MiraType.ARRAY;
-            case MapExpression ignored -> MiraType.MAP;
-            case ObjectExpression ignored -> MiraType.OBJECT;
-            case StructExpression ignored -> MiraType.OBJECT;
-            case LambdaExpression ignored -> MiraType.FN;
+            case ListExpression ignored -> "List";
+            case ArrayExpression ignored -> "Array";
+            case MapExpression ignored -> "Map";
+            case ObjectExpression ignored -> "Object";
+            case StructExpression ignored -> "Object";
+            case LambdaExpression ignored -> "Fn";
             case UnaryExpression u when isInvertedNumberOrBool(u) ->
-                "!".equals(u.getOperation().getLexeme()) ? MiraType.BOOL : MiraType.NUMBER;
+                "!".equals(u.getOperation().getLexeme()) ? "Bool" : "Number";
             case DumbExpression d -> literalTokenType(d);
             default -> null;
         };
@@ -104,20 +89,20 @@ public class InlayHintProvider {
         return "!".equals(op) && ("true".equals(value) || "false".equals(value));
     }
 
-    private static MiraType literalTokenType(DumbExpression d) {
+    private static String literalTokenType(DumbExpression d) {
         if (d.getTokenType() == TokenType.STRING_LITERAL) {
-            return MiraType.STRING;
+            return "String";
         }
         String value = d.getValue();
         if ("true".equals(value) || "false".equals(value)) {
-            return MiraType.BOOL;
+            return "Bool";
         }
         if ("null".equals(value)) {
-            return MiraType.NULL;
+            return "Null";
         }
         if (!value.isEmpty() && Character.isDigit(value.charAt(0))) {
-            return MiraType.NUMBER;
+            return "Number";
         }
-        return MiraType.STRING;
+        return "String";
     }
 }

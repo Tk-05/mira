@@ -56,8 +56,8 @@ public class TypeofTest extends AbstractTypeofTests {
         assertEquals("number", backend.runAndGetValue("""
                 var x : 1;
                 var r : switch(typeof x) {
-                    case("number") -> "number"
-                    case("string") -> "string"
+                    case "number" -> "number"
+                    case "string" -> "string"
                     default -> "other"
                 };
                 r;

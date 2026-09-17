@@ -88,12 +88,12 @@ public class StaticCheckTest {
 
     @Test
     void breakInsideLoopIsValid() {
-        assertClean("for(var i in <0..5>) { break; }");
+        assertClean("for(var i in 0..5) { break; }");
     }
 
     @Test
     void continueInsideLoopIsValid() {
-        assertClean("for(var i in <0..5>) { continue; }");
+        assertClean("for(var i in 0..5) { continue; }");
     }
 
     @Test
@@ -178,6 +178,23 @@ public class StaticCheckTest {
     @Test
     void varReassignmentIsValid() {
         assertClean("var x : 1; x : 5;");
+    }
+
+    @Test
+    void foreachIteratorReassignmentIsRejected() {
+        List<MiraError> errors = errorsFor("for (var i in 0..10) { i : 0; }");
+        assertTrue(hasCode(errors, "E333"));
+    }
+
+    @Test
+    void foreachIteratorCompoundReassignmentIsRejected() {
+        List<MiraError> errors = errorsFor("for (var i in 0..10) { i +: 1; }");
+        assertTrue(hasCode(errors, "E333"));
+    }
+
+    @Test
+    void classicForLoopCounterReassignmentIsValid() {
+        assertClean("for (var i : 0; i < 10; i +: 1) { i : i + 1; }");
     }
 
     @Test
@@ -333,17 +350,6 @@ public class StaticCheckTest {
     @Test
     void varArrayIndexAssignIsValid() {
         assertClean("var arr : [1, 2, 3]; arr[0] : 9;");
-    }
-
-    @Test
-    void rangeStepZeroViaVarProducesE313() {
-        List<MiraError> errors = errorsFor("var step : 0; for(var i in <1..10, step>) { }");
-        assertTrue(hasCode(errors, "E313"));
-    }
-
-    @Test
-    void rangeStepNonZeroVarIsValid() {
-        assertClean("var step : 2; for(var i in <1..10, step>) { }");
     }
 
     @Test
@@ -1289,20 +1295,20 @@ public class StaticCheckTest {
     @Test
     void switchCaseResultMismatchAgainstDeclaredTypeIsE324() {
         List<MiraError> errors = errorsFor(
-                "var n : Number : 1; " + "var c : Number : switch(n) { case(1) -> \"one\" default -> 2 };");
+                "var n : Number : 1; " + "var c : Number : switch(n) { case 1 -> \"one\" default -> 2 };");
         assertTrue(hasCode(errors, "E324"));
     }
 
     @Test
     void switchCaseResultsMatchingDeclaredTypeIsClean() {
-        assertClean("var n : Number : 1; " + "var c : Number : switch(n) { case(1) -> 1 default -> 2 };");
+        assertClean("var n : Number : 1; " + "var c : Number : switch(n) { case 1 -> 1 default -> 2 };");
     }
 
     @Test
     void nonExhaustiveSwitchStatementOverEnumWarns() {
         WarningCollector.clear();
         assertClean("enum Color { RED, GREEN, BLUE } var c : Color : Color.RED; "
-                + "switch (c) { case (Color.RED) { println(1); } case (Color.GREEN) { println(2); } }");
+                + "switch (c) { case Color.RED { println(1); } case Color.GREEN { println(2); } }");
         assertTrue(WarningCollector.getWarnings().stream()
                 .anyMatch(w -> w.message().contains("not exhaustive") && w.message().contains("BLUE")));
         WarningCollector.clear();
@@ -1312,7 +1318,7 @@ public class StaticCheckTest {
     void exhaustiveSwitchStatementOverEnumIsClean() {
         WarningCollector.clear();
         assertClean("enum Color { RED, GREEN } var c : Color : Color.RED; "
-                + "switch (c) { case (Color.RED) { println(1); } case (Color.GREEN) { println(2); } }");
+                + "switch (c) { case Color.RED { println(1); } case Color.GREEN { println(2); } }");
         assertTrue(WarningCollector.getWarnings().stream().noneMatch(w -> w.message().contains("not exhaustive")));
         WarningCollector.clear();
     }
@@ -1321,7 +1327,7 @@ public class StaticCheckTest {
     void nonExhaustiveSwitchStatementWithDefaultIsUnaffected() {
         WarningCollector.clear();
         assertClean("enum Color { RED, GREEN, BLUE } var c : Color : Color.RED; "
-                + "switch (c) { case (Color.RED) { println(1); } default { println(2); } }");
+                + "switch (c) { case Color.RED { println(1); } default { println(2); } }");
         assertTrue(WarningCollector.getWarnings().stream().noneMatch(w -> w.message().contains("not exhaustive")));
         WarningCollector.clear();
     }
@@ -1329,7 +1335,7 @@ public class StaticCheckTest {
     @Test
     void nonExhaustiveSwitchOverNonEnumIsUnaffected() {
         WarningCollector.clear();
-        assertClean("var n : Number : 1; switch (n) { case (1) { println(1); } }");
+        assertClean("var n : Number : 1; switch (n) { case 1 { println(1); } }");
         assertTrue(WarningCollector.getWarnings().stream().noneMatch(w -> w.message().contains("not exhaustive")));
         WarningCollector.clear();
     }
@@ -1338,7 +1344,7 @@ public class StaticCheckTest {
     void nonExhaustiveSwitchExpressionOverEnumWarns() {
         WarningCollector.clear();
         assertClean("enum Color { RED, GREEN, BLUE } var c : Color : Color.RED; "
-                + "var label : String : switch (c) { case (Color.RED) -> \"r\" case (Color.GREEN) -> \"g\" };");
+                + "var label : String : switch (c) { case Color.RED -> \"r\" case Color.GREEN -> \"g\" };");
         assertTrue(WarningCollector.getWarnings().stream()
                 .anyMatch(w -> w.message().contains("not exhaustive") && w.message().contains("BLUE")));
         WarningCollector.clear();
@@ -1513,7 +1519,7 @@ public class StaticCheckTest {
     @Test
     void callingVariableReassignedViaSwitchWithAgreeingBranchesIsE332() {
         List<MiraError> errors = errorsFor(
-                "var a : () -> 0; var n : Number : 1; " + "a : switch(n) { case(1) -> 1 default -> 2 }; a();");
+                "var a : () -> 0; var n : Number : 1; " + "a : switch(n) { case 1 -> 1 default -> 2 }; a();");
         assertTrue(hasCode(errors, "E332"));
     }
 

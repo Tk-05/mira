@@ -83,7 +83,7 @@ fn main() {
 
     assert(z == 69);
 
-    for (<0..10>) {
+    for (0..10) {
         println("Hello World");
     }
 
@@ -92,10 +92,10 @@ fn main() {
     var y;
     var dir : direction.EAST;
     var label : switch (dir) {
-        case (direction.NORTH) -> "N"
-        case (direction.SOUTH) -> "S"
-        case (direction.EAST) -> "E"
-        case (direction.WEST) -> "W"
+        case direction.NORTH -> "N"
+        case direction.SOUTH -> "S"
+        case direction.EAST -> "E"
+        case direction.WEST -> "W"
     };
 
     println(label);
@@ -110,7 +110,7 @@ fn main() {
     i **: 2;
 
     switch (i) {
-        case (1) {
+        case 1 {
             println(i);
         }
         default {
@@ -136,7 +136,7 @@ fn main() {
             var a : 0;
             var b : 1;
 
-            for (var i in <0..200>) {
+            for (var i in 0..200) {
                 print(a + "\n");
                 var c : a + b;
                 a : b;
@@ -146,7 +146,7 @@ fn main() {
 
         print(vals["69"] + "\n");
         var objs : {};
-        for (var i in <0..5>) {
+        for (var i in 0..5) {
             var obj : {
                 var index : "test" + i;
             };
@@ -172,11 +172,11 @@ fn main() {
             print("test:" + wrapper.a.a + "\n");
         }
 
-        for (var i in <0..length(list)>) {
+        for (var i in 0..length(list)) {
             print(i + "\n");
         }
 
-        for (var i in <0..5>) {
+        for (var i in 0..5) {
             print(i + "\n");
         }
 
@@ -225,8 +225,8 @@ fn main() {
         print("It's " + temps[idx] + " on " + timestamp + "\n");
 
         return switch (ret) {
-            case (69) -> ret
-            case (2) -> 2
+            case 69 -> ret
+            case 2 -> 2
             default -> 0
         };
 

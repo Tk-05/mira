@@ -155,13 +155,6 @@ public class RuntimeError extends MiraError {
         }
     }
 
-    public static class RangeStepZeroError extends RuntimeError {
-
-        public RangeStepZeroError() {
-            super("E217", "Range step cannot be zero", "Provide a non-zero step value");
-        }
-    }
-
     public static class NotIterableError extends RuntimeError {
 
         public NotIterableError() {

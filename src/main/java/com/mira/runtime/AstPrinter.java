@@ -235,8 +235,7 @@ public class AstPrinter implements ExprVisitor<String>, StmtVisitor<String> {
 
     @Override
     public <T> T visitRangeExpression(RangeExpression expression) {
-        return (T) (pad() + "Range" + child(expression.getStart()) + child(expression.getEnd())
-                + (expression.getStepsize() != null ? child(expression.getStepsize()) : ""));
+        return (T) (pad() + "Range" + child(expression.getStart()) + child(expression.getEnd()));
     }
 
     @Override

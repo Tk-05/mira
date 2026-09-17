@@ -339,9 +339,6 @@ public class SemanticTokenProvider {
         } else if (expr instanceof RangeExpression rng) {
             walkExpr(rng.getStart(), out);
             walkExpr(rng.getEnd(), out);
-            if (rng.getStepsize() != null) {
-                walkExpr(rng.getStepsize(), out);
-            }
         } else if (expr instanceof ThrownException th) {
             walkExpr(th.getValue(), out);
         } else if (expr instanceof NamespaceCallExpression ns) {

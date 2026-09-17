@@ -12,8 +12,8 @@ public abstract class AbstractSwitchTests {
         assertEquals("one", runForOutput("""
                 var x : 1;
                 switch(x) {
-                    case(1) { print("one"); }
-                    case(2) { print("two"); }
+                    case 1 { print("one"); }
+                    case 2 { print("two"); }
                 }
                 """));
     }
@@ -23,8 +23,8 @@ public abstract class AbstractSwitchTests {
         assertEquals("two", runForOutput("""
                 var x : 2;
                 switch(x) {
-                    case(1) { print("one"); }
-                    case(2) { print("two"); }
+                    case 1 { print("one"); }
+                    case 2 { print("two"); }
                 }
                 """));
     }
@@ -34,7 +34,7 @@ public abstract class AbstractSwitchTests {
         assertEquals("other", runForOutput("""
                 var x : 5;
                 switch(x) {
-                    case(1) { print("one"); }
+                    case 1 { print("one"); }
                     default { print("other"); }
                 }
                 """));
@@ -45,7 +45,7 @@ public abstract class AbstractSwitchTests {
         assertEquals("hello", runForOutput("""
                 var s : "hi";
                 switch(s) {
-                    case("hi") { print("hello"); }
+                    case "hi" { print("hello"); }
                     default { print("other"); }
                 }
                 """));

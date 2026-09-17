@@ -7,7 +7,7 @@ public class Vocabulary {
 
     public static final int MAX_OPERATOR_LENGTH = 3;
 
-    private static final Set<String> keywords = Set.of("var", "return", "fn", "if", "else", "for", "while", "break",
+    public static final Set<String> KEYWORDS = Set.of("var", "return", "fn", "if", "else", "for", "while", "break",
             "import", "in", "module", "as", "const", "true", "false", "continue", "null", "switch", "case", "default",
             "enum", "try", "catch", "finally", "throw", "native", "do", "await", "async", "typeof", "lock", "pure",
             "comptime", "test", "static_assert", "pub", "struct", "type");
@@ -39,8 +39,11 @@ public class Vocabulary {
 
     public static final Set<String> delimiters = Set.of("(", ")", "{", "}", ";", ",", "[", "]", ".", "..", "...");
 
+    public static final java.util.Set<String> BUILTIN_TYPE_NAMES = java.util.Set.of("Number", "String", "Bool", "List",
+            "Array", "Map", "Object", "Fn", "Null", "Any", "Void");
+
     public static boolean stringIsKeyword(String s) {
-        return keywords.contains(s);
+        return KEYWORDS.contains(s);
     }
 
     public static boolean stringIsDelimiter(String string) {

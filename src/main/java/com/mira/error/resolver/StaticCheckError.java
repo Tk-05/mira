@@ -110,13 +110,6 @@ public class StaticCheckError extends MiraError {
         }
     }
 
-    public static class RangeStepZeroStaticError extends StaticCheckError {
-
-        public RangeStepZeroStaticError(int line, int column) {
-            super("E313", "Range step cannot be zero", line, column, 1, "Use a non-zero step value, e.g. '<0..10, 2>'");
-        }
-    }
-
     public static class ReturnOutsideFunctionError extends StaticCheckError {
 
         public ReturnOutsideFunctionError(int line, int column) {
@@ -287,6 +280,15 @@ public class StaticCheckError extends MiraError {
             super("E332", "Variable '$" + name + "' holds a '" + actualType + "' and cannot be called as a function",
                     line, column, name.length() + 1,
                     "Only functions and lambdas can be called with '()', or declare '" + name + "' as type 'Fn'");
+        }
+    }
+
+    public static class LoopIteratorReassignmentError extends StaticCheckError {
+
+        public LoopIteratorReassignmentError(String name, int line, int column) {
+            super("E333", "Cannot reassign loop iterator '" + name + "'", line, column, name.length(),
+                    "'" + name + "' is set automatically at the start of each iteration - introduce a separate "
+                            + "variable inside the body if you need to change it");
         }
     }
 }

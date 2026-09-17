@@ -27,7 +27,7 @@ public abstract class AbstractEnumDeclTests {
                 enum Status { OK, ERR }
                 var s : Status.OK;
                 switch(s) {
-                    case(Status.OK) { print("ok"); }
+                    case Status.OK { print("ok"); }
                     default { print("err"); }
                 }
                 """));

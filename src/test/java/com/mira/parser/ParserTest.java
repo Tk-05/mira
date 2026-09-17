@@ -525,7 +525,7 @@ public class ParserTest {
     @Test
     void parseForInRange() {
         String forStmt = """
-                for(var i in <0..5>) {}
+                for(var i in 0..5) {}
                 """;
         List<Node> ast = parser.parseTokens(tokenizer.tokenize(forStmt, false));
         assertEquals(1, ast.size());
@@ -599,8 +599,8 @@ public class ParserTest {
     void parseSwitch() {
         List<Node> ast = parser.parseTokens(tokenizer.tokenize("""
                 switch (x) {
-                    case (1) { return true; }
-                    case (2) { return false; }
+                    case 1 { return true; }
+                    case 2 { return false; }
                 }
                 """, false));
         assertEquals(1, ast.size());
@@ -612,7 +612,7 @@ public class ParserTest {
     void parseSwitchWithDefault() {
         List<Node> ast = parser.parseTokens(tokenizer.tokenize("""
                 switch (x) {
-                    case (1) { return true; }
+                    case 1 { return true; }
                     default { return false; }
                 }
                 """, false));

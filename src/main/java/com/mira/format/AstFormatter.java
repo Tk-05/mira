@@ -558,7 +558,7 @@ public class AstFormatter implements ExprVisitor<String>, StmtVisitor<String> {
         sb.append("switch (").append(formatExpr(stmt.getSubject())).append(") {\n");
         indentLevel++;
         for (SwitchCase sc : stmt.getCases()) {
-            sb.append(indent()).append("case (").append(formatExpr(sc.getValue())).append(") ");
+            sb.append(indent()).append("case ").append(formatExpr(sc.getValue())).append(" ");
             sb.append(formatBody(sc.getBody())).append("\n");
         }
         if (stmt.getDefaultBody() != null && !stmt.getDefaultBody().isEmpty()) {
@@ -770,10 +770,7 @@ public class AstFormatter implements ExprVisitor<String>, StmtVisitor<String> {
     public <T> T visitRangeExpression(RangeExpression expression) {
         String start = formatExpr(expression.getStart());
         String end = formatExpr(expression.getEnd());
-        if (expression.getStepsize() != null) {
-            return (T) ("<" + start + ".." + end + ", " + formatExpr(expression.getStepsize()) + ">");
-        }
-        return (T) ("<" + start + ".." + end + ">");
+        return (T) (start + ".." + end);
     }
 
     @Override
@@ -859,7 +856,7 @@ public class AstFormatter implements ExprVisitor<String>, StmtVisitor<String> {
         sb.append(formatExpr(expression.getSubject())).append(") {\n");
         indentLevel++;
         for (SwitchExpression.SwitchExprCase sc : expression.getCases()) {
-            sb.append(indent()).append("case (").append(formatExpr(sc.value())).append(") -> ")
+            sb.append(indent()).append("case ").append(formatExpr(sc.value())).append(" -> ")
                     .append(formatExpr(sc.result())).append("\n");
         }
         if (expression.getDefaultExpr() != null) {

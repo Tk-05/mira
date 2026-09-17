@@ -6,7 +6,9 @@ import java.util.List;
 import java.util.Set;
 
 import com.mira.lexer.token.TokenType;
+import com.mira.lib.NativeType;
 import com.mira.parser.nodes.Node;
+import com.mira.parser.nodes.TypeAnnotation;
 import com.mira.parser.nodes.expression.Expression;
 import com.mira.parser.nodes.expression.Expression.AccessExpression;
 import com.mira.parser.nodes.expression.Expression.ArrayExpression;
@@ -52,12 +54,6 @@ final class StaticCheckSupport {
     private StaticCheckSupport() {
     }
 
-    // Type-checking (gradual: only ever consulted/enforced when an explicit
-    // annotation is present somewhere in the comparison - unannotated code
-    // is never newly rejected).
-    static final Set<String> BUILTIN_TYPE_NAMES = Set.of("Number", "String", "Bool", "List", "Array", "Map", "Object",
-            "Fn", "Null", "Any", "Void");
-
     static final Set<String> STRING_UNSAFE_OPERATORS = Set.of("-", "*", "%", "\\%", "**", "&", "|", "^", "<<", ">>");
 
     static final Set<String> ARITHMETIC_TYPE_CHECKED_OPERATORS = Set.of("+", "-", "*", "/", "%", "\\%", "**");
@@ -74,15 +70,96 @@ final class StaticCheckSupport {
 
     static final NullCheckNarrowing NO_NARROWING = new NullCheckNarrowing(List.of(), List.of());
 
-    record NarrowSave(String varName, MiraType previous) {
+    record NarrowSave(String varName, TypeAnnotation previous) {
 
     }
 
-    record OperandTypes(MiraType left, MiraType right) {
+    record OperandTypes(TypeAnnotation left, TypeAnnotation right) {
 
     }
 
-    @SuppressWarnings("unchecked")
+    static final TypeAnnotation ANY = new TypeAnnotation(NativeType.ANY.miraTypeName(), false);
+    static final TypeAnnotation NUMBER = new TypeAnnotation(NativeType.NUMBER.miraTypeName(), false);
+    static final TypeAnnotation STRING = new TypeAnnotation(NativeType.STRING.miraTypeName(), false);
+    static final TypeAnnotation BOOL = new TypeAnnotation(NativeType.BOOL.miraTypeName(), false);
+    static final TypeAnnotation LIST = new TypeAnnotation(NativeType.LIST.miraTypeName(), false);
+    static final TypeAnnotation ARRAY = new TypeAnnotation(NativeType.ARRAY.miraTypeName(), false);
+    static final TypeAnnotation MAP = new TypeAnnotation(NativeType.MAP.miraTypeName(), false);
+    static final TypeAnnotation OBJECT = new TypeAnnotation(NativeType.OBJECT.miraTypeName(), false);
+    static final TypeAnnotation VOID = new TypeAnnotation(NativeType.VOID.miraTypeName(), false);
+    static final TypeAnnotation FN = new TypeAnnotation("Fn", false);
+    static final TypeAnnotation NULL = new TypeAnnotation("Null", false);
+
+    static TypeAnnotation namedType(String name) {
+        return new TypeAnnotation(name, false);
+    }
+
+    static TypeAnnotation nullableOf(TypeAnnotation inner) {
+        return new TypeAnnotation(inner.name(), true, inner.line(), inner.column(), inner.paramTypes(),
+                inner.returnType());
+    }
+
+    static TypeAnnotation withoutNullable(TypeAnnotation t) {
+        return new TypeAnnotation(t.name(), false, t.line(), t.column(), t.paramTypes(), t.returnType());
+    }
+
+    static TypeAnnotation functionType(List<TypeAnnotation> params, TypeAnnotation returnType) {
+        return new TypeAnnotation("Fn", false, 0, 0, params, returnType);
+    }
+
+    static boolean isVoid(TypeAnnotation type) {
+        return type != null && "Void".equals(type.name());
+    }
+
+    static boolean isAssignable(TypeAnnotation from, TypeAnnotation to) {
+        if ("Any".equals(from.name()) || "Any".equals(to.name())) {
+            return true;
+        }
+        if (to.nullable()) {
+            if (!from.isFunctionType() && "Null".equals(from.name())) {
+                return true;
+            }
+            TypeAnnotation toInner = withoutNullable(to);
+            return from.nullable() ? isAssignable(withoutNullable(from), toInner) : isAssignable(from, toInner);
+        }
+        if (from.nullable()) {
+            // a possibly-null value can't flow into a non-nullable target
+            return false;
+        }
+        // a value of some specific function shape always fits the plain "Fn"
+        // type, and a plain "Fn" value fits any specific shape too - it's an
+        // unknown-shaped function, not a wrong-shaped one, so don't guess wrong
+        if (from.isFunctionType() && !to.isFunctionType() && "Fn".equals(to.name())) {
+            return true;
+        }
+        if (to.isFunctionType() && !from.isFunctionType() && "Fn".equals(from.name())) {
+            return true;
+        }
+        if (from.isFunctionType() && to.isFunctionType()) {
+            return isFunctionAssignable(from, to);
+        }
+        if (!from.isFunctionType() && !to.isFunctionType()) {
+            return from.name().equals(to.name());
+        }
+        return false;
+    }
+
+    private static boolean isFunctionAssignable(TypeAnnotation from, TypeAnnotation to) {
+        List<TypeAnnotation> fromParams = from.paramTypes();
+        List<TypeAnnotation> toParams = to.paramTypes();
+        if (fromParams.size() != toParams.size()) {
+            return false;
+        }
+        for (int i = 0; i < fromParams.size(); i++) {
+            TypeAnnotation a = fromParams.get(i);
+            TypeAnnotation b = toParams.get(i);
+            if (!isAssignable(a, b) && !isAssignable(b, a)) {
+                return false;
+            }
+        }
+        return isAssignable(from.returnType(), to.returnType()) || isAssignable(to.returnType(), from.returnType());
+    }
+
     static void addChildren(Node node, Deque<Node> queue) {
         switch (node) {
             case FuncDecl s -> queue.addAll(s.getBody());
@@ -387,16 +464,16 @@ final class StaticCheckSupport {
         return !isIdentifier(d);
     }
 
-    static boolean sameNamedType(MiraType a, MiraType b) {
-        return a instanceof MiraType.NamedType na && b instanceof MiraType.NamedType nb && na.name().equals(nb.name());
+    static boolean sameNamedType(TypeAnnotation a, TypeAnnotation b) {
+        return !a.isFunctionType() && !b.isFunctionType() && a.name().equals(b.name());
     }
 
-    static boolean isNumberType(MiraType t) {
-        return t instanceof MiraType.NamedType n && "Number".equals(n.name());
+    static boolean isNumberType(TypeAnnotation t) {
+        return "Number".equals(t.name());
     }
 
-    static boolean isStringType(MiraType t) {
-        return t instanceof MiraType.NamedType n && "String".equals(n.name());
+    static boolean isStringType(TypeAnnotation t) {
+        return "String".equals(t.name());
     }
 
     static boolean memberExists(Node literalBase, String name) {

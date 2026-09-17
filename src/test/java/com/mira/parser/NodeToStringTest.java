@@ -172,16 +172,16 @@ public class NodeToStringTest {
 
     @Test
     void foreachLoop() {
-        Node node = first("for (var item in <0..5>) { print(1); }");
+        Node node = first("for (var item in 0..5) { print(1); }");
         assertEquals(Loop.class, node.getClass());
-        assertEquals("for (var item in <0..5>) {...}", node.toString());
+        assertEquals("for (var item in 0..5) {...}", node.toString());
     }
 
     @Test
     void switchStatement() {
         Node node = first("""
                 switch (1) {
-                    case (1) { print(1); }
+                    case 1 { print(1); }
                     default { print(0); }
                 }
                 """);
@@ -295,15 +295,9 @@ public class NodeToStringTest {
 
     @Test
     void rangeExpression() {
-        Loop fe = (Loop) first("for (var item in <1..5>) { print(1); }");
+        Loop fe = (Loop) first("for (var item in 1..5) { print(1); }");
         assertEquals(RangeExpression.class, fe.getCollection().getClass());
-        assertEquals("<1..5>", fe.getCollection().toString());
-    }
-
-    @Test
-    void rangeExpressionWithStep() {
-        Loop fe = (Loop) first("for (var item in <1..10,2>) { print(1); }");
-        assertEquals("<1..10,2>", fe.getCollection().toString());
+        assertEquals("1..5", fe.getCollection().toString());
     }
 
     @Test

@@ -33,7 +33,7 @@ public abstract class AbstractForeachTests {
     void foreachWithCounter() {
         assertEquals("10", runForOutput("""
                 var total : 0;
-                for(var i in <0..5>) {
+                for(var i in 0..5) {
                     total : (total + i);
                 }
                 print(total);
@@ -64,8 +64,30 @@ public abstract class AbstractForeachTests {
     void foreachRangeSingleStatementNoBraces() {
         assertEquals("4", runForOutput("""
                 var last : 0;
-                for(var i in <0..5>) last : i;
+                for(var i in 0..5) last : i;
                 print(last);
+                """));
+    }
+
+    @Test
+    void foreachWithTypedIterator() {
+        assertEquals("10", runForOutput("""
+                var total : 0;
+                for(var i : Number in 0..5) {
+                    total : (total + i);
+                }
+                print(total);
+                """));
+    }
+
+    @Test
+    void foreachWithNullableTypedIterator() {
+        assertEquals("6", runForOutput("""
+                var sum : 0;
+                for(var i : Number? in {1, 2, 3}) {
+                    sum : (sum + i);
+                }
+                print(sum);
                 """));
     }
 }

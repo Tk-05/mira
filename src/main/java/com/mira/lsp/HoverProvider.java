@@ -519,7 +519,7 @@ public class HoverProvider {
             return false;
         }
         // A '.' immediately preceded by another '.' is a range operator
-        // (`<0..10>`), not field access. A '.' preceded by '?' is null-safe
+        // (`0..10`), not field access. A '.' preceded by '?' is null-safe
         // field access (`p?.field`) and IS field access - objectBefore
         // knows how to look past that '?' for the real receiver name.
         return start < 2 || line.charAt(start - 2) != '.';

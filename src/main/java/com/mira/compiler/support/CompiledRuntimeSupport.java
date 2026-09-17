@@ -12,7 +12,6 @@ import com.mira.error.runtime.RuntimeError.FieldAccessError;
 import com.mira.error.runtime.RuntimeError.NotANamespaceError;
 import com.mira.error.runtime.RuntimeError.NotAStructTemplateError;
 import com.mira.error.runtime.RuntimeError.NotCallableError;
-import com.mira.error.runtime.RuntimeError.RangeStepZeroError;
 import com.mira.error.runtime.RuntimeError.TypeConversionError;
 import com.mira.error.runtime.RuntimeError.UnknownOperatorError;
 import com.mira.error.runtime.RuntimeError.UnknownStructFieldError;
@@ -517,15 +516,11 @@ public final class CompiledRuntimeSupport {
         return new MapExpression(entries);
     }
 
-    public static Object makeRange(Object start, Object end, Object step) {
+    public static Object makeRange(Object start, Object end) {
         long s = ((Number) start).longValue();
         long e = ((Number) end).longValue();
-        long st = step != null ? ((Number) step).longValue() : 1L;
-        if (st == 0) {
-            throw new RangeStepZeroError();
-        }
         List<Expression> members = new ArrayList<>();
-        for (long i = s; st > 0 ? i < e : i > e; i += st) {
+        for (long i = s; i < e; i++) {
             long finalI = i;
             members.add(new Expression() {
                 @Override

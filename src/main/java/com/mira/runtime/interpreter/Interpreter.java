@@ -22,7 +22,6 @@ import com.mira.error.runtime.RuntimeError.NotAStructTemplateError;
 import com.mira.error.runtime.RuntimeError.NotCallableError;
 import com.mira.error.runtime.RuntimeError.NotIterableError;
 import com.mira.error.runtime.RuntimeError.PostExprNaNError;
-import com.mira.error.runtime.RuntimeError.RangeStepZeroError;
 import com.mira.error.runtime.RuntimeError.ReferenceIsImmutableError;
 import com.mira.error.runtime.RuntimeError.TypeConversionError;
 import com.mira.error.runtime.RuntimeError.UnknownOperatorError;
@@ -1080,24 +1079,15 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
     public <T> T visitRangeExpression(RangeExpression expression) {
         Number startN = parseNumber(String.valueOf(expression.getStart().accept(this)));
         Number endN = parseNumber(String.valueOf(expression.getEnd().accept(this)));
-        Number stepN = expression.getStepsize() != null
-                ? parseNumber(String.valueOf(expression.getStepsize().accept(this)))
-                : 1L;
 
         List<Expression> members = new ArrayList<>();
-        if (startN instanceof Long ls && endN instanceof Long le && stepN instanceof Long lStep) {
-            if (lStep == 0) {
-                throw new RangeStepZeroError();
-            }
-            for (long i = ls; lStep > 0 ? i < le : i > le; i += lStep) {
+        if (startN instanceof Long ls && endN instanceof Long le) {
+            for (long i = ls; i < le; i++) {
                 members.add(new DumbExpression(new Token(TokenType.EXPRESSION, String.valueOf(i), 0, 0)));
             }
         } else {
-            double start = startN.doubleValue(), end = endN.doubleValue(), step = stepN.doubleValue();
-            if (step == 0) {
-                throw new RangeStepZeroError();
-            }
-            for (double i = start; step > 0 ? i < end : i > end; i += step) {
+            double start = startN.doubleValue(), end = endN.doubleValue();
+            for (double i = start; i < end; i++) {
                 members.add(new DumbExpression(new Token(TokenType.EXPRESSION, String.valueOf(i), 0, 0)));
             }
         }
@@ -1819,26 +1809,17 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             if (stmt.getCollection() instanceof RangeExpression range) {
                 Number startN = parseNumber(String.valueOf(range.getStart().accept(this)));
                 Number endN = parseNumber(String.valueOf(range.getEnd().accept(this)));
-                Number stepN = range.getStepsize() != null
-                        ? parseNumber(String.valueOf(range.getStepsize().accept(this)))
-                        : 1L;
 
-                if (startN instanceof Long ls && endN instanceof Long le && stepN instanceof Long lStep) {
-                    if (lStep == 0) {
-                        throw new RangeStepZeroError();
-                    }
-                    for (long i = ls; lStep > 0 ? i < le : i > le; i += lStep) {
+                if (startN instanceof Long ls && endN instanceof Long le) {
+                    for (long i = ls; i < le; i++) {
                         try {
                             runBodyWithIterator(iteratorName, i, stmt.getBody());
                         } catch (ContinueSignal continueSignal) {
                         }
                     }
                 } else {
-                    double start = startN.doubleValue(), end = endN.doubleValue(), step = stepN.doubleValue();
-                    if (step == 0) {
-                        throw new RangeStepZeroError();
-                    }
-                    for (double i = start; step > 0 ? i < end : i > end; i += step) {
+                    double start = startN.doubleValue(), end = endN.doubleValue();
+                    for (double i = start; i < end; i++) {
                         try {
                             runBodyWithIterator(iteratorName, i, stmt.getBody());
                         } catch (ContinueSignal continueSignal) {

@@ -8,18 +8,18 @@ import java.util.Map;
 public class LintScope {
 
     public record VarInfo(int line, int column, boolean isConst, boolean used, boolean isImport, boolean isFunction,
-            boolean isComptime) {
+            boolean isComptime, boolean isLoopIterator) {
 
         public VarInfo(int line, int column, boolean isConst, boolean used) {
-            this(line, column, isConst, used, false, false, false);
+            this(line, column, isConst, used, false, false, false, false);
         }
 
         public VarInfo(int line, int column, boolean isConst, boolean used, boolean isImport) {
-            this(line, column, isConst, used, isImport, false, false);
+            this(line, column, isConst, used, isImport, false, false, false);
         }
 
         public VarInfo markUsed() {
-            return new VarInfo(line, column, isConst, true, isImport, isFunction, isComptime);
+            return new VarInfo(line, column, isConst, true, isImport, isFunction, isComptime, isLoopIterator);
         }
     }
 
@@ -39,7 +39,7 @@ public class LintScope {
 
     public void declare(String name, int line, int column, boolean isConst, boolean isComptime) {
         if (!scopes.isEmpty()) {
-            scopes.peek().put(name, new VarInfo(line, column, isConst, false, false, false, isComptime));
+            scopes.peek().put(name, new VarInfo(line, column, isConst, false, false, false, isComptime, false));
         }
     }
 
@@ -51,7 +51,13 @@ public class LintScope {
 
     public void declareFunction(String name, int line, int column) {
         if (!scopes.isEmpty()) {
-            scopes.peek().put(name, new VarInfo(line, column, false, false, false, true, false));
+            scopes.peek().put(name, new VarInfo(line, column, false, false, false, true, false, false));
+        }
+    }
+
+    public void declareLoopIterator(String name, int line, int column) {
+        if (!scopes.isEmpty()) {
+            scopes.peek().put(name, new VarInfo(line, column, false, false, false, false, false, true));
         }
     }
 
@@ -90,6 +96,16 @@ public class LintScope {
             VarInfo info = scope.get(name);
             if (info != null) {
                 return info.isConst();
+            }
+        }
+        return false;
+    }
+
+    public boolean isLoopIterator(String name) {
+        for (Map<String, VarInfo> scope : scopes) {
+            VarInfo info = scope.get(name);
+            if (info != null) {
+                return info.isLoopIterator();
             }
         }
         return false;

@@ -23,21 +23,10 @@ public class RangeExpressionTest extends AbstractRangeExpressionTests {
     }
 
     @Test
-    void rangeDefaultStep() {
-        assertEquals(2.0, InterpreterRunner.normNum(backend.runAndGetValue("""
-                var last : 0;
-                for(var element in <0..4,2>) {
-                    last : element;
-                }
-                last;
-                """)));
-    }
-
-    @Test
     void rangeBreakOnValue() {
         try {
             backend.runAndGetValue("""
-                    for(var element in <0..4>) {
+                    for(var element in 0..4) {
                         if(element == 3) { break; }
                     }
                     """);
@@ -49,7 +38,7 @@ public class RangeExpressionTest extends AbstractRangeExpressionTests {
     void rangeStartValue() {
         backend.runAndGetValue("""
                 var first : 0;
-                for(var element in <3..6>) {
+                for(var element in 3..6) {
                     first : element;
                     break;
                 }
@@ -58,21 +47,10 @@ public class RangeExpressionTest extends AbstractRangeExpressionTests {
     }
 
     @Test
-    void rangeWithStepSizeTwo() {
-        assertEquals(5.0, InterpreterRunner.normNum(backend.runAndGetValue("""
-                var count : 0;
-                for(var element in <0..10,2>) {
-                    count : (count + 1);
-                }
-                (count);
-                """)));
-    }
-
-    @Test
     void rangeInForLoop() {
         backend.runAndGetValue("""
                 var last : 0;
-                for(var i in <0..5>) {
+                for(var i in 0..5) {
                     last : i;
                 }
                 """);
