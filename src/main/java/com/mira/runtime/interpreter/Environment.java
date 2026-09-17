@@ -62,7 +62,11 @@ public class Environment {
     }
 
     public void assign(String name, Object value) {
-        if (values.containsKey(name)) {
+        // get() first instead of containsKey()+get(): a single hashmap probe covers
+        // the overwhelmingly common case (an existing non-null value), falling back
+        // to containsKey() only to disambiguate "absent" from "present but null"
+        // (e.g. the top-level `args` binding can legitimately hold Java null).
+        if (values.get(name) != null || values.containsKey(name)) {
             if (constants.contains(name)) {
                 throw new ReferenceIsImmutableError(name);
             }
@@ -77,8 +81,12 @@ public class Environment {
     }
 
     public Object get(String name) {
+        Object value = values.get(name);
+        if (value != null) {
+            return value;
+        }
         if (values.containsKey(name)) {
-            return values.get(name);
+            return null;
         }
         if (parent != null) {
             return parent.get(name);
@@ -130,8 +138,9 @@ public class Environment {
     }
 
     public Object getOrNull(String name) {
-        if (values.containsKey(name)) {
-            return values.get(name);
+        Object value = values.get(name);
+        if (value != null || values.containsKey(name)) {
+            return value;
         }
         if (parent != null) {
             return parent.getOrNull(name);

@@ -529,82 +529,85 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
 
     @Override
     public <T> T visitBinaryExpr(BinaryExpression expression) {
-        String op = expression.getOperator().getLexeme();
+        BinaryExpression.Op op = expression.getResolvedOp();
 
-        if (op.equals("|>")) {
-            return visitPipeExpr(expression);
-        }
-
-        if (op.equals("??")) {
-            Object left = expression.getLeft().accept(this);
-            if (left != null && !(left instanceof NullValue)) {
-                return (T) left;
+        switch (op) {
+            case PIPE -> {
+                return visitPipeExpr(expression);
             }
-            return (T) expression.getRight().accept(this);
-        }
-
-        if (op.equals("&&")) {
-            if (!resolveBoolean(expression.getLeft().accept(this))) {
-                return (T) Boolean.FALSE;
+            case NULLISH -> {
+                Object left = expression.getLeft().accept(this);
+                if (left != null && !(left instanceof NullValue)) {
+                    return (T) left;
+                }
+                return (T) expression.getRight().accept(this);
             }
-            if (!resolveBoolean(expression.getRight().accept(this))) {
-                return (T) Boolean.FALSE;
-            }
-            return (T) Boolean.TRUE;
-        }
-        if (op.equals("||")) {
-            if (resolveBoolean(expression.getLeft().accept(this))) {
+            case AND -> {
+                if (!resolveBoolean(expression.getLeft().accept(this))) {
+                    return (T) Boolean.FALSE;
+                }
+                if (!resolveBoolean(expression.getRight().accept(this))) {
+                    return (T) Boolean.FALSE;
+                }
                 return (T) Boolean.TRUE;
             }
-            if (resolveBoolean(expression.getRight().accept(this))) {
-                return (T) Boolean.TRUE;
+            case OR -> {
+                if (resolveBoolean(expression.getLeft().accept(this))) {
+                    return (T) Boolean.TRUE;
+                }
+                if (resolveBoolean(expression.getRight().accept(this))) {
+                    return (T) Boolean.TRUE;
+                }
+                return (T) Boolean.FALSE;
             }
-            return (T) Boolean.FALSE;
+            default -> {
+            }
         }
 
         Object left = expression.getLeft().accept(this);
         Object right = expression.getRight().accept(this);
 
         return (T) switch (op) {
-            case "+" -> {
+            case ADD -> {
                 try {
                     yield numericAdd(left, right);
                 } catch (NumberFormatException | TypeConversionError e) {
                     yield String.valueOf(left) + String.valueOf(right);
                 }
             }
-            case "-" -> numericSub(left, right);
-            case "*" -> numericMul(left, right);
-            case "**" -> Math.pow(toNumber(left), toNumber(right));
-            case "/" -> {
+            case SUB -> numericSub(left, right);
+            case MUL -> numericMul(left, right);
+            case POW -> Math.pow(toNumber(left), toNumber(right));
+            case DIV -> {
                 double divisor = toNumber(right);
                 yield toNumber(left) / divisor;
             }
-            case "%" -> {
+            case MOD -> {
                 if (left instanceof Long la && right instanceof Long lb) {
                     yield la % lb;
                 }
                 yield toNumber(left) % toNumber(right);
             }
-            case "\\%" -> {
+            case FLOORDIV -> {
                 if (left instanceof Long la && right instanceof Long lb) {
                     yield la / lb;
                 }
                 yield Math.floor(toNumber(left) / toNumber(right));
             }
-            case "&" -> (long) toNumber(left) & (long) toNumber(right);
-            case "|" -> (long) toNumber(left) | (long) toNumber(right);
-            case "^" -> (long) toNumber(left) ^ (long) toNumber(right);
-            case "<<" -> (long) toNumber(left) << (long) toNumber(right);
-            case ">>" -> (long) toNumber(left) >> (long) toNumber(right);
-            case "==" -> evaluateComparison(left, "==", right);
-            case "!=" -> evaluateComparison(left, "!=", right);
-            case "<" -> evaluateComparison(left, "<", right);
-            case ">" -> evaluateComparison(left, ">", right);
-            case "<=" -> evaluateComparison(left, "<=", right);
-            case ">=" -> evaluateComparison(left, ">=", right);
-            default -> throw new UnknownOperatorError(op, typeName(left), typeName(right))
-                    .withLocation(expression.getOperator().getLine(), expression.getOperator().getColumn());
+            case BAND -> (long) toNumber(left) & (long) toNumber(right);
+            case BOR -> (long) toNumber(left) | (long) toNumber(right);
+            case BXOR -> (long) toNumber(left) ^ (long) toNumber(right);
+            case SHL -> (long) toNumber(left) << (long) toNumber(right);
+            case SHR -> (long) toNumber(left) >> (long) toNumber(right);
+            case EQ -> evaluateComparison(left, "==", right);
+            case NEQ -> evaluateComparison(left, "!=", right);
+            case LT -> evaluateComparison(left, "<", right);
+            case GT -> evaluateComparison(left, ">", right);
+            case LE -> evaluateComparison(left, "<=", right);
+            case GE -> evaluateComparison(left, ">=", right);
+            default ->
+                throw new UnknownOperatorError(expression.getOperator().getLexeme(), typeName(left), typeName(right))
+                        .withLocation(expression.getOperator().getLine(), expression.getOperator().getColumn());
         };
     }
 
@@ -691,11 +694,14 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         Object newValue = inc ? numericAdd(numVal, 1L) : numericSub(numVal, 1L);
 
         if (target instanceof UnaryExpression varExpr && varExpr.getOperation().getLexeme().equals("$")) {
-            String name = (String) varExpr.getRight().accept(this);
-            Environment env = (localEnvironment != null && localEnvironment.getOrNull(name) != null)
-                    ? localEnvironment
-                    : globalEnvironment;
-            env.assign(name, newValue);
+            String name = varExpr.getRight() instanceof DumbExpression d
+                    ? d.getValue()
+                    : (String) varExpr.getRight().accept(this);
+            // assign() already walks the parent chain itself to find the defining
+            // scope, so there is no need to re-search the chain here first just to
+            // pick which Environment to call it on - localEnvironment (or global, at
+            // top level) is always a valid starting point.
+            (localEnvironment != null ? localEnvironment : globalEnvironment).assign(name, newValue);
         } else if (target instanceof AccessExpression accessExpression) {
             assignToAccess(accessExpression, () -> newValue);
         } else if (target instanceof FieldAccessExpression fieldAccessExpression) {
@@ -1738,24 +1744,44 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         notifyDebugger(stmt.line);
 
         Environment outer = localEnvironment;
-        Environment forScope = new Environment(outer != null ? outer : globalEnvironment);
-        localEnvironment = forScope;
-        runBody(stmt.getVarDecls());
+        Environment base = outer != null ? outer : globalEnvironment;
+
+        // A per-iteration snapshot/fresh scope - and the header scope itself - only
+        // matter so that a closure created during one iteration can capture that
+        // iteration's own bindings. If the loop header declares no variables, there
+        // is no header-local binding to isolate at all, so skip allocating forScope
+        // and run the condition/post-expressions directly against the enclosing
+        // scope; if the body also introduces no new bindings, reuse that same scope
+        // for the body instead of allocating two fresh Environments every iteration.
+        boolean hasHeaderVars = !stmt.getVarDecls().isEmpty();
+        Environment forScope;
+        if (hasHeaderVars) {
+            forScope = new Environment(base);
+            localEnvironment = forScope;
+            runBody(stmt.getVarDecls());
+        } else {
+            forScope = base;
+        }
+        boolean bodyDeclaresBindings = declaresBindings(stmt.getBody());
 
         try {
             while (true) {
+                localEnvironment = forScope;
                 if (stmt.getCondition() != null) {
-                    localEnvironment = forScope;
                     Object condition = stmt.getCondition().accept(this);
                     if (!resolveLoopCondition(condition)) {
                         break;
                     }
                 }
 
-                Environment iterScope = forScope.snapshot(outer != null ? outer : globalEnvironment);
+                Environment iterScope = hasHeaderVars ? forScope.snapshot(base) : forScope;
                 localEnvironment = iterScope;
                 try {
-                    runBodyInFreshScope(stmt.getBody());
+                    if (bodyDeclaresBindings) {
+                        runBodyInFreshScope(stmt.getBody());
+                    } else {
+                        runBody(stmt.getBody());
+                    }
                 } catch (ContinueSignal continueSignal) {
                 }
 
@@ -1769,9 +1795,20 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
         return null;
     }
 
+    private static boolean declaresBindings(List<Node> body) {
+        for (Node node : body) {
+            if (node instanceof VarDecl || node instanceof VarDestructure || node instanceof FuncDecl
+                    || node instanceof EnumDecl || node instanceof ModuleDecl || node instanceof ComptimeBlock) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     @Override
     public Object visitWhile(While stmt) {
         notifyDebugger(stmt.line);
+        boolean bodyDeclaresBindings = declaresBindings(stmt.getBody());
         if (!stmt.getDoModifier()) {
             try {
                 while (true) {
@@ -1781,7 +1818,11 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
                     }
 
                     try {
-                        runBodyInFreshScope(stmt.getBody());
+                        if (bodyDeclaresBindings) {
+                            runBodyInFreshScope(stmt.getBody());
+                        } else {
+                            runBody(stmt.getBody());
+                        }
                     } catch (ContinueSignal continueSignal) {
                     }
                 }
@@ -1792,7 +1833,11 @@ public class Interpreter implements ExprVisitor<Object>, StmtVisitor<Object> {
             try {
                 while (true) {
                     try {
-                        runBodyInFreshScope(stmt.getBody());
+                        if (bodyDeclaresBindings) {
+                            runBodyInFreshScope(stmt.getBody());
+                        } else {
+                            runBody(stmt.getBody());
+                        }
                     } catch (ContinueSignal continueSignal) {
                     }
 

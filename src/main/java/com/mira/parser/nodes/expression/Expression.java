@@ -662,9 +662,45 @@ public abstract class Expression implements Node {
 
     public static class BinaryExpression extends Expression {
 
+        // Resolved once per AST node (not per evaluation) so a hot loop re-executing
+        // the same node thousands of times switches on a cheap enum instead of
+        // re-hashing/re-comparing the operator lexeme string every single time.
+        public enum Op {
+            PIPE, NULLISH, AND, OR, ADD, SUB, MUL, POW, DIV, MOD, FLOORDIV, BAND, BOR, BXOR, SHL, SHR, EQ, NEQ, LT, GT, LE, GE, UNKNOWN;
+
+            public static Op fromLexeme(String lexeme) {
+                return switch (lexeme) {
+                    case "|>" -> PIPE;
+                    case "??" -> NULLISH;
+                    case "&&" -> AND;
+                    case "||" -> OR;
+                    case "+" -> ADD;
+                    case "-" -> SUB;
+                    case "*" -> MUL;
+                    case "**" -> POW;
+                    case "/" -> DIV;
+                    case "%" -> MOD;
+                    case "\\%" -> FLOORDIV;
+                    case "&" -> BAND;
+                    case "|" -> BOR;
+                    case "^" -> BXOR;
+                    case "<<" -> SHL;
+                    case ">>" -> SHR;
+                    case "==" -> EQ;
+                    case "!=" -> NEQ;
+                    case "<" -> LT;
+                    case ">" -> GT;
+                    case "<=" -> LE;
+                    case ">=" -> GE;
+                    default -> UNKNOWN;
+                };
+            }
+        }
+
         private final Expression left;
         private final Token operator;
         private final Expression right;
+        private Op resolvedOp;
 
         public BinaryExpression(Expression left, Token operator, Expression right) {
             this.left = left;
@@ -682,6 +718,13 @@ public abstract class Expression implements Node {
 
         public Expression getRight() {
             return right;
+        }
+
+        public Op getResolvedOp() {
+            if (resolvedOp == null) {
+                resolvedOp = Op.fromLexeme(operator.getLexeme());
+            }
+            return resolvedOp;
         }
 
         @Override

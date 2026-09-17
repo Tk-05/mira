@@ -1,6 +1,8 @@
 package com.mira.runtime;
 
+import java.io.BufferedOutputStream;
 import java.io.IOException;
+import java.io.PrintStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayDeque;
@@ -39,7 +41,40 @@ import com.mira.warning.WarningCollector;
 
 public class FileRunner {
 
+    private static boolean stdoutBuffered = false;
+
+    // System.out defaults to autoFlush=true, so println() flushes (a real write()
+    // syscall) on every call regardless of whether stdout is a terminal or piped —
+    // unlike e.g. Python, which only line-buffers on an actual terminal and fully
+    // buffers otherwise. For scripts that print a lot, that autoflush dominates
+    // runtime. When stdout isn't a terminal, wrap whatever System.out currently is
+    // (the real console stream, or a test's captured stream — never bypass it) in a
+    // large non-autoflushing buffer instead; interactive terminal sessions keep
+    // today's immediate-flush behavior. runFile() always flushes before returning
+    // (see the try/finally below), and the "exit" builtin flushes before calling
+    // System.exit() itself, so buffered output is never silently dropped. There is
+    // deliberately no shutdown hook here: a hook thread that blocks flushing a
+    // half-closed stream (e.g. a killed subprocess's redirected stdout in tests)
+    // would stall the whole JVM shutdown, which is worse than losing output on a
+    // hard kill.
+    private static synchronized void enableBufferedStdoutIfNeeded() {
+        if (stdoutBuffered || System.console() != null) {
+            return;
+        }
+        System.setOut(new PrintStream(new BufferedOutputStream(System.out, 1 << 16), false));
+        stdoutBuffered = true;
+    }
+
     public static boolean runFile(AtomicBoolean stopping) {
+        enableBufferedStdoutIfNeeded();
+        try {
+            return runFileImpl(stopping);
+        } finally {
+            System.out.flush();
+        }
+    }
+
+    private static boolean runFileImpl(AtomicBoolean stopping) {
         long start = System.currentTimeMillis();
 
         String readFile;
@@ -146,6 +181,7 @@ public class FileRunner {
                     CoverageTracker.setEnabled(false);
                 }
                 if (testsFailed) {
+                    System.out.flush();
                     System.exit(1);
                 }
                 return true;
@@ -215,6 +251,7 @@ public class FileRunner {
                 boolean failed = TestRunner.hasFailures();
                 TestRunner.reset();
                 if (failed) {
+                    System.out.flush();
                     System.exit(1);
                 }
             }
