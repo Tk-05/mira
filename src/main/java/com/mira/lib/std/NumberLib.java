@@ -2,13 +2,24 @@ package com.mira.lib.std;
 
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 import com.mira.lib.Lib;
+import com.mira.lib.NativeMethodProvider;
+import com.mira.lib.NativeType;
 import com.mira.runtime.functions.NativeFunction;
 import com.mira.runtime.interpreter.Environment;
 
-public class NumberLib implements Lib {
+public class NumberLib implements Lib, NativeMethodProvider {
+
+    @Override
+    public Map<NativeType, List<String>> nativeMethods() {
+        return Map.of(NativeType.NUMBER,
+                List.of("toFixed", "toHex", "toBinary", "toOctal", "toScientific", "withCommas", "isInteger"),
+                NativeType.STRING, List.of("fromHex", "fromBinary", "fromOctal"));
+    }
 
     private static double toDouble(Object arg) {
         return Double.parseDouble(String.valueOf(arg));

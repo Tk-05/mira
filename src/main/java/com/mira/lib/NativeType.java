@@ -58,7 +58,7 @@ public enum NativeType {
 
     public static NativeType fromRuntimeValue(Object value) {
         return switch (value) {
-            case Double ignored -> NUMBER;
+            case Number ignored -> NUMBER;
             case String ignored -> STRING;
             case Boolean ignored -> BOOL;
             case ListExpression ignored -> LIST;

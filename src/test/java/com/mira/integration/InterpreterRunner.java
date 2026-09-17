@@ -5,6 +5,7 @@ import java.io.PrintStream;
 
 import com.mira.lexer.Tokenizer;
 import com.mira.parser.Parser;
+import com.mira.runtime.interpreter.ImportResolver;
 import com.mira.runtime.interpreter.Interpreter;
 
 public class InterpreterRunner {
@@ -16,6 +17,7 @@ public class InterpreterRunner {
     }
 
     public void reset() {
+        ImportResolver.reset();
         interpreter = new Interpreter();
     }
 
