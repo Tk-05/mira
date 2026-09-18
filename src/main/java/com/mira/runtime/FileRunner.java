@@ -25,6 +25,7 @@ import com.mira.format.AstWalker;
 import com.mira.lexer.Tokenizer;
 import com.mira.lexer.token.Token;
 import com.mira.lib.LibIndex;
+import com.mira.lib.internal.FastPrinter;
 import com.mira.parser.Parser;
 import com.mira.parser.nodes.Node;
 import com.mira.parser.nodes.Parameter;
@@ -61,7 +62,9 @@ public class FileRunner {
         if (stdoutBuffered || System.console() != null) {
             return;
         }
-        System.setOut(new PrintStream(new BufferedOutputStream(System.out, 1 << 16), false));
+        BufferedOutputStream buffered = new BufferedOutputStream(System.out, 1 << 16);
+        System.setOut(new PrintStream(buffered, false));
+        FastPrinter.INSTANCE.setOut(buffered);
         stdoutBuffered = true;
     }
 
@@ -311,19 +314,6 @@ public class FileRunner {
                 checkedModules, warningCount, moduleDiscoveryWallMs, moduleCheckWallMs, compileMs, null);
     }
 
-    /**
-     * Prints stats for every file that makes up the program - the entry file plus
-     * every module it imports, transitively - not just the entry file alone, since
-     * a program's real size/shape is usually spread across its imported modules.
-     * compileMs is the bytecode-generation time when this run was a --compile run
-     * (measured by CompileRunner and passed back in, since compilation finishes
-     * after this method would otherwise have already printed); -1 means not
-     * applicable (an interpreted run). moduleDiscoveryWallMs/moduleCheckWallMs are
-     * the real wall-clock time module discovery/checking took (both run modules in
-     * parallel - see ModuleChecker) - shown separately from the per-file
-     * tokenize/parse/check sums below, which are a sum of concurrently-overlapping
-     * durations and so no longer represent elapsed time on their own.
-     */
     private static void printStats(String source, List<Token> tokens, List<Node> asts, long tokenizeNanos,
             long parseNanos, long comptimeNanos, long entryCheckMs, Map<Path, Long> moduleCheckTimingsMs,
             Map<Path, ModuleChecker.ParsedModule> checkedModules, int warningCount, long moduleDiscoveryWallMs,

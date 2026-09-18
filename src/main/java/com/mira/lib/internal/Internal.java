@@ -54,14 +54,12 @@ public class Internal implements Lib {
     @Override
     public void loadLib(Environment environment) {
         environment.define("print", new NativeFunction(1, args -> {
-            Object value = args.get(0);
-            System.out.print(value);
+            FastPrinter.INSTANCE.print(args.get(0));
             return null;
         }));
 
         environment.define("println", new NativeFunction(1, args -> {
-            Object value = args.get(0);
-            System.out.println(value);
+            FastPrinter.INSTANCE.println(args.get(0));
             return null;
         }));
 
