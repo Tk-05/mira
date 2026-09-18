@@ -1,6 +1,7 @@
 package com.mira.format;
 
 import java.util.Deque;
+import java.util.List;
 
 import com.mira.parser.nodes.Node;
 import com.mira.parser.nodes.expression.Expression.AccessExpression;
@@ -29,7 +30,9 @@ import com.mira.parser.nodes.expression.Expression.UnaryExpression;
 import com.mira.parser.nodes.statement.Statement.Assign;
 import com.mira.parser.nodes.statement.Statement.Block;
 import com.mira.parser.nodes.statement.Statement.ComptimeBlock;
+import com.mira.parser.nodes.statement.Statement.EnumDecl;
 import com.mira.parser.nodes.statement.Statement.FuncDecl;
+import com.mira.parser.nodes.statement.Statement.ModuleDecl;
 import com.mira.parser.nodes.statement.Statement.If;
 import com.mira.parser.nodes.statement.Statement.Lock;
 import com.mira.parser.nodes.statement.Statement.Loop;
@@ -214,5 +217,25 @@ public final class AstWalker {
             default -> {
             }
         }
+    }
+
+    /**
+     * Whether any top-level statement in {@code body} introduces a new binding into
+     * its enclosing scope (a variable, function, enum, module, or comptime
+     * declaration). Shared by the interpreter (to decide whether a loop body needs
+     * a fresh {@code Environment} frame per iteration) and the Resolver (to decide
+     * whether that same body gets a resolver scope pushed for it) - extracted here
+     * specifically so the two can never drift apart on this question; only checks
+     * the immediate list, not nested blocks, since those get their own frame/scope
+     * independently when they execute.
+     */
+    public static boolean declaresBindings(List<Node> body) {
+        for (Node node : body) {
+            if (node instanceof VarDecl || node instanceof VarDestructure || node instanceof FuncDecl
+                    || node instanceof EnumDecl || node instanceof ModuleDecl || node instanceof ComptimeBlock) {
+                return true;
+            }
+        }
+        return false;
     }
 }

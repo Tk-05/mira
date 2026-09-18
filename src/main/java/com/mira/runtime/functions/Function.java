@@ -43,14 +43,23 @@ public class Function implements Callable {
     private final int maxArity;
     private final String variadicParam;
     private final boolean isAsync;
+    // Resolver-assigned ordered local names for this function's own scope (see
+    // Resolver.java), or null if never analyzed - every call gets the same static
+    // shape, so this can be shared by reference across every call frame.
+    private final String[] slotNames;
 
     public Function(Environment environment, List<Node> body, List<Parameter> parameters, int arity, int maxArity,
             String variadicParam, Environment globalContext) {
-        this(environment, body, parameters, arity, maxArity, variadicParam, false, globalContext);
+        this(environment, body, parameters, arity, maxArity, variadicParam, false, globalContext, null);
     }
 
     public Function(Environment environment, List<Node> body, List<Parameter> parameters, int arity, int maxArity,
             String variadicParam, boolean isAsync, Environment globalContext) {
+        this(environment, body, parameters, arity, maxArity, variadicParam, isAsync, globalContext, null);
+    }
+
+    public Function(Environment environment, List<Node> body, List<Parameter> parameters, int arity, int maxArity,
+            String variadicParam, boolean isAsync, Environment globalContext, String[] slotNames) {
         this.environment = environment;
         this.globalContext = globalContext;
         this.body = body;
@@ -59,6 +68,7 @@ public class Function implements Callable {
         this.maxArity = maxArity;
         this.variadicParam = variadicParam;
         this.isAsync = isAsync;
+        this.slotNames = slotNames;
     }
 
     private static Expression wrap(Object val) {
@@ -70,7 +80,9 @@ public class Function implements Callable {
 
     @Override
     public Object call(Interpreter interpreter, List<Object> arguments) {
-        Environment localEnv = new Environment(environment);
+        Environment localEnv = slotNames != null
+                ? new Environment(environment, slotNames)
+                : new Environment(environment);
 
         for (int i = 0; i < parameters.size(); i++) {
             Object value;
@@ -81,7 +93,11 @@ public class Function implements Callable {
             } else {
                 value = NullValue.INSTANCE;
             }
-            localEnv.define(parameters.get(i).name(), value);
+            if (slotNames != null) {
+                localEnv.defineAt(i, value, false);
+            } else {
+                localEnv.define(parameters.get(i).name(), value);
+            }
         }
 
         if (variadicParam != null) {
@@ -89,7 +105,11 @@ public class Function implements Callable {
             for (int i = parameters.size(); i < arguments.size(); i++) {
                 rest.add(wrap(arguments.get(i)));
             }
-            localEnv.define(variadicParam, new ListExpression(rest));
+            if (slotNames != null) {
+                localEnv.defineAt(parameters.size(), new ListExpression(rest), false);
+            } else {
+                localEnv.define(variadicParam, new ListExpression(rest));
+            }
         }
 
         if (isAsync) {

@@ -80,6 +80,16 @@ public abstract class Expression implements Node {
         private final Expression right;
         private final boolean prefix;
 
+        // Resolver-assigned (see Resolver.java): for a "$name" variable reference,
+        // how many Environment.getParent() hops from the current scope reach the
+        // Environment that declares it, and its slot index there. -1 means
+        // "unresolved" (the default, and permanent for anything the Resolver never
+        // sees - eval/importDynamic snippets, REPL lines, etc.) - the interpreter
+        // falls back to today's name-based chain walk whenever distance is -1.
+        // Same caching-on-the-AST-node pattern as BinaryExpression.resolvedOp.
+        public int resolvedDistance = -1;
+        public int resolvedSlot = -1;
+
         public UnaryExpression(Token operation, Expression right) {
             this(operation, right, false);
         }
@@ -100,6 +110,10 @@ public abstract class Expression implements Node {
 
         public boolean isPrefix() {
             return prefix;
+        }
+
+        public boolean isResolved() {
+            return resolvedDistance >= 0;
         }
 
         @Override
@@ -865,6 +879,10 @@ public abstract class Expression implements Node {
         private final String variadicParam;
         private final boolean isAsync;
         private final boolean isArrow;
+        // Resolver-assigned (see Resolver.java): the ordered local names (parameters,
+        // then locals in declaration order) of this lambda's own scope, or null if
+        // never analyzed by the Resolver.
+        public String[] resolvedSlotNames;
 
         public LambdaExpression(List<Parameter> parameters, List<Node> body, String variadicParam) {
             this(parameters, body, variadicParam, false, false);
@@ -929,6 +947,9 @@ public abstract class Expression implements Node {
 
         private final List<Node> body;
         private final boolean isolated;
+        // Resolver-assigned ordered local names for this block's own scope, or null
+        // if never analyzed by the Resolver.
+        public String[] slotNames;
 
         public ExecBlock(List<Node> body, boolean isolated) {
             this.body = body;
