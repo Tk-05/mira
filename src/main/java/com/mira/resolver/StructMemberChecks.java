@@ -8,10 +8,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import com.mira.error.resolver.StaticCheckError.ArityMismatchError;
 import com.mira.error.resolver.StaticCheckError.FieldAccessOnNonObjectError;
 import com.mira.error.resolver.StaticCheckError.ImmutableCollectionStaticError;
 import com.mira.error.resolver.StaticCheckError.StructFieldTypeMismatchError;
 import com.mira.error.resolver.StaticCheckError.UndefinedObjectFieldStaticError;
+import com.mira.error.resolver.StaticCheckError.UnknownNativeMethodError;
+import com.mira.lib.NativeType;
 import com.mira.parser.nodes.Node;
 import com.mira.parser.nodes.TypeAnnotation;
 import com.mira.parser.nodes.expression.Expression;
@@ -59,6 +62,7 @@ final class StructMemberChecks {
         } else if (literalBase instanceof ObjectExpression objExpr) {
             methods = objExpr.getMethods();
         } else {
+            checkNativeMethodCall(e);
             return;
         }
         String methodName = e.getMethod();
@@ -79,6 +83,38 @@ final class StructMemberChecks {
         if (!e.getArguments().isEmpty()) {
             owner.checkArgumentTypes(methodName, method.getParameters(), e.getArguments(), fallbackLine,
                     fallbackColumn);
+        }
+    }
+
+    private void checkNativeMethodCall(MethodCallExpression e) {
+        if (e.isOptional()) {
+            return;
+        }
+        TypeAnnotation type = owner.inferType(e.getObject());
+        if (type == null) {
+            return;
+        }
+        NativeType nativeType = NativeType.fromMiraTypeName(type.name());
+        if (nativeType == NativeType.ANY || nativeType == NativeType.OBJECT) {
+            return;
+        }
+        Map<String, Integer> methods = owner.knownNativeMethods.get(nativeType);
+        if (methods == null) {
+            return;
+        }
+        String methodName = e.getMethod();
+        DumbExpression varRef = extractVarRef(e.getObject());
+        int fallbackLine = varRef != null ? varRef.getLine() : e.line;
+        int fallbackColumn = varRef != null ? varRef.getColumn() + varRef.getValue().length() + 1 : 0;
+        Integer arity = methods.get(methodName);
+        if (arity == null) {
+            owner.errors.add(new UnknownNativeMethodError(methodName, type.name(), fallbackLine, fallbackColumn));
+            return;
+        }
+        int expectedArgs = arity - 1;
+        if (expectedArgs >= 0 && e.getArguments().size() != expectedArgs) {
+            owner.errors.add(new ArityMismatchError(methodName, expectedArgs, e.getArguments().size(), fallbackLine,
+                    fallbackColumn));
         }
     }
 

@@ -2,10 +2,13 @@ package com.mira.compiler;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
+import java.util.List;
 import java.util.Set;
 
 import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
+
+import com.mira.parser.nodes.Node;
 
 public class CompilerContext {
 
@@ -33,6 +36,8 @@ public class CompilerContext {
 
     public int[] instrBytes = {0};
     public boolean isPartialExtract = false;
+
+    public List<Node> currentUnitBody = List.of();
 
     // Compile-time constants embedded into profilerLine(...) calls (see
     // MethodEmitter).

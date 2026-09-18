@@ -8,6 +8,8 @@ import java.util.Set;
 import com.mira.lexer.token.Token;
 import com.mira.lexer.token.TokenType;
 import com.mira.lib.Lib;
+import com.mira.lib.NativeMethodProvider;
+import com.mira.lib.NativeType;
 import com.mira.parser.nodes.expression.Expression;
 import com.mira.parser.nodes.expression.Expression.ArrayExpression;
 import com.mira.parser.nodes.expression.Expression.DumbExpression;
@@ -15,7 +17,14 @@ import com.mira.parser.nodes.expression.Expression.ListExpression;
 import com.mira.runtime.functions.NativeFunction;
 import com.mira.runtime.interpreter.Environment;
 
-public class SetLib implements Lib {
+public class SetLib implements Lib, NativeMethodProvider {
+
+    @Override
+    public java.util.Map<NativeType, List<String>> nativeMethods() {
+        List<String> methods = List.of("add", "remove", "has", "size", "union", "intersection", "difference", "toList",
+                "fromList");
+        return java.util.Map.of(NativeType.LIST, methods, NativeType.ARRAY, methods);
+    }
 
     private static String exprKey(Expression e) {
         return e instanceof DumbExpression d ? String.valueOf(d.getValue()) : String.valueOf(e);

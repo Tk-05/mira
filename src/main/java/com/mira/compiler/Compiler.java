@@ -262,6 +262,7 @@ public class Compiler {
         CompilerContext ctx = new CompilerContext(className, mv, slots, knownFunctions, lambdaCounter, true);
         ctx.moduleName = moduleName;
         ctx.functionName = "<script>";
+        ctx.currentUnitBody = ast;
         MethodEmitter emitter = new MethodEmitter(ctx, ce);
 
         mv.visitFieldInsn(org.objectweb.asm.Opcodes.GETSTATIC, className, "GLOBALS", ClassEmitter.ENV_DESC);
@@ -335,6 +336,7 @@ public class Compiler {
                 instrBytes);
         ctx.moduleName = moduleName;
         ctx.functionName = fd.getName();
+        ctx.currentUnitBody = fd.getBody();
         MethodEmitter emitter = new MethodEmitter(ctx, ce);
         emitter.splitEnabled = true;
 

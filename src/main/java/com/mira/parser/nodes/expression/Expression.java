@@ -80,6 +80,16 @@ public abstract class Expression implements Node {
         private final Expression right;
         private final boolean prefix;
 
+        // Resolver-assigned (see Resolver.java): for a "$name" variable reference,
+        // how many Environment.getParent() hops from the current scope reach the
+        // Environment that declares it, and its slot index there. -1 means
+        // "unresolved" (the default, and permanent for anything the Resolver never
+        // sees - eval/importDynamic snippets, REPL lines, etc.) - the interpreter
+        // falls back to today's name-based chain walk whenever distance is -1.
+        // Same caching-on-the-AST-node pattern as BinaryExpression.resolvedOp.
+        public int resolvedDistance = -1;
+        public int resolvedSlot = -1;
+
         public UnaryExpression(Token operation, Expression right) {
             this(operation, right, false);
         }
@@ -100,6 +110,10 @@ public abstract class Expression implements Node {
 
         public boolean isPrefix() {
             return prefix;
+        }
+
+        public boolean isResolved() {
+            return resolvedDistance >= 0;
         }
 
         @Override
@@ -662,9 +676,45 @@ public abstract class Expression implements Node {
 
     public static class BinaryExpression extends Expression {
 
+        // Resolved once per AST node (not per evaluation) so a hot loop re-executing
+        // the same node thousands of times switches on a cheap enum instead of
+        // re-hashing/re-comparing the operator lexeme string every single time.
+        public enum Op {
+            PIPE, NULLISH, AND, OR, ADD, SUB, MUL, POW, DIV, MOD, FLOORDIV, BAND, BOR, BXOR, SHL, SHR, EQ, NEQ, LT, GT, LE, GE, UNKNOWN;
+
+            public static Op fromLexeme(String lexeme) {
+                return switch (lexeme) {
+                    case "|>" -> PIPE;
+                    case "??" -> NULLISH;
+                    case "&&" -> AND;
+                    case "||" -> OR;
+                    case "+" -> ADD;
+                    case "-" -> SUB;
+                    case "*" -> MUL;
+                    case "**" -> POW;
+                    case "/" -> DIV;
+                    case "%" -> MOD;
+                    case "\\%" -> FLOORDIV;
+                    case "&" -> BAND;
+                    case "|" -> BOR;
+                    case "^" -> BXOR;
+                    case "<<" -> SHL;
+                    case ">>" -> SHR;
+                    case "==" -> EQ;
+                    case "!=" -> NEQ;
+                    case "<" -> LT;
+                    case ">" -> GT;
+                    case "<=" -> LE;
+                    case ">=" -> GE;
+                    default -> UNKNOWN;
+                };
+            }
+        }
+
         private final Expression left;
         private final Token operator;
         private final Expression right;
+        private Op resolvedOp;
 
         public BinaryExpression(Expression left, Token operator, Expression right) {
             this.left = left;
@@ -682,6 +732,13 @@ public abstract class Expression implements Node {
 
         public Expression getRight() {
             return right;
+        }
+
+        public Op getResolvedOp() {
+            if (resolvedOp == null) {
+                resolvedOp = Op.fromLexeme(operator.getLexeme());
+            }
+            return resolvedOp;
         }
 
         @Override
@@ -822,6 +879,10 @@ public abstract class Expression implements Node {
         private final String variadicParam;
         private final boolean isAsync;
         private final boolean isArrow;
+        // Resolver-assigned (see Resolver.java): the ordered local names (parameters,
+        // then locals in declaration order) of this lambda's own scope, or null if
+        // never analyzed by the Resolver.
+        public String[] resolvedSlotNames;
 
         public LambdaExpression(List<Parameter> parameters, List<Node> body, String variadicParam) {
             this(parameters, body, variadicParam, false, false);
@@ -886,6 +947,9 @@ public abstract class Expression implements Node {
 
         private final List<Node> body;
         private final boolean isolated;
+        // Resolver-assigned ordered local names for this block's own scope, or null
+        // if never analyzed by the Resolver.
+        public String[] slotNames;
 
         public ExecBlock(List<Node> body, boolean isolated) {
             this.body = body;

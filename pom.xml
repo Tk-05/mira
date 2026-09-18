@@ -9,8 +9,8 @@
     <version>RELEASE</version>
 
     <properties>
-        <maven.compiler.source>21</maven.compiler.source>
-        <maven.compiler.target>21</maven.compiler.target>
+        <maven.compiler.source>25</maven.compiler.source>
+        <maven.compiler.target>25</maven.compiler.target>
     </properties>
 
     <dependencies>
@@ -155,6 +155,22 @@
                                       overwrite="true"/>
                                 <echo file="${user.home}/.mira/mira.cmd">@echo off
                                     java --enable-native-access=ALL-UNNAMED -jar "%USERPROFILE%\.mira\mira.jar" %*</echo>
+                                <delete file="${user.home}/.mira/mira.jsa" quiet="true"/>
+                                <exec executable="java" osfamily="unix" failonerror="false" failifexecutionfails="false">
+                                    <arg value="-XX:ArchiveClassesAtExit=${user.home}/.mira/mira.jsa"/>
+                                    <arg value="-jar"/>
+                                    <arg value="${user.home}/.mira/mira.jar"/>
+                                    <arg value="${project.build.outputDirectory}/cds-training.mira"/>
+                                    <arg value="--no-check"/>
+                                </exec>
+                                <echo file="${user.home}/.mira/mira">#!/bin/sh
+                                    if [ -f "$HOME/.mira/mira.jsa" ]; then
+                                    exec java -XX:SharedArchiveFile="$HOME/.mira/mira.jsa" -jar "$HOME/.mira/mira.jar" "$@"
+                                    else
+                                    exec java --enable-native-access=ALL-UNNAMED -jar "$HOME/.mira/mira.jar" "$@"
+                                    fi
+                                </echo>
+                                <chmod file="${user.home}/.mira/mira" perm="755" osfamily="unix"/>
                             </target>
                         </configuration>
                     </execution>

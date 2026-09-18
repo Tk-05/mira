@@ -1,5 +1,9 @@
 package com.mira.lib;
 
+import com.mira.parser.nodes.expression.Expression.ArrayExpression;
+import com.mira.parser.nodes.expression.Expression.ListExpression;
+import com.mira.parser.nodes.expression.Expression.MapExpression;
+
 /**
  * Mira's built-in type vocabulary, mirrored standalone here so a
  * {@link ReflectiveLib} can declare argument/return types without pulling in
@@ -49,6 +53,18 @@ public enum NativeType {
             case VOID -> type == void.class;
             case LIST, ARRAY, MAP, OBJECT -> !type.isPrimitive();
             case ANY -> true;
+        };
+    }
+
+    public static NativeType fromRuntimeValue(Object value) {
+        return switch (value) {
+            case Number ignored -> NUMBER;
+            case String ignored -> STRING;
+            case Boolean ignored -> BOOL;
+            case ListExpression ignored -> LIST;
+            case ArrayExpression ignored -> ARRAY;
+            case MapExpression ignored -> MAP;
+            case null, default -> null;
         };
     }
 

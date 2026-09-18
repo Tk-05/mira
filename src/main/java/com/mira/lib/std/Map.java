@@ -6,6 +6,8 @@ import java.util.LinkedHashMap;
 import com.mira.lexer.token.Token;
 import com.mira.lexer.token.TokenType;
 import com.mira.lib.Lib;
+import com.mira.lib.NativeMethodProvider;
+import com.mira.lib.NativeType;
 import com.mira.parser.nodes.expression.Expression;
 import com.mira.parser.nodes.expression.Expression.DumbExpression;
 import com.mira.parser.nodes.expression.Expression.ListExpression;
@@ -13,7 +15,13 @@ import com.mira.parser.nodes.expression.Expression.MapExpression;
 import com.mira.runtime.functions.NativeFunction;
 import com.mira.runtime.interpreter.Environment;
 
-public class Map implements Lib {
+public class Map implements Lib, NativeMethodProvider {
+
+    @Override
+    public java.util.Map<NativeType, java.util.List<String>> nativeMethods() {
+        return java.util.Map.of(NativeType.MAP, java.util.List.of("mapSize", "mapHas", "mapRemove", "mapKeys",
+                "mapValues", "mapSet", "mapGet", "mapEntries", "mapMerge"));
+    }
 
     private static MapExpression toMap(Object arg) {
         if (!(arg instanceof MapExpression map)) {

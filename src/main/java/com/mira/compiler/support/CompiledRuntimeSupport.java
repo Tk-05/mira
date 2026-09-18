@@ -15,6 +15,8 @@ import com.mira.error.runtime.RuntimeError.NotCallableError;
 import com.mira.error.runtime.RuntimeError.TypeConversionError;
 import com.mira.error.runtime.RuntimeError.UnknownOperatorError;
 import com.mira.error.runtime.RuntimeError.UnknownStructFieldError;
+import com.mira.lib.NativeMethodRegistry;
+import com.mira.lib.NativeType;
 import com.mira.parser.nodes.expression.Expression;
 import com.mira.parser.nodes.expression.Expression.ArrayExpression;
 import com.mira.parser.nodes.expression.Expression.DumbExpression;
@@ -613,9 +615,6 @@ public final class CompiledRuntimeSupport {
     }
 
     public static Object fieldGet(Object obj, String field) {
-        if (obj instanceof String name) {
-            throw new RuntimeException("Field access on string name - use $ to look up: " + name);
-        }
         if (!(obj instanceof Environment env)) {
             throw new FieldAccessError(field, String.valueOf(typeofVal(obj)));
         }
@@ -638,7 +637,17 @@ public final class CompiledRuntimeSupport {
 
     public static Object methodCall(Object obj, String method, Object[] args) {
         if (!(obj instanceof Environment env)) {
-            throw new FieldAccessError(method, String.valueOf(typeofVal(obj)));
+            NativeType nativeType = NativeType.fromRuntimeValue(obj);
+            Callable nativeMethod = nativeType != null
+                    ? NativeMethodRegistry.INSTANCE.lookup(nativeType, method)
+                    : null;
+            if (nativeMethod == null) {
+                throw new FieldAccessError(method, String.valueOf(typeofVal(obj)));
+            }
+            Object[] withReceiver = new Object[args.length + 1];
+            withReceiver[0] = obj;
+            System.arraycopy(args, 0, withReceiver, 1, args.length);
+            return nativeMethod.call(Interpreter.getInstance(), Arrays.asList(withReceiver));
         }
         Object fn = env.get(method);
         if (!(fn instanceof Callable callable)) {

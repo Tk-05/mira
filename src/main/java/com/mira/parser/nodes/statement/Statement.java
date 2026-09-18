@@ -29,6 +29,10 @@ public abstract class Statement implements Node {
         private final boolean isPublic;
         public int nameColumn = 0;
         public TypeAnnotation type;
+        // Resolver-assigned slot index within the enclosing resolved scope, or -1
+        // if this declaration lives in a scope the Resolver never analyzed (e.g.
+        // module/global top level, which stays name-based Environment forever).
+        public int resolvedSlot = -1;
 
         public VarDecl(String name, Expression initializer, boolean isConst) {
             this(name, initializer, isConst, false);
@@ -85,6 +89,12 @@ public abstract class Statement implements Node {
         private final boolean isPublic;
         public int nameColumn = 0;
         public TypeAnnotation returnType;
+        // Resolver-assigned (see Resolver.java): the ordered local names (parameters,
+        // then locals in declaration order) of this function's own scope, or null if
+        // never analyzed by the Resolver. Non-null means every call frame for this
+        // function can be allocated as a slot-array Environment instead of a
+        // HashMap-backed one.
+        public String[] resolvedSlotNames;
 
         public FuncDecl(String name, List<Parameter> parameters, List<Node> body, String variadicParam) {
             this(name, parameters, body, variadicParam, false, false, false);
@@ -254,6 +264,10 @@ public abstract class Statement implements Node {
         private final Expression condition;
         private final List<Node> thenBody;
         private final List<Node> elseBody;
+        // Resolver-assigned ordered local names for each branch's own scope, or null
+        // if never analyzed / the branch has no body.
+        public String[] thenSlotNames;
+        public String[] elseSlotNames;
 
         public If(Expression condition, List<Node> ifBody, List<Node> elseBody) {
             this.condition = condition;
@@ -293,6 +307,17 @@ public abstract class Statement implements Node {
         private final VarDecl iterator;
         private final Expression collection;
         private final List<Node> body;
+        // Resolver-assigned ordered local names (see Resolver.java): headerSlotNames
+        // covers the C-style header scope (var-decls), forBodySlotNames its body
+        // scope (only pushed when the body itself declares bindings);
+        // iteratorSlotNames/foreachBodySlotNames are the equivalent pair for a
+        // foreach loop's (always-present) iterator scope and nested body scope. Null
+        // means that particular scope was never analyzed, or (for the body fields)
+        // never allocated a runtime frame at all.
+        public String[] headerSlotNames;
+        public String[] forBodySlotNames;
+        public String[] iteratorSlotNames;
+        public String[] foreachBodySlotNames;
 
         private Loop(List<Node> varDecls, Expression condition, List<Node> postExpressions, VarDecl iterator,
                 Expression collection, List<Node> body) {
@@ -359,6 +384,9 @@ public abstract class Statement implements Node {
         private final Expression condition;
         private final List<Node> body;
         private final boolean doModifier;
+        // Resolver-assigned ordered local names for the body scope, or null if never
+        // analyzed, or if the body declares no bindings (no runtime frame allocated).
+        public String[] bodySlotNames;
 
         public While(Expression condition, List<Node> body, boolean doModifier) {
             this.condition = condition;
@@ -418,6 +446,9 @@ public abstract class Statement implements Node {
     public static class Block extends Statement {
 
         private final List<Node> body;
+        // Resolver-assigned ordered local names for this block's own scope, or null
+        // if never analyzed by the Resolver.
+        public String[] slotNames;
 
         public Block(List<Node> body) {
             this.body = body;
@@ -442,6 +473,9 @@ public abstract class Statement implements Node {
 
         private final Expression value;
         private final List<Node> body;
+        // Resolver-assigned ordered local names for this case's own scope, or null
+        // if never analyzed by the Resolver.
+        public String[] slotNames;
 
         public SwitchCase(Expression value, List<Node> body) {
             this.value = value;
@@ -467,6 +501,9 @@ public abstract class Statement implements Node {
         private final Expression subject;
         private final List<SwitchCase> cases;
         private final List<Node> defaultBody;
+        // Resolver-assigned ordered local names for the default case's own scope, or
+        // null if never analyzed / there is no default case.
+        public String[] defaultSlotNames;
 
         public Switch(Expression subject, List<SwitchCase> cases, List<Node> defaultBody) {
             this.subject = subject;
@@ -582,6 +619,13 @@ public abstract class Statement implements Node {
         private final String typeFilter;
         private final String paramName;
         private final List<Node> body;
+        // Resolver-assigned slot for paramName within this catch clause's own
+        // resolved scope, or -1 if never analyzed by the Resolver.
+        public int resolvedSlot = -1;
+        // Resolver-assigned ordered local names for this catch clause's own scope
+        // (paramName, if present, followed by any locals declared in its body), or
+        // null if never analyzed by the Resolver.
+        public String[] slotNames;
 
         public CatchClause(String typeFilter, String paramName, List<Node> body) {
             this.typeFilter = typeFilter;
@@ -612,6 +656,11 @@ public abstract class Statement implements Node {
         private final List<Node> tryBody;
         private final List<CatchClause> catchClauses;
         private final List<Node> finallyBody;
+        // Resolver-assigned ordered local names for the try body's and finally
+        // body's own scopes, or null if never analyzed (finally: or if empty, since
+        // no runtime frame is allocated for it then).
+        public String[] trySlotNames;
+        public String[] finallySlotNames;
 
         public TryCatch(List<Node> tryBody, List<CatchClause> catchClauses, List<Node> finallyBody) {
             this.tryBody = tryBody;
@@ -692,6 +741,9 @@ public abstract class Statement implements Node {
 
         private final Expression mutex;
         private final List<Node> body;
+        // Resolver-assigned ordered local names for this lock body's own scope, or
+        // null if never analyzed by the Resolver.
+        public String[] slotNames;
 
         public Lock(Expression mutex, List<Node> body) {
             this.mutex = mutex;
@@ -722,6 +774,9 @@ public abstract class Statement implements Node {
         private final List<String> names;
         private final List<Integer> nameColumns;
         private final Expression initializer;
+        // Resolver-assigned slot per name (same order as `names`), or null if this
+        // destructuring lives in a scope the Resolver never analyzed.
+        public int[] resolvedSlots;
 
         public VarDestructure(List<String> names, List<Integer> nameColumns, Expression initializer) {
             this.names = names;

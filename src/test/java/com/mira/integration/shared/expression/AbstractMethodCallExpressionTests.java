@@ -31,4 +31,58 @@ public abstract class AbstractMethodCallExpressionTests {
                 print(obj.x);
                 """));
     }
+
+    @Test
+    void nativeMethodCallOnStringLiteral() {
+        assertEquals("HELLO", runForOutput("""
+                import string;
+                print("hello".upper());
+                """));
+    }
+
+    @Test
+    void nativeMethodCallOnStringVariableWithArgument() {
+        assertEquals("he", runForOutput("""
+                import string;
+                var s : String : "hello";
+                print(s.substr(0, 2));
+                """));
+    }
+
+    @Test
+    void nativeMethodCallOnNumber() {
+        assertEquals("FF", runForOutput("""
+                import number;
+                var n : Number : 255;
+                print(n.toHex());
+                """));
+    }
+
+    @Test
+    void nativeMethodParsingStringAsNumber() {
+        assertEquals("255.0", runForOutput("""
+                import number;
+                print("ff".fromHex());
+                """));
+    }
+
+    @Test
+    void nativeMethodCallOnListLiteral() {
+        assertEquals("6.0", runForOutput("""
+                import collection;
+                var list : [1, 2, 3];
+                print(list.sum());
+                """));
+    }
+
+    @Test
+    void nativeMethodCallOnMap() {
+        assertEquals("42", runForOutput("""
+                import map;
+                var m : newMap();
+                m : m.mapSet("k", 42);
+                print(m.mapGet("k"));
+                """));
+    }
+
 }

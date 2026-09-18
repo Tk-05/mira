@@ -53,6 +53,13 @@ public class LocalSlotTable {
         return slot;
     }
 
+    public int allocateWide(String name) {
+        int slot = nextSlot;
+        nextSlot += 2;
+        scopeStack.peek().put(name, slot);
+        return slot;
+    }
+
     public Integer slotOf(String name) {
         int visible = visibleScopeCount();
         int i = 0;

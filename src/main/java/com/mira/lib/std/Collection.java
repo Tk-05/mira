@@ -9,6 +9,8 @@ import java.util.List;
 import com.mira.lexer.token.Token;
 import com.mira.lexer.token.TokenType;
 import com.mira.lib.Lib;
+import com.mira.lib.NativeMethodProvider;
+import com.mira.lib.NativeType;
 import com.mira.parser.nodes.expression.Expression;
 import com.mira.parser.nodes.expression.Expression.ArrayExpression;
 import com.mira.parser.nodes.expression.Expression.DumbExpression;
@@ -21,7 +23,16 @@ import com.mira.runtime.interpreter.Interpreter;
 import com.mira.runtime.values.NullValue;
 import com.mira.runtime.visitors.ExprVisitor;
 
-public class Collection implements Lib {
+public class Collection implements Lib, NativeMethodProvider {
+
+    @Override
+    public java.util.Map<NativeType, List<String>> nativeMethods() {
+        List<String> methods = List.of("size", "push", "pop", "first", "last", "contains", "indexOf", "slice",
+                "reverse", "concat", "flatten", "join", "remove", "map", "filter", "reduce", "any", "all", "count",
+                "sortBy", "findFirst", "groupBy", "sort", "unique", "sum", "avg", "zip", "min", "max", "take", "drop",
+                "chunk");
+        return java.util.Map.of(NativeType.LIST, methods, NativeType.ARRAY, methods);
+    }
 
     private static Object resolve(Expression e) {
         if (e instanceof DumbExpression d) {
