@@ -1,0 +1,33 @@
+module cds_training;
+
+// Exercises a broad cross-section of the language/stdlib so the CDS archive
+// captures classes actually touched by typical scripts (tokenizer, parser,
+// static checker, interpreter, common stdlib) - not just a trivial no-op.
+
+fn add(a, b) {
+    return a + b;
+}
+
+var total : 0;
+for (var i : 0; i < 200; i++) {
+    if (i % 2 == 0) {
+        total : add(total, i);
+    } else {
+        total : total - 1;
+    }
+}
+
+var names : ["alpha", "beta", "gamma"];
+for (var name in names) {
+    var upper : name + "!";
+    println(upper);
+}
+
+var count : 0;
+while (count < 20) {
+    count++;
+}
+
+println(total);
+println(count);
+println(format("%d/%d", total, count));
