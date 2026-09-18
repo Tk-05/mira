@@ -1,7 +1,10 @@
 package com.mira.compiler;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
@@ -13,12 +16,17 @@ import static org.objectweb.asm.Opcodes.ARETURN;
 import static org.objectweb.asm.Opcodes.ASTORE;
 import static org.objectweb.asm.Opcodes.ATHROW;
 import static org.objectweb.asm.Opcodes.BIPUSH;
+import static org.objectweb.asm.Opcodes.CHECKCAST;
 import static org.objectweb.asm.Opcodes.DUP;
 import static org.objectweb.asm.Opcodes.GETSTATIC;
 import static org.objectweb.asm.Opcodes.GOTO;
 import static org.objectweb.asm.Opcodes.ICONST_0;
 import static org.objectweb.asm.Opcodes.ICONST_1;
 import static org.objectweb.asm.Opcodes.IFEQ;
+import static org.objectweb.asm.Opcodes.IFGE;
+import static org.objectweb.asm.Opcodes.IFGT;
+import static org.objectweb.asm.Opcodes.IFLE;
+import static org.objectweb.asm.Opcodes.IFLT;
 import static org.objectweb.asm.Opcodes.IFNE;
 import static org.objectweb.asm.Opcodes.IF_ICMPGE;
 import static org.objectweb.asm.Opcodes.ILOAD;
@@ -27,6 +35,10 @@ import static org.objectweb.asm.Opcodes.INVOKESTATIC;
 import static org.objectweb.asm.Opcodes.INVOKEVIRTUAL;
 import static org.objectweb.asm.Opcodes.ISTORE;
 import static org.objectweb.asm.Opcodes.IXOR;
+import static org.objectweb.asm.Opcodes.LADD;
+import static org.objectweb.asm.Opcodes.LCMP;
+import static org.objectweb.asm.Opcodes.LLOAD;
+import static org.objectweb.asm.Opcodes.LSTORE;
 import static org.objectweb.asm.Opcodes.MONITORENTER;
 import static org.objectweb.asm.Opcodes.MONITOREXIT;
 import static org.objectweb.asm.Opcodes.NEW;
@@ -34,6 +46,7 @@ import static org.objectweb.asm.Opcodes.POP;
 import static org.objectweb.asm.Opcodes.SIPUSH;
 import static org.objectweb.asm.Opcodes.SWAP;
 
+import com.mira.format.AstWalker;
 import com.mira.lexer.token.TokenType;
 import com.mira.parser.nodes.Node;
 import com.mira.parser.nodes.Parameter;
@@ -104,6 +117,8 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
     boolean methodEnded = false;
     private int emitBodyDepth = 0;
 
+    private final Map<String, Integer> specializedLongSlots = new HashMap<>();
+
     public MethodEmitter(CompilerContext ctx, ClassEmitter ce) {
         this.ctx = ctx;
         this.ce = ce;
@@ -158,6 +173,12 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
     }
 
     private void emitVarLookup(String name) {
+        Integer specSlot = specializedLongSlots.get(name);
+        if (specSlot != null) {
+            mv.visitVarInsn(LLOAD, specSlot);
+            mv.visitMethodInsn(INVOKESTATIC, "java/lang/Long", "valueOf", "(J)Ljava/lang/Long;", false);
+            return;
+        }
         Integer slot = ctx.slots.slotOf(name);
         if (slot != null) {
             mv.visitVarInsn(ALOAD, slot);
@@ -1369,6 +1390,9 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
     }
 
     private Void visitForLoop(Loop stmt) {
+        if (tryEmitSpecializedForLoop(stmt)) {
+            return null;
+        }
         emitProfilerLine(stmt.line);
         ctx.slots.enterScope();
         emitBody(stmt.getVarDecls());
@@ -1397,6 +1421,209 @@ public class MethodEmitter implements ExprVisitor<Void>, StmtVisitor<Void> {
         ctx.continueStack.pop();
         ctx.slots.exitScope();
         return null;
+    }
+
+    private boolean tryEmitSpecializedForLoop(Loop stmt) {
+        if (!stmt.getVarDecls().isEmpty() || stmt.getCondition() == null) {
+            return false;
+        }
+        if (!(stmt.getCondition() instanceof BinaryExpression cmp)) {
+            return false;
+        }
+        BinaryExpression.Op op = cmp.getResolvedOp();
+        if (op != BinaryExpression.Op.LT && op != BinaryExpression.Op.LE && op != BinaryExpression.Op.GT
+                && op != BinaryExpression.Op.GE) {
+            return false;
+        }
+        String counterName = simpleVarName(cmp.getLeft());
+        if (counterName == null) {
+            return false;
+        }
+        Long boundLiteral = tryParseLongLiteral(cmp.getRight());
+        String boundName = boundLiteral == null ? simpleVarName(cmp.getRight()) : null;
+        if (boundLiteral == null && boundName == null) {
+            return false;
+        }
+
+        List<Node> postExprs = stmt.getPostExpressions();
+        List<Node> body = stmt.getBody();
+        Node incrementNode;
+        List<Node> effectiveBody;
+        if (postExprs.size() == 1) {
+            incrementNode = postExprs.get(0);
+            effectiveBody = body;
+        } else if (postExprs.isEmpty() && !body.isEmpty()) {
+            incrementNode = body.get(body.size() - 1);
+            effectiveBody = body.subList(0, body.size() - 1);
+        } else {
+            return false;
+        }
+        long step;
+        if (incrementNode instanceof UnaryExpression u && counterName.equals(simpleVarName(u.getRight()))
+                && (u.getOperation().getLexeme().equals("++") || u.getOperation().getLexeme().equals("--"))) {
+            step = u.getOperation().getLexeme().equals("++") ? 1L : -1L;
+        } else {
+            return false;
+        }
+
+        List<Node> unit = ctx.currentUnitBody;
+        if (bodyHasClosure(unit) || !isDeclaredAsLongLiteral(counterName, unit)
+                || isReassignedOutsideLoop(counterName, unit, stmt)) {
+            return false;
+        }
+        if (boundName != null
+                && (!isDeclaredAsLongLiteral(boundName, unit) || isReassignedOutsideLoop(boundName, unit, stmt))) {
+            return false;
+        }
+
+        emitSpecializedForLoop(stmt, effectiveBody, counterName, op, boundLiteral, boundName, step);
+        return true;
+    }
+
+    private void emitSpecializedForLoop(Loop stmt, List<Node> effectiveBody, String counterName, BinaryExpression.Op op,
+            Long boundLiteral, String boundName, long step) {
+        emitProfilerLine(stmt.line);
+
+        emitVarLookup(counterName);
+        mv.visitTypeInsn(CHECKCAST, "java/lang/Long");
+        mv.visitMethodInsn(INVOKEVIRTUAL, "java/lang/Long", "longValue", "()J", false);
+        int counterSlot = ctx.slots.allocateWide("$$spec$" + counterName);
+        mv.visitVarInsn(LSTORE, counterSlot);
+
+        int boundSlot = -1;
+        if (boundName != null) {
+            emitVarLookup(boundName);
+            mv.visitTypeInsn(CHECKCAST, "java/lang/Long");
+            mv.visitMethodInsn(INVOKEVIRTUAL, "java/lang/Long", "longValue", "()J", false);
+            boundSlot = ctx.slots.allocateWide("$$spec$bound$" + boundName);
+            mv.visitVarInsn(LSTORE, boundSlot);
+        }
+
+        Integer previousMapping = specializedLongSlots.put(counterName, counterSlot);
+
+        Label forTest = new Label(), forEnd = new Label(), forPost = new Label();
+        ctx.breakStack.push(forEnd);
+        ctx.continueStack.push(forPost);
+
+        mv.visitLabel(forTest);
+        mv.visitVarInsn(LLOAD, counterSlot);
+        if (boundSlot >= 0) {
+            mv.visitVarInsn(LLOAD, boundSlot);
+        } else {
+            mv.visitLdcInsn(boundLiteral);
+        }
+        mv.visitInsn(LCMP);
+        int exitOpcode = switch (op) {
+            case LT -> IFGE;
+            case LE -> IFGT;
+            case GT -> IFLE;
+            case GE -> IFLT;
+            default -> throw new IllegalStateException("unreachable: " + op);
+        };
+        mv.visitJumpInsn(exitOpcode, forEnd);
+
+        ctx.slots.enterScope();
+        emitBody(effectiveBody);
+        ctx.slots.exitScope();
+
+        mv.visitLabel(forPost);
+        mv.visitVarInsn(LLOAD, counterSlot);
+        mv.visitLdcInsn(step);
+        mv.visitInsn(LADD);
+        mv.visitVarInsn(LSTORE, counterSlot);
+        mv.visitJumpInsn(GOTO, forTest);
+        mv.visitLabel(forEnd);
+
+        ctx.breakStack.pop();
+        ctx.continueStack.pop();
+
+        if (previousMapping != null) {
+            specializedLongSlots.put(counterName, previousMapping);
+        } else {
+            specializedLongSlots.remove(counterName);
+        }
+
+        // One-time write-back so any code after the loop (or a re-entry into an
+        // enclosing loop, if this function runs again) sees the final value.
+        mv.visitVarInsn(LLOAD, counterSlot);
+        mv.visitMethodInsn(INVOKESTATIC, "java/lang/Long", "valueOf", "(J)Ljava/lang/Long;", false);
+        emitVarStore(counterName, false);
+    }
+
+    private static String simpleVarName(Expression expr) {
+        if (expr instanceof UnaryExpression u && "$".equals(u.getOperation().getLexeme())
+                && u.getRight() instanceof DumbExpression d) {
+            return d.getValue();
+        }
+        return null;
+    }
+
+    private static Long tryParseLongLiteral(Expression expr) {
+        if (!(expr instanceof DumbExpression d) || d.getTokenType() != TokenType.EXPRESSION) {
+            return null;
+        }
+        String val = d.getValue();
+        if (val.isEmpty() || !Character.isDigit(val.charAt(0)) || val.startsWith("0x") || val.startsWith("0X")
+                || val.contains(".") || val.contains("e") || val.contains("E")) {
+            return null;
+        }
+        try {
+            return Long.parseLong(val);
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    private static boolean bodyHasClosure(List<Node> nodes) {
+        ArrayDeque<Node> queue = new ArrayDeque<>(nodes);
+        while (!queue.isEmpty()) {
+            Node node = queue.poll();
+            if (node instanceof FuncDecl || node instanceof LambdaExpression) {
+                return true;
+            }
+            AstWalker.children(node, queue);
+        }
+        return false;
+    }
+
+    private static boolean isReassignedOutsideLoop(String name, List<Node> unitBody, Loop specializedLoop) {
+        ArrayDeque<Node> queue = new ArrayDeque<>(unitBody);
+        while (!queue.isEmpty()) {
+            Node node = queue.poll();
+            if (node == specializedLoop) {
+                continue;
+            }
+            boolean hit = switch (node) {
+                case Assign a -> name.equals(simpleVarName(a.getReference()));
+                case AssignExpression ae -> name.equals(simpleVarName(ae.getReference()));
+                case VarDestructure vd -> vd.getNames().contains(name);
+                case UnaryExpression u ->
+                    (u.getOperation().getLexeme().equals("++") || u.getOperation().getLexeme().equals("--"))
+                            && name.equals(simpleVarName(u.getRight()));
+                default -> false;
+            };
+            if (hit) {
+                return true;
+            }
+            AstWalker.children(node, queue);
+        }
+        return false;
+    }
+
+    private static boolean isDeclaredAsLongLiteral(String name, List<Node> unitBody) {
+        ArrayDeque<Node> queue = new ArrayDeque<>(unitBody);
+        boolean found = false;
+        while (!queue.isEmpty()) {
+            Node node = queue.poll();
+            if (node instanceof VarDecl vd && name.equals(vd.getName())) {
+                found = true;
+                if (vd.getInitializer() == null || tryParseLongLiteral(vd.getInitializer()) == null) {
+                    return false;
+                }
+            }
+            AstWalker.children(node, queue);
+        }
+        return found;
     }
 
     @Override
